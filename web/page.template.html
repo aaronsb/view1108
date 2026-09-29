@@ -110,7 +110,7 @@ const NOWASM = /[?&]nowasm\b/.test(location.search);
 const USE_MOCK = /[?&]mock\b/.test(location.search) || WASM_B64.startsWith("__");
 const NAMES = (typeof VIEW_NAMES !== "undefined") ? VIEW_NAMES : (window.MOCK_NAMES || { NAV: [], CRATER: [] });
 const SCENES = ["Earthrise", "Translunar coast", "Earth limb", "LM rendezvous", "LM descent"];
-const SPEEDS = [0, 1, 2, 4, 10, 30, 100, 300];
+const SPEEDS = [0, 1, 2, 4, 10, 30, 100, 300, 1000];
 
 // ---- math imports: _lfortran_dsin -> Math.sin, etc. ----
 function mathFor(name) {
@@ -204,7 +204,7 @@ const PHASES = [
   { to: Infinity, scene: 2, name: "Transearth coast" }
 ];
 const JUMPS = { jundock: { scene: 4, get: 360720, len: 1800, name: "LM rendezvous" }, jdesc: { scene: 5, get: 369720, len: 280, name: "LM descent" } };
-const LIVE_RATES = [1, 10, 60];
+const LIVE_RATES = [1, 10, 60, 300, 1000];
 function lerpTab(t, u) { for (let i = 1; i < t.length; i++) if (u <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (u - t[i - 1][0]) / (t[i][0] - t[i - 1][0]); return t[t.length - 1][1]; }
 // Aim the camera at the Earth: probe the kernel with no look offset and read hdr(11..13), the body
 // centre's plot X,Y (deg, valid off-frame) and its angular radius. Yaw/pitch then put the limb top
