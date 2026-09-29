@@ -83,12 +83,13 @@ body.still { padding:0; }
     <button id="bhid">Hidden lines</button>
     <button id="bjit" title="J">Film jitter</button>
     <button id="bblm" title="B">Bloom</button>
+    <button id="bcat" title="C">Catalog</button>
     <button id="bsrc">Fortran listing</button>
   </div>
   <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="9" value="0:00:00" aria-label="ground elapsed time h:mm:ss"><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0"></div>
   <div class="grp"><span class="lbl">Jump (Live)</span><button id="jundock">Undocking 100:12:00</button><button id="jdesc">Descent 102:42:00</button></div>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-5: scene. J: film jitter. B: bloom. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-5: scene. J: film jitter. B: bloom. C: star catalog. Any input leaves Attract or Tour.</div>
 <div id="about">G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197.</div>
 <div id="err"></div>
 
@@ -295,13 +296,16 @@ const cv = document.getElementById("cv"), mctx = cv.getContext("2d");
 const mk = () => document.createElement("canvas");
 const off = mk(), bl1 = mk(), bl2 = mk(), ctx = off.getContext("2d"), b1c = bl1.getContext("2d"), b2c = bl2.getContext("2d");
 // Nostalgia toggles: null = automatic (on in Attract/Tour), true/false = the viewer's choice (remembered).
-const prefs = { jitter: null, bloom: null };
+const prefs = { jitter: null, bloom: null, catalog: "nav" };
+const NAV_MAG = Number("__NAV_MAG__") || 3.8;   // magnitude limit passing the 391 brightest stars (from data/stars.6.json)
 try { Object.assign(prefs, JSON.parse(localStorage.getItem("view1108.prefs") || "{}")); } catch (e) { /* storage unavailable */ }
 const savePrefs = () => { try { localStorage.setItem("view1108.prefs", JSON.stringify(prefs)); } catch (e) { /* ignore */ } };
 const auto = () => mode === "attract" || mode === "tour";
 const urlFlag = k => { const m = new RegExp("[?&]" + k + "=([01])").exec(location.search); return m ? m[1] === "1" : null; };   // ?jitter=0|1, ?bloom=0|1 override for captures
 const effJit = () => urlFlag("jitter") !== null ? urlFlag("jitter") : prefs.jitter !== null ? prefs.jitter : auto();
 const effBloom = () => urlFlag("bloom") !== null ? urlFlag("bloom") : prefs.bloom !== null ? prefs.bloom : auto();
+const effCatalog = () => prefs.catalog === "full" ? "full" : "nav";
+const toggleCatalog = () => { prefs.catalog = effCatalog() === "full" ? "nav" : "full"; savePrefs(); syncUI(); };
 const toggle = k => { prefs[k] = !(k === "jitter" ? effJit() : effBloom()); savePrefs(); syncUI(); };
 
 function readDefaults() {
@@ -374,37 +378,45 @@ function draw(now) {
     const p = V[i + 4] === 2 ? dash : solid;
     p.moveTo(cx + V[i] * k, cy - V[i + 1] * k); p.lineTo(cx + V[i + 2] * k, cy - V[i + 3] * k);
   }
-  // Stars. Conjecture: VIEW drew each star as a small symbol sized by magnitude, which the CRT-to-film
-  // process blurred into the round dots seen on the film; cf. TN D-6853 p.12 (stars beyond the 37 named
-  // ones "are represented by asterisks"). Here a polar asterisk: spokes from the centre out to the radius
-  // and back, N spokes (3 faint to 8 bright), radius 1x faint to 4x bright. Same strokes as the vectors,
-  // so bloom turns them into soft dots.
-  // Spokes: mag <= 1: 8, <= 2.5: 6, <= 3.5: 4, fainter 3. Spoke length spans 1x to 1.8x (magnitude 4.5 to -1).
-  const rF = Math.max(1.4, W * 0.0026) * (effBloom() ? 1 : 1.8), starP = new Path2D();
+  // Stars. TN D-6853 p.12: "The user has the option of using two star catalogs. The one more often used
+  // consists of the 391 stars used by the Apollo crewmen for navigational sightings. The first 37 stars are
+  // the prime Apollo navigational stars and are identified by name on the microfilm. The remaining stars
+  // are represented by asterisks. The other catalog contains 1078 star listings, ranging in visual
+  // magnitude to 4.5. None of these stars is identified by name, but all appear as dots on the microfilm."
+  // NAV: the 391-star navigation catalog approximated as the 391 brightest of ours (NAV_MAG, computed from
+  // data/stars.6.json by tools/assemble.py); drawn as asterisks. FULL: everything, drawn as dots.
+  // Our conjecture: the spoke count and length by magnitude (6 to 8 spokes, length 1x to 1.6x), and that
+  // the film's round soft dots are these symbols blurred by the CRT-to-film process.
+  const bloomOn = effBloom(), fullCat = effCatalog() === "full";
+  const rF = Math.max(0.8, W * 0.0026), starP = new Path2D(), hubP = new Path2D(), stW = Math.max(2.4, W * 0.0078);
   for (let i = 0; i < ns * 3; i += 3) {
-    const m = S[i + 2], t = Math.max(0, Math.min(1, (4.5 - m) / 5.5)), r = rF * (1 + 0.8 * t);
-    const n = m <= 1 ? 8 : m <= 2.5 ? 6 : m <= 3.5 ? 4 : 3, rr = n === 3 && effBloom() ? r * 0.55 : r;
+    const m = S[i + 2];
+    if (!fullCat && m > NAV_MAG) continue;
+    const t = Math.max(0, Math.min(1, (4.5 - m) / 5.5)), r = rF * (1 + 0.6 * t);
     const x = cx + S[i] * k, y = cy - S[i + 1] * k;
+    if (fullCat) { starP.moveTo(x, y); starP.lineTo(x + 0.01, y); if (!bloomOn) starP.lineTo(x + r * 0.5, y); continue; }
+    const n = m <= 2 ? 8 : 6, rr = bloomOn ? r : r * 2.5;   // PRECISE draws longer spokes so the asterisk shows
+    if (bloomOn) { hubP.moveTo(x + stW * 0.5, y); hubP.arc(x, y, stW * 0.5, 0, 6.2832); }
     for (let a = 0; a < n; a++) { const th = Math.PI * 2 * a / n - Math.PI / 2; starP.moveTo(x, y); starP.lineTo(x + rr * Math.cos(th), y + rr * Math.sin(th)); }
   }
-  const bloomOn = effBloom();
   const lw = Math.max(1, W / 420) * (bloomOn ? 1.4 : 1);
-  for (const [w, a] of bloomOn ? [[lw * 3.4, 0.10 * flick], [lw * 1.7, 0.22 * flick], [lw, 0.98 * flick]] : [[lw * 3.2, 0.10 * flick], [lw, 0.95 * flick]]) {
+  for (const [w, a] of bloomOn ? [[lw * 3.4, 0.06 * flick], [lw * 1.7, 0.14 * flick], [lw, 0.98 * flick]] : [[lw * 3.2, 0.10 * flick], [lw, 0.95 * flick]]) {
     ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = w;
     ctx.setLineDash([]); ctx.stroke(solid);
     ctx.setLineDash([lw * 5, lw * 4]); ctx.stroke(dash);
   }
-  // star asterisks: thin as drawn in PRECISE; in BLOOM fat round-capped strokes so the spokes merge into a round dot
-  ctx.setLineDash([]);
-  if (bloomOn) { ctx.strokeStyle = `rgba(255,255,255,${0.06 * flick})`; ctx.lineWidth = Math.max(3, W * 0.009); ctx.stroke(starP); }
-  ctx.strokeStyle = `rgba(255,255,255,${(bloomOn ? 0.85 : 0.98) * flick})`; ctx.lineWidth = bloomOn ? Math.max(3.4, W * 0.0060) : lw; ctx.stroke(starP);
+  // stars: thin as drawn in PRECISE; in BLOOM round-capped strokes plus a hub so they read as small round dots
+  ctx.setLineDash([]); ctx.lineCap = "round";
+  if (bloomOn) { ctx.strokeStyle = `rgba(255,255,255,${0.05 * flick})`; ctx.lineWidth = stW * 2; ctx.stroke(starP); }
+  ctx.strokeStyle = `rgba(255,255,255,${(bloomOn ? 0.85 : 0.98) * flick})`; ctx.lineWidth = bloomOn ? stW : Math.max(1, lw); ctx.stroke(starP);
+  if (bloomOn) { ctx.fillStyle = `rgba(255,255,255,${0.85 * flick})`; ctx.fill(hubP); }
   // labels
   if (fl & 1) {
     ctx.font = `${fs * 0.95}px "Courier Prime","Courier New",monospace`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
     ctx.fillStyle = "#ddd";
     for (let i = 0; i < nl * 4; i += 4) {
       const kind = L[i + 2] | 0, id = L[i + 3] | 0;
-      let t = kind === 1 ? NAMES.NAV[id - 1] : kind === 2 ? NAMES.CRATER[id - 1] : kind === 3 ? "SUN" : kind === 4 ? "EARTH" : kind === 5 ? "MOON" : "";
+      let t = kind === 1 ? (effCatalog() === "full" ? "" : NAMES.NAV[id - 1]) : kind === 2 ? NAMES.CRATER[id - 1] : kind === 3 ? "SUN" : kind === 4 ? "EARTH" : kind === 5 ? "MOON" : "";
       if (!t) continue;
       const x = cx + L[i] * k, y = cy - L[i + 1] * k;
       if (x < b.x || x > b.x + b.s || y < b.y || y > b.y + b.s) continue;
@@ -470,10 +482,10 @@ function present(now, bloomOn) {
   mctx.translate(w / 2 + jx * w, h / 2 + jy * w); mctx.rotate(jr); mctx.translate(-w / 2, -h / 2);
   mctx.globalAlpha = jb; mctx.drawImage(off, 0, 0);
   if (bloomOn) {
-    b1c.clearRect(0, 0, bl1.width, bl1.height); b1c.filter = "blur(1.6px) brightness(1.3)"; b1c.drawImage(off, 0, 0, bl1.width, bl1.height);
-    b2c.clearRect(0, 0, bl2.width, bl2.height); b2c.filter = "blur(1px) brightness(1.8)"; b2c.drawImage(off, 0, 0, bl2.width, bl2.height);
+    b1c.clearRect(0, 0, bl1.width, bl1.height); b1c.filter = "blur(1.6px) brightness(0.85)"; b1c.drawImage(off, 0, 0, bl1.width, bl1.height);
+    b2c.clearRect(0, 0, bl2.width, bl2.height); b2c.filter = "blur(1px) brightness(1.15)"; b2c.drawImage(off, 0, 0, bl2.width, bl2.height);
     mctx.globalCompositeOperation = "lighter"; mctx.imageSmoothingQuality = "high";
-    mctx.drawImage(bl1, 0, 0, w, h); mctx.globalAlpha = jb * 0.45; mctx.drawImage(bl2, 0, 0, w, h);
+    mctx.drawImage(bl1, 0, 0, w, h); mctx.globalAlpha = jb * 0.32; mctx.drawImage(bl2, 0, 0, w, h);
   }
   mctx.restore();
 }
@@ -496,7 +508,7 @@ function step(now) {
 let lastStatus = "";
 function updateStatus() {
   const rate = mode === "live" ? LIVE_RATES[liveIdx] + "X" : mode === "free" ? (playing ? SPEEDS[speedIdx] + "X" : "HOLD") : "AUTO";
-  const t = `MODE ${mode}  G.E.T. ${getStr(get)}  ${rate}  BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}`;
+  const t = `MODE ${mode}  G.E.T. ${getStr(get)}  ${rate}  BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  STARS ${effCatalog().toUpperCase()}`;
   if (t !== lastStatus) { lastStatus = t; document.getElementById("status").textContent = t; }
 }
 function tick(now) { step(now); requestAnimationFrame(tick); }
@@ -510,6 +522,7 @@ function syncUI() {
   document.getElementById("bhid").classList.toggle("on", hidden);
   document.getElementById("bjit").classList.toggle("on", effJit());
   document.getElementById("bblm").classList.toggle("on", effBloom());
+  document.getElementById("bcat").textContent = "Catalog " + (effCatalog() === "full" ? "full 921" : "nav 391");
   document.getElementById("blab").classList.toggle("on", labels);
   document.getElementById("bfrm").classList.toggle("on", frame);
 }
@@ -522,6 +535,7 @@ const parseGet = t => { const m = t.trim().split(":").map(Number); if (m.some(is
 $("geti").onchange = e => { const g = parseGet(e.target.value); if (g === null) return; leaveAttract(); livePin = null; get = mode === "live" ? Math.max(LIVE_MIN, Math.min(LIVE_MAX, g)) : g; e.target.blur(); };
 $("bjit").onclick = () => toggle("jitter");
 $("bblm").onclick = () => toggle("bloom");
+$("bcat").onclick = toggleCatalog;
 $("bhid").onclick = () => { leaveAttract(); hidden = !hidden; syncUI(); };
 $("bplay").onclick = () => { leaveAttract(); playing = !playing; syncUI(); };
 $("bslow").onclick = () => { leaveAttract(); bump(-1); };
@@ -554,6 +568,7 @@ window.addEventListener("keydown", e => {
   const d = fov * 0.05, k = e.key;
   if (k === "j" || k === "J") { toggle("jitter"); e.preventDefault(); return; }
   if (k === "b" || k === "B") { toggle("bloom"); e.preventDefault(); return; }
+  if (k === "c" || k === "C") { toggleCatalog(); e.preventDefault(); return; }
   if (k.length === 1 || k.startsWith("Arrow")) leaveAttract();
   let h = true;
   if (k === "ArrowLeft") yaw -= d; else if (k === "ArrowRight") yaw += d;
