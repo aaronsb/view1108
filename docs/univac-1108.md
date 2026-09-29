@@ -130,6 +130,16 @@ Assumptions: one frame = about 20,000 double-precision FP operations (mix of add
 
 The photograph at the top is a U.S. Census Bureau image of a UNIVAC 1100-series computer, 1970s, public domain ([Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Univac_1108_Census_Bureau.jpg), sourced there to [census.gov/history](https://www.census.gov/history/)). The Bureau's description says "UNIVAC 1100 series"; the Commons file title says 1108. No public-domain photograph of the MSC 1108 installation with a confirmed source was found.
 
+## Cross-check: the u1100 emulator (secondary)
+
+[patbarron/u1100](https://github.com/patbarron/u1100) is an unfinished 1100/20 (1108) emulator, BSD-3-Clause-Clear; the repo has only an instruction-set list, design notes and headers, no CPU code, no floating-point code, and nothing on EXEC 8, FORTRAN V, tape/drum timing or plotters. Everything below is from an emulator author's notes, not a primary manual.
+
+Agrees: `doc/TIMELINE.md` line 17 gives the 1108 integer add as 750 ns and FP divide as 8250 ns, matching our 0.75 us and single-precision 8.25 us (its source is not cited there; its instruction list `data/instruction-set.txt` cites UP-8215 and MASM UP-8453, not UP-4046).
+
+Adds (not in our table, unverified against UP-4046): 1106 add 1000 ns and FP divide 11000 ns (`doc/TIMELINE.md` line 19), and 1100/20 (MOS memory) add 875 ns and FP divide 8325 ns (line 21).
+
+Not covered: it has no float format, rounding or truncation information, so our "rounding rules: not found" stands.
+
 ## References
 
 1. UNIVAC 1108 System Description, UP-4046 Rev 3, 1970: https://www.bitsavers.org/pdf/univac/1100/1108/UP-4046r3_UNIVAC_1108_System_Description_1970.pdf
@@ -145,6 +155,7 @@ The photograph at the top is a U.S. Census Bureau image of a UNIVAC 1100-series 
 11. SuperStock caption, 1108 in Building 12: https://www.superstock.com/asset/state-art-univac-circa-which-one-four-machines-installed-computation/4368-153
 12. NASA image, Virginia Baker at the 1108, 1972: https://www.nasa.gov/image-detail/virginia-baker/
 13. UNIVAC 1100 ASCII FORTRAN, UP-8244.2, 1982: https://ftp.mirrorservice.org/sites/www.bitsavers.org/pdf/univac/1100/fortran/UP-8244.2_1100_ASCII_Fortran_10R1_1982.pdf
+14. u1100 partial 1100/20 emulator, secondary (emulator author's notes, not a manual): https://github.com/patbarron/u1100
 
 ## Not found
 

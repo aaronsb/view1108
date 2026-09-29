@@ -206,7 +206,10 @@ def main():
     (R / "src" / "viewdata.f").write_text(body)
 
     # Names for labels: crater names only for the larger primary craters.
-    names = {"NAV": NAV_NAMES,
+    # NAV_MAG: magnitude of the 354th brightest non-named star (37 named + 354 = 391), the limit for the approximated 391-star navigation
+    # catalog (TN D-6853 p.12); the page draws only stars at or brighter than this in its NAV catalog.
+    nav_mag = round(sorted(s[1] for s in stars)[391 - 37 - 1], 2)
+    names = {"NAV": NAV_NAMES, "NAV_MAG": nav_mag,
              "CRATER": [c[3] if (c[4] == "AA" and c[2] >= 20) else "" for c in crat]}
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
