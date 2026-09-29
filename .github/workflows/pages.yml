@@ -1,0 +1,56 @@
+name: Build and publish page
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: lf
+          create-args: >-
+            -c conda-forge
+            lfortran=0.66.0
+            llvm-tools=23.1.2
+            lld=23.1.2
+            clang=23.1.2
+            binaryen=121
+          cache-environment: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build (FORTRAN -> wasm -> page) and self-test
+        shell: bash -el {0}
+        run: LF_BIN="$MAMBA_ROOT_PREFIX/envs/lf/bin" ./tools/build.sh
+      - name: Stage site
+        run: |
+          mkdir -p _site
+          cp web/view1108.html _site/index.html
+          cp docs/media/og-earthrise.png _site/og-earthrise.png
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

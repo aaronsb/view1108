@@ -1,0 +1,111 @@
+! Native check driver: render one VIEW-1108 frame to SVG on stdout.
+!
+!   viewsvg SCENE [GET|-] [YAW PITCH ROLL FOV] [FLAGS]
+!
+! GET in seconds from lift-off, "-" for the scene default.  Angles in
+! degrees; FOV "-" keeps the default.  FLAGS as in_flags (default 3:
+! labels and plot frame; add 4 for dashed hidden lines).
+! With VIEW_TIME set in the environment, also times 200 frames and
+! prints the mean to stderr.
+program viewsvg
+  implicit none
+  integer, parameter :: MAXV = 60000, MAXS = 4000, MAXL = 200
+  double precision :: vb(5, MAXV), sb(3, MAXS), lb(4, MAXL), hd(16)
+  double precision :: get, yaw, pit, rol, fov, b, s, r
+  integer :: isc, iflag, nv, ns, nl, i, na, k, c0, c1, crate
+  character(len=64) :: arg
+  character(len=16) :: tv
+  interface
+    subroutine vinit(isc, get, yaw, pit, rol, fov)
+      integer :: isc
+      double precision :: get, yaw, pit, rol, fov
+    end subroutine vinit
+    subroutine vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, &
+                      lb, nl, hd)
+      double precision :: get, yaw, pit, rol, fov
+      integer :: iflag, nv, ns, nl
+      double precision :: vb(5, 60000), sb(3, 4000), lb(4, 200), hd(16)
+    end subroutine vframe
+  end interface
+
+  na = command_argument_count()
+  isc = 1
+  if (na >= 1) then
+    call get_command_argument(1, arg)
+    read (arg, *) isc
+  end if
+  call vinit(isc, get, yaw, pit, rol, fov)
+  if (na >= 2) then
+    call get_command_argument(2, arg)
+    if (trim(arg) /= '-') read (arg, *) get
+  end if
+  if (na >= 6) then
+    call get_command_argument(3, arg); read (arg, *) yaw
+    call get_command_argument(4, arg); read (arg, *) pit
+    call get_command_argument(5, arg); read (arg, *) rol
+    call get_command_argument(6, arg)
+    if (trim(arg) /= '-') read (arg, *) fov
+  end if
+  iflag = 3
+  if (na >= 7) then
+    call get_command_argument(7, arg); read (arg, *) iflag
+  end if
+
+  call vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, lb, nl, hd)
+
+  call get_environment_variable('VIEW_TIME', tv)
+  if (len_trim(tv) > 0) then
+    call system_clock(c0, crate)
+    do k = 1, 200
+      call vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, lb, nl, hd)
+    end do
+    call system_clock(c1)
+    write (0, '(a,i0,a,f8.3,a,i0,a,i0)') 'scene ', isc, ': ', &
+      1000.0d0 * dble(c1 - c0) / dble(crate) / 200.0d0, ' ms/frame  nvec ', &
+      nv, '  nstar ', ns
+  end if
+
+  b = 0.5d0 * fov
+  s = 400.0d0 / b
+  write (*, '(a)') '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">'
+  write (*, '(a)') '<rect width="800" height="800" fill="black"/>'
+  write (*, '(a)') '<g stroke="white" stroke-width="1.6" fill="none" stroke-linecap="round">'
+  do i = 1, nv
+    if (vb(5, i) > 1.5d0) then
+      write (*, '(a,4(f0.2,a))') '<line stroke-dasharray="6 5" x1="', px(vb(1, i)), '" y1="', &
+        py(vb(2, i)), '" x2="', px(vb(3, i)), '" y2="', py(vb(4, i)), '"/>'
+    else
+      write (*, '(a,4(f0.2,a))') '<line x1="', px(vb(1, i)), '" y1="', py(vb(2, i)), &
+        '" x2="', px(vb(3, i)), '" y2="', py(vb(4, i)), '"/>'
+    end if
+  end do
+  write (*, '(a)') '</g><g fill="white">'
+  do i = 1, ns
+    r = max(0.8d0, 3.2d0 - 0.45d0 * sb(3, i))
+    write (*, '(a,3(f0.2,a))') '<circle cx="', px(sb(1, i)), '" cy="', py(sb(2, i)), &
+      '" r="', r, '"/>'
+  end do
+  write (*, '(a)') '</g><g fill="#9cf" font-family="monospace" font-size="11">'
+  do i = 1, nl
+    write (*, '(a,2(f0.2,a),i0,a,i0,a)') '<text x="', px(lb(1, i)) + 4, '" y="', &
+      py(lb(2, i)) - 4, '">', nint(lb(3, i)), ':', nint(lb(4, i)), '</text>'
+  end do
+  write (*, '(a)') '</g><g fill="#fc6" font-family="monospace" font-size="13">'
+  write (*, '(a,i0,a,f0.1,a,f0.1,a,f0.1,a,f0.1,a,f0.0,a,i0)') '<text x="8" y="16">scene ', &
+    nint(hd(7)), '  GET ', hd(1) / 3600.0d0, ' h  FOV ', hd(2), '  range ', hd(3), &
+    ' nmi  alt ', hd(4), ' smi  v ', hd(5), ' ft/s  nvec ', nv
+  write (*, '(a)') '</text></g></svg>'
+
+contains
+
+  double precision function px(x)
+    double precision, intent(in) :: x
+    px = 400.0d0 + x * s
+  end function px
+
+  double precision function py(y)
+    double precision, intent(in) :: y
+    py = 400.0d0 - y * s
+  end function py
+
+end program viewsvg
