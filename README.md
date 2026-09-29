@@ -25,7 +25,7 @@ Every statement here comes from the two NASA reports in `reference/`.
 
 A short clip believed to be VIEW film output (shared by NB, [@Noahbolanowski](https://x.com/Noahbolanowski/status/2104604683553669239); its archive source is unknown) has four shots: an Earthrise, the Earth approaching, the LM turning, and the LM's descent window. On load, the page replays those four shots live from the kernel, then settles into a slower tour of the same scenes.
 
-<!-- film comparison image pending: rights of the film stills unconfirmed -->
+![Top: frames from the VIEW film. Bottom: the same moments from VIEW-1108.](docs/media/film-vs-view1108.png)
 
 ## Operating it
 
