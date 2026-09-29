@@ -189,10 +189,14 @@ def main():
          "      DOUBLE PRECISION CLON(NCPT), CLAT(NCPT)",
          "      INTEGER KCST(NCST+1)",
          "      DOUBLE PRECISION CRLAT(NCRAT), CRLON(NCRAT), CRDIA(NCRAT)",
+         "      INTEGER NAVCH(370), BODCH(15)",
          "      INTEGER IBD",
          "      COMMON /CSTAR/ STX, STY, STZ, STM",
          "      COMMON /CCOST/ CLON, CLAT, KCST",
-         "      COMMON /CCRAT/ CRLAT, CRLON, CRDIA"]
+         "      COMMON /CCRAT/ CRLAT, CRLON, CRDIA",
+         "C     /CNAME/  label text as character codes (ASCII), 10 per nav star",
+         "C              and 5 each for SUN, EARTH, MOON, zero padded.",
+         "      COMMON /CNAME/ NAVCH, BODCH"]
     body = "\n".join(b) + "\n"
     f7, f2, f3, f1 = F(dfmt(7)), F(dfmt(2)), F(dfmt(3)), F(dfmt(1))
     body += fdata("STX", sx, f7) + fdata("STY", sy, f7) + fdata("STZ", sz, f7)
@@ -202,6 +206,14 @@ def main():
     body += fdata("CRLAT", [c[0] for c in crat], f3, 5)
     body += fdata("CRLON", [c[1] for c in crat], f3, 5)
     body += fdata("CRDIA", [c[2] for c in crat], f1, 6)
+    navch = []
+    for nm in NAV_NAMES:
+        assert len(nm) <= 10
+        navch += [ord(ch) for ch in nm] + [0] * (10 - len(nm))
+    bodch = []
+    for nm in ("SUN", "EARTH", "MOON"):
+        bodch += [ord(ch) for ch in nm] + [0] * (5 - len(nm))
+    body += fdata("NAVCH", navch, "%d", 10) + fdata("BODCH", bodch, "%d", 10)
     body += "      END\nC     RESTOMOD END\n"
     (R / "src" / "viewdata.f").write_text(body)
 

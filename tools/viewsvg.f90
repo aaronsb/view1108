@@ -10,7 +10,9 @@
 program viewsvg
   implicit none
   integer, parameter :: MAXV = 60000, MAXS = 4000, MAXL = 200
-  double precision :: vb(5, MAXV), sb(3, MAXS), lb(4, MAXL), hd(16)
+  double precision :: vb(5, MAXV), sb(3, MAXS), lb(4, MAXL), hd(16), tb(4, 300)
+  integer :: tc(6000), nt, nch, j, j0
+  character(len=64) :: txt
   double precision :: get, yaw, pit, rol, fov, b, s, r
   integer :: isc, iflag, nv, ns, nl, i, na, k, c0, c1, crate
   character(len=64) :: arg
@@ -21,10 +23,12 @@ program viewsvg
       double precision :: get, yaw, pit, rol, fov
     end subroutine vinit
     subroutine vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, &
-                      lb, nl, hd)
+                      lb, nl, hd, tb, nt, tc, nch)
       double precision :: get, yaw, pit, rol, fov
-      integer :: iflag, nv, ns, nl
+      integer :: iflag, nv, ns, nl, nt, nch
       double precision :: vb(5, 60000), sb(3, 4000), lb(4, 200), hd(16)
+      double precision :: tb(4, 300)
+      integer :: tc(6000)
     end subroutine vframe
   end interface
 
@@ -51,13 +55,13 @@ program viewsvg
     call get_command_argument(7, arg); read (arg, *) iflag
   end if
 
-  call vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, lb, nl, hd)
+  call vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, lb, nl, hd, tb, nt, tc, nch)
 
   call get_environment_variable('VIEW_TIME', tv)
   if (len_trim(tv) > 0) then
     call system_clock(c0, crate)
     do k = 1, 200
-      call vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, lb, nl, hd)
+      call vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, lb, nl, hd, tb, nt, tc, nch)
     end do
     call system_clock(c1)
     write (0, '(a,i0,a,f8.3,a,i0,a,i0)') 'scene ', isc, ': ', &
@@ -89,6 +93,17 @@ program viewsvg
   do i = 1, nl
     write (*, '(a,2(f0.2,a),i0,a,i0,a)') '<text x="', px(lb(1, i)) + 4, '" y="', &
       py(lb(2, i)) - 4, '">', nint(lb(3, i)), ':', nint(lb(4, i)), '</text>'
+  end do
+  write (*, '(a)') '</g><g fill="white" font-family="monospace">'
+  do i = 1, nt
+    j0 = nint(tb(4, i))
+    txt = ''
+    do j = j0, j0 + 60
+      if (tc(j) == 0) exit
+      txt(j - j0 + 1:j - j0 + 1) = achar(tc(j))
+    end do
+    write (*, '(a,3(f0.2,a),a,a)') '<text x="', px(tb(1, i)), '" y="', py(tb(2, i)), &
+      '" font-size="', tb(3, i) * s * 1.35d0, '">', trim(txt), '</text>'
   end do
   write (*, '(a)') '</g><g fill="#fc6" font-family="monospace" font-size="13">'
   write (*, '(a,i0,a,f0.1,a,f0.1,a,f0.1,a,f0.1,a,f0.0,a,i0)') '<text x="8" y="16">scene ', &

@@ -31,7 +31,10 @@ function run(K, scene) {
   new Int32Array(K.memory.buffer, K.in_flags.value, 1)[0] = 3;
   K.view_frame();
   const nvec = i32(K, 'nvec'), nstar = i32(K, 'nstar'), nlab = i32(K, 'nlab');
-  return { nvec, nstar, nlab, hdr: f64(K, 'hdr', 16), vbuf: f64(K, 'vbuf', 5 * nvec),
+  const ntxt = i32(K, 'ntxt'), nchr = i32(K, 'nchr');
+  return { nvec, nstar, nlab, ntxt, hdr: f64(K, 'hdr', 16), vbuf: f64(K, 'vbuf', 5 * nvec),
+           tbuf: f64(K, 'tbuf', 4 * ntxt),
+           tchr: Array.from(new Int32Array(K.memory.buffer, K.tchr.value, nchr)),
            init: f64(K, 'in_get', 1)[0] };
 }
 const maxdiff = (a, b) => a.reduce((m, v, i) => Math.max(m, Math.abs(v - b[i])), 0);
@@ -41,9 +44,11 @@ for (const scene of [1, 2, 3, 4, 5]) {
   const t0 = performance.now(); for (let i = 0; i < 50; i++) W.view_frame();
   const ms = (performance.now() - t0) / 50;
   const same = a.nvec === b.nvec && a.nstar === b.nstar && a.nlab === b.nlab &&
-               maxdiff(a.hdr, b.hdr) === 0 && maxdiff(a.vbuf, b.vbuf) === 0;
+               maxdiff(a.hdr, b.hdr) === 0 && maxdiff(a.vbuf, b.vbuf) === 0 &&
+               a.ntxt === b.ntxt && maxdiff(a.tbuf, b.tbuf) === 0 &&
+               a.tchr.join() === b.tchr.join();
   console.log(`scene ${scene}: GET ${a.hdr[0].toFixed(0)} s  vectors ${a.nvec}/${b.nvec}` +
-    `  stars ${a.nstar}/${b.nstar}  labels ${a.nlab}/${b.nlab}` +
+    `  stars ${a.nstar}/${b.nstar}  labels ${a.nlab}/${b.nlab}  text ${a.ntxt}/${b.ntxt}` +
     `  ${same ? 'identical' : 'DIFFER'}  wasm ${ms.toFixed(2)} ms/frame`);
   if (!same || a.nvec === 0) ok = false;
 }

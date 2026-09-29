@@ -17,8 +17,9 @@ C     RESTOMOD END
 C     RESTOMOD BEGIN: 60000x5 DP buffer is 600K words, core 262,144
 C     (docs/univac-1108.md); VIEW would stream vectors to plot tape.
 C     Also the parenthesised PARAMETER list (FORTRAN 77, 1978).
-      INTEGER MAXV, MAXS, MAXL
+      INTEGER MAXV, MAXS, MAXL, MAXT, MAXTC
       PARAMETER (MAXV=60000, MAXS=4000, MAXL=200)
+      PARAMETER (MAXT=300, MAXTC=6000)
 C     RESTOMOD END
       INTEGER MSOL, MVX, MFC, MED, MXL
 C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978);
@@ -36,6 +37,11 @@ C     IAU crater gazetteer (names from 1970 on), 37K words of tables.
       COMMON /CCOST/ CLON, CLAT, KCST
       COMMON /CCRAT/ CRLAT, CRLON, CRDIA
 C     RESTOMOD END
+C     Label text for the recorder's character generator: ASCII codes,
+C     10 per nav star (NAVCH), 5 each for SUN, EARTH, MOON (BODCH),
+C     zero padded.  Loaded by VIEWBD.
+      INTEGER NAVCH(370), BODCH(15)
+      COMMON /CNAME/ NAVCH, BODCH
 C
 C     /CTAB/ unit vectors built from the tables at first call:
 C     crater centres (MF) and coastline points (EF).

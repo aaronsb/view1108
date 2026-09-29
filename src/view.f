@@ -134,7 +134,7 @@ C     RESTOMOD END
 C
 C=======================================================================
       SUBROUTINE VFRAME(GET, YAW, PIT, ROL, FOV, IFLAG,
-     &                  VB, NV, SB, NS, LB, NL, HD)
+     &                  VB, NV, SB, NS, LB, NL, HD, TB, NT, TC, NCH)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
@@ -142,6 +142,8 @@ C     RESTOMOD END
       DOUBLE PRECISION GET, YAW, PIT, ROL, FOV
       INTEGER IFLAG, NV, NS, NL
       DOUBLE PRECISION VB(5,MAXV), SB(3,MAXS), LB(4,MAXL), HD(16)
+      DOUBLE PRECISION TB(4,MAXT)
+      INTEGER NT, TC(MAXTC), NCH
       DOUBLE PRECISION PM(3), CG(3), CV(3), RB, RNG, D1, D2, D3, D4
       DOUBLE PRECISION PB(3), RR, VNRM, VDOT
       INTEGER I, IREF, IWIN, IOK
@@ -234,6 +236,121 @@ C     centre X, Y (deg, even off frame), angular radius, in front flag.
       HD(13) = DASIN(DMIN1(1.0D0, RR / VNRM(PB))) / DR
       HD(14) = 0.0D0
       IF (VDOT(PB, CB) .GT. 0.0D0) HD(14) = 1.0D0
+C     Text for the recorder's character generator.
+      CALL TXALL(LB, NL, TB, NT, TC, NCH)
+      RETURN
+      END
+C
+C=======================================================================
+C     TEXT.  Records for the recorder's character generator (the SC-4020
+C     class had a "type character" order; docs/univac-1108.md): X, Y
+C     of the first character's lower left (plot deg), height (plot
+C     deg), start index in TC; each string is character codes ending
+C     in 0.  Tick numbers on the left and bottom edges when IFLG bit 1
+C     is set, at the ticks DFRAME draws; names of nav stars, Sun,
+C     Earth and Moon beside their labels when bit 0 is set.  Crater
+C     names stay with the page (LB kind 2).  Height 2.5 percent of the
+C     field and a character width of 0.7 height for centring: ours.
+C=======================================================================
+      SUBROUTINE TXALL(LB, NL, TB, NT, TC, NCH)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION LB(4,MAXL), TB(4,MAXT)
+      INTEGER NL, NT, TC(MAXTC), NCH
+      DOUBLE PRECISION B, ST, TL, H, V
+      INTEGER I, J, K, N, ID, IC(12)
+      NT = 0
+      NCH = 0
+      B = BOXH
+      H = 0.05D0 * B
+C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
+      IF (MOD(IFLG / 2, 2) .EQ. 1) THEN
+        ST = 20.0D0
+        IF (2.0D0 * B .LE. 60.0D0) ST = 10.0D0
+        IF (2.0D0 * B .LE. 25.0D0) ST = 5.0D0
+        TL = 0.02D0 * B
+        N = INT(B / ST + 1.0D-9)
+        DO 10 K = -N, N
+          V = DBLE(K) * ST
+          IF (DABS(V) .GE. B - 1.0D-9) GO TO 10
+          CALL ITOC(NINT(V), IC, J)
+          CALL TXPUT(TB, NT, TC, NCH, V - 0.35D0 * H * DBLE(J),
+     &               -B + 2.5D0 * TL, H, IC, J)
+          CALL TXPUT(TB, NT, TC, NCH, -B + 2.5D0 * TL,
+     &               V - 0.5D0 * H, H, IC, J)
+   10   CONTINUE
+      END IF
+C     RESTOMOD END
+      IF (MOD(IFLG, 2) .EQ. 0) RETURN
+      DO 40 I = 1, NL
+        K = NINT(LB(3,I))
+        ID = NINT(LB(4,I))
+        N = 0
+C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
+        IF (K .EQ. 1 .AND. ID .GE. 1 .AND. ID .LE. NNAV) THEN
+          DO 20 J = 1, 10
+            IF (NAVCH((ID - 1) * 10 + J) .EQ. 0) GO TO 30
+            N = N + 1
+            IC(N) = NAVCH((ID - 1) * 10 + J)
+   20     CONTINUE
+        ELSE IF (K .GE. 3 .AND. K .LE. 5) THEN
+          DO 25 J = 1, 5
+            IF (BODCH((K - 3) * 5 + J) .EQ. 0) GO TO 30
+            N = N + 1
+            IC(N) = BODCH((K - 3) * 5 + J)
+   25     CONTINUE
+        END IF
+C     RESTOMOD END
+   30   IF (N .GT. 0) CALL TXPUT(TB, NT, TC, NCH, LB(1,I) + 0.4D0 * H,
+     &                         LB(2,I) + 0.4D0 * H, H, IC, N)
+   40 CONTINUE
+      RETURN
+      END
+C
+C     TXPUT: append a text record of N codes IC.
+      SUBROUTINE TXPUT(TB, NT, TC, NCH, X, Y, H, IC, N)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION TB(4,MAXT), X, Y, H
+      INTEGER NT, TC(MAXTC), NCH, IC(12), N, K
+      IF (NT .GE. MAXT .OR. NCH + N + 1 .GT. MAXTC) RETURN
+      NT = NT + 1
+      TB(1,NT) = X
+      TB(2,NT) = Y
+      TB(3,NT) = H
+      TB(4,NT) = DBLE(NCH + 1)
+      DO 10 K = 1, N
+        TC(NCH + K) = IC(K)
+   10 CONTINUE
+      NCH = NCH + N + 1
+      TC(NCH) = 0
+      RETURN
+      END
+C
+C     ITOC: integer IV to character codes IC(1..N), ASCII digits.
+      SUBROUTINE ITOC(IV, IC, N)
+      INTEGER IV, IC(12), N, M, K, D(10), ND
+      M = IABS(IV)
+      ND = 0
+   10 ND = ND + 1
+      D(ND) = MOD(M, 10)
+      M = M / 10
+      IF (M .GT. 0 .AND. ND .LT. 10) GO TO 10
+      N = 0
+C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
+      IF (IV .LT. 0) THEN
+        N = 1
+        IC(1) = 45
+      END IF
+C     RESTOMOD END
+      DO 20 K = ND, 1, -1
+        N = N + 1
+        IC(N) = 48 + D(K)
+   20 CONTINUE
       RETURN
       END
 C

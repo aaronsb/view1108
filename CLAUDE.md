@@ -122,6 +122,14 @@ Outputs (written by the kernel):
   scenes 2 and 3, Moon in 1 and 5, the LM in 4) in the current projection, given even when off
   frame, 13 its angular radius (deg), 14 1 if it is in front of the camera else 0, 15..16 spare.
   The page letters the report-style header from these.
+- `tbuf(4, MAXT)` real(8), `ntxt` int32, `tchr(MAXTC)` int32, `nchr` int32: text records for the
+  recorder's character generator, decided by the kernel. Record k is `x, y, height, start`: plot
+  degrees of the first character's lower-left corner, character height in plot degrees, and the
+  1-based index in `tchr` of its string, which is ASCII codes ending in 0 (`nchr` codes used,
+  terminators included). Emitted: frame tick numbers on the left and bottom edges when flags
+  bit 1 is set (at the ticks: 5° steps up to a 25° field, 10° up to 60°, else 20°), and names
+  of nav stars, SUN, EARTH and MOON beside their `lbuf` labels when bit 0 is set. Crater names
+  stay in `lbuf` (kind 2) for the page. MAXT = 300, MAXTC = 6000.
 
 Projection: angle-angle about the window's lateral axis, in degrees. For a unit direction with
 components (r, u, b) on the camera's right, up and boresight axes, `X = asin(r)` (angle out of
