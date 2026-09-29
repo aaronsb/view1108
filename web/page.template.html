@@ -101,6 +101,7 @@ body.still { padding:0; }
     <button id="bhid">Hidden lines</button>
     <button id="bjit" title="J">Film jitter</button>
     <button id="bdust" title="D">Dust</button>
+    <button id="bfps" title="F">Film rate</button>
     <button id="bblm" title="B">Bloom</button>
     <button id="bcat" title="C">Catalog</button>
     <button id="bsrc">Fortran listing</button>
@@ -108,7 +109,7 @@ body.still { padding:0; }
   <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="19" value="0:00:00" aria-label="ground elapsed time h:mm:ss, or a UTC timestamp YYYY-MM-DD HH:MM:SS"><span id="utc" class="lbl"></span><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0"></div>
   <div class="grp"><span class="lbl">Jump (Live)</span><button id="jundock">Undocking 100:12:00</button><button id="jdesc">Descent 102:42:00</button></div>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-5: scene. J: film jitter. D: dust. B: bloom. C: star catalog. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-5: scene. J: film jitter. D: dust. F: 16 fps film rate. B: bloom. C: star catalog. Any input leaves Attract or Tour.</div>
 <div id="about">G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197.</div>
 <div id="err"></div>
 
@@ -313,9 +314,9 @@ if (DEBUG) {   // test hooks, enabled by ?debug
 // optional film jitter and bloom.
 const cv = document.getElementById("cv"), mctx = cv.getContext("2d");
 const mk = () => document.createElement("canvas");
-const off = mk(), bl1 = mk(), bl2 = mk(), bl3 = mk(), am1 = mk(), am2 = mk(), am3 = mk(), ctx = off.getContext("2d"), b1c = bl1.getContext("2d"), b2c = bl2.getContext("2d"), b3c = bl3.getContext("2d"), a1c = am1.getContext("2d"), a2c = am2.getContext("2d"), a3c = am3.getContext("2d");
+const off = mk(), bl1 = mk(), bl2 = mk(), bl3 = mk(), am1 = mk(), am2 = mk(), am3 = mk(), amS = mk(), ctx = off.getContext("2d"), b1c = bl1.getContext("2d"), b2c = bl2.getContext("2d"), b3c = bl3.getContext("2d"), a1c = am1.getContext("2d"), a2c = am2.getContext("2d"), a3c = am3.getContext("2d"), aSc = amS.getContext("2d");
 // Nostalgia toggles: null = automatic (on in Attract/Tour), true/false = the viewer's choice (remembered).
-const prefs = { jitter: null, bloom: null, dust: null, catalog: "nav", listing: "dark" };
+const prefs = { jitter: null, bloom: null, dust: null, fps: null, catalog: "nav", listing: "dark" };
 const NAV_MAG = NAMES.NAV_MAG || 3.8;   // magnitude limit passing the 391 brightest stars (tools/gen_data.py -> build/names.js)
 try { Object.assign(prefs, JSON.parse(localStorage.getItem("view1108.prefs") || "{}")); } catch (e) { /* storage unavailable */ }
 const savePrefs = () => { try { localStorage.setItem("view1108.prefs", JSON.stringify(prefs)); } catch (e) { /* ignore */ } };
@@ -324,9 +325,10 @@ const urlFlag = k => { const m = new RegExp("[?&]" + k + "=([01])").exec(locatio
 const effJit = () => urlFlag("jitter") !== null ? urlFlag("jitter") : prefs.jitter !== null ? prefs.jitter : auto();
 const effBloom = () => urlFlag("bloom") !== null ? urlFlag("bloom") : prefs.bloom !== null ? prefs.bloom : false;   // bloom is off by default in every mode
 const effDust = () => urlFlag("dust") !== null ? urlFlag("dust") : prefs.dust !== null ? prefs.dust : auto();
+const effFps = () => urlFlag("fps") !== null ? urlFlag("fps") : prefs.fps !== null ? prefs.fps : auto();   // film rate: present at 16 fps
 const effCatalog = () => prefs.catalog === "full" ? "full" : "nav";
 const toggleCatalog = () => { prefs.catalog = effCatalog() === "full" ? "nav" : "full"; savePrefs(); syncUI(); };
-const toggle = k => { prefs[k] = !(k === "jitter" ? effJit() : k === "dust" ? effDust() : effBloom()); savePrefs(); syncUI(); };
+const toggle = k => { prefs[k] = !(k === "jitter" ? effJit() : k === "dust" ? effDust() : k === "fps" ? effFps() : effBloom()); savePrefs(); syncUI(); };
 
 function readDefaults() {
   get = get0 = rd("in_get"); yaw = rd("in_yaw"); pitch = rd("in_pitch"); roll = rd("in_roll"); fov = fov0 = rd("in_fov");
@@ -349,7 +351,7 @@ function resize() {
   bl1.width = Math.ceil(cv.width / 2); bl1.height = Math.ceil(cv.height / 2);
   bl2.width = Math.ceil(cv.width / 4); bl2.height = Math.ceil(cv.height / 4);
   bl3.width = am3.width = Math.ceil(cv.width / 8); bl3.height = am3.height = Math.ceil(cv.height / 8);
-  am1.width = bl1.width; am1.height = bl1.height; am2.width = bl2.width; am2.height = bl2.height;
+  am1.width = amS.width = bl1.width; am1.height = amS.height = bl1.height; am2.width = bl2.width; am2.height = bl2.height;
 }
 // Framed plots sit inside a margin for lettering; unframed shots (as in the film) fill the width.
 let framed = true;
@@ -471,7 +473,7 @@ function draw(now) {
     strokeText(textP, up, cx + L[i] * k - up.length * 0.7 * hd * k / 2, cy - L[i + 1] * k + hd * k / 2, hd * k);
   }
   // BLOOM: a hairline (about 1 device px) beam; all glow comes from the blur passes in present().
-  const lw = bloomOn ? 1.1 / dpr : Math.max(1, W / 420);
+  const lw = bloomOn ? Math.max(1, 0.0009 * cv.width) / dpr : Math.max(1, W / 420); hairline = lw;   // hairline: 0.09% of canvas width, at least 1 device px
   for (const [w, a] of bloomOn ? [[lw, 1 * flick]] : [[lw * 3.2, 0.10 * flick], [lw, 0.95 * flick]]) {
     ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = w;
     ctx.setLineDash([]); ctx.stroke(solid);
@@ -510,11 +512,12 @@ function draw(now) {
 
 // Whole-frame film jitter at about 24 fps (offset 0.2-0.5% of width, sometimes 0.1 deg of rotation,
 // slight brightness flicker), and bloom: blurred downsampled copies added back on top.
+let hairline = 1;   // line width (css px) of the frame just drawn
 let jx = 0, jy = 0, jr = 0, jb = 1, lastJ = 0;
 function present(now, bloomOn) {
   const w = cv.width, h = cv.height;
   if (effJit()) {
-    if (now - lastJ >= 1000 / 24) {
+    if (effFps() || now - lastJ >= 1000 / 24) {
       lastJ = now; const a = Math.random() * 6.2832, m = 0.0005 + 0.00075 * Math.random();
       jx = Math.cos(a) * m; jy = Math.sin(a) * m;
       jr = Math.random() < 0.2 ? (Math.random() * 2 - 1) * 0.025 * Math.PI / 180 : 0;
@@ -527,22 +530,24 @@ function present(now, bloomOn) {
   mctx.translate(w / 2 + jx * w, h / 2 + jy * w); mctx.rotate(jr); mctx.translate(-w / 2, -h / 2);
   mctx.globalAlpha = jb; mctx.drawImage(off, 0, 0);
   if (bloomOn) {
-    // Multi-scale glow: gaussian copies of the hairline frame at increasing radii and falling weights
-    // (cumulative sigma about 1.3, 4 and 10 device px at 700 px width, weights 0.5, 0.3, 0.15 of the normalised peak; the blurs run on 1/2, 1/4 and 1/8 size copies), added with
-    // 'lighter' (which clamps, so overlaps saturate to white), then the sharp hairline. One pipeline for everything.
-    const sg = dpr * Math.max(0.8, W / 700);
-    b1c.clearRect(0, 0, bl1.width, bl1.height); b1c.filter = `blur(${0.4 * sg}px)`; b1c.imageSmoothingQuality = "high"; b1c.drawImage(off, 0, 0, bl1.width, bl1.height);
-    b2c.clearRect(0, 0, bl2.width, bl2.height); b2c.filter = `blur(${1.0 * sg}px)`; b2c.imageSmoothingQuality = "high"; b2c.drawImage(bl1, 0, 0, bl2.width, bl2.height);
-    b3c.clearRect(0, 0, bl3.width, bl3.height); b3c.filter = `blur(${1.25 * sg}px)`; b3c.imageSmoothingQuality = "high"; b3c.drawImage(bl2, 0, 0, bl3.width, bl3.height);
-    mctx.globalCompositeOperation = "lighter"; mctx.imageSmoothingQuality = "high"; mctx.globalAlpha = jb;
-    // the pyramid is built unamplified (each level blurs the previous one); the weights are applied here
-    // (gains are applied at low resolution, so the full-size composites are plain additive draws)
-    a1c.clearRect(0, 0, am1.width, am1.height); a1c.filter = "brightness(1.1)"; a1c.drawImage(bl1, 0, 0);
-    a2c.clearRect(0, 0, am2.width, am2.height); a2c.filter = "brightness(2)"; a2c.drawImage(bl2, 0, 0);
-    a3c.clearRect(0, 0, am3.width, am3.height); a3c.filter = "brightness(2.6)"; a3c.drawImage(bl3, 0, 0);
-    a1c.filter = "none"; a1c.globalCompositeOperation = "lighter"; a1c.imageSmoothingQuality = "high";   // sum the levels at half size, then one full-size composite
+    // Multi-scale glow. All sizes are fractions of the canvas width, so the look is the same at any size or dpr:
+    // gaussian sigmas 0.12%, 0.3% and 0.7% of the width (about 1.2, 3 and 7 px at 1000 px) with weights 0.5, 0.27
+    // and 0.12 of the normalised peak. The blurs run on 1/2, 1/4 and 1/8 size copies, the levels are summed, a
+    // contrast curve pulls the faint tail back to black (no haze over empty areas, hatching stays separate), and the
+    // result is added with 'lighter' (which clamps: overlaps saturate to white) under the sharp hairline.
+    const Wd = cv.width, s1 = 0.0012 * Wd, s2 = 0.003 * Wd, s3 = 0.007 * Wd, wd = Math.max(1, hairline * dpr);
+    const bl = (c, src, sw, sigma, gain) => { c.clearRect(0, 0, c.canvas.width, c.canvas.height); c.filter = `blur(${sigma}px)`; c.imageSmoothingQuality = "high"; c.drawImage(src, 0, 0, c.canvas.width, c.canvas.height); };
+    bl(b1c, off, 2, s1 / 2); bl(b2c, bl1, 4, Math.sqrt(s2 * s2 - s1 * s1) / 4); bl(b3c, bl2, 8, Math.sqrt(s3 * s3 - s2 * s2) / 8);
+    // gain = weight * sigma * sqrt(2 pi) / line width restores each level's normalised peak
+    const gain = (wt, sg_) => (wt * sg_ * 2.507 / wd).toFixed(2);
+    a1c.clearRect(0, 0, am1.width, am1.height); a1c.filter = `brightness(${gain(0.5, s1)})`; a1c.drawImage(bl1, 0, 0);
+    a2c.clearRect(0, 0, am2.width, am2.height); a2c.filter = `brightness(${gain(0.27, s2)})`; a2c.drawImage(bl2, 0, 0);
+    a3c.clearRect(0, 0, am3.width, am3.height); a3c.filter = `brightness(${gain(0.12, s3)})`; a3c.drawImage(bl3, 0, 0);
+    a1c.filter = "none"; a1c.globalCompositeOperation = "lighter"; a1c.imageSmoothingQuality = "high";
     a1c.drawImage(am2, 0, 0, am1.width, am1.height); a1c.drawImage(am3, 0, 0, am1.width, am1.height); a1c.globalCompositeOperation = "source-over";
-    mctx.drawImage(am1, 0, 0, w, h);
+    aSc.clearRect(0, 0, amS.width, amS.height); aSc.filter = "contrast(1.4)"; aSc.drawImage(am1, 0, 0);
+    mctx.globalCompositeOperation = "lighter"; mctx.imageSmoothingQuality = "high"; mctx.globalAlpha = jb;
+    mctx.drawImage(amS, 0, 0, w, h);
   }
   // film grain, after the glow so the blur gains do not amplify it
   mctx.globalCompositeOperation = "lighter"; mctx.globalAlpha = 0.018; mctx.filter = "none";
@@ -558,7 +563,7 @@ function present(now, bloomOn) {
 // hairs per film frame (24 fps), and now and then a faint vertical scratch that lasts a few frames.
 let lastD = 0, specks = [], scratchX = 0, scratchLeft = 0, nextScratch = 0;
 function drawDust(now, w, h) {
-  if (now - lastD >= 1000 / 24) {
+  if (effFps() || now - lastD >= 1000 / 24) {
     lastD = now; specks = [];
     const n = Math.floor(Math.pow(Math.random(), 2.2) * 4);          // 0-3, mostly 0 or 1
     for (let i = 0; i < n; i++) specks.push({ x: Math.random() * w, y: Math.random() * h, dark: Math.random() < 0.6, len: 3 + Math.random() * 6, a: Math.random() * 3.1416, r: 1 + Math.random() * 2 });
@@ -592,10 +597,19 @@ function step(now) {
 let lastStatus = "";
 function updateStatus() {
   const rate = mode === "live" ? LIVE_RATES[liveIdx] + "X" : mode === "free" ? (playing ? SPEEDS[speedIdx] + "X" : "HOLD") : "AUTO";
-  const t = `MODE ${mode}  G.E.T. ${getStr(get)}  UTC ${utcStr(get)}  ${rate}  BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  DUST ${effDust() ? "ON" : "OFF"}  STARS ${effCatalog().toUpperCase()}`;
+  const t = `MODE ${mode}  G.E.T. ${getStr(get)}  UTC ${utcStr(get)}  ${rate}  BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  DUST ${effDust() ? "ON" : "OFF"}  STARS ${effCatalog().toUpperCase()}${effFps() ? "  16 FPS" : ""}`;
   if (t !== lastStatus) { lastStatus = t; document.getElementById("status").textContent = t; }
 }
-function tick(now) { step(now); requestAnimationFrame(tick); }
+// Film rate: with the toggle on, the kernel is stepped and a frame presented only every 1/16 s and held in between
+// (time keeps running in real time because step() works from the elapsed time).
+let lastPresent = 0;
+function tick(now) {
+  if (effFps()) {
+    if (now - lastPresent < 1000 / 16 - 2) { requestAnimationFrame(tick); return; }
+    lastPresent = now - lastPresent > 125 ? now : lastPresent + 1000 / 16;
+  }
+  step(now); requestAnimationFrame(tick);
+}
 
 // ---- UI ----
 function syncUI() {
@@ -606,6 +620,7 @@ function syncUI() {
   document.getElementById("bhid").classList.toggle("on", hidden);
   document.getElementById("bjit").classList.toggle("on", effJit());
   document.getElementById("bdust").classList.toggle("on", effDust());
+  document.getElementById("bfps").classList.toggle("on", effFps());
   document.getElementById("bblm").classList.toggle("on", effBloom());
   document.getElementById("bcat").textContent = "Catalog " + (effCatalog() === "full" ? "full" : "nav");
   document.getElementById("blab").classList.toggle("on", labels);
@@ -625,6 +640,7 @@ const parseGetHms = t => { const m = t.trim().split(":").map(Number); if (m.some
 $("geti").onchange = e => { const g = parseGet(e.target.value); if (g === null) return; leaveAttract(); livePin = null; get = mode === "live" ? Math.max(LIVE_MIN, Math.min(LIVE_MAX, g)) : g; e.target.blur(); };
 $("bjit").onclick = () => toggle("jitter");
 $("bdust").onclick = () => toggle("dust");
+$("bfps").onclick = () => toggle("fps");
 $("bblm").onclick = () => toggle("bloom");
 $("bcat").onclick = toggleCatalog;
 $("bhid").onclick = () => { leaveAttract(); hidden = !hidden; syncUI(); };
@@ -635,7 +651,7 @@ $("breset").onclick = () => { leaveAttract(); resetView(); };
 $("blab").onclick = () => { leaveAttract(); labels = !labels; syncUI(); };
 $("bfrm").onclick = () => { leaveAttract(); frame = !frame; syncUI(); };
 // Listing overlay: DARK terminal or LIGHT greenbar; the light sheets are built on first use.
-const fieldata = t => t.toUpperCase().replace(/[^A-Z0-9 +\-*\/(),.=$':;<>&%#!"?@\[\]]/g, "?");   // upper case, small symbol set
+const fieldata = t => t.toUpperCase().replace(/[^A-Z0-9 @\[\]#)\-+<=>&$*(%:?!,\\';\/.]/g, "?");   // FIELDATA printable set per fourmilab.ch/documents/univac/fieldata.html (octal 00-77, ASCII-representable characters)
 function buildPaper() {
   const paper = $("paper"); if (paper.dataset.built) return; paper.dataset.built = "1";
   const lines = $("fsrc").textContent.replace(/\t/g, "        ").split("\n"), PER = 64;   // 64 text lines + header + blank = 66
@@ -678,6 +694,7 @@ window.addEventListener("keydown", e => {
   const d = fov * 0.05, k = e.key;
   if (k === "j" || k === "J") { toggle("jitter"); e.preventDefault(); return; }
   if (k === "d" || k === "D") { toggle("dust"); e.preventDefault(); return; }
+  if (k === "f" || k === "F") { toggle("fps"); e.preventDefault(); return; }
   if (k === "b" || k === "B") { toggle("bloom"); e.preventDefault(); return; }
   if (k === "c" || k === "C") { toggleCatalog(); e.preventDefault(); return; }
   if (k.length === 1 || k.startsWith("Arrow")) leaveAttract();
