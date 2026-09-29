@@ -98,7 +98,7 @@ body.still { padding:0; }
   <div class="grp">
     <button id="blab" class="on">Labels</button>
     <button id="bfrm" class="on">Frame</button>
-    <button id="bhid">Hidden lines</button>
+    <button id="bhid" title="Show the LM wireframe edges hidden behind the vehicle as dashed lines (the film drops them; TN D-6853 describes hidden-line LM models)">LM hidden lines</button>
     <button id="bjit" title="J">Film jitter</button>
     <button id="bdust" title="D">Dust</button>
     <button id="bfps" title="F">Film rate</button>
@@ -323,7 +323,7 @@ const savePrefs = () => { try { localStorage.setItem("view1108.prefs", JSON.stri
 const auto = () => mode === "attract" || mode === "tour";
 const urlFlag = k => { const m = new RegExp("[?&]" + k + "=([01])").exec(location.search); return m ? m[1] === "1" : null; };   // ?jitter=0|1, ?bloom=0|1 override for captures
 const effJit = () => urlFlag("jitter") !== null ? urlFlag("jitter") : prefs.jitter !== null ? prefs.jitter : auto();
-const effBloom = () => urlFlag("bloom") !== null ? urlFlag("bloom") : prefs.bloom !== null ? prefs.bloom : false;   // bloom is off by default in every mode
+const effBloom = () => urlFlag("bloom") !== null ? urlFlag("bloom") : prefs.bloom !== null ? prefs.bloom : auto();   // like the other film effects: on in Attract/Tour, off in Live/Free-look
 const effDust = () => urlFlag("dust") !== null ? urlFlag("dust") : prefs.dust !== null ? prefs.dust : auto();
 const effFps = () => urlFlag("fps") !== null ? urlFlag("fps") : prefs.fps !== null ? prefs.fps : auto();   // film rate: present at 16 fps
 const effCatalog = () => prefs.catalog === "full" ? "full" : "nav";
