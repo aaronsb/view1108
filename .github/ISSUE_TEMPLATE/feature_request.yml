@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest a new capability or improvement.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: The need or idea, in your words.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: Optional. If it touches the kernel, say whether it could be period FORTRAN V or would need a RESTOMOD fence.
+  - type: textarea
+    id: sources
+    attributes:
+      label: Historical sources
+      description: Optional. Any report page or document that shows VIEW did this.

@@ -1,5 +1,7 @@
 # VIEW-1108
 
+[![License: MIT](https://img.shields.io/github/license/aaronsb/view1108)](LICENSE) [![Pages](https://img.shields.io/github/actions/workflow/status/aaronsb/view1108/pages.yml?branch=main&label=pages)](https://github.com/aaronsb/view1108/actions/workflows/pages.yml) [![Live demo](https://img.shields.io/badge/live%20demo-aaronsb.github.io%2Fview1108-blue)](https://aaronsb.github.io/view1108/)
+
 [![Earthrise over the lunar limb, drawn live by the VIEW-1108 FORTRAN kernel](docs/media/earthrise.png)](https://aaronsb.github.io/view1108/)
 
 **[Run it in your browser →](https://aaronsb.github.io/view1108/)**

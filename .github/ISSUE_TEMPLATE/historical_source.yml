@@ -1,0 +1,34 @@
+name: Historical source / correction
+description: A claim needs a source, or a claim is wrong.
+labels: [historical-accuracy]
+body:
+  - type: markdown
+    attributes:
+      value: Every historical or technical claim in this project should cite a source (see CONTRIBUTING.md). Thanks for helping keep it honest.
+  - type: textarea
+    id: claim
+    attributes:
+      label: The claim
+      description: Quote or paraphrase the statement in question.
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where it appears
+      description: File and line, page section, or commit.
+      placeholder: e.g. README.md "What VIEW was", or src/view.f comment at PROJ
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: The source
+      description: Title, author, date, and a link if there is one. Say whether it supports, corrects or contradicts the claim.
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: Printed page number (or PDF page, labelled as such).

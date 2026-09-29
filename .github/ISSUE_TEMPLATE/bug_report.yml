@@ -1,0 +1,41 @@
+name: Bug report
+description: Something on the page or in the build doesn't work.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you see, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Scene, g.e.t., controls used, or the make target you ran.
+      placeholder: |
+        1. Open the page
+        2. Switch to scene 5
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Page / renderer (web)
+        - FORTRAN kernel
+        - Build / toolchain
+        - Docs
+        - Not sure
+  - type: input
+    id: env
+    attributes:
+      label: Browser / OS / toolchain
+      placeholder: e.g. Firefox 140 on Linux, or LFortran 0.66
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or logs
