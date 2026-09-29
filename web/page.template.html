@@ -313,7 +313,7 @@ if (DEBUG) {   // test hooks, enabled by ?debug
 // optional film jitter and bloom.
 const cv = document.getElementById("cv"), mctx = cv.getContext("2d");
 const mk = () => document.createElement("canvas");
-const off = mk(), bl1 = mk(), bl2 = mk(), bl3 = mk(), ctx = off.getContext("2d"), b1c = bl1.getContext("2d"), b2c = bl2.getContext("2d"), b3c = bl3.getContext("2d");
+const off = mk(), bl1 = mk(), bl2 = mk(), bl3 = mk(), am1 = mk(), am2 = mk(), am3 = mk(), ctx = off.getContext("2d"), b1c = bl1.getContext("2d"), b2c = bl2.getContext("2d"), b3c = bl3.getContext("2d"), a1c = am1.getContext("2d"), a2c = am2.getContext("2d"), a3c = am3.getContext("2d");
 // Nostalgia toggles: null = automatic (on in Attract/Tour), true/false = the viewer's choice (remembered).
 const prefs = { jitter: null, bloom: null, dust: null, catalog: "nav", listing: "dark" };
 const NAV_MAG = NAMES.NAV_MAG || 3.8;   // magnitude limit passing the 391 brightest stars (tools/gen_data.py -> build/names.js)
@@ -322,7 +322,7 @@ const savePrefs = () => { try { localStorage.setItem("view1108.prefs", JSON.stri
 const auto = () => mode === "attract" || mode === "tour";
 const urlFlag = k => { const m = new RegExp("[?&]" + k + "=([01])").exec(location.search); return m ? m[1] === "1" : null; };   // ?jitter=0|1, ?bloom=0|1 override for captures
 const effJit = () => urlFlag("jitter") !== null ? urlFlag("jitter") : prefs.jitter !== null ? prefs.jitter : auto();
-const effBloom = () => urlFlag("bloom") !== null ? urlFlag("bloom") : prefs.bloom !== null ? prefs.bloom : auto();
+const effBloom = () => urlFlag("bloom") !== null ? urlFlag("bloom") : prefs.bloom !== null ? prefs.bloom : false;   // bloom is off by default in every mode
 const effDust = () => urlFlag("dust") !== null ? urlFlag("dust") : prefs.dust !== null ? prefs.dust : auto();
 const effCatalog = () => prefs.catalog === "full" ? "full" : "nav";
 const toggleCatalog = () => { prefs.catalog = effCatalog() === "full" ? "nav" : "full"; savePrefs(); syncUI(); };
@@ -343,11 +343,13 @@ function resize() {
   W = Math.floor(Math.max(280, Math.min(wrapW, (innerHeight - (STILL ? 0 : 190)) / HGT)));
   Hh = Math.floor(W * HGT);
   dpr = (DEBUG && +QP("dpr")) || window.devicePixelRatio || 1;
+  dpr = Math.max(1, Math.min(dpr, 1800 / W));   // cap the backing store at about 1800 device px wide: the film is soft anyway and bloom cost scales with pixels
   cv.style.width = W + "px"; cv.style.height = Hh + "px";
   cv.width = off.width = Math.round(W * dpr); cv.height = off.height = Math.round(Hh * dpr);
   bl1.width = Math.ceil(cv.width / 2); bl1.height = Math.ceil(cv.height / 2);
   bl2.width = Math.ceil(cv.width / 4); bl2.height = Math.ceil(cv.height / 4);
-  bl3.width = Math.ceil(cv.width / 8); bl3.height = Math.ceil(cv.height / 8);
+  bl3.width = am3.width = Math.ceil(cv.width / 8); bl3.height = am3.height = Math.ceil(cv.height / 8);
+  am1.width = bl1.width; am1.height = bl1.height; am2.width = bl2.width; am2.height = bl2.height;
 }
 // Framed plots sit inside a margin for lettering; unframed shots (as in the film) fill the width.
 let framed = true;
@@ -442,14 +444,14 @@ function draw(now) {
   // the film's round soft dots are these symbols blurred by the CRT-to-film process.
   const bloomOn = effBloom(), fullCat = effCatalog() === "full";
   const named = (x, y) => { for (let j = 0; j < nl * 4; j += 4) if (L[j + 2] === 1 && Math.abs(L[j] - x) < 0.03 && Math.abs(L[j + 1] - y) < 0.03) return true; return false; };
-  const rF = Math.max(0.8, W * 0.0026) * (effBloom() ? 1.5 : 1), starP = new Path2D();
+  const rF = Math.max(0.8, W * 0.0026) * (effBloom() ? 1.3 : 1), starP = new Path2D();
   for (let i = 0; i < ns * 3; i += 3) {
     const m = S[i + 2];
     if (!fullCat && m > NAV_MAG && !named(S[i], S[i + 1])) continue;   // the 37 named stars are always in the NAV catalog
     const t = Math.max(0, Math.min(1, (4.5 - m) / 5.5)), r = rF * (1 + 0.6 * t);
     const x = cx + S[i] * k, y = cy - S[i + 1] * k;
     if (fullCat) { starP.moveTo(x, y); starP.lineTo(x + 0.01, y); if (!bloomOn) starP.lineTo(x + r * 0.5, y); continue; }
-    const n = m <= 3 ? 8 : 6, rr = r * 1.1;
+    const n = m <= 2 ? 12 : 8, rr = r * 1.1;
     for (let a = 0; a < n; a++) { const th = Math.PI * 2 * a / n - Math.PI / 2; starP.moveTo(x, y); starP.lineTo(x + rr * Math.cos(th), y + rr * Math.sin(th)); }
   }
   const textP = new Path2D();   // recorder text is not clipped to the plot box: tick numbers sit just outside it
@@ -502,12 +504,6 @@ function draw(now) {
   ctx.fillText(liveTag + (capName || SCENES[sc - 1] || "") + (H[5] ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (roll ? `   roll ${roll.toFixed(0)}°` : ""), cx, b.y + b.s + fs * (framed ? 5.7 : 2.0));
   }
 
-  // grain
-  ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.018;
-  ctx.fillStyle = ctx.createPattern(grain, "repeat");
-  ctx.save(); ctx.translate((Math.random() * 128) | 0, (Math.random() * 128) | 0);
-  ctx.fillRect(-128, -128, W + 256, Hh + 256); ctx.restore();
-  ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
   if (fadeA > 0) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, fadeA)})`; ctx.fillRect(0, 0, W, Hh); }
   present(now, bloomOn);
 }
@@ -532,15 +528,28 @@ function present(now, bloomOn) {
   mctx.globalAlpha = jb; mctx.drawImage(off, 0, 0);
   if (bloomOn) {
     // Multi-scale glow: gaussian copies of the hairline frame at increasing radii and falling weights
-    // (sigma about 1.5, 4 and 10 px at 700 px width, weights 0.5, 0.3, 0.15 of the normalised peak), added with
+    // (cumulative sigma about 1.3, 4 and 10 device px at 700 px width, weights 0.5, 0.3, 0.15 of the normalised peak; the blurs run on 1/2, 1/4 and 1/8 size copies), added with
     // 'lighter' (which clamps, so overlaps saturate to white), then the sharp hairline. One pipeline for everything.
     const sg = dpr * Math.max(0.8, W / 700);
-    b1c.clearRect(0, 0, bl1.width, bl1.height); b1c.filter = `blur(${0.75 * sg}px) brightness(1.9)`; b1c.drawImage(off, 0, 0, bl1.width, bl1.height);
-    b2c.clearRect(0, 0, bl2.width, bl2.height); b2c.filter = `blur(${1.0 * sg}px) brightness(3)`; b2c.drawImage(bl1, 0, 0, bl2.width, bl2.height);
-    b3c.clearRect(0, 0, bl3.width, bl3.height); b3c.filter = `blur(${1.25 * sg}px) brightness(3.7)`; b3c.drawImage(bl2, 0, 0, bl3.width, bl3.height);
+    b1c.clearRect(0, 0, bl1.width, bl1.height); b1c.filter = `blur(${0.4 * sg}px)`; b1c.imageSmoothingQuality = "high"; b1c.drawImage(off, 0, 0, bl1.width, bl1.height);
+    b2c.clearRect(0, 0, bl2.width, bl2.height); b2c.filter = `blur(${1.0 * sg}px)`; b2c.imageSmoothingQuality = "high"; b2c.drawImage(bl1, 0, 0, bl2.width, bl2.height);
+    b3c.clearRect(0, 0, bl3.width, bl3.height); b3c.filter = `blur(${1.25 * sg}px)`; b3c.imageSmoothingQuality = "high"; b3c.drawImage(bl2, 0, 0, bl3.width, bl3.height);
     mctx.globalCompositeOperation = "lighter"; mctx.imageSmoothingQuality = "high"; mctx.globalAlpha = jb;
-    mctx.drawImage(bl1, 0, 0, w, h); mctx.drawImage(bl2, 0, 0, w, h); mctx.drawImage(bl3, 0, 0, w, h);
+    // the pyramid is built unamplified (each level blurs the previous one); the weights are applied here
+    // (gains are applied at low resolution, so the full-size composites are plain additive draws)
+    a1c.clearRect(0, 0, am1.width, am1.height); a1c.filter = "brightness(1.1)"; a1c.drawImage(bl1, 0, 0);
+    a2c.clearRect(0, 0, am2.width, am2.height); a2c.filter = "brightness(2)"; a2c.drawImage(bl2, 0, 0);
+    a3c.clearRect(0, 0, am3.width, am3.height); a3c.filter = "brightness(2.6)"; a3c.drawImage(bl3, 0, 0);
+    a1c.filter = "none"; a1c.globalCompositeOperation = "lighter"; a1c.imageSmoothingQuality = "high";   // sum the levels at half size, then one full-size composite
+    a1c.drawImage(am2, 0, 0, am1.width, am1.height); a1c.drawImage(am3, 0, 0, am1.width, am1.height); a1c.globalCompositeOperation = "source-over";
+    mctx.drawImage(am1, 0, 0, w, h);
   }
+  // film grain, after the glow so the blur gains do not amplify it
+  mctx.globalCompositeOperation = "lighter"; mctx.globalAlpha = 0.018; mctx.filter = "none";
+  mctx.fillStyle = mctx.createPattern(grain, "repeat");
+  mctx.save(); mctx.translate((Math.random() * 128) | 0, (Math.random() * 128) | 0);
+  mctx.fillRect(-128, -128, w + 256, h + 256); mctx.restore();
+  mctx.globalAlpha = 1; mctx.globalCompositeOperation = "source-over";
   if (effDust()) drawDust(now, w, h);
   mctx.restore();
 }
