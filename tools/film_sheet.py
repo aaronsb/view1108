@@ -39,11 +39,17 @@ try:
         sheet.paste(film.resize((TW, TH), Image.LANCZOS), (i * (TW + G), 0))
         shot = tmp / f"o{t}.png"
         url = f"http://127.0.0.1:{port}/view1108.html?bare&film={t}&jitter=0&bloom=1"
-        subprocess.run([CHROMIUM, "--headless=new", "--no-sandbox", "--hide-scrollbars",
-                        f"--window-size={WIN_W},{WIN_H}", "--virtual-time-budget=4000",
-                        f"--screenshot={shot}", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120, check=True)
+        for attempt in range(3):     # headless Chromium occasionally hangs; retry
+            try:
+                subprocess.run([CHROMIUM, "--headless=new", "--no-sandbox", "--hide-scrollbars",
+                                f"--window-size={WIN_W},{WIN_H}", "--virtual-time-budget=4000",
+                                f"--screenshot={shot}", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=40, check=True)
+                break
+            except subprocess.TimeoutExpired:
+                if attempt == 2:
+                    raise
         im = Image.open(shot).convert("RGB")
-        box = (x0 + 0.07 * W, 0.12 * W, x0 + 0.93 * W, 0.91 * W) if t in FRAMED else (x0, 0.06 * W, x0 + W, 0.977 * W)
+        box = (x0 + 0.04 * W, 0.11 * W, x0 + 0.96 * W, 0.955 * W) if t in FRAMED else (x0, 0.06 * W, x0 + W, 0.977 * W)
         sheet.paste(im.crop(tuple(int(v) for v in box)).resize((TW, TH), Image.LANCZOS), (i * (TW + G), TH + G))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(OUT, optimize=True)

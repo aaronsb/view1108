@@ -126,10 +126,14 @@ Outputs (written by the kernel):
   recorder's character generator, decided by the kernel. Record k is `x, y, height, start`: plot
   degrees of the first character's lower-left corner, character height in plot degrees, and the
   1-based index in `tchr` of its string, which is ASCII codes ending in 0 (`nchr` codes used,
-  terminators included). Emitted: frame tick numbers on the left and bottom edges when flags
-  bit 1 is set (at the ticks: 5° steps up to a 25° field, 10° up to 60°, else 20°), and names
-  of nav stars, SUN, EARTH and MOON beside their `lbuf` labels when bit 0 is set. Crater names
-  stay in `lbuf` (kind 2) for the page. MAXT = 300, MAXTC = 6000.
+  terminators included). Emitted: frame tick numbers when flags bit 1 is set (at the ticks:
+  5° steps up to a 25° field, 10° up to 60°, else 20°), OUTSIDE the plot box as on the film and
+  report: left edge right-aligned just left of the box, right edge just right of it, bottom
+  edge centred just below it, height 1.0% of the field. So these records have |x| or |y|
+  beyond fov/2; the page must leave a margin to draw them. Names of nav stars, SUN, EARTH and
+  MOON beside their `lbuf` labels when bit 0 is set, height 1.4% of the field. The kernel
+  assumes a character width of 0.7 × height for alignment. Crater names stay in `lbuf`
+  (kind 2) for the page. MAXT = 300, MAXTC = 6000.
 
 Projection: angle-angle about the window's lateral axis, in degrees. For a unit direction with
 components (r, u, b) on the camera's right, up and boresight axes, `X = asin(r)` (angle out of

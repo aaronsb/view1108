@@ -247,11 +247,14 @@ C     TEXT.  Records for the recorder's character generator (the SC-4020
 C     class had a "type character" order; docs/univac-1108.md): X, Y
 C     of the first character's lower left (plot deg), height (plot
 C     deg), start index in TC; each string is character codes ending
-C     in 0.  Tick numbers on the left and bottom edges when IFLG bit 1
-C     is set, at the ticks DFRAME draws; names of nav stars, Sun,
-C     Earth and Moon beside their labels when bit 0 is set.  Crater
-C     names stay with the page (LB kind 2).  Height 2.5 percent of the
-C     field and a character width of 0.7 height for centring: ours.
+C     in 0.  Tick numbers when IFLG bit 1 is set, at the ticks DFRAME
+C     draws, OUTSIDE the box: left edge right-aligned, right edge,
+C     bottom edge centred below, 1.0 percent of the field high (read
+C     from the film, descent_t29.png, and the report's plot pages).
+C     Names of nav stars, Sun, Earth and Moon beside their labels when
+C     bit 0 is set, 1.4 percent of the field high.  Crater names stay
+C     with the page (LB kind 2).  Character width 0.7 of the height,
+C     used for alignment: ours.
 C=======================================================================
       SUBROUTINE TXALL(LB, NL, TB, NT, TC, NCH)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -265,7 +268,7 @@ C     RESTOMOD END
       NT = 0
       NCH = 0
       B = BOXH
-      H = 0.05D0 * B
+      H = 0.02D0 * B
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (MOD(IFLG / 2, 2) .EQ. 1) THEN
         ST = 20.0D0
@@ -278,13 +281,16 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
           IF (DABS(V) .GE. B - 1.0D-9) GO TO 10
           CALL ITOC(NINT(V), IC, J)
           CALL TXPUT(TB, NT, TC, NCH, V - 0.35D0 * H * DBLE(J),
-     &               -B + 2.5D0 * TL, H, IC, J)
-          CALL TXPUT(TB, NT, TC, NCH, -B + 2.5D0 * TL,
+     &               -B - 1.5D0 * H, H, IC, J)
+          CALL TXPUT(TB, NT, TC, NCH, -B - 0.5D0 * H
+     &               - 0.7D0 * H * DBLE(J), V - 0.5D0 * H, H, IC, J)
+          CALL TXPUT(TB, NT, TC, NCH, B + 0.5D0 * H,
      &               V - 0.5D0 * H, H, IC, J)
    10   CONTINUE
       END IF
 C     RESTOMOD END
       IF (MOD(IFLG, 2) .EQ. 0) RETURN
+      H = 0.028D0 * B
       DO 40 I = 1, NL
         K = NINT(LB(3,I))
         ID = NINT(LB(4,I))

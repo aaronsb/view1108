@@ -71,8 +71,8 @@ program viewsvg
 
   b = 0.5d0 * fov
   s = 400.0d0 / b
-  write (*, '(a)') '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">'
-  write (*, '(a)') '<rect width="800" height="800" fill="black"/>'
+  write (*, '(a)') '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="-40 -10 880 850">'
+  write (*, '(a)') '<rect x="-40" y="-10" width="880" height="850" fill="black"/>'
   write (*, '(a)') '<g stroke="white" stroke-width="1.6" fill="none" stroke-linecap="round">'
   do i = 1, nv
     if (vb(5, i) > 1.5d0) then

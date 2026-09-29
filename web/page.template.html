@@ -185,7 +185,7 @@ const ATTRACT = [
   { name: "Earthrise",      scene: 1, dur: 5.9,  fl: 2, roll: -3, p: [30, 68] },
   { name: "Earth approach", scene: 2, dur: 14.6, fl: 0, fov: 60, tte: APPROACH, limb: LIMB },
   { name: "LM pirouette",   scene: 4, dur: 5.5,  fl: 0, p: [0, 45] },
-  { name: "LM descent",     scene: 5, dur: 10.4, fl: 2, p: [0, 200] }
+  { name: "LM descent",     scene: 5, dur: 10.4, fl: 2, p: [-56, 164] }   // film 26 s = GET 369664, 36.4 s = 369884 (scene default 369720)
 ];
 const TOUR_FADE = 0.8;   // seconds of fade at each end of a tour shot
 const TOUR = [
@@ -193,7 +193,7 @@ const TOUR = [
   { name: "Earth approach", scene: 2, dur: 150, fl: 0, fov: 60, tte: APPROACH, limb: LIMB },
   { name: "Earth limb",     scene: 3, dur: 90,  fl: 2, yaw: u => -15 + 30 * u, p: [0, 90] },
   { name: "LM pirouette",   scene: 4, dur: 120, fl: 0, p: [0, 240] },
-  { name: "LM descent",     scene: 5, dur: 115, fl: 2, p: [0, 225] }
+  { name: "LM descent",     scene: 5, dur: 115, fl: 2, p: [-56, 225] }
 ];
 // Live: the scene follows the mission phase from GET.
 const LIVE_MIN = 700, LIVE_MAX = TETP;     // kernel's Earth-orbit scene is valid from about 700 s
@@ -433,6 +433,7 @@ function draw(now) {
     const n = m <= 2 ? 8 : 6, rr = r * 1.1;
     for (let a = 0; a < n; a++) { const th = Math.PI * 2 * a / n - Math.PI / 2; starP.moveTo(x, y); starP.lineTo(x + rr * Math.cos(th), y + rr * Math.sin(th)); }
   }
+  const textP = new Path2D();   // recorder text is not clipped to the plot box: tick numbers sit just outside it
   // Recorder text (kernel tbuf/tchr): tick numbers and names, in the film layer with the vectors.
   if (K.tbuf) {
     const nt = ri("ntxt"), T = new Float64Array(buf(), K.tbuf.value, nt * 4), C = new Int32Array(buf(), K.tchr.value, ri("nchr"));
@@ -440,13 +441,13 @@ function draw(now) {
       let str = ""; for (let q = T[j + 3] - 1; q < C.length && C[q]; q++) str += String.fromCharCode(C[q]);
       const alpha = /[A-Z]/.test(str);
       if (alpha && (!labels || (fullCat && NAMES.NAV.includes(str)))) continue;   // names follow the Labels toggle; FULL catalog has no star names
-      strokeText(solid, str, cx + T[j] * k, cy - T[j + 1] * k, T[j + 2] * k);
+      strokeText(textP, str, cx + T[j] * k, cy - T[j + 1] * k, T[j + 2] * k);
     }
   }
   if (labels) for (let i = 0; i < nl * 4; i += 4) if ((L[i + 2] | 0) === 2) {   // crater names stay page-side, in the same font
     const t = NAMES.CRATER[(L[i + 3] | 0) - 1]; if (!t) continue;
-    const hd = F * 0.024, up = t.toUpperCase();
-    strokeText(solid, up, cx + L[i] * k - up.length * 0.7 * hd * k / 2, cy - L[i + 1] * k + hd * k / 2, hd * k);
+    const hd = F * 0.014, up = t.toUpperCase();
+    strokeText(textP, up, cx + L[i] * k - up.length * 0.7 * hd * k / 2, cy - L[i + 1] * k + hd * k / 2, hd * k);
   }
   const lw = Math.max(1, W / 420) * (bloomOn ? 1.4 : 1);
   for (const [w, a] of bloomOn ? [[lw * 3.4, 0.06 * flick], [lw * 1.7, 0.14 * flick], [lw, 0.98 * flick]] : [[lw * 3.2, 0.10 * flick], [lw, 0.95 * flick]]) {
@@ -458,6 +459,10 @@ function draw(now) {
   ctx.setLineDash([]); ctx.lineCap = "round";
   ctx.strokeStyle = `rgba(255,255,255,${0.98 * flick})`; ctx.lineWidth = lw; ctx.stroke(starP);
   ctx.restore();
+  // recorder text, unclipped, same strokes and glow as the vectors
+  for (const [w, a] of bloomOn ? [[lw * 3.4, 0.06 * flick], [lw * 1.7, 0.14 * flick], [lw, 0.98 * flick]] : [[lw * 3.2, 0.10 * flick], [lw, 0.95 * flick]]) {
+    ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = w; ctx.setLineDash([]); ctx.lineCap = "round"; ctx.stroke(textP);
+  }
 
   // axis captions (page lettering; tick numbers and names come from the kernel text records)
   if (framed) {
@@ -494,9 +499,9 @@ function present(now, bloomOn) {
   const w = cv.width, h = cv.height;
   if (effJit()) {
     if (now - lastJ >= 1000 / 24) {
-      lastJ = now; const a = Math.random() * 6.2832, m = 0.001 + 0.0015 * Math.random();
+      lastJ = now; const a = Math.random() * 6.2832, m = 0.0005 + 0.00075 * Math.random();
       jx = Math.cos(a) * m; jy = Math.sin(a) * m;
-      jr = Math.random() < 0.2 ? (Math.random() * 2 - 1) * 0.05 * Math.PI / 180 : 0;
+      jr = Math.random() < 0.2 ? (Math.random() * 2 - 1) * 0.025 * Math.PI / 180 : 0;
       jb = 0.94 + 0.06 * Math.random();
     }
   } else { jx = jy = jr = 0; jb = 1; }
