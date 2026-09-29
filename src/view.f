@@ -200,6 +200,7 @@ C
       CALL DMOON(VB, NV, LB, NL)
       CALL DEARTH(VB, NV, LB, NL)
       IF (ISCN .EQ. 4) CALL LMDRAW(VB, NV, GET)
+      IF (ISCN .EQ. 5) CALL LMSHAD(VB, NV, GET)
       IF (ISCN .EQ. 5) CALL OVLPD(VB, NV)
 C
 C     Header.
@@ -1297,7 +1298,7 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     SILL: > 0 if P lies below the LM window sill, 33 deg below the
+C     SILL: > 0 if P lies below the LM window sill, 35 deg below the
 C     centre of the reference (vehicle-fixed) frame.
       DOUBLE PRECISION FUNCTION SILL(P)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -1307,7 +1308,7 @@ C     RESTOMOD END
       DOUBLE PRECISION P(3), B, C
       B = P(1)*UREF(1) + P(2)*UREF(2) + P(3)*UREF(3)
       C = P(1)*BREF(1) + P(2)*BREF(2) + P(3)*BREF(3)
-      SILL = -33.0D0 - DATAN2(B, C) / DR
+      SILL = -35.0D0 - DATAN2(B, C) / DR
       RETURN
       END
 C
@@ -2359,8 +2360,19 @@ C
 C=======================================================================
 C     LM FRONT WINDOW OVERLAY.  Landing point designator scale and the
 C     commander's window frame, fixed to the LM (drawn in reference
-C     plot degrees, so they move with free-look).  LPD angle L lies at
-C     plot Y = 46 - L on the reference vertical.
+C     plot degrees, so they move with free-look).  TN D-6853 (printed
+C     p. 7) says the LPD and scribe marks came from LM window
+C     engineering drawings; we do not have them.  The geometry below
+C     is our reading of the film's descent frames (film seconds 27-35,
+C     reference/video_frames/descent_t*.png), taking 60 px per 10 deg
+C     from the edge numbers and Y = 0 at the "0" labels:
+C       scale line  X = 0 from Y = +36 to the sill, small marks every
+C                   1.125 deg on alternate sides, a longer mark to the
+C                   right every 9 deg down to the lower cross bar;
+C       cross bars  upper at Y = +29.3, +-11 deg, ticks up at 5, 10;
+C                   lower at Y = -18.8, +-6.5 deg, end ticks down;
+C       window      sill near Y = -35, right edge two lines to the
+C                   frame top (the film's frame is cut at Y = +41).
 C=======================================================================
       SUBROUTINE OVLPD(VB, NV)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -2369,56 +2381,152 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION VB(5,MAXV)
       INTEGER NV
-      DOUBLE PRECISION Y, W, WX(9), WY(9)
-      INTEGER K
+      DOUBLE PRECISION Y, WX(9), WY(9), YU, YL
+      INTEGER K, J
       IVMODE = 0
       ISTYLE = 1
-      CALL OVLINE(VB, NV, 0.0D0, 46.0D0, 0.0D0, -34.0D0)
-      DO 10 K = 0, 78, 2
-        Y = 46.0D0 - DBLE(K)
-        W = 0.6D0
-        IF (MOD(K, 10) .EQ. 0) W = 1.5D0
-        CALL OVLINE(VB, NV, -W, Y, W, Y)
+      YU = 29.3D0
+      YL = -18.8D0
+      CALL OVLINE(VB, NV, 0.0D0, 36.0D0, 0.0D0, -35.5D0)
+      DO 10 J = -14, 48
+        Y = YL + 1.125D0 * DBLE(J)
+C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
+        IF (MOD(J + 16, 8) .EQ. 0 .AND. J .GT. 0) THEN
+          IF (Y .LT. YU) CALL OVLINE(VB, NV, 0.0D0, Y, 2.5D0, Y)
+          GO TO 10
+        END IF
+        IF (MOD(J + 16, 2) .EQ. 0) THEN
+          CALL OVLINE(VB, NV, -0.6D0, Y, 0.0D0, Y)
+        ELSE
+          CALL OVLINE(VB, NV, 0.0D0, Y, 0.6D0, Y)
+        END IF
+C     RESTOMOD END
    10 CONTINUE
-C     Cross bars at LPD 10 and 60, marked every 5 deg to 10 deg.
-      DO 30 K = 1, 2
-        Y = 36.0D0
-        IF (K .EQ. 2) Y = -14.0D0
-        CALL OVLINE(VB, NV, -11.0D0, Y, 11.0D0, Y)
-        CALL OVLINE(VB, NV, -11.0D0, Y - 1.2D0, -11.0D0, Y + 1.2D0)
-        CALL OVLINE(VB, NV, -5.0D0, Y - 0.8D0, -5.0D0, Y + 0.8D0)
-        CALL OVLINE(VB, NV, 5.0D0, Y - 0.8D0, 5.0D0, Y + 0.8D0)
-        CALL OVLINE(VB, NV, 11.0D0, Y - 1.2D0, 11.0D0, Y + 1.2D0)
-   30 CONTINUE
-C     Window frame: lower sill, and the double right-hand edge.
+C     Upper cross bar, ticks up at 5 and 10 deg each side and the ends.
+      CALL OVLINE(VB, NV, -11.0D0, YU, 11.0D0, YU)
+      DO 20 K = -2, 2
+        IF (K .NE. 0) CALL OVLINE(VB, NV, 5.0D0 * DBLE(K), YU,
+     &                            5.0D0 * DBLE(K), YU + 1.3D0)
+   20 CONTINUE
+C     Lower cross bar with end ticks down.
+      CALL OVLINE(VB, NV, -6.5D0, YL, 6.5D0, YL)
+      CALL OVLINE(VB, NV, -6.5D0, YL, -6.5D0, YL - 1.5D0)
+      CALL OVLINE(VB, NV, 6.5D0, YL, 6.5D0, YL - 1.5D0)
+C     Window frame: sill, then the right-hand edge as two lines.
       WX(1) = -60.0D0
-      WY(1) = -32.6D0
+      WY(1) = -34.8D0
       WX(2) = -30.0D0
-      WY(2) = -32.2D0
+      WY(2) = -34.5D0
       WX(3) = -12.0D0
-      WY(3) = -33.0D0
-      WX(4) = -1.1D0
-      WY(4) = -33.5D0
-      WX(5) = 14.6D0
-      WY(5) = 46.4D0
-      WX(6) = 11.0D0
-      WY(6) = 51.0D0
+      WY(3) = -35.3D0
+      WX(4) = -1.0D0
+      WY(4) = -35.7D0
+      WX(5) = 13.4D0
+      WY(5) = 38.0D0
+      WX(6) = 10.0D0
+      WY(6) = 40.5D0
       DO 40 K = 1, 5
         CALL OVLINE(VB, NV, WX(K), WY(K), WX(K+1), WY(K+1))
    40 CONTINUE
-      WX(1) = -1.1D0
-      WY(1) = -33.5D0
-      WX(2) = 0.6D0
-      WY(2) = -32.8D0
-      WX(3) = 1.4D0
-      WY(3) = -30.5D0
-      WX(4) = 17.7D0
-      WY(4) = 46.0D0
-      WX(5) = 11.0D0
-      WY(5) = 51.0D0
-      DO 50 K = 1, 4
+      WX(1) = -1.0D0
+      WY(1) = -35.7D0
+      WX(2) = 2.0D0
+      WY(2) = -33.5D0
+      WX(3) = 5.5D0
+      WY(3) = -27.0D0
+      WX(4) = 16.0D0
+      WY(4) = 37.0D0
+      WX(5) = 15.5D0
+      WY(5) = 38.5D0
+      WX(6) = 10.0D0
+      WY(6) = 40.5D0
+      DO 50 K = 1, 5
         CALL OVLINE(VB, NV, WX(K), WY(K), WX(K+1), WY(K+1))
    50 CONTINUE
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     LMSHAD: the LM's shadow on the ground in the descent.  Every
+C     vertex of the LM wireframe (LMBILD) is carried along the Sun's
+C     direction to the lunar sphere and the edges are drawn there as a
+C     surface feature (facing test, so it hides below the horizon and
+C     foreshortens like a crater).  The film shows a small LM-shaped
+C     figure below the horizon late in the descent (descent_t35.png);
+C     that it is the shadow is our reading.  Eye 3 m above the base.
+C-----------------------------------------------------------------------
+      SUBROUTINE LMSHAD(VB, NV, GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION VB(5,MAXV), GET
+      INTEGER NV
+      DOUBLE PRECISION PMF(3), XB(3), YB(3), ZB(3), SMF(3), V(3)
+      DOUBLE PRECISION A(3), B(3)
+      INTEGER IS, J, K, IOK
+      CALL LMDESC(GET, PMF, XB, YB, ZB)
+      CALL MTXV(MMF, SUNU, SMF)
+      IVMODE = 3
+      ISTYLE = 1
+      DO 20 IS = 1, NSOL
+        DO 10 J = 1, NLE(IS)
+          DO 5 K = 1, 3
+            V(K) = LMV(K,LME(1,J,IS),IS)
+    5     CONTINUE
+          CALL SHADPT(V, PMF, XB, YB, ZB, SMF, A, IOK)
+          IF (IOK .EQ. 0) GO TO 10
+          DO 6 K = 1, 3
+            V(K) = LMV(K,LME(2,J,IS),IS)
+    6     CONTINUE
+          CALL SHADPT(V, PMF, XB, YB, ZB, SMF, B, IOK)
+          IF (IOK .EQ. 0) GO TO 10
+          CALL PEN(VB, NV, A, 0)
+          CALL PEN(VB, NV, B, 1)
+   10   CONTINUE
+   20 CONTINUE
+      DO 30 J = 1, NXL
+        IF (LXS(J) .NE. 0) GO TO 30
+        CALL SHADPT(LXL(1,J), PMF, XB, YB, ZB, SMF, A, IOK)
+        IF (IOK .EQ. 0) GO TO 30
+        CALL SHADPT(LXL(4,J), PMF, XB, YB, ZB, SMF, B, IOK)
+        IF (IOK .EQ. 0) GO TO 30
+        CALL PEN(VB, NV, A, 0)
+        CALL PEN(VB, NV, B, 1)
+   30 CONTINUE
+      IVMODE = 0
+      RETURN
+      END
+C
+C     SHADPT: LM body point V (m; X up, Y right, Z forward) to its
+C     shadow on the Moon, returned camera relative EQ in P.
+      SUBROUTINE SHADPT(V, PMF, XB, YB, ZB, SMF, P, IOK)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION V(3), PMF(3), XB(3), YB(3), ZB(3), SMF(3), P(3)
+      DOUBLE PRECISION W(3), G(3), B, C, DS, T
+      INTEGER IOK, K
+      IOK = 0
+      DO 10 K = 1, 3
+        W(K) = PMF(K) + ((V(1) - 3.0D0) * XB(K) + V(2) * YB(K)
+     &       + V(3) * ZB(K)) * 1.0D-3
+   10 CONTINUE
+      B = W(1) * SMF(1) + W(2) * SMF(2) + W(3) * SMF(3)
+      C = W(1)**2 + W(2)**2 + W(3)**2 - RM * RM
+      DS = B * B - C
+      IF (DS .LT. 0.0D0) RETURN
+      T = B - DSQRT(DS)
+      IF (T .LT. 0.0D0) RETURN
+      DO 20 K = 1, 3
+        G(K) = W(K) - T * SMF(K)
+   20 CONTINUE
+      CALL MXV(MMF, G, P)
+      DO 30 K = 1, 3
+        P(K) = P(K) + MPOS(K)
+   30 CONTINUE
+      IOK = 1
       RETURN
       END
 C
