@@ -9,7 +9,7 @@ SCENES  = 1 2 3 4 5
 export LF_BIN
 
 .DEFAULT_GOAL := help
-.PHONY: help build data native test lint check serve stop status clean
+.PHONY: help sheet build data native test lint check serve stop status clean
 
 help: ## Show this list
 	@echo "VIEW-1108 — make <target>   (LF_BIN=$(LF_BIN)  PORT=$(PORT))"
@@ -27,6 +27,9 @@ native: ## Build the native SVG renderer (build/viewsvg) with gfortran
 
 test: ## Run the headless self-test (wasm vs wasm2js fallback, every scene)
 	node tools/selftest.mjs
+
+sheet: ## Regenerate docs/media/film-vs-view1108.png (film vs our page; needs chromium + Pillow)
+	python3 tools/film_sheet.py
 
 lint: ## Check kernel dialect, compile warnings, and script syntax
 	python3 tools/lint_dialect.py src/view.f src/viewcom.inc src/viewdims.inc
