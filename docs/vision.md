@@ -79,6 +79,24 @@ Four kinds of module:
 
 The dispatcher uses what FORTRAN 66 has, a computed `GO TO` over layer ids, and needs no procedure pointers.
 
+### The elements against MSC's own description
+
+TN D-6853 describes VIEW in parts. It was "the augmentation of a somewhat dormant computer program" first written for Gemini rendezvous studies (p.2). "The program consists of two basic parts: the integrator portion and the graphic-display portion" (p.3). For Apollo, "the basic changes and modifications to the original program ... were associated with the input/output options, coordinate transformations, lunar- and solar-ephemeris installation, three-dimensional-display problems, and realistic spacecraft-window outlines" (p.3).
+
+Our kernel elements line up with those parts:
+
+| TN D-6853 (p.3) | Our elements |
+|---|---|
+| the integrator portion | `traj.f`: trajectory legs, now conic and circular models; later driven by the run decks |
+| the graphic-display portion | `pen.f` and the layer elements (`lframe.f`, `lstars.f`, `lsun.f`, `lmoon.f`, `learth.f`, `lvehic.f`, …), called by `vlayer.f` |
+| lunar- and solar-ephemeris installation | `ephem.f` |
+| coordinate transformations | `vmath.f`, and the frames set up in `vdrive.f` |
+| three-dimensional-display problems | `pen.f` (projection, clipping, hidden lines) and `models.f` |
+| realistic spacecraft-window outlines | window and cabin models, to come |
+| input/output options | `vtext.f`, the plot-tape buffers and the run decks |
+
+This table is our reading. The report names functions and modifications, not files, and no source says how VIEW's code was divided. It does describe a program changed piece by piece for a new mission. On the 1108, such a program was put together from separate elements by the Collector. So we keep the report's decomposition and make the seams explicit, and the modern parts of that (fixed interfaces, data-driven layers and decks) are restorations like any other.
+
 The seam between kernel and page stays the plot tape: `vbuf`, `sbuf`, `lbuf`, `tbuf`, `hdr`. Conjecture, not yet decided: tagging each vector with its layer id would let the page restyle or hide a layer without a kernel call.
 
 The split is a refactor with no change in behaviour. The gate is that every scene renders identically before and after: the wasm-vs-JS selftest, plus the native SVG renders from `make check` compared byte for byte.
