@@ -33,16 +33,18 @@ function applyParams() {
   const flag = k => UP.get(k) === "1" ? true : UP.get(k) === "0" ? false : null;
   const md = ["attract", "tour", "live", "free", "beam"].includes(UP.get("mode")) ? UP.get("mode") : "attract";
   if (md === "attract" || md === "tour") { startMode(md); return; }
-  let g = null; for (const k of ["get", "utc"]) if (UP.has(k)) { const v = parseGet(UP.get(k)); if (v !== null && isFinite(v)) g = v; }
-  const sc = num("scene") === null ? 1 : Math.round(num("scene")), scn = sc >= 1 && sc <= SCENES.length ? sc : 1;
-  if (md === "free" || md === "beam") { setScene(scn); if (g !== null) get = g; if (md === "beam") { const b = Math.round(num("bspeed") ?? 0); if (b >= 1 && b <= BEAM_SPEEDS.length) beamIdx = b - 1; startMode("beam"); } }
+  // get/utc are read after the scene is set: a utc is converted with that scene's scenario epoch.
+  const gOf = () => { let g = null; for (const k of ["get", "utc"]) if (UP.has(k)) { const v = parseGet(UP.get(k)); if (v !== null && isFinite(v)) g = v; } return g; };
+  const sc = num("scene") === null ? 1 : Math.round(num("scene")), scn = hasScene(sc) ? sc : 1;
+  const other = scn === 9;   // another mission's scene: Live follows Apollo 11, so it opens in Free-look
+  if (md === "free" || md === "beam" || other) { setScene(scn); const g = gOf(); if (g !== null) get = g; if (md === "beam") { const b = Math.round(num("bspeed") ?? 0); if (b >= 1 && b <= BEAM_SPEEDS.length) beamIdx = b - 1; startMode("beam"); } }
   else {   // live: the scene follows the mission phase, except the LM and docking views, which are pinned
-    if (g !== null) get = g;
+    const g = gOf(); if (g !== null) get = g;
     startMode("live");
     if (scn === 6) setScene(6);
     else if (scn === 4 || scn === 5 || scn === 7) { const j = JUMPS[{ 4: "jundock", 5: "jdesc", 7: "jtd" }[scn]]; liveJump({ ...j, get: g ?? j.get }); }
   }
-  const r = num("rate"); if (r !== null) { if (md === "live" && LIVE_RATES.includes(r)) liveIdx = LIVE_RATES.indexOf(r); else if (md === "free" && SPEEDS.includes(r) && r > 0) speedIdx = SPEEDS.indexOf(r); }
+  const r = num("rate"); if (r !== null) { if (md === "live" && !other && LIVE_RATES.includes(r)) liveIdx = LIVE_RATES.indexOf(r); else if ((md === "free" || other) && SPEEDS.includes(r) && r > 0) speedIdx = SPEEDS.indexOf(r); }
   const f = num("fov"); if (f !== null) fov = Math.max(1, Math.min(170, f));
   const y = num("yaw"); if (y !== null) yaw = y;
   const pt = num("pitch"); if (pt !== null) pitch = Math.max(-90, Math.min(90, pt));

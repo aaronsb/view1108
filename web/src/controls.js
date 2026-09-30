@@ -2,7 +2,7 @@
 "use strict";
 // ---- UI ----
 function syncUI() {
-  document.querySelectorAll("#scenes button").forEach((b, i) => b.classList.toggle("on", i + 1 === scene));
+  document.querySelectorAll("#scenes button").forEach(b => b.classList.toggle("on", +b.dataset.scene === scene));
   document.getElementById("bplay").textContent = playing ? "Pause" : "Play";
   document.querySelector("#ppause small").textContent = playing ? "PAUSE" : "PLAY";
   document.getElementById("spd").textContent = mode === "beam" ? BEAM_SPEEDS[beamIdx].short : (mode === "live" ? LIVE_RATES[liveIdx] : SPEEDS[speedIdx]) + "x";
@@ -20,14 +20,14 @@ function syncUI() {
   document.getElementById("bfrm").classList.toggle("on", frame);
 }
 const $ = id => document.getElementById(id);
-function addSceneButton(s) { const b = document.createElement("button"); b.textContent = s + " " + SCENES[s - 1]; b.onclick = () => setScene(s); $("scenes").appendChild(b); }
+function addSceneButton(s) { const b = document.createElement("button"); b.textContent = s + " " + SCENES[s - 1]; b.dataset.scene = s; b.onclick = () => setScene(s); $("scenes").appendChild(b); }
 SCENES.forEach((n, i) => addSceneButton(i + 1));
 for (const m of ["attract", "tour", "live", "free", "beam"]) $("m" + m).onclick = () => startMode(m);
 for (const id in JUMPS) $(id).onclick = () => liveJump(JUMPS[id]);
 const bump = d => { if (mode === "beam") beamIdx = Math.max(0, Math.min(BEAM_SPEEDS.length - 1, beamIdx + d)); else if (mode === "live") liveIdx = Math.max(0, Math.min(LIVE_RATES.length - 1, liveIdx + d)); else speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, speedIdx + d)); syncUI(); };
 const parseGet = t => {
   const u = /^\s*(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})\s*Z?\s*$/.exec(t);   // a UTC timestamp
-  if (u) return (Date.UTC(+u[1], +u[2] - 1, +u[3], +u[4], +u[5], +u[6]) - LIFTOFF_MS) / 1000;
+  if (u) return (Date.UTC(+u[1], +u[2] - 1, +u[3], +u[4], +u[5], +u[6]) - LIFTOFF_MS) / 1000 - epoch;
   return parseGetHms(t);
 };
 const parseGetHms = t => { const m = t.trim().split(":").map(Number); if (m.some(isNaN)) return null; return m.length === 3 ? m[0] * 3600 + m[1] * 60 + m[2] : m.length === 2 ? m[0] * 3600 + m[1] * 60 : m[0]; };
@@ -94,7 +94,7 @@ window.addEventListener("keydown", e => {
   if (k.length === 1 || k.startsWith("Arrow")) leaveAttract();
   let h = true;
   if (KEY_ACT[k]) ACT[KEY_ACT[k]]();
-  else if (k >= "1" && k <= String(SCENES.length)) setScene(+k);
+  else if (k >= "1" && k <= "9" && hasScene(+k)) setScene(+k);
   else h = false;
   if (h) e.preventDefault();
 });

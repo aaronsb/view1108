@@ -37,6 +37,7 @@ Speeds 1 and 2 are our estimates, worked out in [univac-1108.md](univac-1108.md)
 | 6 | Moon view | The whole Moon from 35,000 km; drag to spin it. Maria, craters, the terminator and the landing site. A modern addition, not reconstructed 1969 output. | [scene=6](https://aaronsb.github.io/view1108/?mode=free&scene=6) |
 | 7 | Transposition & docking | Through the CSM's docking sight, down onto the LM stowed on the S-IVB, closing from 100 ft to docking at 3:24:03. Hidden-line LM and S-IVB. | [scene=7](https://aaronsb.github.io/view1108/?mode=free&scene=7) |
 | 8 | Translunar stack | The CSM and LM docked, in translunar coast, seen from outside or from a crew station (View). A modern addition, not reconstructed 1969 output. Shown only when the kernel has it. | [scene=8](https://aaronsb.github.io/view1108/?mode=free&scene=8&view=external) |
+| 9 | Apollo 8 Earthrise | The Earth rising over the lunar limb from Apollo 8's lunar orbit, 24 Dec 1968; the status line names APOLLO 8 and the UTC follows Apollo 8's lift-off. Built from Apollo 8 data in the Apollo 11 note's formats: VIEW did make Apollo 8 views: "Preflight views produced for the Apollo 8 mission included views as seen through the spacecraft windows during various critical maneuvers of the flight. These maneuvers were at TLI, LOI, transearth insertion (TEI), and the entry phase." (TN D-6853, printed p. 3; also p. 2, "the window view of the lunar horizon at the Apollo 8 LOI ignition time and attitude"). None survive that we know of. Shown only when the kernel has it; Live and the jump buttons follow Apollo 11, so this scene opens in Free-look and hides the jumps. | [scene=9](https://aaronsb.github.io/view1108/?mode=free&scene=9) |
 
 ### Scene 7 sources and guesses
 
@@ -70,7 +71,7 @@ Is the film's leg-less LM shot (film seconds 20.5 to 26) this view? We think not
 | Space | Pause |
 | `[` `]` | Slower / faster (the Live rate, the Beam speed, or the Free-look speed) |
 | `R` | Reset the view |
-| `1`–`8` | Scenes (`8` when the kernel has scene 8) |
+| `1`–`9` | Scenes (`8` and `9` when the kernel has them) |
 | `T` | Beam mode |
 | `L` | Copy a link to the current view |
 | `B` `J` `D` `F` `C` | Bloom, jitter, dust, film rate, catalog |
@@ -122,9 +123,9 @@ Each control group (Mode, Look, Scene, Time, Display, Film, Listing and link) ha
 | Parameter | Values | Example |
 |---|---|---|
 | `mode` | `attract`, `tour`, `live`, `free`, `beam` | `?mode=live` |
-| `scene` | `1`–`8` (in Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase) | `?mode=free&scene=7` |
+| `scene` | `1`–`9` (in Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase; `9` opens in Free-look) | `?mode=free&scene=7` |
 | `get` | g.e.t. as `h:mm:ss` or seconds | `?get=102:45:40` |
-| `utc` | `YYYY-MM-DDTHH:MM:SS` (Apollo 11 lift-off 1969-07-16T13:32:00Z plus g.e.t.) | `?utc=1969-07-20T20:17:40` |
+| `utc` | `YYYY-MM-DDTHH:MM:SS` (the scene's mission lift-off plus g.e.t.; Apollo 11: 1969-07-16T13:32:00Z) | `?utc=1969-07-20T20:17:40` |
 | `fov`, `yaw`, `pitch`, `roll` | degrees | `?fov=100&pitch=-10` |
 | `rate` | Live `1`/`10`/`60`/`300`/`1000`; Free-look speed | `?mode=live&rate=60` |
 | `bspeed` | `1`–`4` | `?mode=beam&bspeed=3` |

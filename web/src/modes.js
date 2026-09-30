@@ -62,6 +62,9 @@ const filmQ = /[?&]film=([\d.]+)/.exec(location.search);
 // Yaw circles the stack's long axis, which looks alike from every side, so the shot rises in elevation from side-on
 // toward the LM end and drifts a little in azimuth, with the stack about half the frame.
 const ATTRACT8 = { name: "Translunar stack - a modern addition, not 1969 film", scene: 8, dur: 12, fl: 0, cap: true, view: 1, fov: 24, yaw: u => 150 + 50 * u, pitch: u => -10 + 45 * u, p: [0, 12] };
+// Scene 9, Apollo 8 Earthrise (24 Dec 1968), appended to the Tour when the kernel has it: the Earth rises at 4x.
+// The GET span around the scene's default is our first guess; tune it against the kernel's scene.
+const TOUR9 = [{ name: "Apollo 8 Earthrise", scene: 9, dur: 120, fl: 2, p: [-120, 360] }];
 const TOUR8 = [
   { name: "Translunar stack - external", scene: 8, dur: 90, fl: 2, view: 1, fov: 24, yaw: u => 120 + 120 * u, pitch: u => -10 + 45 * (1 - Math.cos(2 * Math.PI * u)) / 2, p: [0, 90] },
   { name: "Translunar stack - CM window", scene: 8, dur: 60, fl: 2, view: 2, p: [90, 150] }
