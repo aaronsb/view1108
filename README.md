@@ -14,6 +14,8 @@ In 1969 a view was a batch job. The program integrated the trajectory, drew "at 
 
 Here the answer comes back while you move. Drag, and the window turns; type a g.e.t., and the sky, the Earth and the Moon move to that moment of the Apollo 11 mission. The picture above is a frame from our kernel, not from the film. On the page every frame is computed live by FORTRAN 66/77-style code compiled to WebAssembly (or its JavaScript translation where WebAssembly is unavailable), and drawn as white lines on black, like the film.
 
+Where it's going: from one film's scenes to whole Apollo missions (Apollo 8 and Apollo 11 first), phase by phase, with windows, cabins and spacecraft, and every modern addition labelled as one. See [docs/vision.md](docs/vision.md).
+
 ## What VIEW was
 
 Every statement here comes from the two NASA reports in `reference/`.
