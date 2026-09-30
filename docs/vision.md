@@ -42,7 +42,9 @@ We match these against the surviving output: the film clip and MSC IN 69-FM-197.
 - **The CSM model's detail.** No surviving plot shows a CSM, so its shape comes from published dimensions.
 - **Apollo 8 views.** VIEW made them (p.3), but none survive in our holdings. We draw Apollo 8 in the formats of the Apollo 11 note, with Apollo 8's trajectory.
 
-## Missions are run decks
+## One engine, many scenarios
+
+The kernel is a common engine. A **scenario** is the data it runs: one mission, or one version of a mission's trajectory, such as the pre-flight nominal or the as-flown trajectory. In 1969 terms a scenario is a run deck: the inputs fed to the program for one run.
 
 VIEW was a general program fed per-mission inputs:
 
@@ -52,7 +54,7 @@ VIEW was a general program fed per-mission inputs:
 
 Today the kernel does the opposite: Apollo 11 times and geometry are written into the scene code. The kernel's lunar orbit is anchored to the Apollo 11 touchdown time, the Earthrise search is bounded to the revolution before it, and the translunar leg branches on a fixed g.e.t. That doesn't scale past one mission.
 
-The direction is a **run deck per mission**: a data table the kernel reads, kept in `data/` and turned into `BLOCK DATA` by `tools/gen_data.py` as the star and crater catalogs are. A deck holds:
+The direction is a **scenario per mission or trajectory version**: a data table the kernel reads, kept in `data/` and turned into `BLOCK DATA` by `tools/gen_data.py` as the star and crater catalogs are. A scenario holds:
 
 - the epoch (range zero, as a Julian date);
 - trajectory legs: sourced burn states from the mission report (position, speed, flight-path angle, heading) and the conic or circular model each leg uses;
@@ -60,7 +62,7 @@ The direction is a **run deck per mission**: a data table the kernel reads, kept
 - the phases: g.e.t. span, vehicle, window, field of view and default look;
 - event marks with their sources.
 
-The kernel stays mission-agnostic: it reads the deck, propagates the leg that covers the current g.e.t., and draws. Adding Apollo 10, 12 or 13 then means adding a deck. Conjecture: this is close to how VIEW itself was used, a fixed program with a new input deck per mission and per trajectory revision. The job flow is our guess (see `docs/batch-pipeline.md`).
+The kernel stays mission-agnostic: it reads the scenario, propagates the leg that covers the current g.e.t., and draws. Adding Apollo 10, 12 or 13 then means adding a scenario. Apollo 11 can carry two: the pre-flight nominal VIEW would have been given, and the as-flown trajectory from the mission report, so the viewer can compare prediction with flight. Conjecture: this is close to how VIEW itself was used, a fixed program with a new input deck per mission and per trajectory revision. The job flow is our guess (see `docs/batch-pipeline.md`).
 
 ## Pluggable modules
 
