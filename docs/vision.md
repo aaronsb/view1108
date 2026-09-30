@@ -89,6 +89,8 @@ Ideas we have not committed to. They shape design choices now, such as keeping r
 
 - **Photographs in place.** A crew photograph with a known time becomes an event in the mission's run deck. The deck records the photo ID, g.e.t., camera and lens, window, and pointing where known. The page jumps to that moment and overlays the photograph on the vector frame with an opacity control. Where the pointing is unknown, free-look aligns it by hand. For fields under 100° our projection is gnomonic, the same mapping as a rectilinear camera lens, so a correct time, position, pointing and field of view should register the photograph line for line. That makes each photograph a fidelity test of the trajectory as well as an exhibit. The first case is AS08-14-2383, the Apollo 8 Earthrise: 16:39:39.7 UTC over 11.15°S 113.80°E, per NASA SVS 4129 (svs.gsfc.nasa.gov/4129), taken with a 250 mm Hasselblad lens (Apollo 8 Flight Journal). The photographs and their overlay are a restoration; VIEW's own frames were preflight predictions (TN D-6853, p.3).
 
+- **Launch and staging.** Mark lift-off, S-IC cutoff and separation, tower jettison, S-II and S-IVB cutoffs and orbit insertion as run-deck events, with the times from SP-4029 *Apollo by the Numbers*. The Apollo 11 note has no launch views, so any launch view would be a restoration.
+
 ## Order of work
 
 1. Transposition & docking, with a reusable vehicle-model system (in progress).
