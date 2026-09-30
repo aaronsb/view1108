@@ -54,3 +54,5 @@ const rd = g => new Float64Array(buf(), K[g].value, 1)[0];
 const wr = (g, v) => { new Float64Array(buf(), K[g].value, 1)[0] = v; };
 const ri = g => new Int32Array(buf(), K[g].value, 1)[0];
 const wi = (g, v) => { new Int32Array(buf(), K[g].value, 1)[0] = v; };
+// Every scene selection goes through here, so a running simulation re-fills its tape for the scene (sim.js).
+const viewInit = s => { K.view_init(s); simAfterInit(); };

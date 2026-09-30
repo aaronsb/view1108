@@ -74,6 +74,20 @@ Is the film's leg-less LM shot (film seconds 20.5 to 26) this view? We think not
 | `L` | Copy a link to the current view |
 | `B` `J` `D` `F` `C` | Bloom, jitter, dust, film rate, catalog |
 
+## Simulation
+
+A modern addition, in the RESTOMOD spirit: VIEW drew pre-flight predictions (TN D-6853, p. 3); this engine integrates our own trajectory. The Simulation control group appears only when the kernel has the engine (a `sim_run` export); on a phone it starts shut.
+
+| Control | What it does |
+|---|---|
+| Source: Replay | Draw the sourced trajectory, as every other mode does |
+| Source: Simulate | Integrate our own trajectory from the sourced state |
+| State vector updates on/off | With updates on, the simulated state is corrected from the sourced trajectory, as the ground's state vector updates corrected the spacecraft's; off, it flies free and drifts |
+
+The readout line says `SOURCE REPLAY`, `SIM - UPDATES ON` or `SIM - FREE`, followed in simulation by the position and velocity error at the sourced reference point nearest the g.e.t. and that point's g.e.t., e.g. `ERR 12.3 KM 4.1 FT/S   VS 75:55:48`. Before TLI there is no simulated trajectory, and it says `SIM - BEFORE TLI, REPLAY`.
+
+The updates are named after the guidance computer's update program. Comanche055 `UPDATE_PROGRAM.agc` (https://github.com/chrislgarry/Apollo-11): "P27 (THE UPDATE PROGRAM) PROCESSES COMMANDS AND DATA INSERTIONS REQUESTED BY THE GROUND VIA UPLINK", and verb 71 performs a "CSM/LM STATE VECTOR UPDATE". How the engine applies an update is our design.
+
 ## Control pad
 
 The Look group holds a pad of key caps that does what the keyboard does, for mouse and touch. Each cap shows its key.
@@ -107,6 +121,8 @@ Each control group (Mode, Look, Scene, Time, Display, Film, Listing and link) ha
 | `labels`, `frame`, `hidden` | `0`/`1` | `?labels=0` |
 | `bloom`, `jitter`, `dust`, `fps` | `0`/`1` | `?bloom=0&jitter=0` |
 | `catalog` | `nav`, `full` | `?catalog=full` |
+| `src` | `replay`, `sim` (Simulation; only when the kernel has the engine) | `?src=sim` |
+| `svu` | `0`/`1`: state vector updates in simulation (default 1) | `?src=sim&svu=0` |
 | `listing` | `dark`, `light` | `?listing=light` |
 | `still` | `earthrise` (frozen Earthrise, controls hidden, for screenshots) | `?still=earthrise` |
 | `bare` | present to hide the controls | `?bare&film=8` |

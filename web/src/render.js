@@ -7,6 +7,7 @@ const mk = () => document.createElement("canvas");
 const off = mk(), bl1 = mk(), bl2 = mk(), bl3 = mk(), am1 = mk(), am2 = mk(), am3 = mk(), amS = mk(), ctx = off.getContext("2d"), b1c = bl1.getContext("2d"), b2c = bl2.getContext("2d"), b3c = bl3.getContext("2d"), a1c = am1.getContext("2d"), a2c = am2.getContext("2d"), a3c = am3.getContext("2d"), aSc = amS.getContext("2d");
 // ---- layout ----
 const HDR = 0.115, BOXF = 0.80, HGT = 1.10;
+const RM_NMI = 938.1;   // lunar radius 1737.4 km (IAU mean radius) in n. mi.
 function resize() {
   const wrapW = document.getElementById("wrap").clientWidth;
   W = Math.floor(Math.max(280, Math.min(wrapW, (innerHeight - (STILL ? 0 : 190)) / HGT)));
@@ -95,10 +96,26 @@ function draw(now) {
       strokeText(textP, str, cx + T[j] * k, cy - T[j + 1] * k, T[j + 2] * k);
     }
   }
-  if (labels) for (let i = 0; i < nl * 4; i += 4) if ((L[i + 2] | 0) === 2) {   // crater names stay page-side, in the same font
-    const t = NAMES.CRATER[(L[i + 3] | 0) - 1]; if (!t) continue;
-    const hd = 2 * half * 0.014, up = t.toUpperCase();
-    strokeText(textP, up, cx + L[i] * k - up.length * 0.7 * hd * k / 2, cy - L[i + 1] * k + hd * k / 2, hd * k);
+  // Crater names stay page-side, in the same font, centred on the crater. Largest crater first (the catalog is sorted
+  // by diameter, so a lower id is a larger crater); a name whose text rectangle (0.7 x height per character, one height
+  // tall) meets one already placed is dropped, the same rule as the kernel's Moon-view labels. Names of craters within
+  // two name heights of the Moon's limb (as angles from the Moon's centre) are dropped too: seen edge-on there, they
+  // would letter over the limb and its crowded rims. Our rules.
+  if (labels) {
+    const hd = 2 * half * 0.014, placed = [], cand = [];
+    const dir = (x, y) => { const th = plotToAngle(Math.hypot(x, y), F) * Math.PI / 180, ph = Math.atan2(y, x); return [Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th)]; };
+    const moon = H[5] === 2 && H[13] === 1 ? dir(H[10], H[11]) : null;   // hdr(6) reference body Moon, hdr(14) in front
+    const limbAt = moon ? Math.asin(Math.min(1, RM_NMI / Math.max(RM_NMI, H[2]))) - 2 * hd * Math.PI / 180 : 0;
+    const nearLimb = i => { if (!moon) return false; const d = dir(L[i], L[i + 1]); return Math.acos(Math.min(1, d[0] * moon[0] + d[1] * moon[1] + d[2] * moon[2])) > limbAt; };
+    for (let i = 0; i < nl * 4; i += 4) if ((L[i + 2] | 0) === 2 && NAMES.CRATER[(L[i + 3] | 0) - 1] && !nearLimb(i)) cand.push(i);
+    cand.sort((a, b) => L[a + 3] - L[b + 3]);
+    for (const i of cand) {
+      const up = NAMES.CRATER[(L[i + 3] | 0) - 1].toUpperCase(), wd = 0.35 * hd * up.length;
+      const r = [L[i] - wd, L[i] + wd, L[i + 1] - 0.5 * hd, L[i + 1] + 0.5 * hd];
+      if (placed.some(q => r[0] < q[1] && r[1] > q[0] && r[2] < q[3] && r[3] > q[2])) continue;
+      placed.push(r);
+      strokeText(textP, up, cx + L[i] * k - up.length * 0.7 * hd * k / 2, cy - L[i + 1] * k + hd * k / 2, hd * k);
+    }
   }
   // BLOOM: a hairline (about 1 device px) beam; all glow comes from the blur passes in present().
   const lw = bloomOn ? Math.max(1, 0.0009 * cv.width) / dpr : Math.max(1, W / 420); hairline = lw;   // hairline: 0.09% of canvas width, at least 1 device px

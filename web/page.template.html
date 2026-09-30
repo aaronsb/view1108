@@ -80,6 +80,13 @@
     <button id="bfps" title="F">Film rate</button>
     <button id="bblm" title="B">Bloom</button>
   </div></section>
+  <section class="shade" data-shade="sim" id="simgrp" hidden><button class="shade-h" type="button">Simulation</button>
+  <div class="grp">
+    <span class="lbl">Source</span><button id="ssrc-replay" class="on" title="Replay the sourced trajectory">Replay</button><button id="ssrc-sim" title="Integrate our own trajectory">Simulate</button>
+    <button id="ssvu" class="on" title="Ground state vector updates (P27 uplink); see docs/modes.md">State vector updates on</button>
+  </div>
+  <div class="grp"><span id="simread" class="lbl" role="status"></span></div>
+  <div class="grp simnote">Modern addition: VIEW drew pre-flight predictions; this engine integrates our own trajectory.</div></section>
   <section class="shade" data-shade="output"><button class="shade-h" type="button">Listing and link</button>
   <div class="grp">
     <button id="bsrc">Fortran listing</button>
@@ -108,6 +115,7 @@
 <script src="src/beam.js"></script>
 <script src="src/loop.js"></script>
 <script src="src/controls.js"></script>
+<script src="src/sim.js"></script>
 <script src="src/pad.js"></script>
 <script src="src/shades.js"></script>
 <script src="src/listing.js"></script>

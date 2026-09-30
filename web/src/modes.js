@@ -73,7 +73,7 @@ function autoStep(dt) {
   while (i < L.length - 1 && t >= L[i].dur) { t -= L[i].dur; i++; }
   const sh = L[i], u = t / sh.dur;
   if (i !== autoShot) {
-    autoShot = i; scene = sh.scene; K.view_init(sh.scene); readDefaults();
+    autoShot = i; scene = sh.scene; viewInit(sh.scene); readDefaults();
     labels = !!(sh.fl & 1); frame = !!(sh.fl & 2); capName = sh.name; syncUI();
   }
   if (sh.fov) fov = sh.fov;
@@ -103,13 +103,13 @@ function liveSync() {
   const ph = livePhase(get); capName = ph.name;
   if (ph.scene !== scene) {          // keep the viewer's look and the time across a scene change
     const g = get, y = yaw, pt = pitch, r = roll;   // keep look and time; FOV returns to the new scene's default
-    scene = ph.scene; K.view_init(scene); readDefaults(); get = g; yaw = y; pitch = pt; roll = r; get0 = g; aimAtBody(); syncUI();
+    scene = ph.scene; viewInit(scene); readDefaults(); get = g; yaw = y; pitch = pt; roll = r; get0 = g; aimAtBody(); syncUI();
   }
 }
 function liveJump(j) {
   startMode("live");
   livePin = { scene: j.scene, from: j.get, until: j.get + j.len, name: j.name };
-  scene = j.scene; K.view_init(scene); readDefaults(); get = j.get; get0 = get; liveSync(); syncUI();
+  scene = j.scene; viewInit(scene); readDefaults(); get = j.get; get0 = get; liveSync(); syncUI();
 }
 
 // ---- modes: attract -> tour (loops), live, free ----
@@ -117,7 +117,7 @@ function startMode(m) {
   const prev = mode; mode = m; autoT = (m === "attract" && filmQ) ? +filmQ[1] : 0; autoShot = -1; fadeA = 0; playing = true;
   if (m === "live") {
     get = Math.max(LIVE_MIN, Math.min(LIVE_MAX, get)); livePin = null;
-    scene = livePhase(get).scene; K.view_init(scene); const g = get; readDefaults(); get = g; get0 = g; frame = true; labels = true; liveSync(); aimAtBody();
+    scene = livePhase(get).scene; viewInit(scene); const g = get; readDefaults(); get = g; get0 = g; frame = true; labels = true; liveSync(); aimAtBody();
   } else if (m === "beam") {
     beamFrames = []; beamNextStart = 0; beamPrevCompute = 0; beamFrameNo = 0; capName = "";
   } else if (m === "free") {
@@ -140,8 +140,8 @@ function readDefaults() {
 function setScene(s) {
   if (mode === "live" && s === 6) {   // Moon view is not a mission phase: in Live it is pinned until the viewer scrubs or types a time
     const g = get; livePin = { scene: 6, from: -Infinity, until: Infinity, name: SCENE_CAPTION[6] };
-    scene = 6; K.view_init(6); readDefaults(); get = g; get0 = g; capName = SCENE_CAPTION[6]; syncUI(); return;
+    scene = 6; viewInit(6); readDefaults(); get = g; get0 = g; capName = SCENE_CAPTION[6]; syncUI(); return;
   }
-  if (mode !== "beam") mode = "free"; else beamNextStart = 0; capName = ""; scene = s; K.view_init(s); readDefaults(); syncUI();
+  if (mode !== "beam") mode = "free"; else beamNextStart = 0; capName = ""; scene = s; viewInit(s); readDefaults(); syncUI();
 }
-function resetView() { const g = get; K.view_init(scene); readDefaults(); get = g; }
+function resetView() { const g = get; viewInit(scene); readDefaults(); get = g; }
