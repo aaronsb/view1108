@@ -3,8 +3,8 @@ C
 C     V I E W - 1 1 0 8          SPACECRAFT MODELS
 C
 C     Core element.  The wireframe model library
-C     (data built once) that the vehicles layer draws.  One relocatable element of
-C     the kernel; see vdrive.f for the list.
+C     (data built once) that the vehicles layer draws.  One
+C     relocatable element of the kernel; see vdrive.f for the list.
 C
 C=======================================================================
 C

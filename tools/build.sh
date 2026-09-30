@@ -33,7 +33,7 @@ native() {
 }
 if [ "${1:-}" = native ]; then native; exit 0; fi
 
-EXPORTS="memory view_init view_frame in_get in_yaw in_pitch in_roll in_fov in_flags
+EXPORTS="memory view_init view_frame sim_run in_get in_yaw in_pitch in_roll in_fov in_flags in_src
          vbuf nvec sbuf nstar lbuf nlab hdr tbuf ntxt tchr nchr"
 # No --fast: LFortran would optimise for the host (x86 vectors, i64 overflow
 # checks that need __multi3).  clang optimises the IR for wasm32 instead.

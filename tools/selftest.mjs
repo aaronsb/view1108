@@ -10,6 +10,7 @@ const env = new Proxy({}, {
   has: () => true,
   get(_, k) {
     if (k === 'fma') return (a, b, c) => a * b + c;
+    if (k === 'pow') return Math.pow;
     const m = /^_lfortran_d?(\w+?)$/.exec(String(k));
     if (m && typeof Math[m[1]] === 'function') return Math[m[1]];
     throw new Error('selftest: no provider for import env.' + String(k));
@@ -26,13 +27,13 @@ const F = ctx.VIEW1108_ASM(imports);
 
 const f64 = (K, name, n) => Array.from(new Float64Array(K.memory.buffer, K[name].value, n));
 const i32 = (K, name) => new Int32Array(K.memory.buffer, K[name].value, 1)[0];
-function run(K, scene) {
+function run(K, scene, flags = 3) {
   K.view_init(scene);
-  new Int32Array(K.memory.buffer, K.in_flags.value, 1)[0] = 3;
+  new Int32Array(K.memory.buffer, K.in_flags.value, 1)[0] = flags;
   K.view_frame();
   const nvec = i32(K, 'nvec'), nstar = i32(K, 'nstar'), nlab = i32(K, 'nlab');
   const ntxt = i32(K, 'ntxt'), nchr = i32(K, 'nchr');
-  return { nvec, nstar, nlab, ntxt, hdr: f64(K, 'hdr', 16), vbuf: f64(K, 'vbuf', 5 * nvec),
+  return { nvec, nstar, nlab, ntxt, hdr: f64(K, 'hdr', 24), vbuf: f64(K, 'vbuf', 5 * nvec),
            tbuf: f64(K, 'tbuf', 4 * ntxt),
            tchr: Array.from(new Int32Array(K.memory.buffer, K.tchr.value, nchr)),
            init: f64(K, 'in_get', 1)[0] };
@@ -51,5 +52,23 @@ for (const scene of [1, 2, 3, 4, 5, 6, 7]) {
     `  stars ${a.nstar}/${b.nstar}  labels ${a.nlab}/${b.nlab}  text ${a.ntxt}/${b.ntxt}` +
     `  ${same ? 'identical' : 'DIFFER'}  wasm ${ms.toFixed(2)} ms/frame`);
   if (!same || a.nvec === 0) ok = false;
+}
+// Simulation mode: run the engine with delta correction on (1) and off (0), then draw every
+// scene from the tape (in_flags bit 3) and check wasm and the fallback agree; also time sim_run.
+if (W.sim_run) {
+  for (const sf of [1, 0]) {
+    const t0 = performance.now(); W.sim_run(sf); const ms = performance.now() - t0;
+    F.sim_run(sf);
+    let same = true, drawn = 0;
+    for (const scene of [1, 2, 3, 4, 5, 6, 7]) {
+      const a = run(W, scene, 3 | 8), b = run(F, scene, 3 | 8);
+      if (!(a.nvec === b.nvec && a.nstar === b.nstar && maxdiff(a.hdr, b.hdr) === 0 &&
+            maxdiff(a.vbuf, b.vbuf) === 0)) same = false;
+      if (a.hdr[16] > 0) drawn++;
+    }
+    console.log(`sim flags ${sf}: sim_run ${ms.toFixed(1)} ms (wasm)  scenes drawn from the tape ${drawn}` +
+      `  ${same ? 'identical' : 'DIFFER'}`);
+    if (!same || drawn === 0) ok = false;
+  }
 }
 console.log(ok ? 'PASS' : 'FAIL'); process.exit(ok ? 0 : 1);

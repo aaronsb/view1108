@@ -119,13 +119,73 @@ C     tools/gen_data.py; field layout in src/viewdata.f).
       COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT
       COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND
 C
+C     /CMEEUS/ the Moon's periodic terms, Meeus tables 47.A and 47.B
+C     (BLOCK DATA from data/meeus47.txt; layout in src/viewdata.f).
+C     RESTOMOD: ELP-2000/82 (1982) as abridged by Meeus (1991, 1998)
+      INTEGER MMA(360), MMB(300)
+      COMMON /CMEEUS/ MMA, MMB
+C
+C     /CSIM/, /CSIMI/ the scenarios' simulation cards: START, the
+C     SCORE (BURN) and the REFERENCE rows (layout in src/viewdata.f).
+      DOUBLE PRECISION STP(NLGP,NSTRT), RFP(NLGP,NREF)
+      DOUBLE PRECISION BNT(NBURN), BNDV(NBURN), BNP(NBURN)
+      DOUBLE PRECISION BNR(NBURN), BNN(NBURN)
+      INTEGER STSN(NSTRT), STBOD(NSTRT), STGC(NSTRT), NSTART
+      INTEGER RFSN(NREF), RFBOD(NREF), RFGC(NREF), NRF
+      INTEGER BNSN(NBURN), BNBOD(NBURN), NBN
+      COMMON /CSIM/ STP, RFP, BNT, BNDV, BNP, BNR, BNN
+      COMMON /CSIMI/ STSN, STBOD, STGC, NSTART, RFSN, RFBOD, RFGC,
+     &               NRF, BNSN, BNBOD, NBN
+C
+C     /CTAPE/ the TAPE (tape.f): per vehicle channel C (1 = CSM; up to
+C     four, TN D-6853 p. 12), NTP(C) samples of g.e.t. TPT and state
+C     TPS (geocentric EQ r km, v km/s), in time order; a burn or a
+C     state vector update leaves two samples at one time, before and
+C     after.
+C     Marks: NMK of them, g.e.t. TMKT, kind TMKK (1 burn, 2 reference
+C     row), channel TMKC, index TMKI (burn or reference row).
+C     RESTOMOD BEGIN: 1.1 M words of tape in core; the 1108 would
+C     have written it to drum or tape (docs/univac-1108.md).
+      INTEGER MXSAM, MXCHN, MXMRK
+      PARAMETER (MXSAM=30000, MXCHN=4, MXMRK=64)
+      DOUBLE PRECISION TPT(MXSAM,MXCHN), TPS(6,MXSAM,MXCHN)
+      DOUBLE PRECISION TMKT(MXMRK)
+      INTEGER NTP(MXCHN), NMK, TMKK(MXMRK), TMKC(MXMRK), TMKI(MXMRK)
+      COMMON /CTAPE/ TPT, TPS, TMKT
+      COMMON /CTAPEI/ NTP, NMK, TMKK, TMKC, TMKI
+C     RESTOMOD END
+C
+C     /CSIMR/ the last engine run (sim.f): ITPSN the scenario on the
+C     tape (0 none yet), ISIMF the run's flags (bit 0 state vector
+C     updates on), and for each reference row the error of the
+C     simulated state against it just before any update, RFERR(1,J)
+C     position (km) and RFERR(2,J) velocity (ft/s), valid if RFOK(J)
+C     = 1.  ISRC the state source asked for this frame (in_src,
+C     passed as in_flags bit 3: 0 replay, 1 tape), ISRCU the one used
+C     (0 replay, 1 sim with updates, 2 sim free).
+C     /CSIMM/ the Moon for the engine: geocentric position and
+C     velocity every MQDT seconds from MQT0, NMQ nodes (SIMRUN),
+C     read by cubic Hermite interpolation (MOONQ); the series is too
+C     slow to call at every integration step.
+      INTEGER MXMQ
+      PARAMETER (MXMQ=800)
+      DOUBLE PRECISION MQ(6,MXMQ), MQT0, MQDT
+      INTEGER NMQ
+      COMMON /CSIMM/ MQ, MQT0, MQDT
+      COMMON /CSIMMI/ NMQ
+      DOUBLE PRECISION RFERR(2,NREF)
+      INTEGER ITPSN, ISIMF, RFOK(NREF), ISRC, ISRCU
+      COMMON /CSIMR/ RFERR
+      COMMON /CSIMRI/ ITPSN, ISIMF, RFOK, ISRC, ISRCU
+C
 C     /CSN/ the current scenario (SNSET): id ISN, epoch TJD0
 C     (Julian date of its range zero; g.e.t. counts from it), and the
 C     elements of its legs, LGEL(1..11, K):
 C       CONIC  1-3 perigee unit P, 4-6 Q, 7 eccentricity, 8 semi-major
 C              axis (km), 9 perigee time (s);
 C       CIRC, LUNAR  1-3 position unit at 9, 4-6 direction of motion
-C              there, 9 time (s), 10 radius (km), 11 mean motion (rad/s).
+C              there, 9 time (s), 10 radius (km), 11 mean motion
+C              (rad/s).
       DOUBLE PRECISION TJD0, LGEL(11,NLEG)
       COMMON /CSN/ TJD0, LGEL
       INTEGER ISN

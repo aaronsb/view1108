@@ -6,11 +6,13 @@
 ! degrees; FOV "-" keeps the default.  FLAGS as in_flags (default 3:
 ! labels and plot frame; add 4 for dashed hidden lines).
 ! With VIEW_TIME set in the environment, also times 200 frames and
-! prints the mean to stderr.
+! prints the mean to stderr.  With VIEW_SIM=n, runs the engine first
+! (sim_run flags n: bit 0 correction on); add 8 to FLAGS to draw from
+! the tape.
 program viewsvg
   implicit none
   integer, parameter :: MAXV = 60000, MAXS = 4000, MAXL = 200
-  double precision :: vb(5, MAXV), sb(3, MAXS), lb(4, MAXL), hd(16), tb(4, 300)
+  double precision :: vb(5, MAXV), sb(3, MAXS), lb(4, MAXL), hd(24), tb(4, 300)
   integer :: tc(6000), nt, nch, j, j0
   character(len=64) :: txt
   double precision :: get, yaw, pit, rol, fov, b, s, r
@@ -26,10 +28,13 @@ program viewsvg
                       lb, nl, hd, tb, nt, tc, nch)
       double precision :: get, yaw, pit, rol, fov
       integer :: iflag, nv, ns, nl, nt, nch
-      double precision :: vb(5, 60000), sb(3, 4000), lb(4, 200), hd(16)
+      double precision :: vb(5, 60000), sb(3, 4000), lb(4, 200), hd(24)
       double precision :: tb(4, 300)
       integer :: tc(6000)
     end subroutine vframe
+    subroutine simrun(ifl)
+      integer :: ifl
+    end subroutine simrun
   end interface
 
   na = command_argument_count()
@@ -53,6 +58,12 @@ program viewsvg
   iflag = 3
   if (na >= 7) then
     call get_command_argument(7, arg); read (arg, *) iflag
+  end if
+
+  call get_environment_variable('VIEW_SIM', tv)
+  if (len_trim(tv) > 0) then
+    read (tv, *) k
+    call simrun(k)
   end if
 
   call vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, lb, nl, hd, tb, nt, tc, nch)
@@ -110,6 +121,8 @@ program viewsvg
   write (*, '(a,i0,a,f0.1,a,f0.1,a,f0.1,a,f0.1,a,f0.0,a,i0)') '<text x="8" y="16">scene ', &
     nint(hd(7)), '  GET ', hd(1) / 3600.0d0, ' h  FOV ', hd(2), '  range ', hd(3), &
     ' nmi  alt ', hd(4), ' smi  v ', hd(5), ' ft/s  nvec ', nv
+  if (hd(17) > 0d0) write (*, '(a,i0,a,f0.1,a,f0.1,a,f0.1)') '  source ', nint(hd(17)), &
+    '  err ', hd(18), ' km ', hd(19), ' ft/s at ', hd(20)
   write (*, '(a)') '</text></g></svg>'
 
 contains

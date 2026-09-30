@@ -3,8 +3,8 @@ C
 C     V I E W - 1 1 0 8          PROJECTION AND PEN
 C
 C     Core element.  Directions to plot degrees,
-C     clipping, visibility, and vectors to the plot buffer.  One relocatable element of
-C     the kernel; see vdrive.f for the list.
+C     clipping, visibility, and vectors to the plot buffer.  One
+C     relocatable element of the kernel; see vdrive.f for the list.
 C
 C=======================================================================
 C

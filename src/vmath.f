@@ -2,8 +2,8 @@ C=======================================================================
 C
 C     V I E W - 1 1 0 8          VECTOR AND MATRIX
 C
-C     Core element.  3-vector and 3x3 utilities.  One relocatable element of
-C     the kernel; see vdrive.f for the list.
+C     Core element.  3-vector and 3x3 utilities.  One relocatable
+C     element of the kernel; see vdrive.f for the list.
 C
 C=======================================================================
 C

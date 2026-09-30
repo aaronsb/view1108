@@ -44,7 +44,10 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Driver | `vdrive.f` | `VINIT`, `VFRAME`, scene cameras (`SCNCAM`, `LOOK`), table setup, per-scene model placement (`SCNMOD`, scene 7's pose and attitude) |
 | Dispatcher | `vlayer.f` | `LAYERS`: each scene's layer list and a computed `GO TO` over layer ids |
 | Core | `ephem.f` | time, Sun, Moon, Moon orientation |
-| Core | `traj.f` | the current scenario (`SNSET`), its legs (`ERTORB` about the Earth, `LUNORB` about the Moon) and events (`EVGET`), the LM descent, the Earthrise search |
+| Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon), events (`EVGET`), the LM descent, the Earthrise search |
+| Core | `sim.f` | the engine: flies the CSM from the scenario's START through its score (BURN cards), with state vector updates at its REF rows (optional), and writes the tape (`SIMRUN`) |
+| Core | `tape.f` | the tape: time-tagged states, 4 vehicle channels, event marks; cubic Hermite reads (`TPGET`) |
+| Core | `vsrc.f` | the state source: the one entry point (`VSTATE`) scenes use for the CSM's state, from the replay or the tape |
 | Core | `pen.f` | projection (`PROJ`), clipping (`EMIT`, `SEG`, `MSEG`), visibility (`PEN`, `ISVIS`), labels, circles, shading, vehicle-fixed overlay lines |
 | Core | `vtext.f` | text records for the character generator |
 | Core | `vmath.f` | vector and matrix utilities |
@@ -127,6 +130,10 @@ Entry points:
 - `view_init(scene)` (int32 by value) — selects a scene and writes its default inputs
   (`in_get`, `in_yaw`, `in_pitch`, `in_roll`, `in_fov`) so the page can read them back.
 - `view_frame()` — computes geometry at the current inputs and fills the output buffers.
+- `sim_run(flags)` (int32 by value) — runs the engine over the current scenario and fills the
+  tape; flags bit 0 = state vector updates on (reset to each sourced reference row; our "delta
+  correction"). Call it on scenario load (after `view_init`) and when that toggle changes. See
+  `docs/simulation.md`.
 
 Inputs (written by JS):
 - `in_get` real(8): ground elapsed time, seconds from the range zero of the scene's scenario
@@ -139,6 +146,9 @@ Inputs (written by JS):
   its centre; `in_roll` still rolls about the boresight.
 - `in_fov` real(8): full field of view in degrees (the frame covers ±fov/2 off the boresight,
   which is ±hdr(15) in plot units; see Projection).
+- `in_src` int32: state source, 0 replay (the scenario's legs), 1 the tape (the last `sim_run`),
+  where the tape covers the time; the chassis passes it to the kernel as `in_flags` bit 3, which
+  may also be set directly.
 - `in_flags` int32: bit 0 labels on, bit 1 draw plot frame and tick marks, bit 2 draw hidden
   LM (and, in scene 7, S-IVB) lines dashed (style 2) instead of dropping them (the film drops
   them).
@@ -154,7 +164,7 @@ Outputs (written by the kernel):
   4 Earth, 5 Moon, 6 mare/lacus/sinus/oceanus (scene 6; id = index in the kernel's mare table,
   names come only as text records), 7 Apollo 11 landing site (scene 6, id 0). MAXL = 200. Ids are 1-based: the name is `VIEW_NAMES.NAV[id-1]` /
   `VIEW_NAMES.CRATER[id-1]` (crater names may be empty). Sun, Earth, Moon use id 0.
-- `hdr(16)` real(8): 1 GET s, 2 FOV deg, 3 range to reference body centre n.mi.,
+- `hdr(24)` real(8): 1 GET s, 2 FOV deg, 3 range to reference body centre n.mi.,
   4 altitude stat. mi., 5 inertial speed ft/s, 6 reference body (1 Earth, 2 Moon), 7 scene,
   8 window code (1 CSM window, 2 LM front window), 9 range to the LM ft (scene 4: 300; scene 7:
   CSM to LM docking ring, 100 down to 0 at docking), 10 LM altitude ft (scene 5: the footpads above the
@@ -164,7 +174,10 @@ Outputs (written by the kernel):
   frame, 13 its angular radius projected as a plot radius, ρ(radius) in plot deg, 14 1 if it
   is in front of the camera else 0, 15 half-width of the plot box in plot deg (ρ(fov/2); the
   frame spans ±hdr(15) on both axes), 16 the scenario's epoch offset from Apollo 11 range
-  zero, seconds (0 for Apollo 11).
+  zero, seconds (0 for Apollo 11). hdr is 24 long: 17 the state source used this frame (0
+  replay, 1 sim with state vector updates, 2 sim without), 18, 19 the last engine run's position (km)
+  and velocity (ft/s) error at the reference row nearest the frame's GET, 20 that row's GET
+  (s; 18-20 are 0 before any run), 21-24 spare.
   The page letters the report-style header from these.
 - `tbuf(4, MAXT)` real(8), `ntxt` int32, `tchr(MAXTC)` int32, `nchr` int32: text records for the
   recorder's character generator, decided by the kernel. Record k is `x, y, height, start`: plot
@@ -250,8 +263,11 @@ Earthrise, 5.9–20.5 s Earth approach, 20.5–26 s LM pirouette, 26–36.4 s LM
 driving `in_get` and the free-look inputs from a shot list, then loops. Any user input hands
 control to the viewer.
 
-World model (low precision on purpose): Meeus low-precision Sun and Moon, IAU Moon
-orientation, GMST for Earth rotation, J2000 equatorial frame throughout.
+World model: the Moon from Meeus ch. 47 (ELP-2000/82 abridged; terms in `data/meeus47.txt`,
+within about 15 km of JPL Horizons over Apollo 8 and 11), the Sun from the Almanac's
+low-precision series, IAU Moon orientation, GMST for Earth rotation about the pole of date with
+the IAU 1976 precession to J2000 (`PRECM`), J2000 equatorial frame throughout. Earth-fixed
+states and coastlines go through that precession too.
 
 A mission's data is a scenario (a run deck, in 1969 terms): `data/scenarios/*.scn`, turned into
 `BLOCK DATA` by `tools/gen_data.py`, holds the epoch, landing site, trajectory legs and events,

@@ -9,7 +9,8 @@ C=======================================================================
 C
 C-----------------------------------------------------------------------
 C     LMSHAD: the LM's shadow on the ground in the descent.  Every
-C     vertex of the LM wireframe (model KLMD, MLIB) is carried along the Sun's
+C     vertex of the LM wireframe (model KLMD, MLIB) is carried along
+C     the Sun's
 C     direction to the lunar sphere and the edges are drawn there as a
 C     surface feature (facing test, so it hides below the horizon and
 C     foreshortens like a crater).  The film shows a small LM-shaped

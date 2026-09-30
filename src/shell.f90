@@ -3,8 +3,8 @@
 ! kernel.  All geometry lives in the kernel elements (src/*.f); this file only moves numbers.
 !
 ! Exports (see CLAUDE.md, "Interface contract"):
-!   view_init(scene), view_frame()
-!   in_get, in_yaw, in_pitch, in_roll, in_fov, in_flags
+!   view_init(scene), view_frame(), sim_run(flags)
+!   in_get, in_yaw, in_pitch, in_roll, in_fov, in_flags, in_src
 !   vbuf, nvec, sbuf, nstar, lbuf, nlab, hdr, tbuf, ntxt, tchr, nchr
 module view_shell
   use iso_c_binding, only: c_double, c_int
@@ -17,6 +17,9 @@ module view_shell
   real(c_double), bind(c, name="in_roll")  :: in_roll = 0
   real(c_double), bind(c, name="in_fov")   :: in_fov = 8
   integer(c_int), bind(c, name="in_flags") :: in_flags = 0
+  ! State source: 0 replay, 1 the tape the engine wrote (sim_run).  The
+  ! kernel takes it as in_flags bit 3.
+  integer(c_int), bind(c, name="in_src") :: in_src = 0
 
   real(c_double), bind(c, name="vbuf") :: vbuf(5, MAXV)
   integer(c_int), bind(c, name="nvec") :: nvec = 0
@@ -24,7 +27,7 @@ module view_shell
   integer(c_int), bind(c, name="nstar") :: nstar = 0
   real(c_double), bind(c, name="lbuf") :: lbuf(4, MAXL)
   integer(c_int), bind(c, name="nlab") :: nlab = 0
-  real(c_double), bind(c, name="hdr") :: hdr(16)
+  real(c_double), bind(c, name="hdr") :: hdr(24)
   real(c_double), bind(c, name="tbuf") :: tbuf(4, MAXT)
   integer(c_int), bind(c, name="ntxt") :: ntxt = 0
   integer(c_int), bind(c, name="tchr") :: tchr(MAXTC)
@@ -39,10 +42,13 @@ module view_shell
                       lb, nl, hd, tb, nt, tc, nch)
       double precision :: get, yaw, pit, rol, fov
       integer :: iflag, nv, ns, nl, nt, nch
-      double precision :: vb(5, 60000), sb(3, 4000), lb(4, 200), hd(16)
+      double precision :: vb(5, 60000), sb(3, 4000), lb(4, 200), hd(24)
       double precision :: tb(4, 300)
       integer :: tc(6000)
     end subroutine vframe
+    subroutine simrun(ifl)
+      integer :: ifl
+    end subroutine simrun
   end interface
 
 contains
@@ -69,6 +75,7 @@ contains
     rol = in_roll
     fov = in_fov
     iflag = in_flags
+    if (in_src == 1 .and. mod(iflag / 8, 2) == 0) iflag = iflag + 8
     call vframe(get, yaw, pit, rol, fov, iflag, vbuf, nv, sbuf, ns, &
                 lbuf, nl, hdr, tbuf, nt, tchr, nch)
     ntxt = nt
@@ -77,5 +84,14 @@ contains
     nstar = ns
     nlab = nl
   end subroutine view_frame
+
+  ! Run the engine over the current scenario and fill the tape; flags
+  ! bit 0 = delta correction on.
+  subroutine sim_run(flags) bind(c, name="sim_run")
+    integer(c_int), value :: flags
+    integer :: ifl
+    ifl = flags
+    call simrun(ifl)
+  end subroutine sim_run
 
 end module view_shell

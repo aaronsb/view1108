@@ -44,7 +44,7 @@ C     RESTOMOD END
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         IF (LGTYP(K) .EQ. KCIRC) THEN
 C         Circle through the state's position, along its heading.
-          CALL STATEV(K, R, V)
+          CALL STATEV(LGP(1,K), LGGC(K), R, V)
           CALL VUNIT(R)
           CALL VUNIT(V)
           DO 10 I = 1, 3
@@ -58,7 +58,7 @@ C         Circle through the state's position, along its heading.
 C         Conic elements from the state: perigee unit P (1-3), Q 90
 C         deg ahead (4-6), eccentricity (7), semi-major axis (8),
 C         perigee time (9).
-          CALL STATEV(K, R, V)
+          CALL STATEV(LGP(1,K), LGGC(K), R, V)
           CALL VCRS(R, V, H)
           RR = VNRM(R)
           VV = VDOT(V, V)
@@ -167,33 +167,36 @@ C     RESTOMOD END
       END
 C
 C-----------------------------------------------------------------------
-C     STATEV: leg K's state, geocentric EQ km and km/s.  Latitude
-C     geodetic (MR Table 7-I, p. 7-8) or geocentric (LGGC = 1, as in
+C     STATEV: the state in card fields P (the layout of LGP), geocentric
+C     EQ km and km/s.  Latitude
+C     geodetic (MR Table 7-I, p. 7-8) or geocentric (IGC = 1, as in
 C     SP-4029's ascent table); altitude above the ellipsoid (ours:
 C     equatorial radius RE, flattening 1/298.257); longitude Earth
-C     fixed, turned to EQ by GMST at the state's time.  Speed, flight-
+C     fixed, turned by GMST at the state's time to the equator and
+C     equinox of date, then to J2000 by PRECM's transpose.  Speed,
+C     flight-
 C     path angle and heading are space-fixed, against the geocentric
 C     horizontal (MR Table 7-I).
 C-----------------------------------------------------------------------
-      SUBROUTINE STATEV(K, R, V)
+      SUBROUTINE STATEV(P, IGC, R, V)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      INTEGER K
-      DOUBLE PRECISION R(3), V(3)
+      INTEGER IGC
+      DOUBLE PRECISION P(NLGP), R(3), V(3)
       DOUBLE PRECISION F, E2, FI, LA, H, SF, CF, XN, U(3), N(3), E(3)
-      DOUBLE PRECISION G, HD, SP, GMSTAT, PSI, RA
+      DOUBLE PRECISION G, HD, SP, GMSTAT, PSI, RA, PM(3,3), W(3)
       INTEGER I
       F = 1.0D0 / 298.257D0
       E2 = F * (2.0D0 - F)
-      FI = LGP(4,K) * DR
-      LA = LGP(5,K) * DR + GMSTAT(LGP(3,K))
-      H = LGP(6,K) * 1.852D0
+      FI = P(4) * DR
+      LA = P(5) * DR + GMSTAT(P(3))
+      H = P(6) * 1.852D0
       SF = DSIN(FI)
       CF = DCOS(FI)
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (LGGC(K) .EQ. 1) THEN
+      IF (IGC .EQ. 1) THEN
         RA = RE * (1.0D0 - F * SF * SF) + H
         R(1) = RA * CF * DCOS(LA)
         R(2) = RA * CF * DSIN(LA)
@@ -217,13 +220,22 @@ C     Geocentric horizontal at R.
       E(1) = -DSIN(LA)
       E(2) = DCOS(LA)
       E(3) = 0.0D0
-      SP = LGP(7,K) * 0.3048D-3
-      G = LGP(8,K) * DR
-      HD = LGP(9,K) * DR
+      SP = P(7) * 0.3048D-3
+      G = P(8) * DR
+      HD = P(9) * DR
       DO 20 I = 1, 3
         V(I) = SP * (DSIN(G) * U(I) + DCOS(G) * (DCOS(HD) * N(I)
      &       + DSIN(HD) * E(I)))
    20 CONTINUE
+C     Equator of date to J2000.
+      CALL PRECM((TJD0 + P(3) / 86400.0D0 - 2451545.0D0) / 36525.0D0,
+     &           PM)
+      CALL MTXV(PM, R, W)
+      CALL MTXV(PM, V, U)
+      DO 30 I = 1, 3
+        R(I) = W(I)
+        V(I) = U(I)
+   30 CONTINUE
       RETURN
       END
 C
@@ -399,7 +411,8 @@ C       The eye, LMEYE above the footpads along the LM's up axis.
 C
 C-----------------------------------------------------------------------
 C     ERFIND: time TERISE at which the Earth's disc clears the lunar
-C     horizon, on the revolution ending at touchdown (the scenario's TOUCH
+C     horizon, on the revolution ending at touchdown (the scenario's
+C     TOUCH
 C     event).
 C-----------------------------------------------------------------------
       SUBROUTINE ERFIND
@@ -446,7 +459,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION T, R(3), V(3), PM(3), E(3), DN(3), DE, VDOT
       INTEGER I
-      CALL LUNORB(T, R, V)
+      CALL VSTATE(T, 2, R, V)
       CALL MOONG(T, PM)
       DO 10 I = 1, 3
         E(I) = -PM(I) - R(I)

@@ -7,6 +7,7 @@ Inputs (all in data/):
   ne_110m_coastline.geojson     Natural Earth 1:110m coastlines
   MOON_nomenclature_center_pts.dbf   IAU lunar gazetteer (crater centres and diameters)
   scenarios/*.scn               scenarios (run decks): epoch, trajectory legs, events
+  meeus47.txt                   Meeus ch. 47 lunar periodic terms (tables 47.A and 47.B)
 
 Everything is written in the J2000 equatorial frame. AGC star vectors are precessed
 from 1969.5 to J2000 so they share a frame with the catalog.
@@ -153,7 +154,20 @@ LEG_TYPES = {"CIRC": 1, "CONIC": 2, "LUNAR": 3}
 EVENT_KINDS = {"TDATT": 1, "SEP": 2, "APPR": 3, "DOCK": 4, "UNDOCK": 5, "TOUCH": 6, "EI": 7}
 EVENT_PARAMS = {"TDATT": "KETDA", "SEP": "KESEP", "APPR": "KEAPR", "DOCK": "KEDOK",
                 "UNDOCK": "KEUND", "TOUCH": "KETD", "EI": "KEEI"}
-NLGP = 12   # leg parameters, see decks()
+NLGP = 12   # leg parameters, see scenarios()
+# Keys each card type reads.  Other keys are ignored with a warning, so cards can grow
+# (a BURN's TRIGGER= and TARGET= are planned, docs/simulation.md) without breaking old decks.
+CARD_KEYS = {
+    "SCENARIO": {"ID", "MISSION", "NAME", "SRC"},
+    "EPOCH": {"JD", "SRC"},
+    "SITE": {"LAT", "LON", "AZ", "SRC"},
+    "LEG": {"TYPE", "FROM", "TO", "T", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG",
+            "TB", "LATB", "LONB", "N", "SRC"},
+    "EVENT": {"KIND", "T", "SRC"},
+    "START": {"T", "END", "BODY", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG", "SRC"},
+    "REF": {"T", "BODY", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG", "SRC"},
+    "BURN": {"T", "DV", "BODY", "P", "R", "N", "SRC"},
+}
 
 
 def get_s(v):
@@ -167,7 +181,7 @@ def get_s(v):
 def scenarios():
     """Parse data/scenarios/*.scn.  Returns scenarios (dicts with id, mission, name, jd,
     site, sources), legs and events, each carrying its scenario id and source string."""
-    mis, legs, evs = [], [], []
+    mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": []}
     for path in sorted((D / "scenarios").glob("*.scn")):
         cur = None
         for ln in path.read_text().splitlines():
@@ -175,6 +189,11 @@ def scenarios():
                 continue
             tok = shlex.split(ln)
             kind, kv = tok[0], dict(t.split("=", 1) for t in tok[1:])
+            if kind not in CARD_KEYS:
+                print(f"warning: {path.name}: unknown card {kind}, ignored")
+                continue
+            for k in sorted(set(kv) - CARD_KEYS[kind]):
+                print(f"warning: {path.name}: {kind} card: unknown key {k}, ignored")
             if kind == "SCENARIO":
                 cur = {"n": int(kv["ID"]), "name": kv["MISSION"] + " " + kv["NAME"], "jd": None,
                        "site": (0.0, 0.0, 0.0), "src": []}
@@ -193,14 +212,27 @@ def scenarios():
                 legs.append({"m": cur["n"], "type": LEG_TYPES[t], "p": p,
                              "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
                              "n": int(kv.get("N", 0)), "src": f"{t}: " + kv.get("SRC", "")})
+            elif kind in ("START", "REF"):
+                p = [get_s(kv["T"]), get_s(kv.get("END", "0")), get_s(kv["T"]),
+                     float(kv["LAT"]), float(kv["LON"]), float(kv["ALT"]),
+                     float(kv["V"]), float(kv["FPA"]), float(kv.get("HDG", 0)), 0.0, 0.0, 0.0]
+                sim["start" if kind == "START" else "ref"].append(
+                    {"m": cur["n"], "p": p, "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
+                     "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
+                     "src": kind + ": " + kv.get("SRC", "")})
+            elif kind == "BURN":
+                sim["burn"].append({"m": cur["n"], "t": get_s(kv["T"]), "dv": float(kv["DV"]),
+                                    "dir": (float(kv["P"]), float(kv["R"]), float(kv["N"])),
+                                    "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
+                                    "src": "BURN: " + kv.get("SRC", "")})
             elif kind == "EVENT":
                 evs.append({"m": cur["n"], "kind": EVENT_KINDS[kv["KIND"]], "t": get_s(kv["T"]),
                             "src": kv["KIND"] + ": " + kv.get("SRC", "")})
-            else:
-                raise SystemExit(f"{path}: unknown card {kind}")
     mis.sort(key=lambda m: m["n"])
     assert [m["n"] for m in mis] == list(range(1, len(mis) + 1)), "scenario ids must be 1..N"
-    return mis, legs, evs
+    for m in mis:
+        assert sum(1 for x in sim["start"] if x["m"] == m["n"]) <= 1, "one START per scenario"
+    return mis, legs, evs, sim
 
 
 def comment_wrap(txt, lead="C       "):
@@ -212,6 +244,47 @@ def comment_wrap(txt, lead="C       "):
         line += w + " "
     out.append(line.rstrip())
     return out
+
+
+def meeus47():
+    """Tables 47.A (D M M' F sigma_l sigma_r) and 47.B (D M M' F sigma_b) from data/meeus47.txt,
+    checked against Meeus's example 47.a before use."""
+    a, b, cur = [], [], None
+    for ln in (D / "meeus47.txt").read_text().splitlines():
+        if not ln.strip() or ln.startswith("#"):
+            continue
+        if ln.strip() in ("A", "B"):
+            cur = a if ln.strip() == "A" else b
+            continue
+        cur.append([int(x) for x in ln.split()])
+    assert len(a) == 60 and len(b) == 60
+    # Example 47.a: 1992 April 12, 0h TD, JDE 2448724.5.
+    t = (2448724.5 - 2451545.0) / 36525.0
+    lp = 218.3164477 + 481267.88123421 * t - 0.0015786 * t * t + t ** 3 / 538841 - t ** 4 / 65194000
+    dd = 297.8501921 + 445267.1114034 * t - 0.0018819 * t * t + t ** 3 / 545868 - t ** 4 / 113065000
+    m = 357.5291092 + 35999.0502909 * t - 0.0001536 * t * t + t ** 3 / 24490000
+    mp = 134.9633964 + 477198.8675055 * t + 0.0087414 * t * t + t ** 3 / 69699 - t ** 4 / 14712000
+    f = 93.2720950 + 483202.0175233 * t - 0.0036539 * t * t - t ** 3 / 3526000 + t ** 4 / 863310000
+    a1, a2, a3 = 119.75 + 131.849 * t, 53.09 + 479264.290 * t, 313.45 + 481266.484 * t
+    e = 1 - 0.002516 * t - 0.0000074 * t * t
+    r = math.radians
+    sl = sr = sb = 0.0
+    for d_, m_, mp_, f_, cl, cr in a:
+        arg = r(d_ * dd + m_ * m + mp_ * mp + f_ * f)
+        k = e ** abs(m_)
+        sl += cl * k * math.sin(arg)
+        sr += cr * k * math.cos(arg)
+    for d_, m_, mp_, f_, cb in b:
+        sb += cb * e ** abs(m_) * math.sin(r(d_ * dd + m_ * m + mp_ * mp + f_ * f))
+    sl += 3958 * math.sin(r(a1)) + 1962 * math.sin(r(lp - f)) + 318 * math.sin(r(a2))
+    sb += (-2235 * math.sin(r(lp)) + 382 * math.sin(r(a3)) + 175 * math.sin(r(a1 - f))
+           + 175 * math.sin(r(a1 + f)) + 127 * math.sin(r(lp - mp)) - 115 * math.sin(r(lp + mp)))
+    lam = (lp + sl / 1e6) % 360
+    beta = sb / 1e6
+    dist = 385000.56 + sr / 1000
+    assert abs(lam - 133.162655) < 2e-6 and abs(beta + 3.229126) < 2e-6 and abs(dist - 368409.7) < 0.1, \
+        (lam, beta, dist)
+    return a, b
 
 
 def fdata(arr, vals, fmt, per=5, chunk=95):
@@ -263,7 +336,9 @@ def main():
     cstart.append(len(clon) + 1)
 
     mar = maria()
-    mis, legs, evs = scenarios()
+    mis, legs, evs, sim = scenarios()
+    m47a, m47b = meeus47()
+    nst, nbn, nrf = (max(1, len(sim[k])) for k in ("start", "burn", "ref"))
     ns, npt, nln, ncr = len(sx), len(clon), len(coast), len(crat)
     inc = ["C     Generated by tools/gen_data.py from data/. Do not edit.",
            "C     Table sizes shared by the kernel (src/*.f) and its BLOCK DATA.",
@@ -280,6 +355,9 @@ def main():
            "      INTEGER " + ", ".join(EVENT_PARAMS.values()),
            "C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77",
            f"      PARAMETER (NSN={len(mis)}, NLEG={len(legs)}, NEVT={len(evs)}, NLGP={NLGP})",
+           "C     Simulation cards (START, BURN, REF): array sizes, at least 1.",
+           "      INTEGER NSTRT, NBURN, NREF",
+           f"      PARAMETER (NSTRT={nst}, NBURN={nbn}, NREF={nrf})",
            "      PARAMETER (" + ", ".join(f"K{k}={v}" for k, v in
                                         (("CIRC", 1), ("CONIC", 2), ("LUNAR", 3))) + ")",
            "      PARAMETER (" + ", ".join(f"{EVENT_PARAMS[k]}={v}" for k, v in
@@ -337,7 +415,28 @@ def main():
          "      INTEGER LGSN(NLEG), LGTYP(NLEG), LGN(NLEG), LGGC(NLEG)",
          "      INTEGER EVSN(NEVT), EVKND(NEVT)",
          "      COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT",
-         "      COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND"]
+         "      COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND",
+         "C     /CSIM/   simulation cards.  START of scenario STSN (one at most),",
+         "C              REF rows: state STP / RFP as LGP (2 = END for START),",
+         "C              body STBOD / RFBOD (1 Earth, 2 Moon), geocentric",
+         "C              latitude if STGC / RFGC = 1.  BURN: mid-burn g.e.t.",
+         "C              BNT (s), BNDV (ft/s), direction BNP, BNR, BNN in the",
+         "C              BNBOD body's frame (along the velocity, radial in the",
+         "C              orbit plane, orbit normal).  NSTART, NBN, NRF: used.",
+         "      DOUBLE PRECISION STP(NLGP,NSTRT), RFP(NLGP,NREF)",
+         "      DOUBLE PRECISION BNT(NBURN), BNDV(NBURN), BNP(NBURN)",
+         "      DOUBLE PRECISION BNR(NBURN), BNN(NBURN)",
+         "      INTEGER STSN(NSTRT), STBOD(NSTRT), STGC(NSTRT), NSTART",
+         "      INTEGER RFSN(NREF), RFBOD(NREF), RFGC(NREF), NRF",
+         "      INTEGER BNSN(NBURN), BNBOD(NBURN), NBN",
+         "      COMMON /CSIM/ STP, RFP, BNT, BNDV, BNP, BNR, BNN",
+         "C     /CMEEUS/ Meeus ch. 47 lunar terms, flattened: MMA(6*(K-1)+1..6)",
+         "C              = D M M' F sigma_l sigma_r of table 47.A row K,",
+         "C              MMB(5*(K-1)+1..5) = D M M' F sigma_b of table 47.B.",
+         "      INTEGER MMA(360), MMB(300)",
+         "      COMMON /CMEEUS/ MMA, MMB",
+         "      COMMON /CSIMI/ STSN, STBOD, STGC, NSTART, RFSN, RFBOD, RFGC,",
+         "     &               NRF, BNSN, BNBOD, NBN"]
     body = "\n".join(b) + "\n"
     f7, f2, f3, f1 = F(dfmt(7)), F(dfmt(2)), F(dfmt(3)), F(dfmt(1))
     body += fdata("STX", sx, f7) + fdata("STY", sy, f7) + fdata("STZ", sz, f7)
@@ -385,6 +484,32 @@ def main():
     body += fdata("EVT", [ev["t"] for ev in evs], F(dfmt(1)), 4)
     body += fdata("EVSN", [ev["m"] for ev in evs], "%d", 10)
     body += fdata("EVKND", [ev["kind"] for ev in evs], "%d", 10)
+    # Simulation cards.  Empty tables get one zero entry and a count of 0.
+    for key, pa, sn, bod, gc in (("start", "STP", "STSN", "STBOD", "STGC"),
+                                 ("ref", "RFP", "RFSN", "RFBOD", "RFGC")):
+        rows = sim[key] or [{"m": 0, "p": [0.0] * NLGP, "gc": 0, "body": 0, "src": ""}]
+        for k, r in enumerate(rows):
+            if r["src"]:
+                body += "\n".join([f"C     {key.upper()} {k + 1}"] + comment_wrap(r["src"])) + "\n"
+            body += "\n".join(f"      DATA {pa}({i + 1},{k + 1}) / {v:.3f}D0 /"
+                              for i, v in enumerate(r["p"])) + "\n"
+        body += fdata(sn, [r["m"] for r in rows], "%d", 10)
+        body += fdata(bod, [r["body"] for r in rows], "%d", 10)
+        body += fdata(gc, [r["gc"] for r in rows], "%d", 10)
+    bn = sim["burn"] or [{"m": 0, "t": 0.0, "dv": 0.0, "dir": (0.0, 0.0, 0.0), "body": 0, "src": ""}]
+    for k, b_ in enumerate(bn):
+        if b_["src"]:
+            body += "\n".join([f"C     BURN {k + 1}"] + comment_wrap(b_["src"])) + "\n"
+    body += fdata("BNT", [b_["t"] for b_ in bn], F(dfmt(2)), 4)
+    body += fdata("BNDV", [b_["dv"] for b_ in bn], F(dfmt(1)), 4)
+    body += fdata("BNP", [b_["dir"][0] for b_ in bn], F(dfmt(3)), 4)
+    body += fdata("BNR", [b_["dir"][1] for b_ in bn], F(dfmt(3)), 4)
+    body += fdata("BNN", [b_["dir"][2] for b_ in bn], F(dfmt(3)), 4)
+    body += fdata("BNSN", [b_["m"] for b_ in bn], "%d", 10)
+    body += fdata("BNBOD", [b_["body"] for b_ in bn], "%d", 10)
+    body += fdata("MMA", [v for r_ in m47a for v in r_], "%d", 6)
+    body += fdata("MMB", [v for r_ in m47b for v in r_], "%d", 5)
+    body += f"      DATA NSTART, NRF, NBN / {len(sim['start'])}, {len(sim['ref'])}, {len(sim['burn'])} /\n"
     body += "      END\nC     RESTOMOD END\n"
     (R / "src" / "viewdata.f").write_text(body)
 
@@ -397,7 +522,8 @@ def main():
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
     print(f"stars {len(sx)} (nav 37), coast {len(coast)} lines / {len(clon)} pts, "
-          f"craters {len(crat)}, scenarios {len(mis)} ({len(legs)} legs, {len(evs)} events)")
+          f"craters {len(crat)}, scenarios {len(mis)} ({len(legs)} legs, {len(evs)} events, "
+          f"{len(sim['start'])} start, {len(sim['burn'])} burns, {len(sim['ref'])} reference rows)")
     for i in (4, 12, 29):
         x, y, z = nav[i]
         print(f"  check {NAV_NAMES[i]}: RA {math.degrees(math.atan2(y, x)) % 360:.2f} "

@@ -68,3 +68,60 @@ EVENT KIND=DOCK T=3:24:03.1 SRC="MR Table 3-I p. 3-4 and Table 7-II p. 7-9; SP p
 EVENT KIND=UNDOCK T=100:12:00.0 SRC="MR Table 3-I p. 3-4"
 EVENT KIND=TOUCH T=102:45:39.9 SRC="MR Table 3-I p. 3-4, lunar landing"
 EVENT KIND=EI T=195:03:05.7 SRC="MR Table 7-VII p. 7-12, entry interface"
+*
+* ---------------------------------------------------------------------
+* SIMULATION (src/sim.f): the START state, the SCORE (burns) and the
+* REFERENCE rows the engine checks against or, with state vector updates
+* on, resets to.  The period counterpart of these cards is the
+* Spacecraft Operational Trajectory and its per-burn "target loads" (MSC
+* IN 69-FM-96, Apollo 10, Vol. I; see docs/simulation.md); these cards
+* hold the as-flown values instead.  Cards are KEY=VALUE with a SRC;
+* tools/gen_data.py ignores unknown keys with a warning, so a BURN can
+* later carry TRIGGER= (when it fires) and TARGET= (its cutoff condition).
+*
+*   START  T= and a state as a CONIC leg's (BODY=EARTH), END= the time
+*          the run stops.
+*   BURN   T= mid-burn g.e.t. (the ignition time plus half the firing
+*          time, so one impulse stands for the burn: ours), DV= ft/s,
+*          BODY= the body whose frame the direction is in, and the
+*          direction P= (along the velocity) R= (in the orbit plane,
+*          away from the body) N= (along the orbit normal).
+*   REF    T= and a sourced state.  BODY=EARTH: as a CONIC leg's.
+*          BODY=MOON: selenographic LAT= LON=, ALT=, V=, FPA=; the
+*          horizontal direction is taken from the lunar leg's plane at
+*          that time (MR Table 7-II's lunar headings are not in a frame
+*          we can use; see the a11 profile notes).
+*
+* Burns left out, all below 2.5 ft/s: CSM/S-IVB separation 0.7 ft/s at
+* 3:17:04.6 (MR Table 7-III p. 7-10; the CSM docked back and flew with
+* the S-IVB stack until ejection), CSM/LM separation 1.4 ft/s at
+* 100:39:52.9 and final separation 2.2 ft/s at 130:30:01.0 (MR Table
+* 7-V p. 7-11), whose directions we have no source for.
+*
+START T=2:50:13.2 END=195:10:00 BODY=EARTH LATTYPE=GD LAT=9.98 LON=-164.84 ALT=180.6 V=35546 FPA=7.37 HDG=60.07 SRC="MR Table 7-II p. 7-9, translunar injection"
+*
+BURN T=4:40:03.25 DV=19.7 BODY=EARTH P=-0.798 R=0.600 N=0.052 SRC="MR Table 7-III p. 7-10: spacecraft/S-IVB separation, SPS, ignition 4:40:01.8, 2.9 s, 19.7 ft/s. Direction derived by us from the Table 7-II ignition and cutoff rows"
+BURN T=26:45:00.25 DV=20.9 BODY=EARTH P=-0.711 R=0.703 N=-0.009 SRC="MR Table 7-III p. 7-10: first midcourse correction, SPS, ignition 26:44:58.7, 3.1 s, 20.9 ft/s. Direction derived by us from the Table 7-II ignition and cutoff rows"
+BURN T=75:52:49.15 DV=2917.5 BODY=MOON P=-1 R=0 N=0 SRC="MR Table 7-V p. 7-11: lunar orbit insertion, SPS, ignition 75:49:50.4, 357.5 s, 2917.5 ft/s. Direction against the velocity: our assumption"
+BURN T=80:11:45.2 DV=158.8 BODY=MOON P=-1 R=0 N=0 SRC="MR Table 7-V p. 7-11: lunar orbit circularization, SPS, ignition 80:11:36.8, 16.8 s, 158.8 ft/s. Direction against the velocity: our assumption"
+BURN T=135:25:18.0 DV=3279.0 BODY=MOON P=1 R=0 N=0 SRC="MR Table 7-VI p. 7-11: transearth injection, SPS, ignition 135:23:42.3, 151.4 s, 3279.0 ft/s. Direction along the velocity: our assumption"
+BURN T=150:30:03.0 DV=4.8 BODY=EARTH P=-0.198 R=0.980 N=0.000 SRC="MR Table 7-VI p. 7-11: second midcourse correction, SM RCS, ignition 150:29:57.4, 11.2 s, 4.8 ft/s. Direction derived by us from the Table 7-II ignition and cutoff rows"
+*
+* Reference rows: MR Table 7-II p. 7-9 (and 7-VII p. 7-12 for entry).
+* Not used: the command module/S-IVB separation row (3:17:04.6) sits
+* about 0.28 deg of longitude (60 km) off the conic through the TLI row,
+* while the 4:40 row agrees with that conic to 0.04 deg; correcting to
+* it made the 4:40 error worse (184 km against 50 km uncorrected).
+* REF T=3:17:04.6 BODY=EARTH LATTYPE=GD LAT=31.16 LON=-88.76 ALT=4110.9 V=24456.8 FPA=46.24 HDG=95.10 SRC="command module/S-IVB separation"
+REF T=4:40:04.7 BODY=EARTH LATTYPE=GD LAT=21.16 LON=-68.46 ALT=16627.3 V=14663.0 FPA=64.25 HDG=113.74 SRC="separation manoeuvre cutoff"
+REF T=26:45:01.8 BODY=EARTH LATTYPE=GD LAT=6.00 LON=-11.17 ALT=109477.2 V=5010.0 FPA=76.88 HDG=120.87 SRC="first midcourse correction cutoff"
+REF T=75:55:48.0 BODY=MOON LAT=0.16 LON=167.13 ALT=60.1 V=5479.0 FPA=-0.20 SRC="lunar orbit insertion cutoff"
+REF T=80:11:53.5 BODY=MOON LAT=-0.02 LON=169.16 ALT=61.6 V=5338.3 FPA=0.32 SRC="lunar orbit circularization cutoff"
+REF T=100:12:00.0 BODY=MOON LAT=1.11 LON=116.21 ALT=62.9 V=5333.8 FPA=0.16 SRC="undocking"
+REF T=100:40:01.9 BODY=MOON LAT=1.05 LON=31.41 ALT=62.5 V=5332.2 FPA=-0.16 SRC="separation cutoff"
+REF T=128:03:00.0 BODY=MOON LAT=1.18 LON=67.31 ALT=60.6 V=5341.5 FPA=0.16 SRC="docking"
+REF T=130:09:31.2 BODY=MOON LAT=1.10 LON=41.85 ALT=61.6 V=5335.9 FPA=0.15 SRC="ascent stage jettison"
+REF T=135:23:42.3 BODY=MOON LAT=-0.16 LON=164.02 ALT=52.4 V=5376.0 FPA=-0.03 SRC="transearth injection ignition"
+REF T=150:30:07.4 BODY=EARTH LATTYPE=GD LAT=-13.16 LON=-37.83 ALT=169080.6 V=4074.0 FPA=-80.41 HDG=129.30 SRC="second midcourse correction cutoff"
+REF T=194:49:12.7 BODY=EARTH LATTYPE=GD LAT=-35.09 LON=122.54 ALT=1778.3 V=29615.5 FPA=-35.26 HDG=69.27 SRC="command module/service module separation"
+REF T=195:03:05.7 BODY=EARTH LATTYPE=GD LAT=-3.19 LON=171.96 ALT=65.8 V=36194.4 FPA=-6.48 HDG=50.18 SRC="MR Table 7-VII p. 7-12, entry interface"

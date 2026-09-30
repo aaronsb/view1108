@@ -45,6 +45,27 @@ C              Event J of scenario EVSN(J), kind EVKND, g.e.t. EVT (s).
       INTEGER EVSN(NEVT), EVKND(NEVT)
       COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT
       COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND
+C     /CSIM/   simulation cards.  START of scenario STSN (one at most),
+C              REF rows: state STP / RFP as LGP (2 = END for START),
+C              body STBOD / RFBOD (1 Earth, 2 Moon), geocentric
+C              latitude if STGC / RFGC = 1.  BURN: mid-burn g.e.t.
+C              BNT (s), BNDV (ft/s), direction BNP, BNR, BNN in the
+C              BNBOD body's frame (along the velocity, radial in the
+C              orbit plane, orbit normal).  NSTART, NBN, NRF: used.
+      DOUBLE PRECISION STP(NLGP,NSTRT), RFP(NLGP,NREF)
+      DOUBLE PRECISION BNT(NBURN), BNDV(NBURN), BNP(NBURN)
+      DOUBLE PRECISION BNR(NBURN), BNN(NBURN)
+      INTEGER STSN(NSTRT), STBOD(NSTRT), STGC(NSTRT), NSTART
+      INTEGER RFSN(NREF), RFBOD(NREF), RFGC(NREF), NRF
+      INTEGER BNSN(NBURN), BNBOD(NBURN), NBN
+      COMMON /CSIM/ STP, RFP, BNT, BNDV, BNP, BNR, BNN
+C     /CMEEUS/ Meeus ch. 47 lunar terms, flattened: MMA(6*(K-1)+1..6)
+C              = D M M' F sigma_l sigma_r of table 47.A row K,
+C              MMB(5*(K-1)+1..5) = D M M' F sigma_b of table 47.B.
+      INTEGER MMA(360), MMB(300)
+      COMMON /CMEEUS/ MMA, MMB
+      COMMON /CSIMI/ STSN, STBOD, STGC, NSTART, RFSN, RFBOD, RFGC,
+     &               NRF, BNSN, BNBOD, NBN
       DATA (STX(IBD),IBD=1,95) /
      1 0.8732303D0,0.9339783D0,0.4741745D0,0.4927472D0,0.0100797D0,
      1 0.5432930D0,0.6981733D0,0.4048882D0,0.3437950D0,0.1949505D0,
@@ -8144,5 +8165,375 @@ C       EI: MR Table 7-VII p. 7-12, entry interface
      1 1,1,1,1,1,1,1/
       DATA (EVKND(IBD),IBD=1,7) /
      1 1,2,3,4,5,6,7/
+C     START 1
+C       START: MR Table 7-II p. 7-9, translunar injection
+      DATA STP(1,1) / 10213.200D0 /
+      DATA STP(2,1) / 702600.000D0 /
+      DATA STP(3,1) / 10213.200D0 /
+      DATA STP(4,1) / 9.980D0 /
+      DATA STP(5,1) / -164.840D0 /
+      DATA STP(6,1) / 180.600D0 /
+      DATA STP(7,1) / 35546.000D0 /
+      DATA STP(8,1) / 7.370D0 /
+      DATA STP(9,1) / 60.070D0 /
+      DATA STP(10,1) / 0.000D0 /
+      DATA STP(11,1) / 0.000D0 /
+      DATA STP(12,1) / 0.000D0 /
+      DATA (STSN(IBD),IBD=1,1) /
+     1 1/
+      DATA (STBOD(IBD),IBD=1,1) /
+     1 1/
+      DATA (STGC(IBD),IBD=1,1) /
+     1 0/
+C     REF 1
+C       REF: separation manoeuvre cutoff
+      DATA RFP(1,1) / 16804.700D0 /
+      DATA RFP(2,1) / 0.000D0 /
+      DATA RFP(3,1) / 16804.700D0 /
+      DATA RFP(4,1) / 21.160D0 /
+      DATA RFP(5,1) / -68.460D0 /
+      DATA RFP(6,1) / 16627.300D0 /
+      DATA RFP(7,1) / 14663.000D0 /
+      DATA RFP(8,1) / 64.250D0 /
+      DATA RFP(9,1) / 113.740D0 /
+      DATA RFP(10,1) / 0.000D0 /
+      DATA RFP(11,1) / 0.000D0 /
+      DATA RFP(12,1) / 0.000D0 /
+C     REF 2
+C       REF: first midcourse correction cutoff
+      DATA RFP(1,2) / 96301.800D0 /
+      DATA RFP(2,2) / 0.000D0 /
+      DATA RFP(3,2) / 96301.800D0 /
+      DATA RFP(4,2) / 6.000D0 /
+      DATA RFP(5,2) / -11.170D0 /
+      DATA RFP(6,2) / 109477.200D0 /
+      DATA RFP(7,2) / 5010.000D0 /
+      DATA RFP(8,2) / 76.880D0 /
+      DATA RFP(9,2) / 120.870D0 /
+      DATA RFP(10,2) / 0.000D0 /
+      DATA RFP(11,2) / 0.000D0 /
+      DATA RFP(12,2) / 0.000D0 /
+C     REF 3
+C       REF: lunar orbit insertion cutoff
+      DATA RFP(1,3) / 273348.000D0 /
+      DATA RFP(2,3) / 0.000D0 /
+      DATA RFP(3,3) / 273348.000D0 /
+      DATA RFP(4,3) / 0.160D0 /
+      DATA RFP(5,3) / 167.130D0 /
+      DATA RFP(6,3) / 60.100D0 /
+      DATA RFP(7,3) / 5479.000D0 /
+      DATA RFP(8,3) / -0.200D0 /
+      DATA RFP(9,3) / 0.000D0 /
+      DATA RFP(10,3) / 0.000D0 /
+      DATA RFP(11,3) / 0.000D0 /
+      DATA RFP(12,3) / 0.000D0 /
+C     REF 4
+C       REF: lunar orbit circularization cutoff
+      DATA RFP(1,4) / 288713.500D0 /
+      DATA RFP(2,4) / 0.000D0 /
+      DATA RFP(3,4) / 288713.500D0 /
+      DATA RFP(4,4) / -0.020D0 /
+      DATA RFP(5,4) / 169.160D0 /
+      DATA RFP(6,4) / 61.600D0 /
+      DATA RFP(7,4) / 5338.300D0 /
+      DATA RFP(8,4) / 0.320D0 /
+      DATA RFP(9,4) / 0.000D0 /
+      DATA RFP(10,4) / 0.000D0 /
+      DATA RFP(11,4) / 0.000D0 /
+      DATA RFP(12,4) / 0.000D0 /
+C     REF 5
+C       REF: undocking
+      DATA RFP(1,5) / 360720.000D0 /
+      DATA RFP(2,5) / 0.000D0 /
+      DATA RFP(3,5) / 360720.000D0 /
+      DATA RFP(4,5) / 1.110D0 /
+      DATA RFP(5,5) / 116.210D0 /
+      DATA RFP(6,5) / 62.900D0 /
+      DATA RFP(7,5) / 5333.800D0 /
+      DATA RFP(8,5) / 0.160D0 /
+      DATA RFP(9,5) / 0.000D0 /
+      DATA RFP(10,5) / 0.000D0 /
+      DATA RFP(11,5) / 0.000D0 /
+      DATA RFP(12,5) / 0.000D0 /
+C     REF 6
+C       REF: separation cutoff
+      DATA RFP(1,6) / 362401.900D0 /
+      DATA RFP(2,6) / 0.000D0 /
+      DATA RFP(3,6) / 362401.900D0 /
+      DATA RFP(4,6) / 1.050D0 /
+      DATA RFP(5,6) / 31.410D0 /
+      DATA RFP(6,6) / 62.500D0 /
+      DATA RFP(7,6) / 5332.200D0 /
+      DATA RFP(8,6) / -0.160D0 /
+      DATA RFP(9,6) / 0.000D0 /
+      DATA RFP(10,6) / 0.000D0 /
+      DATA RFP(11,6) / 0.000D0 /
+      DATA RFP(12,6) / 0.000D0 /
+C     REF 7
+C       REF: docking
+      DATA RFP(1,7) / 460980.000D0 /
+      DATA RFP(2,7) / 0.000D0 /
+      DATA RFP(3,7) / 460980.000D0 /
+      DATA RFP(4,7) / 1.180D0 /
+      DATA RFP(5,7) / 67.310D0 /
+      DATA RFP(6,7) / 60.600D0 /
+      DATA RFP(7,7) / 5341.500D0 /
+      DATA RFP(8,7) / 0.160D0 /
+      DATA RFP(9,7) / 0.000D0 /
+      DATA RFP(10,7) / 0.000D0 /
+      DATA RFP(11,7) / 0.000D0 /
+      DATA RFP(12,7) / 0.000D0 /
+C     REF 8
+C       REF: ascent stage jettison
+      DATA RFP(1,8) / 468571.200D0 /
+      DATA RFP(2,8) / 0.000D0 /
+      DATA RFP(3,8) / 468571.200D0 /
+      DATA RFP(4,8) / 1.100D0 /
+      DATA RFP(5,8) / 41.850D0 /
+      DATA RFP(6,8) / 61.600D0 /
+      DATA RFP(7,8) / 5335.900D0 /
+      DATA RFP(8,8) / 0.150D0 /
+      DATA RFP(9,8) / 0.000D0 /
+      DATA RFP(10,8) / 0.000D0 /
+      DATA RFP(11,8) / 0.000D0 /
+      DATA RFP(12,8) / 0.000D0 /
+C     REF 9
+C       REF: transearth injection ignition
+      DATA RFP(1,9) / 487422.300D0 /
+      DATA RFP(2,9) / 0.000D0 /
+      DATA RFP(3,9) / 487422.300D0 /
+      DATA RFP(4,9) / -0.160D0 /
+      DATA RFP(5,9) / 164.020D0 /
+      DATA RFP(6,9) / 52.400D0 /
+      DATA RFP(7,9) / 5376.000D0 /
+      DATA RFP(8,9) / -0.030D0 /
+      DATA RFP(9,9) / 0.000D0 /
+      DATA RFP(10,9) / 0.000D0 /
+      DATA RFP(11,9) / 0.000D0 /
+      DATA RFP(12,9) / 0.000D0 /
+C     REF 10
+C       REF: second midcourse correction cutoff
+      DATA RFP(1,10) / 541807.400D0 /
+      DATA RFP(2,10) / 0.000D0 /
+      DATA RFP(3,10) / 541807.400D0 /
+      DATA RFP(4,10) / -13.160D0 /
+      DATA RFP(5,10) / -37.830D0 /
+      DATA RFP(6,10) / 169080.600D0 /
+      DATA RFP(7,10) / 4074.000D0 /
+      DATA RFP(8,10) / -80.410D0 /
+      DATA RFP(9,10) / 129.300D0 /
+      DATA RFP(10,10) / 0.000D0 /
+      DATA RFP(11,10) / 0.000D0 /
+      DATA RFP(12,10) / 0.000D0 /
+C     REF 11
+C       REF: command module/service module separation
+      DATA RFP(1,11) / 701352.700D0 /
+      DATA RFP(2,11) / 0.000D0 /
+      DATA RFP(3,11) / 701352.700D0 /
+      DATA RFP(4,11) / -35.090D0 /
+      DATA RFP(5,11) / 122.540D0 /
+      DATA RFP(6,11) / 1778.300D0 /
+      DATA RFP(7,11) / 29615.500D0 /
+      DATA RFP(8,11) / -35.260D0 /
+      DATA RFP(9,11) / 69.270D0 /
+      DATA RFP(10,11) / 0.000D0 /
+      DATA RFP(11,11) / 0.000D0 /
+      DATA RFP(12,11) / 0.000D0 /
+C     REF 12
+C       REF: MR Table 7-VII p. 7-12, entry interface
+      DATA RFP(1,12) / 702185.700D0 /
+      DATA RFP(2,12) / 0.000D0 /
+      DATA RFP(3,12) / 702185.700D0 /
+      DATA RFP(4,12) / -3.190D0 /
+      DATA RFP(5,12) / 171.960D0 /
+      DATA RFP(6,12) / 65.800D0 /
+      DATA RFP(7,12) / 36194.400D0 /
+      DATA RFP(8,12) / -6.480D0 /
+      DATA RFP(9,12) / 50.180D0 /
+      DATA RFP(10,12) / 0.000D0 /
+      DATA RFP(11,12) / 0.000D0 /
+      DATA RFP(12,12) / 0.000D0 /
+      DATA (RFSN(IBD),IBD=1,12) /
+     1 1,1,1,1,1,1,1,1,1,1,
+     1 1,1/
+      DATA (RFBOD(IBD),IBD=1,12) /
+     1 1,1,2,2,2,2,2,2,2,1,
+     1 1,1/
+      DATA (RFGC(IBD),IBD=1,12) /
+     1 0,0,0,0,0,0,0,0,0,0,
+     1 0,0/
+C     BURN 1
+C       BURN: MR Table 7-III p. 7-10: spacecraft/S-IVB separation, SPS,
+C       ignition 4:40:01.8, 2.9 s, 19.7 ft/s. Direction derived by us
+C       from the Table 7-II ignition and cutoff rows
+C     BURN 2
+C       BURN: MR Table 7-III p. 7-10: first midcourse correction, SPS,
+C       ignition 26:44:58.7, 3.1 s, 20.9 ft/s. Direction derived by us
+C       from the Table 7-II ignition and cutoff rows
+C     BURN 3
+C       BURN: MR Table 7-V p. 7-11: lunar orbit insertion, SPS,
+C       ignition 75:49:50.4, 357.5 s, 2917.5 ft/s. Direction against
+C       the velocity: our assumption
+C     BURN 4
+C       BURN: MR Table 7-V p. 7-11: lunar orbit circularization, SPS,
+C       ignition 80:11:36.8, 16.8 s, 158.8 ft/s. Direction against the
+C       velocity: our assumption
+C     BURN 5
+C       BURN: MR Table 7-VI p. 7-11: transearth injection, SPS,
+C       ignition 135:23:42.3, 151.4 s, 3279.0 ft/s. Direction along the
+C       velocity: our assumption
+C     BURN 6
+C       BURN: MR Table 7-VI p. 7-11: second midcourse correction, SM
+C       RCS, ignition 150:29:57.4, 11.2 s, 4.8 ft/s. Direction derived
+C       by us from the Table 7-II ignition and cutoff rows
+      DATA (BNT(IBD),IBD=1,6) /
+     1 16803.25D0,96300.25D0,273169.15D0,288705.20D0,
+     1 487518.00D0,541803.00D0/
+      DATA (BNDV(IBD),IBD=1,6) /
+     1 19.7D0,20.9D0,2917.5D0,158.8D0,
+     1 3279.0D0,4.8D0/
+      DATA (BNP(IBD),IBD=1,6) /
+     1 -0.798D0,-0.711D0,-1.000D0,-1.000D0,
+     1 1.000D0,-0.198D0/
+      DATA (BNR(IBD),IBD=1,6) /
+     1 0.600D0,0.703D0,0.000D0,0.000D0,
+     1 0.000D0,0.980D0/
+      DATA (BNN(IBD),IBD=1,6) /
+     1 0.052D0,-0.009D0,0.000D0,0.000D0,
+     1 0.000D0,0.000D0/
+      DATA (BNSN(IBD),IBD=1,6) /
+     1 1,1,1,1,1,1/
+      DATA (BNBOD(IBD),IBD=1,6) /
+     1 1,1,2,2,2,1/
+      DATA (MMA(IBD),IBD=1,95) /
+     1 0,0,1,0,6288774,-20905355,
+     1 2,0,-1,0,1274027,-3699111,
+     1 2,0,0,0,658314,-2955968,
+     1 0,0,2,0,213618,-569925,
+     1 0,1,0,0,-185116,48888,
+     1 0,0,0,2,-114332,-3149,
+     1 2,0,-2,0,58793,246158,
+     1 2,-1,-1,0,57066,-152138,
+     1 2,0,1,0,53322,-170733,
+     1 2,-1,0,0,45758,-204586,
+     1 0,1,-1,0,-40923,-129620,
+     1 1,0,0,0,-34720,108743,
+     1 0,1,1,0,-30383,104755,
+     1 2,0,0,-2,15327,10321,
+     1 0,0,1,2,-12528,0,
+     1 0,0,1,-2,10980/
+      DATA (MMA(IBD),IBD=96,190) /
+     1 79661,4,0,-1,0,10675,
+     1 -34782,0,0,3,0,10034,
+     1 -23210,4,0,-2,0,8548,
+     1 -21636,2,1,-1,0,-7888,
+     1 24208,2,1,0,0,-6766,
+     1 30824,1,0,-1,0,-5163,
+     1 -8379,1,1,0,0,4987,
+     1 -16675,2,-1,1,0,4036,
+     1 -12831,2,0,2,0,3994,
+     1 -10445,4,0,0,0,3861,
+     1 -11650,2,0,-3,0,3665,
+     1 14403,0,1,-2,0,-2689,
+     1 -7003,2,0,-1,2,-2602,
+     1 0,2,-1,-2,0,2390,
+     1 10056,1,0,1,0,-2348,
+     1 6322,2,-2,0,0/
+      DATA (MMA(IBD),IBD=191,285) /
+     1 2236,-9884,0,1,2,0,
+     1 -2120,5751,0,2,0,0,
+     1 -2069,0,2,-2,-1,0,
+     1 2048,-4950,2,0,1,-2,
+     1 -1773,4130,2,0,0,2,
+     1 -1595,0,4,-1,-1,0,
+     1 1215,-3958,0,0,2,2,
+     1 -1110,0,3,0,-1,0,
+     1 -892,3258,2,1,1,0,
+     1 -810,2616,4,-1,-2,0,
+     1 759,-1897,0,2,-1,0,
+     1 -713,-2117,2,2,-1,0,
+     1 -700,2354,2,1,-2,0,
+     1 691,0,2,-1,0,-2,
+     1 596,0,4,0,1,0,
+     1 549,-1423,0,0,4/
+      DATA (MMA(IBD),IBD=286,360) /
+     1 0,537,-1117,4,-1,0,
+     1 0,520,-1571,1,0,-2,
+     1 0,-487,-1739,2,1,0,
+     1 -2,-399,0,0,0,2,
+     1 -2,-381,-4421,1,1,1,
+     1 0,351,0,3,0,-2,
+     1 0,-340,0,4,0,-3,
+     1 0,330,0,2,-1,2,
+     1 0,327,0,0,2,1,
+     1 0,-323,1165,1,1,-1,
+     1 0,299,0,2,0,3,
+     1 0,294,0,2,0,-1,
+     1 -2,0,8752/
+      DATA (MMB(IBD),IBD=1,95) /
+     1 0,0,0,1,5128122,
+     1 0,0,1,1,280602,
+     1 0,0,1,-1,277693,
+     1 2,0,0,-1,173237,
+     1 2,0,-1,1,55413,
+     1 2,0,-1,-1,46271,
+     1 2,0,0,1,32573,
+     1 0,0,2,1,17198,
+     1 2,0,1,-1,9266,
+     1 0,0,2,-1,8822,
+     1 2,-1,0,-1,8216,
+     1 2,0,-2,-1,4324,
+     1 2,0,1,1,4200,
+     1 2,1,0,-1,-3359,
+     1 2,-1,-1,1,2463,
+     1 2,-1,0,1,2211,
+     1 2,-1,-1,-1,2065,
+     1 0,1,-1,-1,-1870,
+     1 4,0,-1,-1,1828/
+      DATA (MMB(IBD),IBD=96,190) /
+     1 0,1,0,1,-1794,
+     1 0,0,0,3,-1749,
+     1 0,1,-1,1,-1565,
+     1 1,0,0,1,-1491,
+     1 0,1,1,1,-1475,
+     1 0,1,1,-1,-1410,
+     1 0,1,0,-1,-1344,
+     1 1,0,0,-1,-1335,
+     1 0,0,3,1,1107,
+     1 4,0,0,-1,1021,
+     1 4,0,-1,1,833,
+     1 0,0,1,-3,777,
+     1 4,0,-2,1,671,
+     1 2,0,0,-3,607,
+     1 2,0,2,-1,596,
+     1 2,-1,1,-1,491,
+     1 2,0,-2,1,-451,
+     1 0,0,3,-1,439,
+     1 2,0,2,1,422/
+      DATA (MMB(IBD),IBD=191,285) /
+     1 2,0,-3,-1,421,
+     1 2,1,-1,1,-366,
+     1 2,1,0,1,-351,
+     1 4,0,0,1,331,
+     1 2,-1,1,1,315,
+     1 2,-2,0,-1,302,
+     1 0,0,1,3,-283,
+     1 2,1,1,-1,-229,
+     1 1,1,0,-1,223,
+     1 1,1,0,1,223,
+     1 0,1,-2,-1,-220,
+     1 2,1,-1,-1,-220,
+     1 1,0,1,1,-185,
+     1 2,-1,-2,-1,181,
+     1 0,1,2,1,-177,
+     1 4,0,-2,-1,176,
+     1 4,-1,-1,-1,166,
+     1 1,0,1,-1,-164,
+     1 4,0,1,-1,132/
+      DATA (MMB(IBD),IBD=286,300) /
+     1 1,0,-1,-1,-119,
+     1 4,-1,0,-1,115,
+     1 2,-2,0,1,107/
+      DATA NSTART, NRF, NBN / 1, 12, 6 /
       END
 C     RESTOMOD END

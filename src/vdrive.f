@@ -8,14 +8,15 @@ C     recorder to expose.  After the MSC program VIEW (G. B. Roush;
 C     documented by A. N. Lunde and C. T. Hyle).  New code; the target
 C     is the surviving output, MSC IN 69-FM-197 and the film clip.
 C
-C     ENTRY POINTS (called by the chassis, shell.f90)
+C     ENTRY POINTS (called by the chassis, shell.f90; also SIMRUN in
+C     sim.f, which runs the engine and fills the tape)
 C       VINIT  (ISC, GET, YAW, PIT, ROL, FOV)
 C              select scene ISC and return its default inputs.
 C       VFRAME (GET, YAW, PIT, ROL, FOV, IFLAG,
 C               VB, NV, SB, NS, LB, NL, HD, TB, NT, TC, NCH)
 C              draw one frame.  VB(5,MAXV) line vectors X1 Y1 X2 Y2
 C              STYLE, SB(3,MAXS) points X Y MAG, LB(4,MAXL) labels
-C              X Y KIND ID, HD(16) header values, TB/TC text records.
+C              X Y KIND ID, HD(24) header values, TB/TC text records.
 C
 C     ELEMENTS.  The kernel is a set of separately compiled elements,
 C     linked by the build, as an 1108 program was put together by
@@ -25,7 +26,9 @@ C     interconnecting one or more relocatable elements to produce a
 C     program" (UE-637 sec. 5.1; docs/batch-pipeline.md).
 C       vdrive.f  this driver: scenes, cameras, model placement
 C       vlayer.f  the layer dispatcher and each scene's layer list
-C       Core:  ephem.f (time, Sun, Moon), traj.f (trajectory legs),
+C       Core:  ephem.f (time, Sun, Moon), traj.f (trajectory legs,
+C              the replay), sim.f (the engine), tape.f (the tape it
+C              writes), vsrc.f (the state source: replay or tape),
 C              pen.f (projection, clipping, visibility, vectors),
 C              vtext.f (text records), vmath.f (vectors, matrices),
 C              models.f (spacecraft model library)
@@ -45,14 +48,15 @@ C     associated with the input/output options, coordinate
 C     transformations, lunar- and solar-ephemeris installation, three-
 C     dimensional-display problems, and realistic spacecraft-window
 C     outlines".
-C       integrator portion           traj.f
+C       integrator portion           sim.f (and traj.f's replay)
 C       graphic-display portion      pen.f, the layers via vlayer.f
 C       ephemeris installation       ephem.f
 C       coordinate transformations   vmath.f, the frames in vdrive.f
 C       three-dimensional display    pen.f, models.f
 C       window outlines              window and cabin models (to come)
 C       input/output                 vtext.f, the plot-tape buffers,
-C                                    the scenarios (data/scenarios)
+C                                    the scenarios (data/scenarios),
+C                                    the tape (tape.f)
 C     OUR READING: THE REPORT NAMES FUNCTIONS, NOT FILES.
 C
 C     PROJECTION
@@ -96,7 +100,7 @@ C       is turned in azimuth (AZOFF) so the Earth rises mid-frame.
         CALL ERFIND
         GET = TERISE - 60.0D0
         FOV = 8.0D0
-        CALL LUNORB(GET, R, V)
+        CALL VSTATE(GET, 2, R, V)
         CALL MOONG(GET, PM)
         E(1) = -PM(1) - R(1)
         E(2) = -PM(2) - R(2)
@@ -118,8 +122,8 @@ C       only its limb arc as the spacecraft closes on entry.
         GET = TETP - 5.0D0 * 3600.0D0
         FOV = 60.0D0
         ELOFF = 0.0D0
-        CALL ERTORB(TFIX, R, V)
-        CALL ERTORB(TETP - 3600.0D0, E, S)
+        CALL VSTATE(TFIX, 1, R, V)
+        CALL VSTATE(TETP - 3600.0D0, 1, E, S)
         DO 22 I = 1, 3
           PM(I) = -R(I)
           E(I) = -E(I)
@@ -184,12 +188,13 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION GET, YAW, PIT, ROL, FOV
       INTEGER IFLAG, NV, NS, NL
-      DOUBLE PRECISION VB(5,MAXV), SB(3,MAXS), LB(4,MAXL), HD(16)
+      DOUBLE PRECISION VB(5,MAXV), SB(3,MAXS), LB(4,MAXL), HD(24)
       DOUBLE PRECISION TB(4,MAXT)
       INTEGER NT, TC(MAXTC), NCH
       DOUBLE PRECISION PM(3), CG(3), CV(3), RB, RNG, D1, D2, D3, D4
       DOUBLE PRECISION PB(3), RR, VNRM, VDOT, RHO
-      INTEGER I, IREF, IWIN, IOK
+      INTEGER I, IREF, IWIN, IOK, J
+      DOUBLE PRECISION MR1(3,3), MR2(3,3)
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (INITD .NE. 1 .OR. ISCN .EQ. 0) THEN
@@ -199,10 +204,13 @@ C     RESTOMOD END
       NV = 0
       NS = 0
       NL = 0
-      DO 10 I = 1, 16
+      DO 10 I = 1, 24
         HD(I) = 0.0D0
    10 CONTINUE
       IFLG = IFLAG
+C     State source: in_flags bit 3, the tape if the engine has run.
+      ISRC = MOD(IFLG / 8, 2)
+      ISRCU = 0
       FOVH = 0.5D0 * FOV
       IF (FOVH .LT. 0.05D0) FOVH = 0.05D0
       IF (FOVH .GT. 89.0D0) FOVH = 89.0D0
@@ -221,7 +229,16 @@ C     World at this GET.
       CALL MOONG(GET, PM)
       CALL SUNG(GET, SUNU)
       CALL MOONRT(GET, MMF)
-      CALL ROTZ(GMST, MEF)
+C     Earth fixed to J2000: GMST about the pole of date, then the
+C     precession back to J2000 (PRECM).
+      CALL ROTZ(GMST, MR1)
+      CALL PRECM(TCEN, MR2)
+      DO 18 I = 1, 3
+        DO 17 J = 1, 3
+          MEF(I,J) = MR2(1,I) * MR1(1,J) + MR2(2,I) * MR1(2,J)
+     &             + MR2(3,I) * MR1(3,J)
+   17   CONTINUE
+   18 CONTINUE
 C
 C     Camera position CG (geocentric), velocity CV relative to the
 C     reference body IREF, window code IWIN, reference attitude.
@@ -296,6 +313,11 @@ C     printed p. 96).
 C     The scenario's epoch as an offset (s) from Apollo 11 range zero,
 C     for the page's clock: UTC = 1969-07-16 13:32:00 + HD(16) + GET.
       HD(16) = (TJD0 - JD0) * 86400.0D0
+C     The state source used (0 replay, 1 sim corrected, 2 sim free),
+C     and the last engine run's error at the reference row nearest
+C     GET: position (km), velocity (ft/s), that row's g.e.t. (s).
+      HD(17) = DBLE(ISRCU)
+      CALL SIMERR(GET, J, HD(20), HD(18), HD(19))
       HD(14) = 0.0D0
       IF (VDOT(PB, CB) .GT. 0.0D0) HD(14) = 1.0D0
 C     Text for the recorder's character generator.
@@ -324,7 +346,7 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (ISCN .EQ. 1 .OR. ISCN .EQ. 4) THEN
 C       CSM in lunar orbit.
         IREF = 2
-        CALL LUNORB(GET, R, V)
+        CALL VSTATE(GET, 2, R, V)
         DO 10 I = 1, 3
           CG(I) = PM(I) + R(I)
           CV(I) = V(I)
@@ -357,7 +379,7 @@ C         Out of plane toward the LM, local vertical up.
       ELSE IF (ISCN .EQ. 2) THEN
 C       Coast.  Attitude held inertially (FXB, FXU, set by VINIT).
         IREF = 1
-        CALL ERTORB(GET, R, V)
+        CALL VSTATE(GET, 1, R, V)
         DO 40 I = 1, 3
           CG(I) = R(I)
           CV(I) = V(I)
@@ -367,7 +389,7 @@ C       Coast.  Attitude held inertially (FXB, FXU, set by VINIT).
       ELSE IF (ISCN .EQ. 3) THEN
 C       Parking orbit.  Forward, boresight 8 deg above the horizon.
         IREF = 1
-        CALL ERTORB(GET, R, V)
+        CALL VSTATE(GET, 1, R, V)
         DO 70 I = 1, 3
           CG(I) = R(I)
           CV(I) = V(I)
@@ -417,7 +439,7 @@ C       face the stack, which holds an inertial attitude (S7ATT).
 C       Boresight along the CSM +X axis, which is down the LM's -X
 C       axis; the LM front (+Z) up.
         IREF = 1
-        CALL ERTORB(GET, R, V)
+        CALL VSTATE(GET, 1, R, V)
         CALL S7ATT
         DO 110 I = 1, 3
           CG(I) = R(I)
@@ -655,7 +677,7 @@ C     RESTOMOD END
       INTEGER I
 C     The attitude time from the scenario (TDATT).
       T = EVGET(KETDA)
-      CALL ERTORB(T, R, V)
+      CALL VSTATE(T, 1, R, V)
       CALL SUNG(T, S)
       CALL VCRS(R, V, H)
       CALL VUNIT(H)

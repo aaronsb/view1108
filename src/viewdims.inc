@@ -13,6 +13,9 @@ C     NLGP parameters, events; leg types and event kinds.
       INTEGER KETDA, KESEP, KEAPR, KEDOK, KEUND, KETD, KEEI
 C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
       PARAMETER (NSN=1, NLEG=9, NEVT=7, NLGP=12)
+C     Simulation cards (START, BURN, REF): array sizes, at least 1.
+      INTEGER NSTRT, NBURN, NREF
+      PARAMETER (NSTRT=1, NBURN=6, NREF=12)
       PARAMETER (KCIRC=1, KCONIC=2, KLUNAR=3)
       PARAMETER (KETDA=1, KESEP=2, KEAPR=3, KEDOK=4)
       PARAMETER (KEUND=5, KETD=6, KEEI=7)
