@@ -46,7 +46,7 @@ C     t25.png).
      &          1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0 /
       DO 90 K = 1, 12
         L = LL(K, ISCN)
-        IF (L .LT. 1 .OR. L .GT. 9) RETURN
+        IF (L .LT. 1 .OR. L .GT. 9) GO TO 95
 C       Window overlays (COAS, LPD) only in the scene's window view.
         IF (IVUSE .NE. 0 .AND. (L .EQ. 7 .OR. L .EQ. 9)) GO TO 90
         GO TO (11, 12, 13, 14, 15, 16, 17, 18, 19), L
@@ -68,5 +68,7 @@ C       Window overlays (COAS, LPD) only in the scene's window view.
         GO TO 90
    19   CALL OVLPD(GET, VB, NV, SB, NS, LB, NL)
    90 CONTINUE
+C     The LM station view (in_view 3) carries the LM window overlay.
+   95 IF (IVUSE .EQ. 3) CALL OVLPD(GET, VB, NV, SB, NS, LB, NL)
       RETURN
       END

@@ -164,8 +164,13 @@ Inputs (written by JS):
   the Apollo 11 landing site, the launch site LC-39A), 2 secondary (plus the 37 nav stars, craters
   of 25 km and up, maria), 3 all. `in_flags` bit 0 keeps working: with `in_lablv` 0 it means
   all (level 3), as before; with `in_lablv` 1 or more the kernel sets bit 0 itself.
-- Status (2026-09-30): `in_view` 0 and 1 and `in_target` work (`src/vview.f`); stations (2, 3)
-  fall back to the window view until the cabins land, and `in_lablv` is stored but not yet used.
+- Status (2026-09-30): `in_view` and `in_target` work (`src/vview.f`); `in_lablv` is stored but
+  not yet used. CM station (2): scenes 1, 2, 3, 4, 7, 8; the eye looks along the CSM's +X with
+  -Z up, the view of MSC IN 69-FM-197's CSM maneuver plots, and the cabin is the CM left
+  rendezvous window's two outlines read off its figure 9.0-3 (PDF p. 263) plus the X-axis x
+  (`models.f` CMCAB); targets aim it as offsets. LM station (3): scenes 4, 7, 8 (scene 5 is it
+  already), the commander's eye with the LM window and LPD overlay of scene 5; it ignores
+  targets. Elsewhere a station falls back to the window view.
   Scene 6 ignores both view and target. In an external view of a scene whose camera rides the
   CSM (1, 2, 3, 4, 7) the CSM is drawn as an outline around the camera. Window overlays (COAS,
   LPD) and the LM window sill apply only in the window view.

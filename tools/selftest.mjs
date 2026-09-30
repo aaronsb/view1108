@@ -62,7 +62,7 @@ for (const scene of [1, 2, 3, 4, 5, 6, 7, 8]) {
 if (W.in_view) {
   let same = true, n = 0;
   for (const scene of [1, 2, 3, 4, 5, 6, 7, 8])
-    for (const [v, t] of [[1, 0], [1, 4], [0, 1], [0, 2], [0, 3]]) {
+    for (const [v, t] of [[1, 0], [1, 4], [0, 1], [0, 2], [0, 3], [2, 0], [3, 0], [2, 1]]) {
       const a = run(W, scene, 3, v, t), b = run(F, scene, 3, v, t); n++;
       if (!(a.nvec === b.nvec && a.nstar === b.nstar && maxdiff(a.hdr, b.hdr) === 0 &&
             maxdiff(a.vbuf, b.vbuf) === 0)) same = false;

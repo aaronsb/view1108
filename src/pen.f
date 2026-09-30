@@ -281,7 +281,7 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
 C     RESTOMOD END
 C     From the LM the window sill hides everything below it.
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (ISCN .EQ. 5 .AND. IVUSE .EQ. 0) THEN
+      IF ((ISCN .EQ. 5 .AND. IVUSE .EQ. 0) .OR. IVUSE .EQ. 3) THEN
         IF (SILL(P) .GT. 0.0D0) THEN
           ISVIS = 0
           RETURN
