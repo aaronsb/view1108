@@ -82,6 +82,7 @@ body.still { padding:0; }
 </header>
 <div id="wrap"><canvas id="cv" tabindex="0" aria-label="VIEW-1108 plot"></canvas></div>
 <div id="status" role="status" aria-live="off"></div>
+<input id="linkbox" type="text" readonly aria-label="link to this view" style="display:none;width:100%;max-width:720px;margin:6px auto 0">
 <div id="ctl">
   <div class="grp" id="modes">
     <button id="mattract" class="on">Attract</button>
@@ -106,11 +107,12 @@ body.still { padding:0; }
     <button id="bblm" title="B">Bloom</button>
     <button id="bcat" title="C">Catalog</button>
     <button id="bsrc">Fortran listing</button>
+    <button id="blink" title="L: copy a link to this view">Link</button>
   </div>
   <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="19" value="0:00:00" aria-label="ground elapsed time h:mm:ss, or a UTC timestamp YYYY-MM-DD HH:MM:SS"><span id="utc" class="lbl"></span><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0"></div>
   <div class="grp"><span class="lbl">Jump (Live)</span><button id="jundock">Undocking 100:12:00</button><button id="jdesc">Descent 102:42:00</button></div>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-5: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace. B: bloom. C: star catalog. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-5: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace. L: copy link. B: bloom. C: star catalog. Any input leaves Attract or Tour.</div>
 <div id="about">G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197.</div>
 <div id="err"></div>
 
@@ -126,6 +128,7 @@ const WASM_B64 = "__WASM_B64__";
 const STILL = /[?&]still=earthrise\b/.test(location.search);   // frozen Earthrise, chrome hidden, for screenshots
 const BARE = STILL || /[?&]bare\b/.test(location.search);       // chrome hidden (combine with ?film= for screenshots)
 const DEBUG = /[?&]debug\b/.test(location.search);
+const UP = new URLSearchParams(location.search);   // shareable view parameters (documented in the README)
 const NOWASM = /[?&]nowasm\b/.test(location.search);
 const USE_MOCK = /[?&]mock\b/.test(location.search) || WASM_B64.startsWith("__");
 const NAMES = (typeof VIEW_NAMES !== "undefined") ? VIEW_NAMES : (window.MOCK_NAMES || { NAV: [], CRATER: [] });
@@ -325,14 +328,18 @@ const NAV_MAG = NAMES.NAV_MAG || 3.8;   // magnitude limit passing the 391 brigh
 try { Object.assign(prefs, JSON.parse(localStorage.getItem("view1108.prefs") || "{}")); } catch (e) { /* storage unavailable */ }
 const savePrefs = () => { try { localStorage.setItem("view1108.prefs", JSON.stringify(prefs)); } catch (e) { /* ignore */ } };
 const auto = () => mode === "attract" || mode === "tour";
-const urlFlag = k => { const m = new RegExp("[?&]" + k + "=([01])").exec(location.search); return m ? m[1] === "1" : null; };   // ?jitter=0|1, ?bloom=0|1 override for captures
+// URL parameters override stored prefs for this visit only, and are never written to storage. A toggle clicked
+// by the viewer drops the URL value for that effect and saves the viewer's own choice.
+const urlOv = {}; for (const k of ["jitter", "bloom", "dust", "fps"]) { const v = UP.get(k); if (v === "0" || v === "1") urlOv[k] = v === "1"; }
+if (UP.get("catalog") === "nav" || UP.get("catalog") === "full") urlOv.catalog = UP.get("catalog");
+const urlFlag = k => k in urlOv ? urlOv[k] : null;
 const effJit = () => urlFlag("jitter") !== null ? urlFlag("jitter") : prefs.jitter !== null ? prefs.jitter : auto();
 const effBloom = () => urlFlag("bloom") !== null ? urlFlag("bloom") : prefs.bloom !== null ? prefs.bloom : auto();   // like the other film effects: on in Attract/Tour, off in Live/Free-look
 const effDust = () => urlFlag("dust") !== null ? urlFlag("dust") : prefs.dust !== null ? prefs.dust : auto();
 const effFps = () => mode === "beam" ? false : urlFlag("fps") !== null ? urlFlag("fps") : prefs.fps !== null ? prefs.fps : auto();   // film rate: present at 16 fps
-const effCatalog = () => prefs.catalog === "full" ? "full" : "nav";
-const toggleCatalog = () => { prefs.catalog = effCatalog() === "full" ? "nav" : "full"; savePrefs(); syncUI(); };
-const toggle = k => { prefs[k] = !(k === "jitter" ? effJit() : k === "dust" ? effDust() : k === "fps" ? effFps() : effBloom()); savePrefs(); syncUI(); };
+const effCatalog = () => (urlOv.catalog || prefs.catalog) === "full" ? "full" : "nav";
+const toggleCatalog = () => { const c = effCatalog() === "full" ? "nav" : "full"; delete urlOv.catalog; prefs.catalog = c; savePrefs(); syncUI(); };
+const toggle = k => { const cur = k === "jitter" ? effJit() : k === "dust" ? effDust() : k === "fps" ? effFps() : effBloom(); delete urlOv[k]; prefs[k] = !cur; savePrefs(); syncUI(); };
 
 function readDefaults() {
   get = get0 = rd("in_get"); yaw = rd("in_yaw"); pitch = rd("in_pitch"); roll = rd("in_roll"); fov = fov0 = rd("in_fov");
@@ -673,10 +680,11 @@ function step(now) {
   if (document.activeElement !== gi) gi.value = getStr(get);
   document.getElementById("utc").textContent = "UTC " + utcStr(get);
 }
-let lastStatus = "";
+let lastStatus = "", flashMsg = "", flashUntil = 0;
+const flash = m => { flashMsg = m; flashUntil = performance.now() + 1800; };
 function updateStatus() {
   const rate = mode === "beam" ? `${BEAM_SPEEDS[beamIdx].name} ${BEAM_SPEEDS[beamIdx].vps ? BEAM_SPEEDS[beamIdx].vps + " VEC/S" : "1/15 S FRAME"}` : mode === "live" ? LIVE_RATES[liveIdx] + "X" : mode === "free" ? (playing ? SPEEDS[speedIdx] + "X" : "HOLD") : "AUTO";
-  const t = `MODE ${mode}  G.E.T. ${getStr(get)}  UTC ${utcStr(get)}  ${mode === "beam" ? "FRAME " + beamFrameNo + "  " : ""}${rate}  BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  DUST ${effDust() ? "ON" : "OFF"}  STARS ${effCatalog().toUpperCase()}${effFps() ? "  16 FPS" : ""}`;
+  const t = (performance.now() < flashUntil ? flashMsg + "  " : "") + `MODE ${mode}  G.E.T. ${getStr(get)}  UTC ${utcStr(get)}  ${mode === "beam" ? "FRAME " + beamFrameNo + "  " : ""}${rate}  BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  DUST ${effDust() ? "ON" : "OFF"}  STARS ${effCatalog().toUpperCase()}${effFps() ? "  16 FPS" : ""}`;
   if (t !== lastStatus) { lastStatus = t; document.getElementById("status").textContent = t; }
 }
 // Film rate: with the toggle on, the kernel is stepped and a frame presented only every 1/16 s and held in between
@@ -743,12 +751,13 @@ function buildPaper() {
     pre.textContent = txt; el.appendChild(pre); paper.appendChild(el);
   }
 }
+let listingLight = UP.get("listing") ? UP.get("listing") === "light" : prefs.listing === "light";   // ?listing=dark|light
 function applyListing() {
-  const light = prefs.listing === "light";
+  const light = listingLight;
   $("list").classList.toggle("light", light); $("blist").textContent = light ? "Dark" : "Light";
   if (light) buildPaper();
 }
-$("blist").onclick = () => { prefs.listing = prefs.listing === "light" ? "dark" : "light"; savePrefs(); applyListing(); };
+$("blist").onclick = () => { listingLight = !listingLight; prefs.listing = listingLight ? "light" : "dark"; savePrefs(); applyListing(); };
 $("bsrc").onclick = () => { applyListing(); $("list").classList.add("open"); };
 $("bclose").onclick = () => $("list").classList.remove("open");
 $("scrub").oninput = e => { leaveAttract(); livePin = null; get = mode === "live" ? Number(e.target.value) : get0 + Number(e.target.value); };
@@ -776,6 +785,7 @@ window.addEventListener("keydown", e => {
   if (k === "d" || k === "D") { toggle("dust"); e.preventDefault(); return; }
   if (k === "f" || k === "F") { toggle("fps"); e.preventDefault(); return; }
   if (k === "t" || k === "T") { startMode("beam"); e.preventDefault(); return; }
+  if (k === "l" || k === "L") { copyLink(); e.preventDefault(); return; }
   if (k === "b" || k === "B") { toggle("bloom"); e.preventDefault(); return; }
   if (k === "c" || k === "C") { toggleCatalog(); e.preventDefault(); return; }
   if (k.length === 1 || k.startsWith("Arrow")) leaveAttract();
@@ -794,12 +804,62 @@ window.addEventListener("keydown", e => {
 });
 window.addEventListener("resize", resize);
 
+// ---- LINK: a URL that reproduces the current view (parameters are listed in the README) ----
+function linkURL() {
+  const q = [], add = (k, v) => q.push(k + "=" + encodeURIComponent(v)), rnd = v => +v.toFixed(3);
+  add("mode", mode);
+  if (mode !== "attract" && mode !== "tour") {
+    if (mode !== "live" || livePin) add("scene", scene);
+    add("get", getStr(get)); add("fov", rnd(fov)); add("yaw", rnd(yaw)); add("pitch", rnd(pitch)); add("roll", rnd(roll));
+    if (mode === "live") add("rate", LIVE_RATES[liveIdx]); else if (mode === "beam") add("bspeed", beamIdx + 1); else add("rate", SPEEDS[speedIdx]);
+    if (!labels) add("labels", 0); if (!frame) add("frame", 0); if (hidden) add("hidden", 1);
+  }
+  const dAuto = mode === "attract" || mode === "tour";   // effects whose default is on in the film-like modes
+  if (effJit() !== dAuto) add("jitter", +effJit());
+  if (effDust() !== dAuto) add("dust", +effDust());
+  if (effBloom()) add("bloom", 1);
+  if (effFps() !== (dAuto && mode !== "beam")) add("fps", +effFps());
+  if (effCatalog() === "full") add("catalog", "full");
+  return location.origin === "null" ? location.href.split("?")[0] + "?" + q.join("&") : location.origin + location.pathname + "?" + q.join("&");
+}
+function copyLink() {
+  const url = linkURL(), box = $("linkbox");
+  const fallback = () => { box.style.display = "block"; box.value = url; box.focus(); box.select(); flash("COPY THE LINK BELOW"); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => { box.style.display = "none"; flash("COPIED"); }, fallback); else fallback();
+}
+$("blink").onclick = copyLink;
+
+// ---- URL parameters: mode, scene, get / utc, fov yaw pitch roll, rate, bspeed, labels frame hidden, effects ----
+function applyParams() {
+  const num = k => { if (!UP.has(k) || UP.get(k).trim() === "") return null; const n = Number(UP.get(k)); return isFinite(n) ? n : null; };
+  const flag = k => UP.get(k) === "1" ? true : UP.get(k) === "0" ? false : null;
+  const md = ["attract", "tour", "live", "free", "beam"].includes(UP.get("mode")) ? UP.get("mode") : "attract";
+  if (md === "attract" || md === "tour") { startMode(md); return; }
+  let g = null; for (const k of ["get", "utc"]) if (UP.has(k)) { const v = parseGet(UP.get(k)); if (v !== null && isFinite(v)) g = v; }
+  const sc = num("scene") === null ? 1 : Math.round(num("scene")), scn = sc >= 1 && sc <= SCENES.length ? sc : 1;
+  if (md === "free" || md === "beam") { setScene(scn); if (g !== null) get = g; if (md === "beam") { const b = Math.round(num("bspeed") ?? 0); if (b >= 1 && b <= BEAM_SPEEDS.length) beamIdx = b - 1; startMode("beam"); } }
+  else {   // live: the scene follows the mission phase, except the LM windows, which are pinned
+    if (g !== null) get = g;
+    startMode("live");
+    if (scn === 4 || scn === 5) liveJump(scn === 4 ? { ...JUMPS.jundock, get: g ?? JUMPS.jundock.get } : { ...JUMPS.jdesc, get: g ?? JUMPS.jdesc.get });
+  }
+  const r = num("rate"); if (r !== null) { if (md === "live" && LIVE_RATES.includes(r)) liveIdx = LIVE_RATES.indexOf(r); else if (md === "free" && SPEEDS.includes(r) && r > 0) speedIdx = SPEEDS.indexOf(r); }
+  const f = num("fov"); if (f !== null) fov = Math.max(1, Math.min(170, f));
+  const y = num("yaw"); if (y !== null) yaw = y;
+  const pt = num("pitch"); if (pt !== null) pitch = Math.max(-90, Math.min(90, pt));
+  const rl = num("roll"); if (rl !== null) roll = rl;
+  if (flag("labels") !== null) labels = flag("labels");
+  if (flag("frame") !== null) frame = flag("frame");
+  if (flag("hidden") !== null) hidden = flag("hidden");
+  syncUI();
+}
+
 boot().then(() => {
   resize(); setScene(1);
   if (BARE) { document.body.classList.add("still"); resize(); }
   if (STILL) { const tq = /[?&]t=(-?[0-9.]+)/.exec(location.search); playing = false; get = get0 + (tq ? parseFloat(tq[1]) : 70); roll = -3; labels = false; syncUI(); }
-  else if (QP("mode") === "beam") { if (+QP("scene")) setScene(+QP("scene")); if (+QP("bspeed") >= 1 && +QP("bspeed") <= 4) beamIdx = +QP("bspeed") - 1; startMode("beam"); }   // ?mode=beam&scene=N&bspeed=1..4
-  else startMode("attract"); requestAnimationFrame(tick); })
+  else applyParams();
+  requestAnimationFrame(tick); })
   .catch(e => { $("err").textContent = "Could not start the kernel: " + e.message; console.error(e); });
 })();
 </script>

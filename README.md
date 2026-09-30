@@ -41,7 +41,28 @@ The page is the console. It starts by replaying the film, then hands you the con
 | **Beam** | Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades. Speeds run from an estimated 1108-plus-recorder pace down to a slow trace you can watch, up to a persistence-of-vision blur. The recorder rates are our estimates (see [docs/univac-1108.md](docs/univac-1108.md)). |
 | **Free-look** | Any drag, wheel or key. Look around (yaw, pitch, roll, field of view 1°–170°) at the current moment. |
 
-Keys: arrows look, Q/E roll, +/- field of view, space pause, `[` `]` speed, R reset, 1–5 scenes. The "Fortran listing" link shows the kernel source the page is running.
+Keys: arrows look, Q/E roll, +/- field of view, space pause, `[` `]` speed, R reset, 1–5 scenes, `L` copy link. The "Fortran listing" link shows the kernel source the page is running.
+
+## Link parameters
+
+The `[ LINK ]` button (key `L`) copies a URL that reproduces the current view. You can also write one by hand. Bad values are ignored, parameters override stored preferences for that visit only (nothing is written to storage), and with no `mode` the page starts in Attract.
+
+| Parameter | Values | Example |
+|---|---|---|
+| `mode` | `attract`, `tour`, `live`, `free`, `beam` | `mode=live` |
+| `scene` | `1`..`6` (Free-look, Beam; in Live only the LM windows 4 and 5 apply) | `scene=5` |
+| `get` | g.e.t. as `h:mm:ss` or seconds | `get=102:45:40` |
+| `utc` | UTC as `YYYY-MM-DDTHH:MM:SS` | `utc=1969-07-20T20:17:40` |
+| `fov`, `yaw`, `pitch`, `roll` | degrees (`fov` 1 to 170) | `fov=100&pitch=-10` |
+| `rate` | `1`, `10`, `60`, `300`, `1000` (Live, Free-look) | `rate=60` |
+| `bspeed` | `1`..`4`: 1108 + recorder, recorder only, slow trace, persistence (Beam) | `bspeed=3` |
+| `labels`, `frame`, `hidden` | `0` or `1` (names, plot frame, hidden lines) | `labels=0` |
+| `bloom`, `jitter`, `dust`, `fps` | `0` or `1` (film effects; `fps=1` is the 16 fps film rate) | `bloom=1` |
+| `catalog` | `nav` (391 stars) or `full` | `catalog=full` |
+| `listing` | `dark` or `light` (Fortran listing) | `listing=light` |
+| `bare`, `still=earthrise`, `film=N` | chrome hidden; frozen Earthrise; Attract at film second N (for screenshots) | `still=earthrise` |
+
+Example: <https://aaronsb.github.io/view1108/?mode=live&get=102:45:40&fov=100> opens Live at the landing, with a 100 degree field of view.
 
 ## Period engine, modern chassis
 
