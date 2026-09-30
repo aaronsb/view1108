@@ -112,7 +112,7 @@ body.still { padding:0; }
   <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="19" value="0:00:00" aria-label="ground elapsed time h:mm:ss, or a UTC timestamp YYYY-MM-DD HH:MM:SS"><span id="utc" class="lbl"></span><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0"></div>
   <div class="grp"><span class="lbl">Jump (Live)</span><button id="jundock">Undocking 100:12:00</button><button id="jdesc">Descent 102:42:00</button></div>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-5: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace. L: copy link. B: bloom. C: star catalog. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-6: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace. L: copy link. B: bloom. C: star catalog. Any input leaves Attract or Tour.</div>
 <div id="about">G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197.</div>
 <div id="err"></div>
 
@@ -132,7 +132,8 @@ const UP = new URLSearchParams(location.search);   // shareable view parameters 
 const NOWASM = /[?&]nowasm\b/.test(location.search);
 const USE_MOCK = /[?&]mock\b/.test(location.search) || WASM_B64.startsWith("__");
 const NAMES = (typeof VIEW_NAMES !== "undefined") ? VIEW_NAMES : (window.MOCK_NAMES || { NAV: [], CRATER: [] });
-const SCENES = ["Earthrise", "Translunar coast", "Earth limb", "LM rendezvous", "LM descent"];
+const SCENES = ["Earthrise", "Translunar coast", "Earth limb", "LM rendezvous", "LM descent", "Moon view"];
+const SCENE_CAPTION = { 6: "Moon view \u2014 spin to explore" };   // caption text where a scene needs more than its name
 const SPEEDS = [0, 1, 2, 4, 10, 30, 100, 300, 1000];
 
 // ---- math imports: _lfortran_dsin -> Math.sin, etc. ----
@@ -216,7 +217,8 @@ const TOUR = [
   { name: "Earth approach", scene: 2, dur: 150, fl: 0, fov: 60, tte: APPROACH, limb: LIMB },
   { name: "Earth limb",     scene: 3, dur: 90,  fl: 2, yaw: u => -15 + 30 * u, p: [0, 90] },
   { name: "LM pirouette",   scene: 4, dur: 120, fl: 0, p: [0, 240] },
-  { name: "LM descent",     scene: 5, dur: 115, fl: 2, p: [-56, 225] }
+  { name: "LM descent",     scene: 5, dur: 115, fl: 2, p: [-56, 225] },
+  { name: "Moon view \u2014 spin to explore", scene: 6, dur: 75, fl: 3, yaw: u => -180 + 360 * u, pitch: u => 14 * Math.sin(2 * Math.PI * u), p: [0, 0] }
 ];
 // Live: the scene follows the mission phase from GET.
 const LIVE_MIN = 700, LIVE_MAX = TETP;     // kernel's Earth-orbit scene is valid from about 700 s
@@ -345,6 +347,10 @@ function readDefaults() {
   get = get0 = rd("in_get"); yaw = rd("in_yaw"); pitch = rd("in_pitch"); roll = rd("in_roll"); fov = fov0 = rd("in_fov");
 }
 function setScene(s) {
+  if (mode === "live" && s === 6) {   // Moon view is not a mission phase: in Live it is pinned until the viewer scrubs or types a time
+    const g = get; livePin = { scene: 6, from: -Infinity, until: Infinity, name: SCENE_CAPTION[6] };
+    scene = 6; K.view_init(6); readDefaults(); get = g; get0 = g; capName = SCENE_CAPTION[6]; syncUI(); return;
+  }
   if (mode !== "beam") mode = "free"; else beamNextStart = 0; capName = ""; scene = s; K.view_init(s); readDefaults(); syncUI();
 }
 function resetView() { const g = get; K.view_init(scene); readDefaults(); get = g; }
@@ -519,7 +525,7 @@ function draw(now) {
   ctx.fillText("g.e.t. = " + getStr(H[0]), cx, b.y + b.s + fs * (framed ? 4.0 : 0.5));
   ctx.fillStyle = "#aaa"; ctx.font = `${fs}px ${getComputedStyle(document.body).getPropertyValue("--hd")}`;
   const liveTag = mode === "live" ? `LIVE ${LIVE_RATES[liveIdx]}x   ` : mode === "tour" ? "TOUR   " : "";
-  ctx.fillText(liveTag + (capName || SCENES[sc - 1] || "") + (H[5] ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (roll ? `   roll ${roll.toFixed(0)}°` : ""), cx, b.y + b.s + fs * (framed ? 5.7 : 2.0));
+  ctx.fillText(liveTag + (capName || SCENE_CAPTION[sc] || SCENES[sc - 1] || "") + (H[5] && !(SCENE_CAPTION[sc] && (!capName || capName === SCENE_CAPTION[sc])) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (roll ? `   roll ${roll.toFixed(0)}°` : ""), cx, b.y + b.s + fs * (framed ? 5.7 : 2.0));
   }
 
   if (fadeA > 0) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, fadeA)})`; ctx.fillRect(0, 0, W, Hh); }
@@ -770,7 +776,12 @@ cv.addEventListener("pointerdown", e => { leaveAttract(); cv.setPointerCapture(e
 cv.addEventListener("pointermove", e => {
   const p = ptrs.get(e.pointerId); if (!p) return;
   const dx = e.clientX - p[0], dy = e.clientY - p[1]; p[0] = e.clientX; p[1] = e.clientY;
-  if (ptrs.size === 1) { const d = fov / plotPx(); yaw -= dx * d; pitch += dy * d; pitch = Math.max(-90, Math.min(90, pitch)); }
+  if (ptrs.size === 1) {
+    if (scene === 6) {   // Moon view: yaw/pitch are the sub-observer longitude/latitude, so dragging spins the globe under the pointer
+      const d = 180 / Math.PI / (0.85 * (fov0 / fov) * plotPx() / 2);   // degrees per px at the disc centre (the disc is 85% of the frame at the default FOV)
+      yaw -= dx * d; pitch = Math.max(-90, Math.min(90, pitch + dy * d)); yaw = ((yaw + 180) % 360 + 360) % 360 - 180;
+    } else { const d = fov / plotPx(); yaw -= dx * d; pitch += dy * d; pitch = Math.max(-90, Math.min(90, pitch)); }
+  }
   else if (ptrs.size === 2 && pinch0 > 0) { const [a, b] = [...ptrs.values()]; fov = clampFov(fovPinch * pinch0 / Math.max(1, Math.hypot(a[0] - b[0], a[1] - b[1]))); }
 });
 const up = e => { ptrs.delete(e.pointerId); pinch0 = 0; };
@@ -780,7 +791,7 @@ cv.addEventListener("wheel", e => { e.preventDefault(); leaveAttract(); fov = cl
 window.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if ($("list").classList.contains("open")) { if (e.key === "Escape") $("list").classList.remove("open"); return; }
-  const d = fov * 0.05, k = e.key;
+  const d = scene === 6 ? 5 : fov * 0.05, k = e.key;
   if (k === "j" || k === "J") { toggle("jitter"); e.preventDefault(); return; }
   if (k === "d" || k === "D") { toggle("dust"); e.preventDefault(); return; }
   if (k === "f" || k === "F") { toggle("fps"); e.preventDefault(); return; }
@@ -798,7 +809,7 @@ window.addEventListener("keydown", e => {
   else if (k === "[") bump(-1);
   else if (k === "]") bump(1);
   else if (k === "r" || k === "R") resetView();
-  else if (k >= "1" && k <= "5") setScene(+k);
+  else if (k >= "1" && k <= String(SCENES.length)) setScene(+k);
   else h = false;
   if (h) e.preventDefault();
 });
@@ -841,7 +852,8 @@ function applyParams() {
   else {   // live: the scene follows the mission phase, except the LM windows, which are pinned
     if (g !== null) get = g;
     startMode("live");
-    if (scn === 4 || scn === 5) liveJump(scn === 4 ? { ...JUMPS.jundock, get: g ?? JUMPS.jundock.get } : { ...JUMPS.jdesc, get: g ?? JUMPS.jdesc.get });
+    if (scn === 6) setScene(6);
+    else if (scn === 4 || scn === 5) liveJump(scn === 4 ? { ...JUMPS.jundock, get: g ?? JUMPS.jundock.get } : { ...JUMPS.jdesc, get: g ?? JUMPS.jdesc.get });
   }
   const r = num("rate"); if (r !== null) { if (md === "live" && LIVE_RATES.includes(r)) liveIdx = LIVE_RATES.indexOf(r); else if (md === "free" && SPEEDS.includes(r) && r > 0) speedIdx = SPEEDS.indexOf(r); }
   const f = num("fov"); if (f !== null) fov = Math.max(1, Math.min(170, f));
