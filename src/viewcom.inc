@@ -1,4 +1,4 @@
-C     VIEW-1108 KERNEL COMMON.  Included by every routine in view.f
+C     VIEW-1108 KERNEL COMMON.  Included by every kernel routine
 C     after viewdims.inc.  Hand written (viewdims.inc is generated).
 C
 C     Units: km, km/s, seconds of GET, radians inside, degrees at the

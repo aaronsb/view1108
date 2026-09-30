@@ -5,7 +5,7 @@ Flags modern constructs and identifiers longer than 6 characters in fixed-form s
 unless the statement is preceded by a `C     RESTOMOD: <why>` comment or sits inside a
 `C     RESTOMOD BEGIN: <why>` ... `C     RESTOMOD END` fence. Also checks fixed-form
 layout (columns 1-72), which fences do not exempt.
-Usage: lint_dialect.py src/view.f [more.f ...]
+Usage: lint_dialect.py src/vdrive.f [more.f ...]  (make lint passes every element)
 """
 import re, sys
 
@@ -93,4 +93,4 @@ def main(paths):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:] or ["src/view.f"])
+    main(sys.argv[1:] or sorted(str(p) for p in __import__("pathlib").Path("src").glob("*.f") if p.name != "viewdata.f"))

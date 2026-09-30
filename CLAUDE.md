@@ -22,7 +22,8 @@ in `../view1108-handoff.zip`.
 ## Architecture: period engine, modern chassis
 
 ```
-src/view.f        KERNEL. Fixed-form FORTRAN 66/77 style. All geometry and drawing.
+src/*.f           KERNEL. Fixed-form FORTRAN 66/77 style. All geometry and drawing, as
+                  separately compiled elements (below).
 src/viewdata.f    BLOCK DATA tables (stars, coastlines, craters). Generated; do not edit.
 src/viewdims.inc  Table sizes (PARAMETERs). Generated.
 src/viewcom.inc   Kernel COMMON blocks, included by every kernel routine.
@@ -32,6 +33,34 @@ tools/viewsvg.f90 Native driver (gfortran): renders a scene/time to SVG for vali
 tools/build.sh    gen_data -> lfortran (per file) -> clang -> wasm-ld -> wasm-opt -> wasm2js -> page
 web/              The page: film-recorder renderer, controls, text lettering.
 ```
+
+Kernel elements, each compiled on its own and linked by the build, as the 1108's Collector
+gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.1; see
+`docs/batch-pipeline.md`). The list is also in the header of `src/vdrive.f`.
+
+| Kind | File | Contents |
+|---|---|---|
+| Driver | `vdrive.f` | `VINIT`, `VFRAME`, scene cameras (`SCNCAM`, `LOOK`), table setup, per-scene model placement (`SCNMOD`, scene 7's pose and attitude) |
+| Dispatcher | `vlayer.f` | `LAYERS`: each scene's layer list and a computed `GO TO` over layer ids |
+| Core | `ephem.f` | time, Sun, Moon, Moon orientation |
+| Core | `traj.f` | trajectory legs: parking orbit, translunar/transearth conics, lunar orbit, descent, Earthrise search |
+| Core | `pen.f` | projection (`PROJ`), clipping (`EMIT`, `SEG`, `MSEG`), visibility (`PEN`, `ISVIS`), labels, circles, shading, vehicle-fixed overlay lines |
+| Core | `vtext.f` | text records for the character generator |
+| Core | `vmath.f` | vector and matrix utilities |
+| Core | `models.f` | the spacecraft model library (data built once) |
+| Layer 1 | `lframe.f` | plot frame and ticks |
+| Layer 2 | `lstars.f` | stars |
+| Layer 3 | `lsun.f` | Sun |
+| Layer 4 | `lmoon.f`, `lmoon6.f` | Moon, gazetteer and seeded craters; the whole-disc Moon view's extras |
+| Layer 5 | `learth.f` | Earth |
+| Layer 6 | `lvehic.f` | placed spacecraft models with hidden lines |
+| Layer 7 | `lcoas.f` | COAS reticle (scene 7) |
+| Layer 8 | `lshad.f` | LM shadow (scene 5) |
+| Layer 9 | `llpd.f` | LPD scale and LM window (scene 5) |
+
+Every layer is a subroutine with the argument list `(GET, VB, NV, SB, NS, LB, NL)`. To add one:
+a new file, the next id and one `CALL` in `LAYERS`, and the id in the scene lists there. The
+build, lint and native driver pick up every `src/*.f`, so they need no change.
 
 ### How the pieces map onto a 1969 run (conjecture, labelled as such)
 
@@ -53,7 +82,7 @@ recorder to expose the film.
 
 We collapse the tapes into one real-time loop and do not emulate them.
 
-### Kernel dialect rules (`src/view.f`)
+### Kernel dialect rules (`src/*.f`)
 
 - Fixed form, upper case, `DOUBLE PRECISION` and `INTEGER`, `COMMON` blocks, `BLOCK DATA`,
   `DO nn ... nn CONTINUE`, arithmetic in plain expressions, `SUBROUTINE`/`FUNCTION` only.
@@ -82,7 +111,9 @@ LFortran notes (see `tools/build.sh`): the kernel needs `--implicit-interface` (
 its own routines) and `--legacy-array-sections` (sequence association, `CEV(1,J)` passed as a
 3-vector). `INCLUDE` works (`src/viewdims.inc` generated, `src/viewcom.inc` the kernel COMMON).
 LFortran defines every COMMON block strongly in each file, so the build makes them `weak` in
-`view.ll` and the BLOCK DATA initialisers win. Do not use `--fast`: it optimises for the host
+every element's `.ll` but `viewdata.ll`, and the BLOCK DATA initialisers win. It also emits its
+runtime helpers (`_lcompilers_sin_f64` and the like) into every file that uses them; the build
+marks them `linkonce_odr` so the linker keeps one copy. Do not use `--fast`: it optimises for the host
 (x86 vectors, `__multi3`); clang optimises the IR for wasm32 instead, without saturating
 float-to-int (wasm2js cannot lower it).
 
@@ -155,9 +186,9 @@ report: the film's descent horizon is straight at every height and MSC IN 69-FM-
 shows a straight horizon in a 100° docking-window plot, which a gnomonic plot gives for great
 circles; the same page's 170° front-window panel shows a fisheye dome, which stereographic gives
 while keeping circles round. Directions beyond 90°·k off the boresight are not drawn (segments
-are cut there). See the comment at `PROJ` in `src/view.f`.
+are cut there). See the comment at `PROJ` in `src/pen.f`.
 
-Spacecraft models (`src/view.f`, "SPACECRAFT MODELS"): a library built once by `MLIB`, each
+Spacecraft models (`src/models.f`, drawn by `src/lvehic.f`): a library built once by `MLIB`, each
 model a range of convex solids (`MKPRS` prisms) and free lines or face marks (`XLINE`) in its own
 body frame in metres, listed in the model table `/CMODI/` (numbers `KLMD`, `KLMS`, `KSIV` in
 `viewcom.inc`). Per frame `SCNMOD` places models with `MPLACE(K, axes, position, body point)`,
@@ -217,7 +248,7 @@ control to the viewer.
 
 World model (low precision on purpose): Meeus low-precision Sun and Moon, IAU Moon
 orientation, GMST for Earth rotation, J2000 equatorial frame throughout. Trajectories are
-simple Kepler/circular models keyed to Apollo 11 GETs; see comments in `src/view.f`.
+simple Kepler/circular models keyed to Apollo 11 GETs; see comments in `src/traj.f` and `src/ephem.f`.
 
 ## Build
 

@@ -1,6 +1,6 @@
 ! VIEW-1108 chassis.  Modern Fortran that the 1108 never had: C-bound
 ! globals and entry points so a WebAssembly host (the page) can drive the
-! kernel.  All geometry lives in view.f; this file only moves numbers.
+! kernel.  All geometry lives in the kernel elements (src/*.f); this file only moves numbers.
 !
 ! Exports (see CLAUDE.md, "Interface contract"):
 !   view_init(scene), view_frame()

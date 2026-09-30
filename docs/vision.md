@@ -64,7 +64,7 @@ The kernel stays mission-agnostic: it reads the deck, propagates the leg that co
 
 ## Pluggable modules
 
-The rendering stays a FORTRAN vector system. What changes is its shape: one 2,944-line `src/view.f` becomes a set of modules with fixed interfaces, so a new mission, vehicle or overlay is added as a module and the core stays unchanged.
+The rendering stays a FORTRAN vector system. What changes is its shape: the kernel, once a single 2,944-line `src/view.f`, is now a set of modules with fixed interfaces, so a new mission, vehicle or overlay is added as a module and the core stays unchanged.
 
 There is period precedent. On the 1108 a program was assembled by the Collector, which "is a system processor designed to provide the user with a means of gathering (collecting) and interconnecting one or more relocatable elements to produce a program" (UE-637 sec. 5.1), and it supported overlay segments (sec. 5.3.4). Separately compiled FORTRAN elements, linked by the build, are how a growing 1108 program was put together.
 
@@ -95,7 +95,7 @@ Ideas we have not committed to. They shape design choices now, such as keeping r
 
 1. Transposition & docking, with a reusable vehicle-model system (in progress).
 2. Page: split the template into page modules, then add collapsible control groups and an on-screen control pad as modules.
-3. Kernel: split `src/view.f` into core and layer elements with a layer dispatcher. Output must be identical before and after.
+3. Kernel: split `src/view.f` into core and layer elements with a layer dispatcher, output identical before and after (done: 18 elements, `src/vdrive.f` first).
 4. Kernel: per-mission epoch and the first run decks (Apollo 11 from the current constants, then Apollo 8); CSM model; CM and LM cabins.
 5. Apollo 8 Earthrise (issue #2).
 6. Apollo 11 CM-window burn views: entry, TLI, TEI, LOI. MSC IN 69-FM-197 has 18 pages to match against.

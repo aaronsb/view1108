@@ -69,7 +69,9 @@ Example: <https://aaronsb.github.io/view1108/?mode=live&get=102:45:40&fov=100> o
 ## Period engine, modern chassis
 
 ```
-src/view.f       the kernel: fixed-form FORTRAN, DOUBLE PRECISION, COMMON, DO/CONTINUE
+src/vdrive.f     the kernel's lead element: scene setup and the frame driver
+src/*.f          the other kernel elements (ephemeris, trajectories, pen, models, one file per
+                 drawing layer): fixed-form FORTRAN, DOUBLE PRECISION, COMMON, DO/CONTINUE
 src/viewdata.f   star, coastline and crater tables as BLOCK DATA
 src/shell.f90    a thin modern-Fortran shell that exports the kernel to WebAssembly
 web/             the "film recorder": draws the kernel's vectors, stars and labels
@@ -80,7 +82,7 @@ The kernel takes a time and a look direction and fills a display list of lines, 
 - FORTRAN V limits: identifiers of at most 6 characters (NASA-CR-150010, 1976) and no `IMPLICIT NONE` (UNIVAC UP-4046 Rev 3 §10.4.1); see [docs/univac-1108.md](docs/univac-1108.md).
 - Functional first. Code we believe a 1969 FORTRAN V programmer could not have written stays in, fenced with `C     RESTOMOD:` comments that give the reason and, where known, the year. Examples: file `INCLUDE`, real-valued `PARAMETER`s, block `IF` (FORTRAN 77, 1978), Liang–Barsky clipping (1984), Park–Miller random numbers (1988), the IAU lunar orientation model, post-1969 map and crater data, and a display buffer larger than the 1108's 262,144-word core.
 
-Where the reports are silent, the choice is ours and the fortran code has been commented to indicate this. One example: the projection. Neither report states it; the film's straight horizons at a 100° field of view led us to an angle-angle mapping about the window's lateral axis (comment at `PROJ` in `src/view.f`).
+Where the reports are silent, the choice is ours and the fortran code has been commented to indicate this. One example: the projection. Neither report states it. The film's straight horizons, and a straight horizon in a 100° docking-window plot of MSC IN 69-FM-197 (PDF p.170), fit a gnomonic (true-perspective) plot; the same page's 170° panel shows a fisheye dome, which fits stereographic. The kernel blends from one to the other as the field widens (comment at `PROJ` in `src/pen.f`).
 
 ### Could it run on a real 1108?
 

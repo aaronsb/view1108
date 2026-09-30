@@ -5,6 +5,8 @@ PORT   ?= 8108
 PIDFILE = build/serve.pid
 LOGFILE = build/serve.log
 SCENES  = 1 2 3 4 5 6 7
+# Kernel elements: every fixed-form file in src/ but the generated BLOCK DATA.
+KSRC    = $(filter-out src/viewdata.f,$(wildcard src/*.f))
 
 export LF_BIN
 
@@ -32,8 +34,11 @@ sheet: ## Regenerate docs/media/film-vs-view1108.png (film vs our page; needs ch
 	python3 tools/film_sheet.py
 
 lint: ## Check kernel dialect, compile warnings, and script syntax
-	python3 tools/lint_dialect.py src/view.f src/viewcom.inc src/viewdims.inc
-	gfortran -fsyntax-only -std=legacy -Wall -Wno-unused-dummy-argument src/view.f
+	python3 tools/lint_dialect.py $(KSRC) src/viewcom.inc src/viewdims.inc
+	gfortran -fsyntax-only -std=legacy -Wall -Wno-unused-dummy-argument -Isrc $(KSRC)
+	# All elements as one unit too, so calls between elements are checked against each other.
+	@mkdir -p build && cat $(KSRC) > build/kernel_all.f
+	gfortran -fsyntax-only -std=legacy -Wall -Wno-unused-dummy-argument -Isrc build/kernel_all.f
 	# viewdata.f: LFortran needs the DATA implied-DO index declared; gfortran warns about it.
 	gfortran -fsyntax-only -std=legacy -Wall -Wno-unused-variable src/viewdata.f
 	gfortran -fsyntax-only -Wall -Jbuild src/shell.f90

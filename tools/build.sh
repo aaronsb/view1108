@@ -14,11 +14,20 @@ mkdir -p build
 
 python3 tools/gen_data.py
 
+# The kernel's elements: every fixed-form file in src/ but the BLOCK DATA
+# (see the header of src/vdrive.f).  A new element needs no change here.
+ELEMS=""
+for f in src/*.f; do
+  e=$(basename "$f" .f); [ "$e" = viewdata ] || ELEMS="$ELEMS $e"
+done
+
 native() {
-  gfortran -O2 -std=legacy -Isrc -c src/view.f -o build/view_native.o
-  gfortran -O2 -std=legacy -Isrc -c src/viewdata.f -o build/viewdata_native.o
-  gfortran -O2 -ffree-line-length-none tools/viewsvg.f90 \
-    build/view_native.o build/viewdata_native.o -o build/viewsvg
+  local objs=""
+  for e in $ELEMS viewdata; do
+    gfortran -O2 -std=legacy -Isrc -c src/$e.f -o build/${e}_native.o
+    objs="$objs build/${e}_native.o"
+  done
+  gfortran -O2 -ffree-line-length-none tools/viewsvg.f90 $objs -o build/viewsvg
   rm -f viewsvg*.mod
   echo "native: build/viewsvg"
 }
@@ -33,33 +42,43 @@ LF="--no-array-bounds-checking"
 # sequence association (passing CEV(1,J) to a 3-vector dummy).
 LFF="--fixed-form --implicit-interface --legacy-array-sections $LF"
 
-# 1. Fortran to LLVM IR.  LFortran emits a native target; strip it so llc can
-#    retarget.  COMMON blocks are emitted as strong definitions in every file
-#    that names them; outside the BLOCK DATA file they are made weak so the
-#    BLOCK DATA initialisers win at link time.
-(cd src && "${B}lfortran" $LFF --show-llvm view.f) > build/view.ll
-(cd src && "${B}lfortran" $LFF --show-llvm viewdata.f) > build/viewdata.ll
+# 1. Fortran to LLVM IR, one element at a time.  LFortran emits a native
+#    target; strip it so llc can retarget.  COMMON blocks are emitted as strong
+#    definitions in every file that names them; in every element but the BLOCK
+#    DATA file they are made weak, so the BLOCK DATA initialisers win at link
+#    time (and blocks it does not initialise link to one zeroed copy).
+for e in $ELEMS viewdata; do
+  (cd src && "${B}lfortran" $LFF --show-llvm $e.f) > build/$e.ll
+done
 "${B}lfortran" $LF --show-llvm src/shell.f90 > build/shell.ll
 rm -f src/*.mod *.mod
-for f in view viewdata shell; do
+for f in $ELEMS viewdata shell; do
   sed -i -e '/^target datalayout/d' -e '/^target triple/d' \
          -e '/^@/s/ common / /' \
          -e 's/"target-cpu"="[^"]*"//g' -e 's/"target-features"="[^"]*"//g' \
          -e 's/"tune-cpu"="[^"]*"//g' build/$f.ll
 done
-sed -i -E 's/^(@__module_file_common_block_[A-Za-z0-9_]+) = (local_unnamed_addr )?global/\1 = weak \2global/' \
-  build/view.ll
+for e in $ELEMS shell; do
+  sed -i -E 's/^(@__module_file_common_block_[A-Za-z0-9_]+) = (local_unnamed_addr )?global/\1 = weak \2global/' \
+    build/$e.ll
+done
+# LFortran also emits its runtime helpers (_lcompilers_sin_f64 and the like)
+# into every file that uses them; the copies are identical, so let the
+# linker keep one.
+for f in $ELEMS viewdata shell; do
+  sed -i -E 's/^define (dso_local )?([^@]*@_lcompilers_)/define linkonce_odr \1\2/' build/$f.ll
+done
 
 # 2. IR to wasm32 objects, then link.  Math intrinsics stay as imports (env.*),
 #    which the page satisfies with Math.sin, Math.acos, etc.  No saturating
 #    float-to-int: wasm2js cannot lower it.
-for f in view viewdata shell; do
+for f in $ELEMS viewdata shell; do
   "${B}clang" --target=wasm32-unknown-unknown -O2 -mbulk-memory -mno-nontrapping-fptoint \
     -Wno-override-module -c build/$f.ll -o build/$f.o
 done
 EXP=""; for e in $EXPORTS; do [ "$e" = memory ] || EXP="$EXP --export=$e"; done
-"${B}wasm-ld" --no-entry --allow-undefined $EXP -o build/view.wasm \
-  build/viewdata.o build/view.o build/shell.o
+OBJS="build/viewdata.o"; for e in $ELEMS; do OBJS="$OBJS build/$e.o"; done
+"${B}wasm-ld" --no-entry --allow-undefined $EXP -o build/view.wasm $OBJS build/shell.o
 
 # 3. Optimise, and make a plain-JS fallback for browsers without WebAssembly.
 "${B}wasm-opt" -O3 --disable-nontrapping-float-to-int build/view.wasm -o build/view.opt.wasm

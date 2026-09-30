@@ -51,7 +51,7 @@ Rough speed (inference, arithmetic ours): 1 / 0.75 us = 1.33 million simple inst
 
 ## Would VIEW-1108 run on a real 1108? Portability rules
 
-These are rules to audit `src/view.f` against; we did not audit the source. Evidence quality varies and is marked.
+These are rules to audit the kernel elements (`src/*.f`) against; we did not audit the source. Evidence quality varies and is marked.
 
 | Question | Answer | Confidence and source |
 |---|---|---|
