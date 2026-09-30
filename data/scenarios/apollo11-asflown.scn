@@ -1,0 +1,70 @@
+* APOLLO 11 AS FLOWN: A VIEW-1108 SCENARIO (A RUN DECK, IN 1969 TERMS).
+*
+* A scenario is one mission's data as one source tells it: this one is the
+* mission as flown, from the post-flight reports.  A pre-flight nominal
+* scenario for the same mission would be a second file with its own ID.
+* One card per line.  A card starting with * is a comment.  Fields are
+* KEY=VALUE; times are g.e.t. h:mm:ss.s from this mission's range zero.
+* tools/gen_data.py turns every data/scenarios/*.scn into BLOCK DATA
+* (src/viewdata.f).
+* SRC is carried into viewdata.f as a comment next to the card's data.
+*
+* Sources:
+*   MR  Apollo 11 Mission Report, MSC-00171, November 1969.  NASA re-scan
+*       https://www.nasa.gov/wp-content/uploads/static/apollo50th/pdf/A11_MissionReport.pdf
+*       (printed page numbers).  Table 7-II, p. 7-9, gives latitudes as
+*       geodetic for the Earth and selenographic for the Moon (Table 7-I,
+*       p. 7-8); altitudes in n mi; flight-path angle and heading space-fixed.
+*   SP  R. W. Orloff, Apollo by the Numbers, NASA SP-2000-4029 (printed pages).
+*
+* Card types:
+*   SCENARIO ID= (1, 2, ... across all files)  MISSION=  NAME=
+*   EPOCH    JD=  (range zero, Julian date)
+*   SITE     LAT= LON= AZ=  (lunar landing site, deg, and descent azimuth)
+*   LEG      TYPE=CIRC|CONIC|LUNAR  FROM= TO=  (g.e.t. span it covers)
+*     CIRC   Earth circular orbit through a state: T= LAT= LON= HDG=, orbit
+*            altitude ALT= (n mi).  LATTYPE=GC geocentric, GD geodetic.
+*     CONIC  Earth-centred conic from a state: T= LAT= LON= ALT= V= (ft/s)
+*            FPA= HDG= (deg).
+*     LUNAR  Moon circular orbit through two states, T= LAT= LON= and
+*            TB= LATB= LONB= (selenographic), N= whole revolutions between
+*            them, ALT= (n mi).  The plane and the mean motion come from
+*            the two states.
+*   EVENT    KIND= T=
+*
+SCENARIO ID=1 MISSION="APOLLO 11" NAME="AS FLOWN"
+EPOCH JD=2440419.063889 SRC="MR Table 3-I p. 3-4: range zero 13:32:00 G.m.t., July 16, 1969"
+SITE LAT=0.67416 LON=23.47314 AZ=268.8 SRC="NSSDC Apollo Landing Site Coordinates, citing Wagner et al., Icarus 283 (2017), mean Earth/polar axis; MR p. 3-2 gives 0 41 15 N, 23 26 E on ORB-II-6 (1967). Azimuth 268.8: ours, near the 269.0 fitted to MR Table 7-II"
+*
+* Earth parking orbit.  The S-IVB first cutoff state, geocentric latitude,
+* on a circle at the mean of the MR's 100.7 by 99.2 n mi (p. 3-1).
+LEG TYPE=CIRC FROM=0:11:49.33 TO=2:44:16.2 T=0:11:39.33 LATTYPE=GC LAT=32.4865 LON=-53.4588 V=25561.6 FPA=0.011 HDG=88.414 ALT=99.95 SRC="SP p. 103 ascent table, S-IVB 1st burn cutoff: geocentric 32.4865 N, -53.4588 E, space-fixed velocity 25,561.6, flight-path angle 0.011, heading 88.414; orbit MR p. 3-1"
+*
+* Translunar coast: two conics, from translunar injection and from the
+* first midcourse correction cutoff.  Earth only (no lunar gravity): ours.
+LEG TYPE=CONIC FROM=2:50:13.2 TO=26:44:58.7 T=2:50:13.2 LATTYPE=GD LAT=9.98 LON=-164.84 ALT=180.6 V=35546 FPA=7.37 HDG=60.07 SRC="MR Table 7-II p. 7-9, translunar injection"
+LEG TYPE=CONIC FROM=26:44:58.7 TO=75:49:50.4 T=26:45:01.8 LATTYPE=GD LAT=6.00 LON=-11.17 ALT=109477.2 V=5010.0 FPA=76.88 HDG=120.87 SRC="MR Table 7-II p. 7-9, first midcourse correction cutoff"
+*
+* Lunar orbit: after insertion (an ellipse, 169.7 by 60.0 n mi, SP p. 104,
+* put on a circle through its two rows at their mean altitude: ours), after
+* circularization, and after undocking.  Rows from MR Table 7-II; the
+* revolution counts are ours, from the periods those rows imply (7113 s
+* after circularization).
+LEG TYPE=LUNAR FROM=75:49:50.4 TO=80:11:36.8 T=75:55:48.0 LAT=0.16 LON=167.13 TB=80:11:36.8 LATB=-0.02 LONB=170.09 N=1 ALT=114.9 SRC="MR Table 7-II p. 7-9, lunar orbit insertion cutoff and circularization ignition; altitude the mean of SP p. 104's 169.7 by 60.0 n mi"
+LEG TYPE=LUNAR FROM=80:11:36.8 TO=100:12:00.0 T=80:11:53.5 LAT=-0.02 LON=169.16 TB=100:12:00.0 LATB=1.11 LONB=116.21 N=10 ALT=62.2 SRC="MR Table 7-II p. 7-9, circularization cutoff and undocking; altitude the mean of the two rows"
+LEG TYPE=LUNAR FROM=100:12:00.0 TO=135:23:42.3 T=100:40:01.9 LAT=1.05 LON=31.41 TB=130:09:31.2 LATB=1.10 LONB=41.85 N=14 ALT=62.0 SRC="MR Table 7-II p. 7-9, separation cutoff and ascent stage jettison; altitude the mean of the two rows"
+*
+* Transearth coast: conics from the second midcourse correction, from
+* command module/service module separation, and from entry interface.
+LEG TYPE=CONIC FROM=135:26:13.7 TO=150:29:57.4 T=150:29:57.4 LATTYPE=GD LAT=-13.16 LON=-37.79 ALT=169087.2 V=4075.0 FPA=-80.34 HDG=129.30 SRC="MR Table 7-II p. 7-9, second midcourse correction ignition"
+LEG TYPE=CONIC FROM=150:30:07.4 TO=195:03:05.7 T=194:49:12.7 LATTYPE=GD LAT=-35.09 LON=122.54 ALT=1778.3 V=29615.5 FPA=-35.26 HDG=69.27 SRC="MR Table 7-II p. 7-9, command module/service module separation"
+LEG TYPE=CONIC FROM=195:03:05.7 TO=196:00:00 T=195:03:05.7 LATTYPE=GD LAT=-3.19 LON=171.96 ALT=65.8 V=36194.4 FPA=-6.48 HDG=50.18 SRC="MR Table 7-VII p. 7-12, entry interface (400 000 ft)"
+*
+* Events the kernel keys on.
+EVENT KIND=TDATT T=3:09:20 SRC="Apollo 11 Flight Journal 002:54:09: S-IVB manoeuvre to separation attitude to be completed at plus 09 plus 20"
+EVENT KIND=SEP T=3:17:04.6 SRC="MR Table 3-I p. 3-4 and Table 7-II p. 7-9: command module/S-IVB separation. SP p. 104 has CSM separated from S-IVB at 003:15:23.00 and 003:17:04.60 as the separation manoeuvre ignition"
+EVENT KIND=APPR T=3:20:30 SRC="Our guess: start of the docking approach, between separation and Collins' I'm still quite a ways at 003:22:25 (Flight Journal)"
+EVENT KIND=DOCK T=3:24:03.1 SRC="MR Table 3-I p. 3-4 and Table 7-II p. 7-9; SP p. 104 has 003:24:03.70"
+EVENT KIND=UNDOCK T=100:12:00.0 SRC="MR Table 3-I p. 3-4"
+EVENT KIND=TOUCH T=102:45:39.9 SRC="MR Table 3-I p. 3-4, lunar landing"
+EVENT KIND=EI T=195:03:05.7 SRC="MR Table 7-VII p. 7-12, entry interface"

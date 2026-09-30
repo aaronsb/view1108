@@ -11,7 +11,8 @@ C     integer-only, written PARAMETER I = 2 (UP-4046 Rev 3, sec. 10.4.1)
       PARAMETER (PI=3.141592653589793D0, DR=PI/180.0D0)
       PARAMETER (RE=6378.137D0, RM=1737.4D0)
       PARAMETER (GME=398600.4418D0, GMM=4902.800D0)
-C     Lift-off 1969-07-16 13:32:00 UTC
+C     Apollo 11 range zero 1969-07-16 13:32:00 UTC, the page's clock
+C     base: hdr(16) is each scenario's epoch offset from it.
       PARAMETER (JD0=2440419.063889D0)
 C     RESTOMOD END
 C     RESTOMOD BEGIN: 60000x5 DP buffer is 600K words, core 262,144
@@ -91,29 +92,44 @@ C     line style written to VBUF.
       INTEGER IPV, IVMODE, ISTYLE
       COMMON /CPENI/ IPV, IVMODE, ISTYLE
 C
-C     /CORB/ trajectories.
-C     Lunar orbit: LUP0, LUV0 unit position and velocity directions at
-C       LUT0 (EQ), radius LURAD, mean motion LUN.
-C     Parking orbit: PKP0, PKV0 at the launch site, radius PKRAD,
-C       mean motion PKN, argument PKU0 at insertion time PKT0.
-C     Translunar ellipse: perigee unit TLP, TLQ, eccentricity TLE,
-C       semi-major axis TLA, perigee time TLTP.  Transearth: TE*.
+C     /CORB/ trajectories and scene set-up.
+C     LUT0, TETP: the current scenario's touchdown and entry interface
+C       g.e.t. (s) (SNSET).  LMALT, LMEYE: the descending LM's
+C       footpad altitude and the commander's eye above the pads (km),
+C       set by LMDESC.
 C     AZOFF, ELOFF: scene reference offsets (deg); TERISE: Earthrise.
 C     FXB, FXU: inertially held boresight and up (scene 2), fixed at
 C     FXDT seconds before entry interface.
 C     S6LAT, S6LON, S6DST: scene 6 sub-observer point (deg) and
 C     camera distance from the Moon's centre (km).
-      DOUBLE PRECISION LUP0(3), LUV0(3), LURAD, LUN, LUT0
-      DOUBLE PRECISION PKP0(3), PKV0(3), PKRAD, PKN, PKU0, PKT0
-      DOUBLE PRECISION TLP(3), TLQ(3), TLE, TLA, TLTP
-      DOUBLE PRECISION TEP(3), TEQ(3), TEE, TEA, TETP
+      DOUBLE PRECISION LUT0, TETP, LMALT, LMEYE
       DOUBLE PRECISION AZOFF, ELOFF, TERISE, FXB(3), FXU(3), FXDT
       DOUBLE PRECISION S6LAT, S6LON, S6DST
-      COMMON /CORB/ LUP0, LUV0, LURAD, LUN, LUT0,
-     &              PKP0, PKV0, PKRAD, PKN, PKU0, PKT0,
-     &              TLP, TLQ, TLE, TLA, TLTP,
-     &              TEP, TEQ, TEE, TEA, TETP, AZOFF, ELOFF, TERISE,
+      COMMON /CORB/ LUT0, TETP, LMALT, LMEYE, AZOFF, ELOFF, TERISE,
      &              FXB, FXU, FXDT, S6LAT, S6LON, S6DST
+C
+C     /CSCEN/, /CSCENI/ the scenarios, one mission's data each, run
+C     decks in 1969 terms (BLOCK DATA from data/scenarios by
+C     tools/gen_data.py; field layout in src/viewdata.f).
+      DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)
+      DOUBLE PRECISION SNSAZ(NSN)
+      DOUBLE PRECISION LGP(NLGP,NLEG), EVT(NEVT)
+      INTEGER LGSN(NLEG), LGTYP(NLEG), LGN(NLEG), LGGC(NLEG)
+      INTEGER EVSN(NEVT), EVKND(NEVT)
+      COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT
+      COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND
+C
+C     /CSN/ the current scenario (SNSET): id ISN, epoch TJD0
+C     (Julian date of its range zero; g.e.t. counts from it), and the
+C     elements of its legs, LGEL(1..11, K):
+C       CONIC  1-3 perigee unit P, 4-6 Q, 7 eccentricity, 8 semi-major
+C              axis (km), 9 perigee time (s);
+C       CIRC, LUNAR  1-3 position unit at 9, 4-6 direction of motion
+C              there, 9 time (s), 10 radius (km), 11 mean motion (rad/s).
+      DOUBLE PRECISION TJD0, LGEL(11,NLEG)
+      COMMON /CSN/ TJD0, LGEL
+      INTEGER ISN
+      COMMON /CSNI/ ISN
 C
 C     /CSCN/ scene number, flags of this frame, init done.
       INTEGER ISCN, IFLG, INITD

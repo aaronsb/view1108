@@ -29,6 +29,7 @@ src/viewdims.inc  Table sizes (PARAMETERs). Generated.
 src/viewcom.inc   Kernel COMMON blocks, included by every kernel routine.
 src/shell.f90     CHASSIS. Modern Fortran: bind(c) globals and entry points for wasm.
 tools/gen_data.py data/ -> src/viewdata.f, src/viewdims.inc and build/names.js
+data/scenarios/   scenarios: one mission's data each (epoch, trajectory legs, events)
 tools/viewsvg.f90 Native driver (gfortran): renders a scene/time to SVG for validation.
 tools/build.sh    gen_data -> lfortran (per file) -> clang -> wasm-ld -> wasm-opt -> wasm2js -> page
 web/              The page: film-recorder renderer, controls, text lettering.
@@ -43,7 +44,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Driver | `vdrive.f` | `VINIT`, `VFRAME`, scene cameras (`SCNCAM`, `LOOK`), table setup, per-scene model placement (`SCNMOD`, scene 7's pose and attitude) |
 | Dispatcher | `vlayer.f` | `LAYERS`: each scene's layer list and a computed `GO TO` over layer ids |
 | Core | `ephem.f` | time, Sun, Moon, Moon orientation |
-| Core | `traj.f` | trajectory legs: parking orbit, translunar/transearth conics, lunar orbit, descent, Earthrise search |
+| Core | `traj.f` | the current scenario (`SNSET`), its legs (`ERTORB` about the Earth, `LUNORB` about the Moon) and events (`EVGET`), the LM descent, the Earthrise search |
 | Core | `pen.f` | projection (`PROJ`), clipping (`EMIT`, `SEG`, `MSEG`), visibility (`PEN`, `ISVIS`), labels, circles, shading, vehicle-fixed overlay lines |
 | Core | `vtext.f` | text records for the character generator |
 | Core | `vmath.f` | vector and matrix utilities |
@@ -128,8 +129,9 @@ Entry points:
 - `view_frame()` — computes geometry at the current inputs and fills the output buffers.
 
 Inputs (written by JS):
-- `in_get` real(8): ground elapsed time, seconds from Apollo 11 lift-off
-  (1969-07-16 13:32:00 UTC, JD 2440419.063889).
+- `in_get` real(8): ground elapsed time, seconds from the range zero of the scene's scenario
+  (its epoch). For Apollo 11 that is 1969-07-16 13:32:00 UTC, JD 2440419.063889; `hdr(16)`
+  gives the scenario's offset from it, so UTC = Apollo 11 range zero + hdr(16) + in_get.
 - `in_yaw`, `in_pitch`, `in_roll` real(8), degrees: free-look relative to the scene's reference
   attitude (yaw +right, pitch +up, roll +clockwise as seen by the viewer). Scene 6 differs:
   `in_yaw` and `in_pitch` are the sub-observer selenographic east longitude and latitude
@@ -155,12 +157,14 @@ Outputs (written by the kernel):
 - `hdr(16)` real(8): 1 GET s, 2 FOV deg, 3 range to reference body centre n.mi.,
   4 altitude stat. mi., 5 inertial speed ft/s, 6 reference body (1 Earth, 2 Moon), 7 scene,
   8 window code (1 CSM window, 2 LM front window), 9 range to the LM ft (scene 4: 300; scene 7:
-  CSM to LM docking ring, 100 down to 0 at docking), 10 LM altitude ft (scene 5), 11, 12 plot
+  CSM to LM docking ring, 100 down to 0 at docking), 10 LM altitude ft (scene 5: the footpads above the
+  surface, 0 from touchdown on; the camera is the commander's eye above them), 11, 12 plot
   X, Y (deg) of the reference body's centre (Earth in scenes 2 and 3, Moon in 1 and 5, the LM in
   4, the LM docking target in 7) in the current projection, given even when off
   frame, 13 its angular radius projected as a plot radius, ρ(radius) in plot deg, 14 1 if it
   is in front of the camera else 0, 15 half-width of the plot box in plot deg (ρ(fov/2); the
-  frame spans ±hdr(15) on both axes), 16 spare.
+  frame spans ±hdr(15) on both axes), 16 the scenario's epoch offset from Apollo 11 range
+  zero, seconds (0 for Apollo 11).
   The page letters the report-style header from these.
 - `tbuf(4, MAXT)` real(8), `ntxt` int32, `tchr(MAXTC)` int32, `nchr` int32: text records for the
   recorder's character generator, decided by the kernel. Record k is `x, y, height, start`: plot
@@ -247,8 +251,17 @@ driving `in_get` and the free-look inputs from a shot list, then loops. Any user
 control to the viewer.
 
 World model (low precision on purpose): Meeus low-precision Sun and Moon, IAU Moon
-orientation, GMST for Earth rotation, J2000 equatorial frame throughout. Trajectories are
-simple Kepler/circular models keyed to Apollo 11 GETs; see comments in `src/traj.f` and `src/ephem.f`.
+orientation, GMST for Earth rotation, J2000 equatorial frame throughout.
+
+A mission's data is a scenario (a run deck, in 1969 terms): `data/scenarios/*.scn`, turned into
+`BLOCK DATA` by `tools/gen_data.py`, holds the epoch, landing site, trajectory legs and events,
+each card with its source. A mission can have more than one scenario (Apollo 11 as flown now; a
+pre-flight nominal one could follow), each with its own id. A leg is a simple model fixed
+by sourced states: `CIRC` (Earth circular orbit through a state), `CONIC` (Earth-centred Kepler
+conic from a state, no lunar gravity), `LUNAR` (circle about the Moon through two states, its
+plane and mean motion from them). The Apollo 11 as-flown scenario uses the Mission Report's Table 7-II and
+7-VII states and SP-4029's ascent table; see the scenario's comments and `src/traj.f`. `VINIT`
+maps each scene to a scenario (all Apollo 11 as flown now).
 
 ## Build
 

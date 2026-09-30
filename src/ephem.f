@@ -24,7 +24,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION GET
 C     RESTOMOD BEGIN: J2000 epoch (IAU 1976/1984), GMST of Aoki 1982
-      TJD = JD0 + GET / 86400.0D0
+      TJD = TJD0 + GET / 86400.0D0
       TDAY = TJD - 2451545.0D0
       TCEN = TDAY / 36525.0D0
       GMST = DMOD(280.46061837D0 + 360.98564736629D0 * TDAY, 360.0D0)
@@ -44,7 +44,7 @@ C     RESTOMOD END
       DOUBLE PRECISION GET, P(3)
       DOUBLE PRECISION T, L, B, HP, R, CE, SE, X, Y, Z, SND
 C     RESTOMOD BEGIN: Astronomical Almanac low-precision Moon, 1980s
-      T = (JD0 + GET / 86400.0D0 - 2451545.0D0) / 36525.0D0
+      T = (TJD0 + GET / 86400.0D0 - 2451545.0D0) / 36525.0D0
       L = 218.32D0 + 481267.881D0 * T
      &  + 6.29D0 * SND(135.0D0 + 477198.87D0 * T)
      &  - 1.27D0 * SND(259.3D0 - 413335.36D0 * T)
@@ -101,7 +101,7 @@ C     RESTOMOD END
       DOUBLE PRECISION GET, U(3)
       DOUBLE PRECISION D, T, G, L, CE, SE, SND
 C     RESTOMOD BEGIN: Astronomical Almanac low-precision Sun, 1980s
-      D = JD0 + GET / 86400.0D0 - 2451545.0D0
+      D = TJD0 + GET / 86400.0D0 - 2451545.0D0
       T = D / 36525.0D0
       G = 357.528D0 + 0.9856003D0 * D
       L = 280.460D0 + 0.9856474D0 * D + 1.915D0 * SND(G)
@@ -129,7 +129,7 @@ C     RESTOMOD END
       DOUBLE PRECISION D, T, E(13), A0, D0, W, SND, CSD
       DOUBLE PRECISION R1(3,3), R2(3,3), R3(3,3), R4(3,3)
 C     RESTOMOD BEGIN: IAU WGCCRE lunar orientation, 1980s-2010s
-      D = JD0 + GET / 86400.0D0 - 2451545.0D0
+      D = TJD0 + GET / 86400.0D0 - 2451545.0D0
       T = D / 36525.0D0
       E(1) = 125.045D0 - 0.0529921D0 * D
       E(2) = 250.089D0 - 0.1059842D0 * D
@@ -177,5 +177,20 @@ C     RESTOMOD: real-valued PARAMETER; FORTRAN V PARAMETER was
 C     integer-only (UP-4046 Rev 3, sec. 10.4.1, p. 10-8)
       PARAMETER (PI=3.141592653589793D0, DR=PI/180.0D0)
       CSD = DCOS(DMOD(A, 360.0D0) * DR)
+      RETURN
+      END
+C
+C     GMSTAT: Greenwich mean sidereal time (rad) at GET of the current
+C     scenario; the formula of TSET.
+      DOUBLE PRECISION FUNCTION GMSTAT(GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET
+C     RESTOMOD BEGIN: GMST of Aoki 1982
+      GMSTAT = DMOD(280.46061837D0 + 360.98564736629D0 *
+     &  (TJD0 + GET / 86400.0D0 - 2451545.0D0), 360.0D0) * DR
+C     RESTOMOD END
       RETURN
       END

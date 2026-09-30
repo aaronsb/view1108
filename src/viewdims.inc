@@ -6,3 +6,14 @@ C     (1978); FORTRAN V wrote PARAMETER I = 2 (UP-4046 sec. 10.4.1)
       PARAMETER (NSTAR=921, NNAV=37, NCPT=5128, NCST=134)
       PARAMETER (NCRAT=7968, NMARE=56)
 C     RESTOMOD END
+C     Scenarios (data/scenarios): scenarios, trajectory legs of
+C     NLGP parameters, events; leg types and event kinds.
+      INTEGER NSN, NLEG, NEVT, NLGP
+      INTEGER KCIRC, KCONIC, KLUNAR
+      INTEGER KETDA, KESEP, KEAPR, KEDOK, KEUND, KETD, KEEI
+C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
+      PARAMETER (NSN=1, NLEG=9, NEVT=7, NLGP=12)
+      PARAMETER (KCIRC=1, KCONIC=2, KLUNAR=3)
+      PARAMETER (KETDA=1, KESEP=2, KEAPR=3, KEDOK=4)
+      PARAMETER (KEUND=5, KETD=6, KEEI=7)
+C     RESTOMOD END

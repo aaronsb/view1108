@@ -43,8 +43,8 @@ C     position 0.67416 N, 23.47314 E, planetocentric Mean Earth/Polar
 C     Axis (DE421), from LRO images: NSSDC, "Apollo Landing Site
 C     Coordinates", https://nssdc.gsfc.nasa.gov/planetary/lunar/
 C     lunar_sites.html, citing Wagner et al., Icarus 283, 92-103
-C     (2017).  The same values are used for the orbit, the descent and
-C     the crater patch.
+C     (2017).  The same values are in the run deck's SITE card (for
+C     the descent) and in the crater patch (lmoon.f).
       IVMODE = 3
       CALL LLUNIT(0.67416D0, 23.47314D0, CM)
       CALL SURFPT(CM, P)

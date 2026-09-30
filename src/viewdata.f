@@ -28,6 +28,23 @@ C              and 5 each for SUN, EARTH, MOON, zero padded.
 C     /CMARE/  maria, lacus, sinus, oceanus: centre lat, east lon (deg),
 C              diameter (km) and names (24 codes each, zero padded).
       COMMON /CMARE/ MRLAT, MRLON, MRDIA, MRCH
+C     /CSCEN/  scenarios (run decks).  Scenario M: epoch SNJD0 (JD of
+C              range zero),
+C              landing site SNSLA lat, SNSLO east lon, SNSAZ descent
+C              azimuth (deg).
+C              Leg K of scenario LGSN(K), type LGTYP, whole revolutions
+C              LGN (LUNAR), latitude geocentric if LGGC = 1, and LGP:
+C              1 FROM, 2 TO, 3 T (g.e.t. s), 4 LAT, 5 LON (deg),
+C              6 ALT (n mi), 7 V (ft/s), 8 FPA, 9 HDG (deg),
+C              10 TB (s), 11 LATB, 12 LONB (deg).
+C              Event J of scenario EVSN(J), kind EVKND, g.e.t. EVT (s).
+      DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)
+      DOUBLE PRECISION SNSAZ(NSN)
+      DOUBLE PRECISION LGP(NLGP,NLEG), EVT(NEVT)
+      INTEGER LGSN(NLEG), LGTYP(NLEG), LGN(NLEG), LGGC(NLEG)
+      INTEGER EVSN(NEVT), EVKND(NEVT)
+      COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT
+      COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND
       DATA (STX(IBD),IBD=1,95) /
      1 0.8732303D0,0.9339783D0,0.4741745D0,0.4927472D0,0.0100797D0,
      1 0.5432930D0,0.6981733D0,0.4048882D0,0.3437950D0,0.1949505D0,
@@ -7942,5 +7959,190 @@ C              diameter (km) and names (24 codes each, zero padded).
       DATA (MRCH(IBD),IBD=1331,1344) /
      1 65,76,73,83,0,0,0,0,0,0,
      1 0,0,0,0/
+C     SCENARIO 1 APOLLO 11 AS FLOWN
+C       EPOCH: MR Table 3-I p. 3-4: range zero 13:32:00 G.m.t., July
+C       16, 1969
+C       SITE: NSSDC Apollo Landing Site Coordinates, citing Wagner et
+C       al., Icarus 283 (2017), mean Earth/polar axis; MR p. 3-2 gives
+C       0 41 15 N, 23 26 E on ORB-II-6 (1967). Azimuth 268.8: ours,
+C       near the 269.0 fitted to MR Table 7-II
+      DATA (SNJD0(IBD),IBD=1,1) /
+     1 2440419.063889D0/
+      DATA (SNSLA(IBD),IBD=1,1) /
+     1 0.67416D0/
+      DATA (SNSLO(IBD),IBD=1,1) /
+     1 23.47314D0/
+      DATA (SNSAZ(IBD),IBD=1,1) /
+     1 268.800D0/
+C     LEG 1
+C       CIRC: SP p. 103 ascent table, S-IVB 1st burn cutoff: geocentric
+C       32.4865 N, -53.4588 E, space-fixed velocity 25,561.6,
+C       flight-path angle 0.011, heading 88.414; orbit MR p. 3-1
+      DATA LGP(1,1) / 709.330D0 /
+      DATA LGP(2,1) / 9856.200D0 /
+      DATA LGP(3,1) / 699.330D0 /
+      DATA LGP(4,1) / 32.486D0 /
+      DATA LGP(5,1) / -53.459D0 /
+      DATA LGP(6,1) / 99.950D0 /
+      DATA LGP(7,1) / 25561.600D0 /
+      DATA LGP(8,1) / 0.011D0 /
+      DATA LGP(9,1) / 88.414D0 /
+      DATA LGP(10,1) / 0.000D0 /
+      DATA LGP(11,1) / 0.000D0 /
+      DATA LGP(12,1) / 0.000D0 /
+C     LEG 2
+C       CONIC: MR Table 7-II p. 7-9, translunar injection
+      DATA LGP(1,2) / 10213.200D0 /
+      DATA LGP(2,2) / 96298.700D0 /
+      DATA LGP(3,2) / 10213.200D0 /
+      DATA LGP(4,2) / 9.980D0 /
+      DATA LGP(5,2) / -164.840D0 /
+      DATA LGP(6,2) / 180.600D0 /
+      DATA LGP(7,2) / 35546.000D0 /
+      DATA LGP(8,2) / 7.370D0 /
+      DATA LGP(9,2) / 60.070D0 /
+      DATA LGP(10,2) / 0.000D0 /
+      DATA LGP(11,2) / 0.000D0 /
+      DATA LGP(12,2) / 0.000D0 /
+C     LEG 3
+C       CONIC: MR Table 7-II p. 7-9, first midcourse correction cutoff
+      DATA LGP(1,3) / 96298.700D0 /
+      DATA LGP(2,3) / 272990.400D0 /
+      DATA LGP(3,3) / 96301.800D0 /
+      DATA LGP(4,3) / 6.000D0 /
+      DATA LGP(5,3) / -11.170D0 /
+      DATA LGP(6,3) / 109477.200D0 /
+      DATA LGP(7,3) / 5010.000D0 /
+      DATA LGP(8,3) / 76.880D0 /
+      DATA LGP(9,3) / 120.870D0 /
+      DATA LGP(10,3) / 0.000D0 /
+      DATA LGP(11,3) / 0.000D0 /
+      DATA LGP(12,3) / 0.000D0 /
+C     LEG 4
+C       LUNAR: MR Table 7-II p. 7-9, lunar orbit insertion cutoff and
+C       circularization ignition; altitude the mean of SP p. 104's
+C       169.7 by 60.0 n mi
+      DATA LGP(1,4) / 272990.400D0 /
+      DATA LGP(2,4) / 288696.800D0 /
+      DATA LGP(3,4) / 273348.000D0 /
+      DATA LGP(4,4) / 0.160D0 /
+      DATA LGP(5,4) / 167.130D0 /
+      DATA LGP(6,4) / 114.900D0 /
+      DATA LGP(7,4) / 0.000D0 /
+      DATA LGP(8,4) / 0.000D0 /
+      DATA LGP(9,4) / 0.000D0 /
+      DATA LGP(10,4) / 288696.800D0 /
+      DATA LGP(11,4) / -0.020D0 /
+      DATA LGP(12,4) / 170.090D0 /
+C     LEG 5
+C       LUNAR: MR Table 7-II p. 7-9, circularization cutoff and
+C       undocking; altitude the mean of the two rows
+      DATA LGP(1,5) / 288696.800D0 /
+      DATA LGP(2,5) / 360720.000D0 /
+      DATA LGP(3,5) / 288713.500D0 /
+      DATA LGP(4,5) / -0.020D0 /
+      DATA LGP(5,5) / 169.160D0 /
+      DATA LGP(6,5) / 62.200D0 /
+      DATA LGP(7,5) / 0.000D0 /
+      DATA LGP(8,5) / 0.000D0 /
+      DATA LGP(9,5) / 0.000D0 /
+      DATA LGP(10,5) / 360720.000D0 /
+      DATA LGP(11,5) / 1.110D0 /
+      DATA LGP(12,5) / 116.210D0 /
+C     LEG 6
+C       LUNAR: MR Table 7-II p. 7-9, separation cutoff and ascent stage
+C       jettison; altitude the mean of the two rows
+      DATA LGP(1,6) / 360720.000D0 /
+      DATA LGP(2,6) / 487422.300D0 /
+      DATA LGP(3,6) / 362401.900D0 /
+      DATA LGP(4,6) / 1.050D0 /
+      DATA LGP(5,6) / 31.410D0 /
+      DATA LGP(6,6) / 62.000D0 /
+      DATA LGP(7,6) / 0.000D0 /
+      DATA LGP(8,6) / 0.000D0 /
+      DATA LGP(9,6) / 0.000D0 /
+      DATA LGP(10,6) / 468571.200D0 /
+      DATA LGP(11,6) / 1.100D0 /
+      DATA LGP(12,6) / 41.850D0 /
+C     LEG 7
+C       CONIC: MR Table 7-II p. 7-9, second midcourse correction
+C       ignition
+      DATA LGP(1,7) / 487573.700D0 /
+      DATA LGP(2,7) / 541797.400D0 /
+      DATA LGP(3,7) / 541797.400D0 /
+      DATA LGP(4,7) / -13.160D0 /
+      DATA LGP(5,7) / -37.790D0 /
+      DATA LGP(6,7) / 169087.200D0 /
+      DATA LGP(7,7) / 4075.000D0 /
+      DATA LGP(8,7) / -80.340D0 /
+      DATA LGP(9,7) / 129.300D0 /
+      DATA LGP(10,7) / 0.000D0 /
+      DATA LGP(11,7) / 0.000D0 /
+      DATA LGP(12,7) / 0.000D0 /
+C     LEG 8
+C       CONIC: MR Table 7-II p. 7-9, command module/service module
+C       separation
+      DATA LGP(1,8) / 541807.400D0 /
+      DATA LGP(2,8) / 702185.700D0 /
+      DATA LGP(3,8) / 701352.700D0 /
+      DATA LGP(4,8) / -35.090D0 /
+      DATA LGP(5,8) / 122.540D0 /
+      DATA LGP(6,8) / 1778.300D0 /
+      DATA LGP(7,8) / 29615.500D0 /
+      DATA LGP(8,8) / -35.260D0 /
+      DATA LGP(9,8) / 69.270D0 /
+      DATA LGP(10,8) / 0.000D0 /
+      DATA LGP(11,8) / 0.000D0 /
+      DATA LGP(12,8) / 0.000D0 /
+C     LEG 9
+C       CONIC: MR Table 7-VII p. 7-12, entry interface (400 000 ft)
+      DATA LGP(1,9) / 702185.700D0 /
+      DATA LGP(2,9) / 705600.000D0 /
+      DATA LGP(3,9) / 702185.700D0 /
+      DATA LGP(4,9) / -3.190D0 /
+      DATA LGP(5,9) / 171.960D0 /
+      DATA LGP(6,9) / 65.800D0 /
+      DATA LGP(7,9) / 36194.400D0 /
+      DATA LGP(8,9) / -6.480D0 /
+      DATA LGP(9,9) / 50.180D0 /
+      DATA LGP(10,9) / 0.000D0 /
+      DATA LGP(11,9) / 0.000D0 /
+      DATA LGP(12,9) / 0.000D0 /
+      DATA (LGSN(IBD),IBD=1,9) /
+     1 1,1,1,1,1,1,1,1,1/
+      DATA (LGTYP(IBD),IBD=1,9) /
+     1 1,2,2,3,3,3,2,2,2/
+      DATA (LGN(IBD),IBD=1,9) /
+     1 0,0,0,1,10,14,0,0,0/
+      DATA (LGGC(IBD),IBD=1,9) /
+     1 1,0,0,0,0,0,0,0,0/
+C     EVENT 1
+C       TDATT: Apollo 11 Flight Journal 002:54:09: S-IVB manoeuvre to
+C       separation attitude to be completed at plus 09 plus 20
+C     EVENT 2
+C       SEP: MR Table 3-I p. 3-4 and Table 7-II p. 7-9: command
+C       module/S-IVB separation. SP p. 104 has CSM separated from S-IVB
+C       at 003:15:23.00 and 003:17:04.60 as the separation manoeuvre
+C       ignition
+C     EVENT 3
+C       APPR: Our guess: start of the docking approach, between
+C       separation and Collins' I'm still quite a ways at 003:22:25
+C       (Flight Journal)
+C     EVENT 4
+C       DOCK: MR Table 3-I p. 3-4 and Table 7-II p. 7-9; SP p. 104 has
+C       003:24:03.70
+C     EVENT 5
+C       UNDOCK: MR Table 3-I p. 3-4
+C     EVENT 6
+C       TOUCH: MR Table 3-I p. 3-4, lunar landing
+C     EVENT 7
+C       EI: MR Table 7-VII p. 7-12, entry interface
+      DATA (EVT(IBD),IBD=1,7) /
+     1 11360.0D0,11824.6D0,12030.0D0,12243.1D0,
+     1 360720.0D0,369939.9D0,702185.7D0/
+      DATA (EVSN(IBD),IBD=1,7) /
+     1 1,1,1,1,1,1,1/
+      DATA (EVKND(IBD),IBD=1,7) /
+     1 1,2,3,4,5,6,7/
       END
 C     RESTOMOD END

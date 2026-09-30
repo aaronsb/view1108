@@ -14,7 +14,8 @@ C     direction to the lunar sphere and the edges are drawn there as a
 C     surface feature (facing test, so it hides below the horizon and
 C     foreshortens like a crater).  The film shows a small LM-shaped
 C     figure below the horizon late in the descent (descent_t35.png);
-C     that it is the shadow is our reading.  Eye 3 m above the base.
+C     that it is the shadow is our reading.  The model's pads (X =
+C     -1.1 m, LMGEAR) sit at the footpads, LMEYE below the eye.
 C-----------------------------------------------------------------------
       SUBROUTINE LMSHAD(GET, VB, NV, SB, NS, LB, NL)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -71,7 +72,8 @@ C     RESTOMOD END
       INTEGER IOK, K
       IOK = 0
       DO 10 K = 1, 3
-        W(K) = PMF(K) + ((V(1) - 3.0D0) * XB(K) + V(2) * YB(K)
+        W(K) = PMF(K) + ((V(1) + 1.1D0 - LMEYE * 1.0D3) * XB(K)
+     &       + V(2) * YB(K)
      &       + V(3) * ZB(K)) * 1.0D-3
    10 CONTINUE
       B = W(1) * SMF(1) + W(2) * SMF(2) + W(3) * SMF(3)

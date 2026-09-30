@@ -38,6 +38,23 @@ C              lcoas.f 7 COAS reticle, lshad.f 8 LM shadow,
 C              llpd.f 9 LPD and LM window
 C       Data:  viewdata.f (BLOCK DATA, generated), viewcom.inc COMMON
 C
+C     THE ELEMENTS AGAINST TN D-6853, printed p. 3 (our reading).  "The
+C     program consists of two basic parts: the integrator portion and
+C     the graphic-display portion"; the Apollo modifications "were
+C     associated with the input/output options, coordinate
+C     transformations, lunar- and solar-ephemeris installation, three-
+C     dimensional-display problems, and realistic spacecraft-window
+C     outlines".
+C       integrator portion           traj.f
+C       graphic-display portion      pen.f, the layers via vlayer.f
+C       ephemeris installation       ephem.f
+C       coordinate transformations   vmath.f, the frames in vdrive.f
+C       three-dimensional display    pen.f, models.f
+C       window outlines              window and cabin models (to come)
+C       input/output                 vtext.f, the plot-tape buffers,
+C                                    the scenarios (data/scenarios)
+C     OUR READING: THE REPORT NAMES FUNCTIONS, NOT FILES.
+C
 C     PROJECTION
 C       Radially symmetric about the boresight, gnomonic to
 C       stereographic with the field; see PROJ (pen.f).
@@ -51,19 +68,22 @@ C     RESTOMOD END
       INTEGER ISC
       DOUBLE PRECISION GET, YAW, PIT, ROL, FOV
       DOUBLE PRECISION R(3), V(3), PM(3), E(3), S(3), X, Y, TFIX
-      INTEGER I
-      DOUBLE PRECISION VDOT
+      INTEGER I, ISNSC(7)
+      DOUBLE PRECISION VDOT, EVGET
+C     The scenario of each scene: all Apollo 11 as flown for now.
+      DATA ISNSC / 1, 1, 1, 1, 1, 1, 1 /
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (INITD .NE. 1) THEN
         CALL TABSET
-        CALL ORBSET
         CALL MLIB
+        ISN = 0
         INITD = 1
       END IF
 C     RESTOMOD END
       ISCN = ISC
       IF (ISCN .LT. 1 .OR. ISCN .GT. 7) ISCN = 1
+      IF (ISNSC(ISCN) .NE. ISN) CALL SNSET(ISNSC(ISCN))
       YAW = 0.0D0
       PIT = 0.0D0
       ROL = 0.0D0
@@ -93,12 +113,13 @@ C       held inertially: boresight ELOFF deg ahead of the Earth's
 C       centre as seen at TFIX, up against the Earth's drift across
 C       the sky, so the disc climbs in from below, grows, and leaves
 C       only its limb arc as the spacecraft closes on entry.
+        FXDT = 10.0D0 * 3600.0D0
         TFIX = TETP - FXDT
         GET = TETP - 5.0D0 * 3600.0D0
         FOV = 60.0D0
         ELOFF = 0.0D0
-        CALL TLIORB(TFIX, R, V)
-        CALL TLIORB(TETP - 3600.0D0, E, S)
+        CALL ERTORB(TFIX, R, V)
+        CALL ERTORB(TETP - 3600.0D0, E, S)
         DO 22 I = 1, 3
           PM(I) = -R(I)
           E(I) = -E(I)
@@ -122,14 +143,14 @@ C       EARTH PARKING ORBIT, looking forward at the horizon.
         GET = 1.5D0 * 3600.0D0
         FOV = 70.0D0
       ELSE IF (ISCN .EQ. 4) THEN
-C       LM RENDEZVOUS / INSPECTION after undocking at 100:12.
-        GET = 100.0D0*3600.0D0 + 14.0D0*60.0D0
+C       LM RENDEZVOUS / INSPECTION, two minutes after undocking.
+        GET = EVGET(KEUND) + 120.0D0
         FOV = 12.0D0
       ELSE IF (ISCN .EQ. 7) THEN
 C       TRANSPOSITION AND DOCKING.  Mid-approach, about 56 ft out
 C       (see S7POSE for the closing law), looking along the CSM +X
 C       axis at the LM docking target.  Field of view: ours.
-        GET = 3.0D0*3600.0D0 + 21.0D0*60.0D0 + 30.0D0
+        GET = EVGET(KEAPR) + 60.0D0
         FOV = 30.0D0
       ELSE IF (ISCN .EQ. 6) THEN
 C       MOON VIEW (a modern addition, not a 1969 plot type we have a
@@ -251,7 +272,8 @@ C     RESTOMOD END
       HD(7) = DBLE(ISCN)
       HD(8) = DBLE(IWIN)
       IF (ISCN .EQ. 4) HD(9) = 300.0D0
-      IF (ISCN .EQ. 5) HD(10) = (RNG - RB) * 1000.0D0 / 0.3048D0
+C     Scene 5: the footpads' altitude (LMDESC), 0 at touchdown.
+      IF (ISCN .EQ. 5) HD(10) = LMALT * 1000.0D0 / 0.3048D0
       IF (ISCN .EQ. 7) HD(9) = S7RNG
 C     Reference body in the picture, for the page's camera steering:
 C     centre X, Y (deg, even off frame), angular radius, in front flag.
@@ -271,6 +293,9 @@ C     printed p. 96).
       CALL PROJ(PB, HD(11), HD(12), IOK)
       HD(13) = RHO(DASIN(DMIN1(1.0D0, RR / VNRM(PB))))
       HD(15) = BOXH
+C     The scenario's epoch as an offset (s) from Apollo 11 range zero,
+C     for the page's clock: UTC = 1969-07-16 13:32:00 + HD(16) + GET.
+      HD(16) = (TJD0 - JD0) * 86400.0D0
       HD(14) = 0.0D0
       IF (VDOT(PB, CB) .GT. 0.0D0) HD(14) = 1.0D0
 C     Text for the recorder's character generator.
@@ -332,7 +357,7 @@ C         Out of plane toward the LM, local vertical up.
       ELSE IF (ISCN .EQ. 2) THEN
 C       Coast.  Attitude held inertially (FXB, FXU, set by VINIT).
         IREF = 1
-        CALL TLIORB(GET, R, V)
+        CALL ERTORB(GET, R, V)
         DO 40 I = 1, 3
           CG(I) = R(I)
           CV(I) = V(I)
@@ -342,7 +367,7 @@ C       Coast.  Attitude held inertially (FXB, FXU, set by VINIT).
       ELSE IF (ISCN .EQ. 3) THEN
 C       Parking orbit.  Forward, boresight 8 deg above the horizon.
         IREF = 1
-        CALL PARKOR(GET, R, V)
+        CALL ERTORB(GET, R, V)
         DO 70 I = 1, 3
           CG(I) = R(I)
           CV(I) = V(I)
@@ -392,7 +417,7 @@ C       face the stack, which holds an inertial attitude (S7ATT).
 C       Boresight along the CSM +X axis, which is down the LM's -X
 C       axis; the LM front (+Z) up.
         IREF = 1
-        CALL TLIORB(GET, R, V)
+        CALL ERTORB(GET, R, V)
         CALL S7ATT
         DO 110 I = 1, 3
           CG(I) = R(I)
@@ -517,6 +542,7 @@ C     RESTOMOD END
       DOUBLE PRECISION GET
       DOUBLE PRECISION AT(3,3), R1(3,3), R2(3,3), R3(3,3), R4(3,3)
       DOUBLE PRECISION BX(3,3), LP(3), BO(3), T, PS, TH, PH, DIST
+      DOUBLE PRECISION EVGET
       INTEGER I
 C     Body axes in the reference frame: X up, Z toward the camera.
       DO 10 I = 1, 3
@@ -524,7 +550,7 @@ C     Body axes in the reference frame: X up, Z toward the camera.
         BX(I,2) = -RREF(I)
         BX(I,3) = -BREF(I)
    10 CONTINUE
-      T = GET - (100.0D0 * 3600.0D0 + 12.0D0 * 60.0D0)
+      T = GET - EVGET(KEUND)
       PS = (35.0D0 + 1.5D0 * T) * DR
       TH = -(20.0D0 + 15.0D0 * DSIN(T * 2.0D0 * PI / 300.0D0)) * DR
       PH = (10.0D0 * DSIN(T * 2.0D0 * PI / 420.0D0)) * DR
@@ -574,10 +600,11 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION GET, TCLS, TDOK, U, A, D, V(3), W(3), Z(3)
-      DOUBLE PRECISION PS(3)
+      DOUBLE PRECISION PS(3), EVGET
       INTEGER I
-      TCLS = 3.0D0 * 3600.0D0 + 20.0D0 * 60.0D0 + 30.0D0
-      TDOK = 3.0D0 * 3600.0D0 + 24.0D0 * 60.0D0 + 3.1D0
+C     Approach start and docking from the scenario (APPR, DOCK).
+      TCLS = EVGET(KEAPR)
+      TDOK = EVGET(KEDOK)
       U = (TDOK - GET) / (TDOK - TCLS)
       IF (U .GT. 1.0D0) U = 1.0D0
       IF (U .LT. 0.0D0) U = 0.0D0
@@ -624,9 +651,11 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION T, R(3), V(3), S(3), H(3), X(3), Y(3), VDOT
+      DOUBLE PRECISION EVGET
       INTEGER I
-      T = 3.0D0 * 3600.0D0 + 9.0D0 * 60.0D0 + 20.0D0
-      CALL TLIORB(T, R, V)
+C     The attitude time from the scenario (TDATT).
+      T = EVGET(KETDA)
+      CALL ERTORB(T, R, V)
       CALL SUNG(T, S)
       CALL VCRS(R, V, H)
       CALL VUNIT(H)
