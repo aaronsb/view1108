@@ -376,12 +376,35 @@ C     RESTOMOD END
       DOUBLE PRECISION LB(4,MAXL), X, Y
       INTEGER NL, KIND, ID
       IF (NL .GE. MAXL) RETURN
+C     With a label level set, the last 8 places are kept for the
+C     vehicle and pad labels (kinds 8, 9), which come after the sky's
+C     (ours: a full buffer of crater labels would crowd them out).
+      IF (ILABL .GE. 1 .AND. KIND .LT. 8 .AND. NL .GE. MAXL - 8) RETURN
       IF (DABS(X) .GT. BOXH .OR. DABS(Y) .GT. BOXH) RETURN
       NL = NL + 1
       LB(1,NL) = X
       LB(2,NL) = Y
       LB(3,NL) = DBLE(KIND)
       LB(4,NL) = DBLE(ID)
+      RETURN
+      END
+C
+C     BOXX: a small boxed X of half-width W (plot deg) about (X, Y),
+C     the mark of the Moon view's landing site (DMOON6), also used for
+C     the launch pad (DPAD) and vehicle markers (VLMARK).
+      SUBROUTINE BOXX(VB, NV, X, Y, W)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION VB(5,MAXV), X, Y, W
+      INTEGER NV
+      CALL EMIT(VB, NV, X - W, Y - W, X + W, Y - W)
+      CALL EMIT(VB, NV, X + W, Y - W, X + W, Y + W)
+      CALL EMIT(VB, NV, X + W, Y + W, X - W, Y + W)
+      CALL EMIT(VB, NV, X - W, Y + W, X - W, Y - W)
+      CALL EMIT(VB, NV, X - W, Y - W, X + W, Y + W)
+      CALL EMIT(VB, NV, X - W, Y + W, X + W, Y - W)
       RETURN
       END
 C

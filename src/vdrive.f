@@ -37,7 +37,8 @@ C       Layers, one per drawable, all called as
 C              LAYER(GET, VB, NV, SB, NS, LB, NL) by LAYERS:
 C              lframe.f 1 plot frame, lstars.f 2 stars, lsun.f 3 Sun,
 C              lmoon.f 4 Moon and craters (lmoon6.f its whole-disc
-C              extras), learth.f 5 Earth, lvehic.f 6 vehicles,
+C              extras), learth.f 5 Earth, lvehic.f 6 vehicles
+C              (lvlab.f their labels and markers),
 C              lcoas.f 7 COAS reticle, lshad.f 8 LM shadow,
 C              llpd.f 9 LPD and LM window
 C       Data:  viewdata.f (BLOCK DATA, generated), viewcom.inc COMMON
@@ -218,6 +219,12 @@ C     RESTOMOD END
         HD(I) = 0.0D0
    10 CONTINUE
       IFLG = IFLAG
+C     Label level (VSETIN).  With in_lablv 0, in_flags bit 0 means all
+C     labels, as before; with 1 or more the level decides and bit 0
+C     is set here, so the names are lettered (TXALL).
+      ILEV = 3 * MOD(IFLG, 2)
+      IF (ILABL .GE. 1) ILEV = ILABL
+      IF (ILABL .GE. 1 .AND. MOD(IFLG, 2) .EQ. 0) IFLG = IFLG + 1
 C     State source: in_flags bit 3, the tape if the engine has run.
       ISRC = MOD(IFLG / 8, 2)
       ISRCU = 0
@@ -335,6 +342,9 @@ C     GET: position (km), velocity (ft/s), that row's g.e.t. (s).
       CALL SIMERR(GET, J, HD(20), HD(18), HD(19))
       HD(14) = 0.0D0
       IF (VDOT(PB, CB) .GT. 0.0D0) HD(14) = 1.0D0
+C     The vehicles in this frame's world (VPRES): 1 CSM, 2 LM, 4 S-IVB.
+      CALL VPRES(GET)
+      HD(21) = DBLE(IVBIT)
 C     Text for the recorder's character generator.
       CALL TXALL(LB, NL, TB, NT, TC, NCH)
       RETURN

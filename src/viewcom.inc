@@ -115,10 +115,16 @@ C     tools/gen_data.py; field layout in src/viewdata.f).
       DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)
       DOUBLE PRECISION SNSAZ(NSN)
       DOUBLE PRECISION LGP(NLGP,NLEG), EVT(NEVT)
+C     Launch pad (PAD card): SNPLA, SNPLO lat, east lon (deg),
+C     geocentric latitude if SNPGC = 1; PADCH its name, 8 codes per
+C     scenario, zero padded (none if the first is 0).
+      DOUBLE PRECISION SNPLA(NSN), SNPLO(NSN)
       INTEGER LGSN(NLEG), LGTYP(NLEG), LGN(NLEG), LGGC(NLEG)
-      INTEGER EVSN(NEVT), EVKND(NEVT)
-      COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT
-      COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND
+      INTEGER EVSN(NEVT), EVKND(NEVT), SNPGC(NSN), PADCH(8*NSN)
+      COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT,
+     &               SNPLA, SNPLO
+      COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND,
+     &                SNPGC, PADCH
 C
 C     /CMEEUS/ the Moon's periodic terms, Meeus tables 47.A and 47.B
 C     (BLOCK DATA from data/meeus47.txt; layout in src/viewdata.f).
@@ -196,9 +202,13 @@ C     /CVIEW/ the view inputs of this frame (VSETIN): IVIEW 0 window,
 C     1 external, 2 CM station, 3 LM station; ITARG camera target 0
 C     scene default, 1 Earth, 2 Moon, 3 Sun, 4 CSM, 5 LM; ILABL label
 C     level 0-3 (0: in_flags bit 0 decides).
-C     IVUSE the view this frame actually uses (VIEWPT).
-      INTEGER IVIEW, ITARG, ILABL, IVUSE
-      COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE
+C     IVUSE the view this frame actually uses (VIEWPT).  ILEV the
+C     label level this frame applies (VFRAME): 0 none, 1 primary, 2
+C     secondary, 3 all; with ILABL 0 it is 3 if in_flags bit 0 is
+C     set, else 0.  IVBIT the vehicles in this frame's world (VPRES,
+C     hdr 21).
+      INTEGER IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT
+      COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT
 C
 C     /CSCN/ scene number, flags of this frame, init done.
       INTEGER ISCN, IFLG, INITD
@@ -246,3 +256,8 @@ C     models of the LM and S-IVB only: our reading).
       INTEGER MDHL(MMOD)
       COMMON /CMODH/ MDHL
       COMMON /CMOD/ MDAT, MDP, MDBO
+C
+C     /CVLAB/ work area of the vehicle labels (lvlab.f): the plot
+C     points of the model being labelled (VLPTS).
+      DOUBLE PRECISION VLPX(2400), VLPY(2400)
+      COMMON /CVLAB/ VLPX, VLPY

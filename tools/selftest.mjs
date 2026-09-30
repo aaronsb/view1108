@@ -27,17 +27,20 @@ const F = ctx.VIEW1108_ASM(imports);
 
 const f64 = (K, name, n) => Array.from(new Float64Array(K.memory.buffer, K[name].value, n));
 const i32 = (K, name) => new Int32Array(K.memory.buffer, K[name].value, 1)[0];
-function run(K, scene, flags = 3, view = 0, target = 0) {
+function run(K, scene, flags = 3, view = 0, target = 0, lablv = 0, get = null) {
   K.view_init(scene);
   new Int32Array(K.memory.buffer, K.in_flags.value, 1)[0] = flags;
   if (K.in_view) {
     new Int32Array(K.memory.buffer, K.in_view.value, 1)[0] = view;
     new Int32Array(K.memory.buffer, K.in_target.value, 1)[0] = target;
   }
+  if (K.in_lablv) new Int32Array(K.memory.buffer, K.in_lablv.value, 1)[0] = lablv;
+  if (get !== null) new Float64Array(K.memory.buffer, K.in_get.value, 1)[0] = get;
   K.view_frame();
   const nvec = i32(K, 'nvec'), nstar = i32(K, 'nstar'), nlab = i32(K, 'nlab');
   const ntxt = i32(K, 'ntxt'), nchr = i32(K, 'nchr');
   return { nvec, nstar, nlab, ntxt, hdr: f64(K, 'hdr', 24), vbuf: f64(K, 'vbuf', 5 * nvec),
+           lbuf: f64(K, 'lbuf', 4 * nlab),
            tbuf: f64(K, 'tbuf', 4 * ntxt),
            tchr: Array.from(new Int32Array(K.memory.buffer, K.tchr.value, nchr)),
            init: f64(K, 'in_get', 1)[0] };
@@ -69,6 +72,29 @@ if (W.in_view) {
     }
   console.log(`views and targets: ${n} frames  ${same ? 'identical' : 'DIFFER'}`);
   if (!same) ok = false;
+}
+// Label levels (in_lablv 0-3) with vehicle labels, markers and the launch pad: every scene in
+// its own view and external, plus frames where markers or the pad show (scene 6 in the LM's
+// descent, scene 1 external on the Moon, scene 3 over Florida); wasm and the fallback must agree
+// on vectors, labels and text.
+if (W.in_lablv) {
+  let same = true, n = 0, kinds = new Set();
+  const cases = [];
+  for (const scene of [1, 2, 3, 4, 5, 6, 7, 8])
+    for (const v of [0, 1]) for (const lv of [0, 1, 2, 3]) cases.push([scene, v, 0, lv, null]);
+  for (const lv of [1, 2, 3])
+    cases.push([6, 0, 0, lv, 369640], [1, 1, 2, lv, null], [3, 0, 0, lv, 5800], [3, 1, 1, lv, 1200]);
+  for (const [scene, v, t, lv, get] of cases) {
+    const a = run(W, scene, 3, v, t, lv, get), b = run(F, scene, 3, v, t, lv, get); n++;
+    for (let i = 0; i < a.nlab; i++) kinds.add(a.lbuf[4 * i + 2]);
+    if (!(a.nvec === b.nvec && a.nlab === b.nlab && maxdiff(a.hdr, b.hdr) === 0 &&
+          maxdiff(a.vbuf, b.vbuf) === 0 && maxdiff(a.lbuf, b.lbuf) === 0 && a.ntxt === b.ntxt &&
+          maxdiff(a.tbuf, b.tbuf) === 0 && a.tchr.join() === b.tchr.join())) same = false;
+  }
+  // The new label kinds must actually occur: 8 vehicles, 9 the launch pad.
+  const seen = kinds.has(8) && kinds.has(9);
+  console.log(`label levels: ${n} frames  ${same ? 'identical' : 'DIFFER'}  vehicle and pad labels ${seen ? 'seen' : 'MISSING'}`);
+  if (!same || !seen) ok = false;
 }
 // Simulation mode: run the engine with delta correction on (1) and off (0), then draw every
 // scene from the tape (in_flags bit 3) and check wasm and the fallback agree; also time sim_run.

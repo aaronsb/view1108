@@ -31,7 +31,10 @@ C              diameter (km) and names (24 codes each, zero padded).
 C     /CSCEN/  scenarios (run decks).  Scenario M: epoch SNJD0 (JD of
 C              range zero),
 C              landing site SNSLA lat, SNSLO east lon, SNSAZ descent
-C              azimuth (deg).
+C              azimuth (deg).  Launch pad SNPLA lat, SNPLO east
+C              lon (deg), geocentric latitude if SNPGC = 1, name
+C              PADCH(8*(M-1)+1..8) as character codes, zero padded
+C              (none if PADCH(8*(M-1)+1) = 0).
 C              Leg K of scenario LGSN(K), type LGTYP, whole revolutions
 C              LGN (LUNAR), latitude geocentric if LGGC = 1, and LGP:
 C              1 FROM, 2 TO, 3 T (g.e.t. s), 4 LAT, 5 LON (deg),
@@ -41,10 +44,13 @@ C              Event J of scenario EVSN(J), kind EVKND, g.e.t. EVT (s).
       DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)
       DOUBLE PRECISION SNSAZ(NSN)
       DOUBLE PRECISION LGP(NLGP,NLEG), EVT(NEVT)
+      DOUBLE PRECISION SNPLA(NSN), SNPLO(NSN)
       INTEGER LGSN(NLEG), LGTYP(NLEG), LGN(NLEG), LGGC(NLEG)
-      INTEGER EVSN(NEVT), EVKND(NEVT)
-      COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT
-      COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND
+      INTEGER EVSN(NEVT), EVKND(NEVT), SNPGC(NSN), PADCH(8*NSN)
+      COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT,
+     &               SNPLA, SNPLO
+      COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND,
+     &                SNPGC, PADCH
 C     /CSIM/   simulation cards.  START of scenario STSN (one at most),
 C              REF rows: state STP / RFP as LGP (2 = END for START),
 C              body STBOD / RFBOD (1 Earth, 2 Moon), geocentric
@@ -7987,6 +7993,10 @@ C       SITE: NSSDC Apollo Landing Site Coordinates, citing Wagner et
 C       al., Icarus 283 (2017), mean Earth/polar axis; MR p. 3-2 gives
 C       0 41 15 N, 23 26 E on ORB-II-6 (1967). Azimuth 268.8: ours,
 C       near the 269.0 fitted to MR Table 7-II
+C       PAD: SP p. 103, Apollo 11 ascent phase table, Liftoff
+C       000:00:00.63: geocentric latitude 28.4470 deg N, longitude
+C       -80.6041 deg E; SP p. 92: Apollo 11 was launched from Kennedy
+C       Space Center Launch Complex 39, Pad A
       DATA (SNJD0(IBD),IBD=1,1) /
      1 2440419.063889D0/
       DATA (SNSLA(IBD),IBD=1,1) /
@@ -7995,6 +8005,14 @@ C       near the 269.0 fitted to MR Table 7-II
      1 23.47314D0/
       DATA (SNSAZ(IBD),IBD=1,1) /
      1 268.800D0/
+      DATA (SNPLA(IBD),IBD=1,1) /
+     1 28.4470D0/
+      DATA (SNPLO(IBD),IBD=1,1) /
+     1 -80.6041D0/
+      DATA (SNPGC(IBD),IBD=1,1) /
+     1 1/
+      DATA (PADCH(IBD),IBD=1,8) /
+     1 76,67,45,51,57,65,0,0/
 C     LEG 1
 C       CIRC: SP p. 103 ascent table, S-IVB 1st burn cutoff: geocentric
 C       32.4865 N, -53.4588 E, space-fixed velocity 25,561.6,

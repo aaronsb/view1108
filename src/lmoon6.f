@@ -51,12 +51,7 @@ C     the descent) and in the crater patch (lmoon.f).
       IF (ISVIS(P) .EQ. 0) GO TO 10
       CALL PROJ(P, X, Y, IOK)
       W = 0.012D0 * FOVH
-      CALL EMIT(VB, NV, X - W, Y - W, X + W, Y - W)
-      CALL EMIT(VB, NV, X + W, Y - W, X + W, Y + W)
-      CALL EMIT(VB, NV, X + W, Y + W, X - W, Y + W)
-      CALL EMIT(VB, NV, X - W, Y + W, X - W, Y - W)
-      CALL EMIT(VB, NV, X - W, Y - W, X + W, Y + W)
-      CALL EMIT(VB, NV, X - W, Y + W, X + W, Y - W)
+      CALL BOXX(VB, NV, X, Y, W)
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (MOD(IFLG, 2) .EQ. 1) THEN
         CALL LABEL(LB, NL, X + W, Y + W, 7, 0)

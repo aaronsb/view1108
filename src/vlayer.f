@@ -19,6 +19,7 @@ C        3  Sun                         lsun.f     DSUN
 C        4  Moon and craters            lmoon.f    DMOON
 C        5  Earth                       learth.f   DEARTH
 C        6  vehicles (placed models)    lvehic.f   MDRALL
+C           their labels and markers    lvlab.f    VLABEL
 C        7  COAS reticle                lcoas.f    S7COAS
 C        8  LM shadow                   lshad.f    LMSHAD
 C        9  LPD and LM window           llpd.f     OVLPD

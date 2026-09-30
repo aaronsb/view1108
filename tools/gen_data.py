@@ -162,6 +162,7 @@ CARD_KEYS = {
     "SCENARIO": {"ID", "MISSION", "NAME", "SRC"},
     "EPOCH": {"JD", "SRC"},
     "SITE": {"LAT", "LON", "AZ", "SRC"},
+    "PAD": {"NAME", "LAT", "LON", "LATTYPE", "SRC"},
     "LEG": {"TYPE", "FROM", "TO", "T", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG",
             "TB", "LATB", "LONB", "N", "SRC"},
     "EVENT": {"KIND", "T", "SRC"},
@@ -197,13 +198,18 @@ def scenarios():
                 print(f"warning: {path.name}: {kind} card: unknown key {k}, ignored")
             if kind == "SCENARIO":
                 cur = {"n": int(kv["ID"]), "name": kv["MISSION"] + " " + kv["NAME"], "jd": None,
-                       "site": (0.0, 0.0, 0.0), "src": []}
+                       "site": (0.0, 0.0, 0.0), "pad": ("", 0.0, 0.0, 0), "src": []}
                 mis.append(cur)
             elif kind == "EPOCH":
                 cur["jd"] = float(kv["JD"]); cur["src"].append("EPOCH: " + kv.get("SRC", ""))
             elif kind == "SITE":
                 cur["site"] = (float(kv["LAT"]), float(kv["LON"]), float(kv["AZ"]))
                 cur["src"].append("SITE: " + kv.get("SRC", ""))
+            elif kind == "PAD":
+                assert len(kv["NAME"]) <= 7, "PAD NAME: at most 7 characters"
+                cur["pad"] = (kv["NAME"], float(kv["LAT"]), float(kv["LON"]),
+                              1 if kv.get("LATTYPE", "GD") == "GC" else 0)
+                cur["src"].append("PAD: " + kv.get("SRC", ""))
             elif kind == "LEG":
                 t = kv["TYPE"]
                 p = [get_s(kv["FROM"]), get_s(kv["TO"]), get_s(kv["T"]),
@@ -403,7 +409,10 @@ def main():
          "C     /CSCEN/  scenarios (run decks).  Scenario M: epoch SNJD0 (JD of",
          "C              range zero),",
          "C              landing site SNSLA lat, SNSLO east lon, SNSAZ descent",
-         "C              azimuth (deg).",
+         "C              azimuth (deg).  Launch pad SNPLA lat, SNPLO east",
+         "C              lon (deg), geocentric latitude if SNPGC = 1, name",
+         "C              PADCH(8*(M-1)+1..8) as character codes, zero padded",
+         "C              (none if PADCH(8*(M-1)+1) = 0).",
          "C              Leg K of scenario LGSN(K), type LGTYP, whole revolutions",
          "C              LGN (LUNAR), latitude geocentric if LGGC = 1, and LGP:",
          "C              1 FROM, 2 TO, 3 T (g.e.t. s), 4 LAT, 5 LON (deg),",
@@ -413,10 +422,13 @@ def main():
          "      DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)",
          "      DOUBLE PRECISION SNSAZ(NSN)",
          "      DOUBLE PRECISION LGP(NLGP,NLEG), EVT(NEVT)",
+         "      DOUBLE PRECISION SNPLA(NSN), SNPLO(NSN)",
          "      INTEGER LGSN(NLEG), LGTYP(NLEG), LGN(NLEG), LGGC(NLEG)",
-         "      INTEGER EVSN(NEVT), EVKND(NEVT)",
-         "      COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT",
-         "      COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND",
+         "      INTEGER EVSN(NEVT), EVKND(NEVT), SNPGC(NSN), PADCH(8*NSN)",
+         "      COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT,",
+         "     &               SNPLA, SNPLO",
+         "      COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND,",
+         "     &                SNPGC, PADCH",
          "C     /CSIM/   simulation cards.  START of scenario STSN (one at most),",
          "C              REF rows: state STP / RFP as LGP (2 = END for START),",
          "C              body STBOD / RFBOD (1 Earth, 2 Moon), geocentric",
@@ -472,6 +484,12 @@ def main():
     body += fdata("SNSLA", [m["site"][0] for m in mis], F(dfmt(5)), 3)
     body += fdata("SNSLO", [m["site"][1] for m in mis], F(dfmt(5)), 3)
     body += fdata("SNSAZ", [m["site"][2] for m in mis], F(dfmt(3)), 3)
+    body += fdata("SNPLA", [m["pad"][1] for m in mis], F(dfmt(4)), 3)
+    body += fdata("SNPLO", [m["pad"][2] for m in mis], F(dfmt(4)), 3)
+    body += fdata("SNPGC", [m["pad"][3] for m in mis], "%d", 10)
+    body += fdata("PADCH", [c for m in mis for c in
+                            [ord(ch) for ch in m["pad"][0]] + [0] * (8 - len(m["pad"][0]))],
+                  "%d", 10)
     for k, lg in enumerate(legs):
         body += "\n".join([f"C     LEG {k + 1}"] + comment_wrap(lg["src"])) + "\n"
         body += "\n".join(f"      DATA LGP({i + 1},{k + 1}) / {v:.3f}D0 /"
@@ -518,8 +536,11 @@ def main():
     # NAV_MAG: magnitude of the 354th brightest non-named star (37 named + 354 = 391), the limit for the approximated 391-star navigation
     # catalog (TN D-6853 p.12); the page draws only stars at or brighter than this in its NAV catalog.
     nav_mag = round(sorted(s[1] for s in stars)[391 - 37 - 1], 2)
+    # CRATER_KM: each crater's diameter (km), in CRATER's order, so the page can apply the
+    # secondary label level's 25 km cut to the names it letters.
     names = {"NAV": NAV_NAMES, "NAV_MAG": nav_mag,
-             "CRATER": [c[3] if (c[4] == "AA" and c[2] >= 20) else "" for c in crat]}
+             "CRATER": [c[3] if (c[4] == "AA" and c[2] >= 20) else "" for c in crat],
+             "CRATER_KM": [round(c[2], 1) for c in crat]}
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
     print(f"stars {len(sx)} (nav 37), coast {len(coast)} lines / {len(clon)} pts, "

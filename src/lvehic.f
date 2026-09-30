@@ -83,7 +83,8 @@ C       An outline model's solids hide nothing (MDHL = 0).
       RETURN
       END
 C
-C     MDRALL: draw every placed model.
+C     MDRALL: draw every placed model, then their labels and the
+C     markers of vehicles too small to see (VLABEL).
       SUBROUTINE MDRALL(GET, VB, NV, SB, NS, LB, NL)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -96,6 +97,8 @@ C     RESTOMOD END
         IF (MDON(K) .EQ. 1) CALL MDRAW(VB, NV, K)
    10 CONTINUE
       ISTYLE = 1
+C     Vehicle labels and markers, with a label level set (lvlab.f).
+      IF (ILABL .GE. 1) CALL VLABEL(GET, VB, NV, LB, NL)
       RETURN
       END
 C

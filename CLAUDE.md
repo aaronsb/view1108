@@ -58,7 +58,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Layer 3 | `lsun.f` | Sun |
 | Layer 4 | `lmoon.f`, `lmoon6.f` | Moon, gazetteer and seeded craters; the whole-disc Moon view's extras |
 | Layer 5 | `learth.f` | Earth |
-| Layer 6 | `lvehic.f` | placed spacecraft models with hidden lines |
+| Layer 6 | `lvehic.f`, `lvlab.f` | placed spacecraft models with hidden lines; vehicle labels and markers |
 | Layer 7 | `lcoas.f` | COAS reticle (scene 7) |
 | Layer 8 | `lshad.f` | LM shadow (scene 5) |
 | Layer 9 | `llpd.f` | LPD scale and LM window (scene 5) |
@@ -160,12 +160,21 @@ Inputs (written by JS):
 - `in_target` int32: the camera target, 0 the scene's default, 1 Earth, 2 Moon, 3 Sun, 4 CSM,
   5 LM. In window and station views the boresight points at the target and yaw, pitch and roll
   are offsets from it.
-- `in_lablv` int32: label level, 0 off, 1 primary (Moon, Earth, Sun, vehicles CM, SM, LM, S-IVB,
-  the Apollo 11 landing site, the launch site LC-39A), 2 secondary (plus the 37 nav stars, craters
-  of 25 km and up, maria), 3 all. `in_flags` bit 0 keeps working: with `in_lablv` 0 it means
-  all (level 3), as before; with `in_lablv` 1 or more the kernel sets bit 0 itself.
-- Status (2026-09-30): `in_view` and `in_target` work (`src/vview.f`); `in_lablv` is stored but
-  not yet used. CM station (2): scenes 1, 2, 3, 4, 7, 8; the eye looks along the CSM's +X with
+- `in_lablv` int32: label level, 0 off, 1 primary, 2 secondary, 3 all. It filters only what
+  the kernel letters and the new marks, never the `lbuf` labels of kinds 1-7, which stay as
+  they always were, under `in_flags` bit 0 (the page needs kind 1 at every level to know the
+  37 named stars, and letters crater names itself from kind 2 with its own 25 km cut from
+  `VIEW_NAMES.CRATER_KM`). With `in_lablv` 0 the frame is exactly the one it was before levels
+  existed: bit 0 decides the text names, and no vehicle labels, markers or pad mark are drawn.
+  With 1-3 the kernel sets bit 0 itself, and the name text records (`tbuf`) follow the level:
+  primary SUN, EARTH, MOON, the vehicles, APOLLO 11 LANDING SITE and LC-39A; secondary adds
+  the nav star names and the maria; all is everything the kernel letters (the same set as
+  secondary). The vehicle labels and markers and the launch pad mark (`lbuf` kinds 8 and 9)
+  are drawn at 1-3 only (all ours, modern additions; see Vehicle labels and markers below).
+  At 1-3 the last 8 `lbuf` places are kept for kinds 8 and 9, so a buffer filled by crater
+  labels (it happens in wide Moon views) stops at 192 entries of kinds 1-7 instead of 200.
+- Status (2026-09-30): `in_view`, `in_target` and `in_lablv` work (`src/vview.f`, `src/lvlab.f`).
+  CM station (2): scenes 1, 2, 3, 4, 7, 8; the eye looks along the CSM's +X with
   -Z up, the view of MSC IN 69-FM-197's CSM maneuver plots, and the cabin is the CM left
   rendezvous window's two outlines read off its figure 9.0-3 (PDF p. 263) plus the X-axis x
   (`models.f` CMCAB); targets aim it as offsets. LM station (3): scenes 4, 7, 8 (scene 5 is it
@@ -185,8 +194,12 @@ Outputs (written by the kernel):
   names in `VIEW_NAMES.NAV`), 2 crater (id = crater index, `VIEW_NAMES.CRATER`), 3 Sun,
   4 Earth, 5 Moon, 6 mare/lacus/sinus/oceanus (scene 6; id = index in the kernel's mare table,
   names come only as text records), 7 Apollo 11 landing site (scene 6, id 0), 8 vehicle (id 1
-  CM, 2 SM, 3 LM, 4 S-IVB), 9 launch site (id 0); 8 and 9 have their names as text records. MAXL = 200. Ids are 1-based: the name is `VIEW_NAMES.NAV[id-1]` /
-  `VIEW_NAMES.CRATER[id-1]` (crater names may be empty). Sun, Earth, Moon use id 0.
+  CM, 2 SM, 3 LM, 4 S-IVB, 5 CSM), 9 launch site (id 0); 8 and 9 have their names as text
+  records. For kinds 8 and 9, `x, y` is the label point beside the model or mark (the text
+  starts 0.4 × its height up and right of it), not the vehicle's centre. MAXL = 200. Ids are
+  1-based: the name is `VIEW_NAMES.NAV[id-1]` / `VIEW_NAMES.CRATER[id-1]` (crater names may
+  be empty; `VIEW_NAMES.CRATER_KM[id-1]` is the crater's diameter, km, for the secondary
+  level's 25 km cut). Sun, Earth, Moon use id 0.
 - `hdr(24)` real(8): 1 GET s, 2 FOV deg, 3 range to reference body centre n.mi.,
   4 altitude stat. mi., 5 inertial speed ft/s, 6 reference body (1 Earth, 2 Moon), 7 scene,
   8 window code (1 CSM window, 2 LM front window), 9 range to the LM ft (scene 4: 300; scene 7:
@@ -200,7 +213,10 @@ Outputs (written by the kernel):
   zero, seconds (0 for Apollo 11). hdr is 24 long: 17 the state source used this frame (0
   replay, 1 sim with state vector updates, 2 sim without), 18, 19 the last engine run's position (km)
   and velocity (ft/s) error at the reference row nearest the frame's GET, 20 that row's GET
-  (s; 18-20 are 0 before any run), 21-24 spare.
+  (s; 18-20 are 0 before any run), 21 the vehicles in this frame's world, a bitmask: 1 the
+  CSM, 2 the LM, 4 the S-IVB, each set if it is placed as a model or known by its state for a
+  marker (the CSM in scenes 5 and 6, the LM in its modelled descent); the vehicle the camera
+  rides in a window or station view is not counted. Set at every label level. 22-24 spare.
   The page letters the report-style header from these.
 - `tbuf(4, MAXT)` real(8), `ntxt` int32, `tchr(MAXTC)` int32, `nchr` int32: text records for the
   recorder's character generator, decided by the kernel. Record k is `x, y, height, start`: plot
@@ -212,7 +228,9 @@ Outputs (written by the kernel):
   edge centred just below it, height 1.0% of the field. So these records have |x| or |y|
   beyond fov/2; the page must leave a margin to draw them. Names of nav stars, SUN, EARTH and
   MOON beside their `lbuf` labels when bit 0 is set, height 1.4% of the field; in scene 6 also
-  mare/lacus/sinus/oceanus names centred on their centres and "APOLLO 11 LANDING SITE". The kernel
+  mare/lacus/sinus/oceanus names centred on their centres and "APOLLO 11 LANDING SITE"; at
+  `in_lablv` 1 and up the vehicle names ("CM", "SM", "LM", "S-IVB", "CSM") and the pad's name
+  from its PAD card ("LC-39A"). The kernel
   assumes a character width of 0.7 × height for alignment. Crater names stay in `lbuf`
   (kind 2) for the page. MAXT = 300, MAXTC = 6000.
 
@@ -285,6 +303,23 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
    square to the ecliptic, is ours. The scene's own view is external: 60 m from the stack,
    starting on its far side from the Earth; yaw and pitch carry the camera around it.
 
+Vehicle labels and markers (`src/lvlab.f`, `src/learth.f` DPAD), all ours, drawn only at
+`in_lablv` 1 and up. Each placed model gets its name beside it, off its projected X axis by
+its projected half-width (to the right of the whole model when it is seen within 30° of end
+on), trying the other side when the text would leave the frame or meet a name already placed,
+else dropped. The CSM gets CM and SM labels beside its two modules, on one side, or a single
+CSM label when those two would touch. A placed model spanning less than 0.2% of the field
+(about one plot pixel), and a vehicle known only by its state (the CSM in scenes 5 and 6 from
+`VSTATE`; the LM in its modelled descent, the last 600 s before touchdown, from `LMDESC`,
+where the camera does not ride it), gets the small boxed X of scene 6's landing site at its
+centre and its name at the first free corner of the box, hidden behind the Earth or Moon. The
+LM has no state of its own outside the descent (the legs and the tape carry the CSM only), so
+it is not marked from undocking to the descent or after touchdown. The launch pad (the
+scenario's PAD card, LC-39A for Apollo 11: SP-4029 printed p. 103, geocentric 28.4470 N,
+-80.6041 E, made geodetic to sit on the coastlines' footing) is the same boxed X on the
+Earth, turned with it like the coastlines, hidden on the far side, drawn once the Earth's disc
+is too large for its EARTH name.
+
 Drawing conventions from TN D-6853 (Hyle & Lunde 1972): night sides are straight parallel
 "shading lines"; the 37 prime nav stars are named; the background catalog runs to V 4.5;
 circular craters appear as ellipses.
@@ -301,7 +336,7 @@ the IAU 1976 precession to J2000 (`PRECM`), J2000 equatorial frame throughout. E
 states and coastlines go through that precession too.
 
 A mission's data is a scenario (a run deck, in 1969 terms): `data/scenarios/*.scn`, turned into
-`BLOCK DATA` by `tools/gen_data.py`, holds the epoch, landing site, trajectory legs and events,
+`BLOCK DATA` by `tools/gen_data.py`, holds the epoch, landing site, launch pad, trajectory legs and events,
 each card with its source. A mission can have more than one scenario (Apollo 11 as flown now; a
 pre-flight nominal one could follow), each with its own id. A leg is a simple model fixed
 by sourced states: `CIRC` (Earth circular orbit through a state), `CONIC` (Earth-centred Kepler

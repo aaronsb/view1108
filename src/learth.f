@@ -68,5 +68,54 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         END IF
       END IF
 C     RESTOMOD END
+C     The launch pad, with a label level set, once the disc is too big
+C     to carry the EARTH name (DPAD; the rule is ours).
+      IF (ILABL .GE. 1 .AND. AE .GE. 0.3D0 * FOVH * DR)
+     &  CALL DPAD(VB, NV, LB, NL)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     DPAD: the scenario's launch pad (its PAD card) as a small boxed
+C     X, the mark the Moon view gives the Apollo 11 landing site
+C     (DMOON6), and its name (LB kind 9) beside it.  A modern
+C     addition (ours), drawn only with a label level set (in_lablv
+C     1-3; DEARTH).  The coastlines are geodetic latitudes placed on
+C     a sphere and turned with the Earth (MEF, VFRAME), so the pad
+C     goes on the same footing: a geocentric latitude is made
+C     geodetic first, TAN(GD) = TAN(GC) / (1 - F)**2, F the flattening
+C     STATEV uses.  Hidden on the Earth's far side and behind the
+C     Moon or a placed model (ISVIS mode 1).
+C-----------------------------------------------------------------------
+      SUBROUTINE DPAD(VB, NV, LB, NL)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION VB(5,MAXV), LB(4,MAXL)
+      INTEGER NV, NL
+      DOUBLE PRECISION F, FI, LA, U(3), Q(3), P(3), X, Y, W
+      INTEGER I, IOK, ISVIS
+      IF (PADCH(8 * (ISN - 1) + 1) .EQ. 0) RETURN
+      F = 1.0D0 / 298.257D0
+      FI = SNPLA(ISN) * DR
+      IF (SNPGC(ISN) .EQ. 1) FI = DATAN(DTAN(FI) / (1.0D0 - F)**2)
+      LA = SNPLO(ISN) * DR
+      U(1) = DCOS(FI) * DCOS(LA)
+      U(2) = DCOS(FI) * DSIN(LA)
+      U(3) = DSIN(FI)
+      CALL MXV(MEF, U, Q)
+      DO 10 I = 1, 3
+        P(I) = EPOS(I) + RE * Q(I)
+   10 CONTINUE
+      IF (P(1)*CB(1) + P(2)*CB(2) + P(3)*CB(3) .LE. 0.0D0) RETURN
+      IVMODE = 1
+      IF (ISVIS(P) .EQ. 0) GO TO 90
+      CALL PROJ(P, X, Y, IOK)
+      IF (IOK .EQ. 0) GO TO 90
+      W = 0.012D0 * FOVH
+      CALL BOXX(VB, NV, X, Y, W)
+      IF (ILEV .GE. 1) CALL LABEL(LB, NL, X + W, Y + W, 9, 0)
+   90 IVMODE = 0
       RETURN
       END
