@@ -1,0 +1,79 @@
+/* IBM 3270 (1971) styling for the chrome is our nod to glass terminals of the era, not the UNIVAC's own
+   console. The plot canvas and its lettering keep the report style (--hd, --lab). */
+@font-face { font-family:"IBM 3270"; src:url("data:font/woff2;base64,__FONT_3270_B64__") format("woff2"); font-display:swap; }
+:root { --bg:#000; --fg:#a8f5b8; --dim:#4e9c64; --line:#2a5a38; --lab:"Courier Prime","Courier New",monospace; --hd:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif; --term:"IBM 3270","Courier New",monospace; }
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--fg); font-family:var(--term); font-size:16px; }
+body { padding:8px 16px 24px; max-width:1100px; margin:0 auto; text-transform:none; }
+header { padding:6px 0 10px; }
+h1 { font:400 20px var(--term); letter-spacing:.12em; margin:0; }
+header p { margin:2px 0 0; font-size:14px; color:var(--dim); line-height:1.35; }
+#wrap { width:100%; display:flex; justify-content:center; }
+canvas { display:block; background:#000; touch-action:none; cursor:grab; outline:none; }
+canvas:focus-visible { outline:2px solid var(--dim); outline-offset:2px; }
+canvas:active { cursor:grabbing; }
+#status { margin:10px auto 0; padding:4px 8px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); font-size:16px; letter-spacing:.04em; white-space:pre-wrap; text-transform:uppercase; }
+#status b { font-weight:400; color:#eafff0; }
+#ctl { display:flex; flex-wrap:wrap; gap:10px 22px; align-items:flex-start; justify-content:center; margin-top:12px; font-size:14px; }
+/* Window shades: a 3270-style field header over each control group; [-] open, [+] shut. */
+.shade { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.shade.shut > :not(.shade-h) { display:none; }
+button.shade-h { align-self:stretch; min-height:28px; padding:2px 4px; font-size:14px; letter-spacing:.14em; color:var(--dim); border-bottom:1px solid var(--line); text-align:left; }
+button.shade-h::before { content:"[-] "; }
+.shade.shut button.shade-h::before { content:"[+] "; }
+button.shade-h::after { content:""; }
+button.shade-h:hover { color:var(--fg); border-bottom-color:var(--dim); }
+/* Control pad: key caps in a 3 x 4 grid; a held cap shows reverse video. touch-action:none keeps a press from
+   scrolling or zooming the page. */
+#pad { display:grid; grid-template-columns:repeat(3, 56px); grid-auto-rows:46px; gap:5px; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+#pad button { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:0; padding:0; border:1px solid var(--line); color:var(--fg); font-size:22px; line-height:1; touch-action:none; -webkit-tap-highlight-color:transparent; }
+#pad button::before, #pad button::after { content:none; }
+#pad button small { margin-top:3px; font-size:10px; letter-spacing:.06em; color:var(--dim); }
+#pad button:hover { border-color:var(--dim); }
+#pad button.held { color:#000; background:var(--fg); border-color:var(--fg); }
+#pad button.held small { color:#000; }
+#pad button:nth-child(n+10) { margin-top:4px; }
+@media (max-width:600px) {
+  #ctl { gap:6px; }
+  .shade { flex-basis:100%; }
+  .shade[data-shade=look] { order:-1; }   /* the pad first, just under the picture */
+  #pad { grid-auto-rows:44px; gap:4px; }
+}
+.grp { display:flex; gap:2px; align-items:center; flex-wrap:wrap; }
+/* buttons are 3270-style fields: [ LABEL ], reverse video when active */
+button { background:#000; color:var(--dim); border:0; padding:4px 2px; font:16px var(--term); letter-spacing:.04em; cursor:pointer; min-height:32px; text-transform:uppercase; }
+button::before { content:"[ "; }
+button::after { content:" ]"; }
+button:hover { color:var(--fg); }
+button.on { color:#000; background:var(--fg); }
+button:focus-visible, input:focus-visible { outline:2px solid var(--fg); outline-offset:1px; }
+input[type=range] { accent-color:var(--fg); width:220px; max-width:60vw; }
+.lbl { color:var(--dim); text-transform:uppercase; }
+#hint { margin:12px auto 0; max-width:720px; font-size:14px; color:var(--dim); text-align:center; line-height:1.4; }
+#list { position:fixed; inset:0; background:rgba(0,0,0,.97); display:none; flex-direction:column; padding:12px 16px; z-index:10; }
+#list.open { display:flex; }
+/* Listing overlay, LIGHT mode: a line-printer listing on greenbar continuous-feed paper.
+   3270 font stands in for the UNIVAC 0758 printer's type (no recreation found); FIELDATA upper-case set per fourmilab
+   (https://fourmilab.ch/documents/univac/fieldata.html). Bands are 3 lines (60px) tall, sprocket holes every 3 lines,
+   sheets are 66 lines (11 inch at 6 lpi) with a perforation between them. Everything lives inside the scroll box. */
+#paper { display:none; flex:1; overflow:auto; background:#151515; }
+#list.light #paper { display:block; }
+#list.light #lst { display:none; }
+.pg { position:relative; width:max-content; min-width:calc(132ch + 116px); margin:0 auto; height:1320px; padding:0 58px; overflow:hidden;
+  background:
+    linear-gradient(to right, #8fa88f 60%, transparent 60%) 0 100% / 8px 1px repeat-x,
+    linear-gradient(to top, rgba(0,0,0,.14), transparent 6px) 0 100% / 100% 6px no-repeat,
+    repeating-linear-gradient(to bottom, #fbfdf9 0 60px, #d5ecd3 60px 120px); }
+.pg::before, .pg::after { content:""; position:absolute; top:0; bottom:0; width:44px; pointer-events:none;
+  background:radial-gradient(circle at 22px 30px, #151515 0 6.5px, #91a891 7px 8px, transparent 8.5px) 0 0 / 44px 60px repeat-y; }
+.pg::before { left:0; border-right:1px dashed #8fa88f; }
+.pg::after { right:0; border-left:1px dashed #8fa88f; }
+#list .pg pre { position:relative; flex:none; overflow:visible; margin:0; padding:0; border:0; font:14px/20px var(--term); color:#161616; white-space:pre; z-index:1; }
+#list h2 .btns { display:flex; gap:4px; flex:none; }
+#list h2 { font:400 16px var(--term); letter-spacing:.08em; margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+#list pre { flex:1; overflow:auto; margin:0; font:14px/1.3 var(--term); color:var(--fg); border:1px solid var(--line); padding:8px; }
+#about { margin:10px auto 0; max-width:720px; font-size:14px; color:var(--dim); text-align:center; line-height:1.4; }
+input[type=text] { background:#000; color:var(--fg); border:0; border-bottom:1px solid var(--dim); padding:4px 6px; font:16px var(--term); }
+body.still header, body.still #ctl, body.still #hint, body.still #about, body.still #err, body.still #status { display:none; }
+body.still { padding:0; }
+#err { color:#ff9a9a; font-size:14px; text-align:center; margin-top:8px; }

@@ -18,62 +18,7 @@
 <meta name="twitter:image" content="https://aaronsb.github.io/view1108/og-earthrise.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=IBM+Plex+Sans+Condensed:wght@400;500&display=swap" rel="stylesheet">
-<style>/* IBM 3270 (1971) styling for the chrome is our nod to glass terminals of the era, not the UNIVAC's own
-   console. The plot canvas and its lettering keep the report style (--hd, --lab). */
-@font-face { font-family:"IBM 3270"; src:url("data:font/woff2;base64,__FONT_3270_B64__") format("woff2"); font-display:swap; }
-:root { --bg:#000; --fg:#a8f5b8; --dim:#4e9c64; --line:#2a5a38; --lab:"Courier Prime","Courier New",monospace; --hd:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif; --term:"IBM 3270","Courier New",monospace; }
-* { box-sizing:border-box; }
-html,body { margin:0; background:var(--bg); color:var(--fg); font-family:var(--term); font-size:16px; }
-body { padding:8px 16px 24px; max-width:1100px; margin:0 auto; text-transform:none; }
-header { padding:6px 0 10px; }
-h1 { font:400 20px var(--term); letter-spacing:.12em; margin:0; }
-header p { margin:2px 0 0; font-size:14px; color:var(--dim); line-height:1.35; }
-#wrap { width:100%; display:flex; justify-content:center; }
-canvas { display:block; background:#000; touch-action:none; cursor:grab; outline:none; }
-canvas:focus-visible { outline:2px solid var(--dim); outline-offset:2px; }
-canvas:active { cursor:grabbing; }
-#status { margin:10px auto 0; padding:4px 8px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); font-size:16px; letter-spacing:.04em; white-space:pre-wrap; text-transform:uppercase; }
-#status b { font-weight:400; color:#eafff0; }
-#ctl { display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; justify-content:center; margin-top:12px; font-size:14px; }
-.grp { display:flex; gap:2px; align-items:center; flex-wrap:wrap; }
-/* buttons are 3270-style fields: [ LABEL ], reverse video when active */
-button { background:#000; color:var(--dim); border:0; padding:4px 2px; font:16px var(--term); letter-spacing:.04em; cursor:pointer; min-height:32px; text-transform:uppercase; }
-button::before { content:"[ "; }
-button::after { content:" ]"; }
-button:hover { color:var(--fg); }
-button.on { color:#000; background:var(--fg); }
-button:focus-visible, input:focus-visible { outline:2px solid var(--fg); outline-offset:1px; }
-input[type=range] { accent-color:var(--fg); width:220px; max-width:60vw; }
-.lbl { color:var(--dim); text-transform:uppercase; }
-#hint { margin:12px auto 0; max-width:720px; font-size:14px; color:var(--dim); text-align:center; line-height:1.4; }
-#list { position:fixed; inset:0; background:rgba(0,0,0,.97); display:none; flex-direction:column; padding:12px 16px; z-index:10; }
-#list.open { display:flex; }
-/* Listing overlay, LIGHT mode: a line-printer listing on greenbar continuous-feed paper.
-   3270 font stands in for the UNIVAC 0758 printer's type (no recreation found); FIELDATA upper-case set per fourmilab
-   (https://fourmilab.ch/documents/univac/fieldata.html). Bands are 3 lines (60px) tall, sprocket holes every 3 lines,
-   sheets are 66 lines (11 inch at 6 lpi) with a perforation between them. Everything lives inside the scroll box. */
-#paper { display:none; flex:1; overflow:auto; background:#151515; }
-#list.light #paper { display:block; }
-#list.light #lst { display:none; }
-.pg { position:relative; width:max-content; min-width:calc(132ch + 116px); margin:0 auto; height:1320px; padding:0 58px; overflow:hidden;
-  background:
-    linear-gradient(to right, #8fa88f 60%, transparent 60%) 0 100% / 8px 1px repeat-x,
-    linear-gradient(to top, rgba(0,0,0,.14), transparent 6px) 0 100% / 100% 6px no-repeat,
-    repeating-linear-gradient(to bottom, #fbfdf9 0 60px, #d5ecd3 60px 120px); }
-.pg::before, .pg::after { content:""; position:absolute; top:0; bottom:0; width:44px; pointer-events:none;
-  background:radial-gradient(circle at 22px 30px, #151515 0 6.5px, #91a891 7px 8px, transparent 8.5px) 0 0 / 44px 60px repeat-y; }
-.pg::before { left:0; border-right:1px dashed #8fa88f; }
-.pg::after { right:0; border-left:1px dashed #8fa88f; }
-#list .pg pre { position:relative; flex:none; overflow:visible; margin:0; padding:0; border:0; font:14px/20px var(--term); color:#161616; white-space:pre; z-index:1; }
-#list h2 .btns { display:flex; gap:4px; flex:none; }
-#list h2 { font:400 16px var(--term); letter-spacing:.08em; margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
-#list pre { flex:1; overflow:auto; margin:0; font:14px/1.3 var(--term); color:var(--fg); border:1px solid var(--line); padding:8px; }
-#about { margin:10px auto 0; max-width:720px; font-size:14px; color:var(--dim); text-align:center; line-height:1.4; }
-input[type=text] { background:#000; color:var(--fg); border:0; border-bottom:1px solid var(--dim); padding:4px 6px; font:16px var(--term); }
-body.still header, body.still #ctl, body.still #hint, body.still #about, body.still #err, body.still #status { display:none; }
-body.still { padding:0; }
-#err { color:#ff9a9a; font-size:14px; text-align:center; margin-top:8px; }
-</style>
+<link rel="stylesheet" href="src/page.css">
 </head>
 <body>
 <header>
@@ -84,35 +29,64 @@ body.still { padding:0; }
 <div id="status" role="status" aria-live="off"></div>
 <input id="linkbox" type="text" readonly aria-label="link to this view" style="display:none;width:100%;max-width:720px;margin:6px auto 0">
 <div id="ctl">
+  <!-- Window shades: each header shows or hides its group (web/src/shades.js). -->
+  <section class="shade" data-shade="mode"><button class="shade-h" type="button">Mode</button>
   <div class="grp" id="modes">
     <button id="mattract" class="on">Attract</button>
     <button id="mtour">Tour</button>
     <button id="mlive">Live</button>
     <button id="mfree">Free-look</button>
     <button id="mbeam" title="Trace each frame vector by vector on a fading phosphor (key T). Trace rates are estimates; see docs/univac-1108.md.">Beam</button>
-  </div>
-  <div class="grp" id="scenes"></div>
+  </div></section>
+  <section class="shade" data-shade="look"><button class="shade-h" type="button">Look</button>
+  <div class="grp">
+    <!-- Control pad (web/src/pad.js): the keyboard's look and time keys; the key letter is on each cap. -->
+    <div id="pad" role="group" aria-label="Control pad">
+      <button type="button" data-act="rollL" title="Roll left (Q)" aria-label="Roll left">Q<small>ROLL</small></button>
+      <button type="button" data-act="up" title="Pitch up (Up arrow)" aria-label="Pitch up">&uarr;</button>
+      <button type="button" data-act="rollR" title="Roll right (E)" aria-label="Roll right">E<small>ROLL</small></button>
+      <button type="button" data-act="left" title="Yaw left (Left arrow)" aria-label="Yaw left">&larr;</button>
+      <button type="button" data-act="reset" title="Reset the view (R)" aria-label="Reset view">R<small>RESET</small></button>
+      <button type="button" data-act="right" title="Yaw right (Right arrow)" aria-label="Yaw right">&rarr;</button>
+      <button type="button" data-act="zoomOut" title="Widen the field of view (-)" aria-label="Widen field of view">-<small>WIDE</small></button>
+      <button type="button" data-act="down" title="Pitch down (Down arrow)" aria-label="Pitch down">&darr;</button>
+      <button type="button" data-act="zoomIn" title="Narrow the field of view (+)" aria-label="Narrow field of view">+<small>ZOOM</small></button>
+      <button type="button" data-act="slower" title="Slower ([)" aria-label="Slower">[<small>SLOWER</small></button>
+      <button type="button" data-act="pause" id="ppause" title="Pause or play (Space)" aria-label="Pause or play">SPC<small>PAUSE</small></button>
+      <button type="button" data-act="faster" title="Faster (])" aria-label="Faster">]<small>FASTER</small></button>
+    </div>
+  </div></section>
+  <section class="shade" data-shade="scene"><button class="shade-h" type="button">Scene</button>
+  <div class="grp" id="scenes"></div></section>
+  <section class="shade" data-shade="time"><button class="shade-h" type="button">Time</button>
   <div class="grp">
     <button id="bplay">Pause</button>
     <button id="bslow" title="[">&laquo;</button><span id="spd" class="lbl"></span><button id="bfast" title="]">&raquo;</button>
     <button id="breset" title="R">Reset view</button>
   </div>
+  <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="19" value="0:00:00" aria-label="ground elapsed time h:mm:ss, or a UTC timestamp YYYY-MM-DD HH:MM:SS"><span id="utc" class="lbl"></span><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0" aria-label="time offset"></div>
+  <div class="grp"><span class="lbl">Jump (Live)</span><button id="jtd">Docking 3:20:30</button><button id="jundock">Undocking 100:12:00</button><button id="jdesc">Descent 102:42:00</button></div></section>
+  <section class="shade" data-shade="display"><button class="shade-h" type="button">Display</button>
   <div class="grp">
     <button id="blab" class="on">Labels</button>
     <button id="bfrm" class="on">Frame</button>
     <button id="bhid" title="Show the LM and S-IVB wireframe edges hidden behind the vehicles as dashed lines (the film drops them; TN D-6853 describes hidden-line LM and S-IVB models)">LM hidden lines</button>
+    <button id="bcat" title="C">Catalog</button>
+  </div></section>
+  <section class="shade" data-shade="film"><button class="shade-h" type="button">Film</button>
+  <div class="grp">
     <button id="bjit" title="J">Film jitter</button>
     <button id="bdust" title="D">Dust</button>
     <button id="bfps" title="F">Film rate</button>
     <button id="bblm" title="B">Bloom</button>
-    <button id="bcat" title="C">Catalog</button>
+  </div></section>
+  <section class="shade" data-shade="output"><button class="shade-h" type="button">Listing and link</button>
+  <div class="grp">
     <button id="bsrc">Fortran listing</button>
     <button id="blink" title="L: copy a link to this view">Link</button>
-  </div>
-  <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="19" value="0:00:00" aria-label="ground elapsed time h:mm:ss, or a UTC timestamp YYYY-MM-DD HH:MM:SS"><span id="utc" class="lbl"></span><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0"></div>
-  <div class="grp"><span class="lbl">Jump (Live)</span><button id="jtd">Docking 3:20:30</button><button id="jundock">Undocking 100:12:00</button><button id="jdesc">Descent 102:42:00</button></div>
+  </div></section>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-7: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace. L: copy link. B: bloom. C: star catalog. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-7: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace. L: copy link. B: bloom. C: star catalog. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
 <div id="about">G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197.</div>
 <div id="err"></div>
 
@@ -121,767 +95,23 @@ body.still { padding:0; }
 <script>var __FALLBACK_JS__, __NAMES_JS__;</script>
 <script>__NAMES_JS__</script>
 <script>__FALLBACK_JS__</script>
-<script>
-(() => {
-"use strict";
-const WASM_B64 = "__WASM_B64__";
-const STILL = /[?&]still=earthrise\b/.test(location.search);   // frozen Earthrise, chrome hidden, for screenshots
-const BARE = STILL || /[?&]bare\b/.test(location.search);       // chrome hidden (combine with ?film= for screenshots)
-const DEBUG = /[?&]debug\b/.test(location.search);
-const UP = new URLSearchParams(location.search);   // shareable view parameters (documented in the README)
-const NOWASM = /[?&]nowasm\b/.test(location.search);
-const USE_MOCK = /[?&]mock\b/.test(location.search) || WASM_B64.startsWith("__");
-const NAMES = (typeof VIEW_NAMES !== "undefined") ? VIEW_NAMES : (window.MOCK_NAMES || { NAV: [], CRATER: [] });
-const SCENES = ["Earthrise", "Translunar coast", "Earth limb", "LM rendezvous", "LM descent", "Moon view", "Transposition & docking"];
-const SCENE_CAPTION = { 6: "Moon view \u2014 spin to explore" };   // caption text where a scene needs more than its name
-const SPEEDS = [0, 1, 2, 4, 10, 30, 100, 300, 1000];
-
-// ---- math imports: _lfortran_dsin -> Math.sin, etc. ----
-function mathFor(name) {
-  const cands = [name, name.replace(/^_lfortran_/, "")];
-  for (const c of cands.slice()) cands.push(c.replace(/^d(?=[a-z])/, ""));
-  for (const c of cands) {
-    if (c === "mod") return (a, b) => a % b;
-    if (c === "pow") return Math.pow;
-    if (c === "fma") return (a, b, d) => a * b + d;
-    if (c === "sign") return (a, b) => (b < 0 || Object.is(b, -0)) ? -Math.abs(a) : Math.abs(a);
-    if (c === "max") return Math.max;
-    if (c === "min") return Math.min;
-    if (typeof Math[c] === "function") return Math[c];
-  }
-  console.warn("unresolved import", name);
-  return () => 0;
-}
-const proxyEnv = () => new Proxy({}, { get: (t, n) => (typeof n === "string" ? (t[n] || (t[n] = mathFor(n))) : undefined), has: () => true });
-
-let K = null, cpuName = "";
-async function boot() {
-  if (USE_MOCK) {
-    if (typeof VIEW1108_MOCK === "undefined") await new Promise((ok, no) => { const s = document.createElement("script"); s.src = "mock.js"; s.onload = ok; s.onerror = () => no(new Error("mock.js not found")); document.head.appendChild(s); });
-    K = VIEW1108_MOCK(); cpuName = "mock kernel";
-    if (window.MOCK_NAMES && typeof VIEW_NAMES === "undefined") Object.assign(NAMES, window.MOCK_NAMES);
-  } else {
-    const bin = Uint8Array.from(atob(WASM_B64), c => c.charCodeAt(0));
-    try {
-      if (NOWASM) throw new Error("wasm disabled by ?nowasm");
-      const mod = await WebAssembly.compile(bin);
-      const imp = {};
-      for (const i of WebAssembly.Module.imports(mod)) {
-        const m = imp[i.module] || (imp[i.module] = {});
-        m[i.name] = i.kind === "function" ? mathFor(i.name) : i.kind === "memory" ? new WebAssembly.Memory({ initial: 256 }) : undefined;
-      }
-      K = (await WebAssembly.instantiate(mod, imp)).exports; cpuName = "WebAssembly";
-    } catch (e) {
-      console.warn("wasm failed, using JS fallback", e);
-      if (typeof VIEW1108_ASM !== "function") throw e;
-      K = VIEW1108_ASM(proxyEnv()); cpuName = "wasm2js";
-    }
-  }
-  if (DEBUG) window.VIEW_KERNEL = K;
-  document.getElementById("lst").textContent = document.getElementById("fsrc").textContent;
-}
-
-// ---- kernel access (views are re-made on every access; memory may grow) ----
-const buf = () => K.memory.buffer;
-const rd = g => new Float64Array(buf(), K[g].value, 1)[0];
-const wr = (g, v) => { new Float64Array(buf(), K[g].value, 1)[0] = v; };
-const ri = g => new Int32Array(buf(), K[g].value, 1)[0];
-const wi = (g, v) => { new Int32Array(buf(), K[g].value, 1)[0] = v; };
-
-// ---- state ----
-let scene = 1, playing = true, speedIdx = 3, labels = true, frame = true;
-let get = 0, get0 = 0, yaw = 0, pitch = 0, roll = 0, fov = 12, fov0 = 12;
-let hidden = false;
-let last = 0, dpr = 1, W = 300, Hh = 340;
-
-// ---- shot lists (plain data; tune here) ----
-// Each shot: name, scene, dur (real seconds), fl (bit0 labels, bit1 frame), optional fov/yaw/pitch/roll
-// (number, or function of the shot fraction u), and a time law:
-//   p = [a, b]: GET offset (s) from the scene's default GET, linear in u; or
-//   tte = [[u, seconds to entry interface], ...], log-interpolated (Earth approach);
-//   limb = [[u, deg], ...] steers the camera to keep the Earth's limb top at that screen elevation.
-// Attract: the film's four shots, film seconds (0-5.9 Earthrise, 5.9-20.5 approach, 20.5-26 LM, 26-36.4 descent).
-// Tour: the same scenes at slow real-time rates, dips to black between shots.
-const TETP = 702186;     // entry interface, GET seconds
-const APPROACH = [[0, 11600], [0.14, 6500], [0.62, 900], [1, 600]];
-const LIMB = [[0, -11], [0.14, -11.6], [0.62, -13], [1, -6]];
-const ATTRACT = [
-  { name: "Earthrise",      scene: 1, dur: 5.9,  fl: 2, roll: -3, p: [30, 68] },
-  { name: "Earth approach", scene: 2, dur: 14.6, fl: 0, fov: 60, tte: APPROACH, limb: LIMB },
-  { name: "LM pirouette",   scene: 4, dur: 5.5,  fl: 0, p: [0, 45] },
-  { name: "LM descent",     scene: 5, dur: 10.4, fl: 2, p: [-64, 149] }   // film 27 s = GET 369676, 35 s = 369840, linear; 26 s and 36.4 s extrapolated (scene default 369720)
-];
-const TOUR_FADE = 0.8;   // seconds of fade at each end of a tour shot
-const TOUR = [
-  { name: "Earthrise",      scene: 1, dur: 200, fl: 2, fov: 14, roll: -3, pitch: u => 4 * u, p: [0, 200] },
-  { name: "Earth approach", scene: 2, dur: 150, fl: 0, fov: 60, tte: APPROACH, limb: LIMB },
-  { name: "Earth limb",     scene: 3, dur: 90,  fl: 2, yaw: u => -15 + 30 * u, p: [0, 90] },
-  { name: "Transposition & docking", scene: 7, dur: 110, fl: 2, p: [-60, 160] },   // 3:20:30 to just after docking at 3:24:03, about 2x
-  { name: "LM pirouette",   scene: 4, dur: 120, fl: 0, p: [0, 240] },
-  { name: "LM descent",     scene: 5, dur: 115, fl: 2, p: [-64, 225] },
-  { name: "Moon view \u2014 spin to explore", scene: 6, dur: 75, fl: 3, yaw: u => -180 + 360 * u, pitch: u => 14 * Math.sin(2 * Math.PI * u), p: [0, 0] }
-];
-// Live: the scene follows the mission phase from GET.
-const LIVE_MIN = 700, LIVE_MAX = TETP;     // kernel's Earth-orbit scene is valid from about 700 s
-const PHASES = [
-  { to: 10200, scene: 3, name: "Earth parking orbit" },
-  { to: 75 * 3600 + 50 * 60, scene: 2, name: "Translunar coast" },
-  { to: 135 * 3600 + 24 * 60, scene: 1, name: "Lunar orbit" },
-  { to: Infinity, scene: 2, name: "Transearth coast" }
-];
-const JUMPS = { jtd: { scene: 7, get: 12030, len: 280, name: "Transposition & docking" }, jundock: { scene: 4, get: 360720, len: 1800, name: "LM rendezvous" }, jdesc: { scene: 5, get: 369720, len: 280, name: "LM descent" } };
-const LIVE_RATES = [1, 10, 60, 300, 1000];
-function lerpTab(t, u) { for (let i = 1; i < t.length; i++) if (u <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (u - t[i - 1][0]) / (t[i][0] - t[i - 1][0]); return t[t.length - 1][1]; }
-// Plot units to view angle: the kernel plots a direction at angle theta off the boresight at radius k tan(theta / k)
-// (k = 1 up to a 100 deg field, rising to 2 at 170 deg), so theta = k atan(rho / k).
-const kOf = f => f <= 100 ? 1 : Math.min(2, 1 + (f - 100) / 70);
-const plotToAngle = (rho, f) => { const k = kOf(f); return k * Math.atan(rho * Math.PI / 180 / k) * 180 / Math.PI; };
-const RE_NMI = 3443.9;
-// Aim the camera at the Earth: probe the kernel with no look offset and read hdr(11,12), the body centre's plot
-// X,Y (deg, valid off-frame); the Earth's angular radius comes from the range. Yaw/pitch then put the limb top at
-// plot elevation L, worked out in view angles.
-function steerToEarth(L) {
-  wr("in_get", get); wr("in_yaw", 0); wr("in_pitch", 0); wr("in_roll", 0); wr("in_fov", 60); wi("in_flags", 0);
-  K.view_frame();
-  const H = new Float64Array(buf(), K.hdr.value, 16);
-  const rho = Math.asin(Math.min(1, RE_NMI / Math.max(RE_NMI, H[2]))) * 180 / Math.PI;
-  yaw = plotToAngle(H[10], 60); pitch = plotToAngle(H[11], 60) - (plotToAngle(L, 60) - rho);
-}
-const QP = k => { const m = new RegExp("[?&]" + k + "=([^&]+)").exec(location.search); return m ? m[1] : null; };
-const filmQ = /[?&]film=([\d.]+)/.exec(location.search);
-const LEN = { attract: ATTRACT.reduce((a, s) => a + s.dur, 0), tour: TOUR.reduce((a, s) => a + s.dur, 0) };
-const val = (x, u) => typeof x === "function" ? x(u) : x;
-let mode = "attract", autoT = filmQ ? +filmQ[1] : 0, autoShot = -1, fadeA = 0, capName = "", livePin = null, liveIdx = 0;
-
-function shotGet(sh, u) {
-  if (sh.tte) return TETP - Math.exp(lerpTab(sh.tte.map(q => [q[0], Math.log(q[1])]), u));
-  const p = (QP("p") && filmQ) ? QP("p").split(",").map(Number) : sh.p;
-  return get0 + p[0] + (p[1] - p[0]) * u;
-}
-function autoStep(dt) {
-  const L = mode === "attract" ? ATTRACT : TOUR, len = LEN[mode];
-  if (!filmQ) autoT += dt;
-  if (mode === "attract" && !filmQ && autoT >= len) { startMode("tour"); return; }
-  let t = autoT % len, i = 0;
-  while (i < L.length - 1 && t >= L[i].dur) { t -= L[i].dur; i++; }
-  const sh = L[i], u = t / sh.dur;
-  if (i !== autoShot) {
-    autoShot = i; scene = sh.scene; K.view_init(sh.scene); readDefaults();
-    labels = !!(sh.fl & 1); frame = !!(sh.fl & 2); capName = sh.name; syncUI();
-  }
-  if (sh.fov) fov = sh.fov;
-  if (sh.yaw !== undefined) yaw = val(sh.yaw, u);
-  if (sh.pitch !== undefined) pitch = val(sh.pitch, u);
-  if (sh.roll !== undefined) roll = val(sh.roll, u);
-  if (filmQ) for (const k of ["fov", "yaw", "pitch", "roll"]) if (QP(k) !== null) { const v = +QP(k); if (k === "fov") fov = v; else if (k === "yaw") yaw = v; else if (k === "pitch") pitch = v; else roll = v; }
-  get = shotGet(sh, u);
-  if (sh.limb && QP("nosteer") === null) steerToEarth(lerpTab(sh.limb, u));
-  fadeA = mode === "tour" ? Math.max(0, 1 - t / TOUR_FADE, 1 - (sh.dur - t) / TOUR_FADE) : 0;
-}
-
-// ---- Live ----
-// On entering a phase, aim once at the reference body (hdr 11, 12) if it is in front; the look is then left alone.
-function aimAtBody() {
-  wr("in_get", get); wr("in_yaw", 0); wr("in_pitch", 0); wr("in_roll", 0); wr("in_fov", fov); wi("in_flags", 0);
-  K.view_frame();
-  const H = new Float64Array(buf(), K.hdr.value, 16);
-  if (H[13] === 1) { yaw = H[10]; pitch = H[11]; roll = 0; }
-}
-function livePhase(g) {
-  if (livePin && g >= livePin.from && g <= livePin.until) return { scene: livePin.scene, name: livePin.name };
-  livePin = null;
-  return PHASES.find(p => g < p.to);
-}
-function liveSync() {
-  const ph = livePhase(get); capName = ph.name;
-  if (ph.scene !== scene) {          // keep the viewer's look and the time across a scene change
-    const g = get, y = yaw, pt = pitch, r = roll;   // keep look and time; FOV returns to the new scene's default
-    scene = ph.scene; K.view_init(scene); readDefaults(); get = g; yaw = y; pitch = pt; roll = r; get0 = g; aimAtBody(); syncUI();
-  }
-}
-function liveJump(j) {
-  startMode("live");
-  livePin = { scene: j.scene, from: j.get, until: j.get + j.len, name: j.name };
-  scene = j.scene; K.view_init(scene); readDefaults(); get = j.get; get0 = get; liveSync(); syncUI();
-}
-
-// ---- modes: attract -> tour (loops), live, free ----
-function startMode(m) {
-  const prev = mode; mode = m; autoT = (m === "attract" && filmQ) ? +filmQ[1] : 0; autoShot = -1; fadeA = 0; playing = true;
-  if (m === "live") {
-    get = Math.max(LIVE_MIN, Math.min(LIVE_MAX, get)); livePin = null;
-    scene = livePhase(get).scene; K.view_init(scene); const g = get; readDefaults(); get = g; get0 = g; frame = true; labels = true; liveSync(); aimAtBody();
-  } else if (m === "beam") {
-    beamFrames = []; beamNextStart = 0; beamPrevCompute = 0; beamFrameNo = 0; capName = "";
-  } else if (m === "free") {
-    if (prev === "attract" || prev === "tour") { /* keep the current view and time */ }
-    capName = "";
-  }
-  syncUI();
-}
-const leaveAttract = () => { if (mode === "attract" || mode === "tour") startMode("free"); };
-if (DEBUG) {   // test hooks, enabled by ?debug
-  window.VIEW_STEP = () => step(performance.now());
-  window.VIEW_SEEK = t => { autoT = t; step(performance.now()); };   // with ?film=, jump to auto-mode second t
-  window.VIEW_MODE = startMode;
-  window.VIEW_STEPAT = t => step(t);   // step at a given time (ms), for BEAM captures
-}
-// The picture is drawn to an offscreen canvas (ctx), then presented to the visible one (mctx) with
-// optional film jitter and bloom.
-const cv = document.getElementById("cv"), mctx = cv.getContext("2d");
-const mk = () => document.createElement("canvas");
-const off = mk(), bl1 = mk(), bl2 = mk(), bl3 = mk(), am1 = mk(), am2 = mk(), am3 = mk(), amS = mk(), ctx = off.getContext("2d"), b1c = bl1.getContext("2d"), b2c = bl2.getContext("2d"), b3c = bl3.getContext("2d"), a1c = am1.getContext("2d"), a2c = am2.getContext("2d"), a3c = am3.getContext("2d"), aSc = amS.getContext("2d");
-// Nostalgia toggles: null = automatic (on in Attract/Tour), true/false = the viewer's choice (remembered).
-const prefs = { jitter: null, bloom: null, dust: null, fps: null, catalog: "nav", listing: "dark" };
-const NAV_MAG = NAMES.NAV_MAG || 3.8;   // magnitude limit passing the 391 brightest stars (tools/gen_data.py -> build/names.js)
-try { Object.assign(prefs, JSON.parse(localStorage.getItem("view1108.prefs") || "{}")); } catch (e) { /* storage unavailable */ }
-const savePrefs = () => { try { localStorage.setItem("view1108.prefs", JSON.stringify(prefs)); } catch (e) { /* ignore */ } };
-const auto = () => mode === "attract" || mode === "tour";
-// URL parameters override stored prefs for this visit only, and are never written to storage. A toggle clicked
-// by the viewer drops the URL value for that effect and saves the viewer's own choice.
-const urlOv = {}; for (const k of ["jitter", "bloom", "dust", "fps"]) { const v = UP.get(k); if (v === "0" || v === "1") urlOv[k] = v === "1"; }
-if (UP.get("catalog") === "nav" || UP.get("catalog") === "full") urlOv.catalog = UP.get("catalog");
-const urlFlag = k => k in urlOv ? urlOv[k] : null;
-const effJit = () => urlFlag("jitter") !== null ? urlFlag("jitter") : prefs.jitter !== null ? prefs.jitter : auto();
-const effBloom = () => urlFlag("bloom") !== null ? urlFlag("bloom") : prefs.bloom !== null ? prefs.bloom : auto();   // like the other film effects: on in Attract/Tour, off in Live/Free-look
-const effDust = () => urlFlag("dust") !== null ? urlFlag("dust") : prefs.dust !== null ? prefs.dust : auto();
-const effFps = () => mode === "beam" ? false : urlFlag("fps") !== null ? urlFlag("fps") : prefs.fps !== null ? prefs.fps : auto();   // film rate: present at 16 fps
-const effCatalog = () => (urlOv.catalog || prefs.catalog) === "full" ? "full" : "nav";
-const toggleCatalog = () => { const c = effCatalog() === "full" ? "nav" : "full"; delete urlOv.catalog; prefs.catalog = c; savePrefs(); syncUI(); };
-const toggle = k => { const cur = k === "jitter" ? effJit() : k === "dust" ? effDust() : k === "fps" ? effFps() : effBloom(); delete urlOv[k]; prefs[k] = !cur; savePrefs(); syncUI(); };
-
-function readDefaults() {
-  get = get0 = rd("in_get"); yaw = rd("in_yaw"); pitch = rd("in_pitch"); roll = rd("in_roll"); fov = fov0 = rd("in_fov");
-}
-function setScene(s) {
-  if (mode === "live" && s === 6) {   // Moon view is not a mission phase: in Live it is pinned until the viewer scrubs or types a time
-    const g = get; livePin = { scene: 6, from: -Infinity, until: Infinity, name: SCENE_CAPTION[6] };
-    scene = 6; K.view_init(6); readDefaults(); get = g; get0 = g; capName = SCENE_CAPTION[6]; syncUI(); return;
-  }
-  if (mode !== "beam") mode = "free"; else beamNextStart = 0; capName = ""; scene = s; K.view_init(s); readDefaults(); syncUI();
-}
-function resetView() { const g = get; K.view_init(scene); readDefaults(); get = g; }
-
-// ---- layout ----
-const HDR = 0.115, BOXF = 0.80, HGT = 1.10;
-function resize() {
-  const wrapW = document.getElementById("wrap").clientWidth;
-  W = Math.floor(Math.max(280, Math.min(wrapW, (innerHeight - (STILL ? 0 : 190)) / HGT)));
-  Hh = Math.floor(W * HGT);
-  dpr = (DEBUG && +QP("dpr")) || window.devicePixelRatio || 1;
-  dpr = Math.max(1, Math.min(dpr, 1800 / W));   // cap the backing store at about 1800 device px wide: the film is soft anyway and bloom cost scales with pixels
-  cv.style.width = W + "px"; cv.style.height = Hh + "px";
-  cv.width = off.width = Math.round(W * dpr); cv.height = off.height = Math.round(Hh * dpr);
-  beamFrames = []; beamNextStart = 0;   // BEAM traces are in canvas px: retrace after a resize
-  bl1.width = Math.ceil(cv.width / 2); bl1.height = Math.ceil(cv.height / 2);
-  bl2.width = Math.ceil(cv.width / 4); bl2.height = Math.ceil(cv.height / 4);
-  bl3.width = am3.width = Math.ceil(cv.width / 8); bl3.height = am3.height = Math.ceil(cv.height / 8);
-  am1.width = amS.width = bl1.width; am1.height = amS.height = bl1.height; am2.width = bl2.width; am2.height = bl2.height;
-}
-// Framed plots sit inside a margin for lettering; unframed shots (as in the film) fill the width.
-let framed = true;
-const box = () => framed ? { x: W * (1 - BOXF) / 2, y: W * HDR, s: W * BOXF } : { x: 0, y: W * 0.02, s: W };
-
-// ---- film grain tile ----
-const grain = document.createElement("canvas"); grain.width = grain.height = 128;
-{ const g = grain.getContext("2d"), d = g.createImageData(128, 128);
-  for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255 | 0; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
-  g.putImageData(d, 0, 0); }
-
-const pad2 = n => String(n).padStart(2, "0");
-const LIFTOFF_MS = Date.UTC(1969, 6, 16, 13, 32, 0);   // Apollo 11 lift-off 1969-07-16 13:32:00 UTC (CLAUDE.md)
-const utcStr = g => new Date(LIFTOFF_MS + g * 1000).toISOString().slice(0, 19).replace("T", " ");
-function getStr(s) { const t = Math.floor(Math.abs(s)); return (s < 0 ? "-" : "") + Math.floor(t / 3600) + ":" + pad2(Math.floor(t / 60) % 60) + ":" + pad2(t % 60); }
-
-// ---- stroke font: the recorder's character generator ----
-// Our own single-stroke uppercase font (not Hershey data), ASCII 32..95, on a grid 4 wide by 6 tall
-// (y up). Each glyph is strokes separated by "/", points as two digits "xy". Characters advance
-// 0.7 x height, the width the kernel assumes when it centres tick numbers.
-const GLYPH_SRC = [
-  "", "26 22/20 20", "16 15/36 35", "10 16/30 36/02 42/04 44", "01 10 30 41 42 33 13 04 05 16 36 45/26 20",
-  "00 46/04 14 05 04/32 42 41 32", "40 03 05 16 26 35 24 00 ... ", "26 25", "36 14 12 30", "16 34 32 10",
-  "12 34/14 32/23 25", "03 43/21 25", "22 21 10", "03 43", "20 20", "00 46",
-  "10 30 41 45 36 16 05 01 10", "12 26 20/10 30", "05 16 36 45 44 00 40", "05 16 36 45 44 33 23/33 42 41 30 10 01", "36 02 42/36 30",
-  "46 06 04 34 43 41 30 10 01", "45 36 16 05 01 10 30 41 43 34 04", "06 46 20", "34 45 36 16 05 14 34 43 41 30 10 01 03 14", "01 10 30 41 45 36 16 05 03 14 44",
-  "21 21/25 25", "21 10/25 25", "45 03 41", "04 44/02 42", "05 43 01", "05 16 36 45 44 23 22/20 20",
-  "41 30 10 01 05 16 36 45 43 32 22 13 14 25 35", "00 26 40/12 32", "00 06 36 45 44 33 03/33 42 41 30 00", "45 36 16 05 01 10 30 41", "00 06 26 45 41 20 00",
-  "46 06 00 40/03 33", "46 06 00/03 33", "45 36 16 05 01 10 30 41 43 23", "00 06/40 46/03 43", "10 30/20 26/16 36",
-  "46 41 30 10 01", "00 06/46 03/13 40", "06 00 40", "00 06 24 46 40", "00 06 40 46",
-  "10 01 05 16 36 45 41 30 10", "00 06 36 45 44 33 03", "10 01 05 16 36 45 41 30 10/23 40", "00 06 36 45 44 33 03/23 40", "01 10 30 41 42 33 13 04 05 16 36 45",
-  "06 46/26 20", "06 01 10 30 41 46", "06 20 46", "06 10 22 30 46", "00 46/06 40",
-  "06 23 46/23 20", "06 46 00 40", "36 26 20 30", "06 40", "16 26 20 10", "03 26 43", "00 40"
-];
-GLYPH_SRC[6] = "40 03 05 16 26 35 24 00 ";   // '&'
-const GLYPHS = GLYPH_SRC.map(g => g.split("/").map(st => st.trim().split(/\s+/).filter(Boolean).map(pt => [+pt[0], +pt[1]])).filter(st => st.length));
-// Add a string, lower-left at (px, py) in canvas px, character height hpx, to a Path2D.
-function strokeText(path, str, px, py, hpx) {
-  const u = hpx / 6;
-  for (let i = 0; i < str.length; i++) {
-    const c = str.charCodeAt(i) - 32, g = GLYPHS[c];
-    if (g) for (const st of g) st.forEach((q, j) => { const X = px + q[0] * 0.9 * u, Y = py - q[1] * u; if (j) path.lineTo(X, Y); else path.moveTo(X, Y); });
-    px += 4.2 * u;
-  }
-}
-
-// ---- draw ----
-function draw(now) {
-  const fl = ri("in_flags");
-  const nv = ri("nvec"), ns = ri("nstar"), nl = ri("nlab");
-  const V = new Float64Array(buf(), K.vbuf.value, nv * 5);
-  const S = new Float64Array(buf(), K.sbuf.value, ns * 3);
-  const L = new Float64Array(buf(), K.lbuf.value, nl * 4);
-  const H = new Float64Array(buf(), K.hdr.value, 16);
-  const F = H[1] || fov, half = H[14] > 0 ? H[14] : F / 2;   // the plot box is +-hdr(15) plot degrees
-  framed = !!(fl & 2);
-  const b = box(), k = b.s / (2 * half), cx = b.x + b.s / 2, cy = b.y + b.s / 2;
-
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, Hh);
-  const flick = 0.93 + 0.07 * Math.random();
-  const fs = Math.max(9, Math.min(15, W * 0.024));
-
-  // header
-  if (framed) {
-  ctx.fillStyle = "#eee"; ctx.textBaseline = "alphabetic";
-  ctx.font = `${fs * 1.25}px ${getComputedStyle(document.body).getPropertyValue("--hd")}`;
-  ctx.textAlign = "center";
-  ctx.fillText("Field of view = " + (F < 10 ? F.toFixed(1) : Math.round(F)) + "°", cx, b.y - fs * 2.3);
-  ctx.font = `${fs * 0.95}px "Courier Prime","Courier New",monospace`;
-  const rb = H[5] === 1 ? "R_E" : "R_M";
-  ctx.fillText(`${rb} = ${Math.round(H[2])} n. mi.   h = ${Math.round(H[3])} stat. mi.   V_I = ${Math.round(H[4])} fps`, cx, b.y - fs * 0.8);
-
-  }
-  ctx.save();
-  ctx.beginPath(); ctx.rect(framed ? b.x - 2 : 0, b.y - 2, b.s + 4, b.s + 4); ctx.clip();
-  ctx.lineCap = "round"; ctx.lineJoin = "round";
-  // vectors: solid and dashed batched into paths
-  const beam = mode === "beam", rec = beam && beamNew ? new BeamRec() : null;
-  const solid = rec ? rec.sub(0) : new Path2D(), dash = rec ? rec.sub(1) : new Path2D();
-  for (let i = 0; i < nv * 5; i += 5) {
-    const p = V[i + 4] === 2 ? dash : solid;
-    p.moveTo(cx + V[i] * k, cy - V[i + 1] * k); p.lineTo(cx + V[i + 2] * k, cy - V[i + 3] * k);
-  }
-  // Stars. TN D-6853 p.12: "The user has the option of using two star catalogs. The one more often used
-  // consists of the 391 stars used by the Apollo crewmen for navigational sightings. The first 37 stars are
-  // the prime Apollo navigational stars and are identified by name on the microfilm. The remaining stars
-  // are represented by asterisks. The other catalog contains 1078 star listings, ranging in visual
-  // magnitude to 4.5. None of these stars is identified by name, but all appear as dots on the microfilm."
-  // NAV: the 391-star navigation catalog approximated as the 391 brightest of ours (NAV_MAG, computed from
-  // data/stars.6.json by tools/gen_data.py); drawn as asterisks. FULL: everything, drawn as dots.
-  // Our conjecture: the spoke count and length by magnitude (6 to 8 spokes, length 1x to 1.6x), and that
-  // the film's round soft dots are these symbols blurred by the CRT-to-film process.
-  const bloomOn = effBloom(), fullCat = effCatalog() === "full";
-  const named = (x, y) => { for (let j = 0; j < nl * 4; j += 4) if (L[j + 2] === 1 && Math.abs(L[j] - x) < 0.03 && Math.abs(L[j + 1] - y) < 0.03) return true; return false; };
-  const rF = Math.max(0.8, W * 0.0026) * (effBloom() ? 1.3 : 1), starP = rec ? rec.sub(0) : new Path2D();
-  for (let i = 0; i < ns * 3; i += 3) {
-    const m = S[i + 2];
-    if (!fullCat && m > NAV_MAG && !named(S[i], S[i + 1])) continue;   // the 37 named stars are always in the NAV catalog
-    const t = Math.max(0, Math.min(1, (4.5 - m) / 5.5)), r = rF * (1 + 0.6 * t);
-    const x = cx + S[i] * k, y = cy - S[i + 1] * k;
-    if (fullCat) { starP.moveTo(x, y); starP.lineTo(x + 0.01, y); if (!bloomOn) starP.lineTo(x + r * 0.5, y); continue; }
-    const n = m <= 2 ? 12 : 8, rr = r * 1.1;
-    for (let a = 0; a < n; a++) { const th = Math.PI * 2 * a / n - Math.PI / 2; starP.moveTo(x, y); starP.lineTo(x + rr * Math.cos(th), y + rr * Math.sin(th)); }
-  }
-  const textP = rec ? rec.sub(0) : new Path2D();   // recorder text is not clipped to the plot box: tick numbers sit just outside it
-  // Recorder text (kernel tbuf/tchr): tick numbers and names, in the film layer with the vectors.
-  if (K.tbuf) {
-    const nt = ri("ntxt"), T = new Float64Array(buf(), K.tbuf.value, nt * 4), C = new Int32Array(buf(), K.tchr.value, ri("nchr"));
-    for (let j = 0; j < nt * 4; j += 4) {
-      let str = ""; for (let q = T[j + 3] - 1; q < C.length && C[q]; q++) str += String.fromCharCode(C[q]);
-      const alpha = /[A-Z]/.test(str);
-      if (alpha && (!labels || (fullCat && NAMES.NAV.includes(str)))) continue;   // names follow the Labels toggle; FULL catalog has no star names
-      strokeText(textP, str, cx + T[j] * k, cy - T[j + 1] * k, T[j + 2] * k);
-    }
-  }
-  if (labels) for (let i = 0; i < nl * 4; i += 4) if ((L[i + 2] | 0) === 2) {   // crater names stay page-side, in the same font
-    const t = NAMES.CRATER[(L[i + 3] | 0) - 1]; if (!t) continue;
-    const hd = 2 * half * 0.014, up = t.toUpperCase();
-    strokeText(textP, up, cx + L[i] * k - up.length * 0.7 * hd * k / 2, cy - L[i + 1] * k + hd * k / 2, hd * k);
-  }
-  // BLOOM: a hairline (about 1 device px) beam; all glow comes from the blur passes in present().
-  const lw = bloomOn ? Math.max(1, 0.0009 * cv.width) / dpr : Math.max(1, W / 420); hairline = lw;   // hairline: 0.09% of canvas width, at least 1 device px
-  for (const [w, a] of bloomOn ? [[lw, 1 * flick]] : [[lw * 3.2, 0.10 * flick], [lw, 0.95 * flick]]) {
-    ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = w;
-    if (beam) break;
-    ctx.setLineDash([]); ctx.stroke(solid);
-    ctx.setLineDash([lw * 5, lw * 4]); ctx.stroke(dash);
-  }
-  // stars: the same stroke as every other line; BLOOM (one whole-frame blur) turns the asterisks into round soft dots
-  ctx.setLineDash([]); ctx.lineCap = "round";
-  ctx.strokeStyle = `rgba(255,255,255,${0.98 * flick})`; ctx.lineWidth = lw; if (!beam) ctx.stroke(starP);
-  ctx.restore();
-  // recorder text, unclipped, same strokes and glow as the vectors
-  for (const [w, a] of bloomOn ? [[lw, 1 * flick]] : [[lw * 3.2, 0.10 * flick], [lw, 0.95 * flick]]) {
-    ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = w; ctx.setLineDash([]); ctx.lineCap = "round"; if (!beam) ctx.stroke(textP);
-  }
-  if (rec) beamCommit(rec.segs, now);
-  if (beam) beamRender(now, lw, flick);
-
-  // axis captions (page lettering; tick numbers and names come from the kernel text records)
-  if (framed) {
-  ctx.font = `${fs}px ${getComputedStyle(document.body).getPropertyValue("--hd")}`; ctx.fillStyle = "#eee";
-  ctx.textAlign = "center"; ctx.textBaseline = "top";
-  ctx.fillText("X, deg", cx, b.y + b.s + fs * 2);
-  ctx.save(); ctx.translate(b.x - fs * 3.2, cy); ctx.rotate(-Math.PI / 2); ctx.textBaseline = "bottom"; ctx.fillText("Y, deg", 0, 0); ctx.restore();
-  }
-  const showCap = framed || mode !== "attract";   // the film has no text on its unframed shots
-  if (showCap) {
-  ctx.textAlign = "center"; ctx.fillStyle = "#eee";
-  ctx.textBaseline = "top"; ctx.font = `${fs * 1.1}px "Courier Prime","Courier New",monospace`;
-  const sc = H[6] | 0;
-  ctx.fillText("g.e.t. = " + getStr(H[0]), cx, b.y + b.s + fs * (framed ? 4.0 : 0.5));
-  ctx.fillStyle = "#aaa"; ctx.font = `${fs}px ${getComputedStyle(document.body).getPropertyValue("--hd")}`;
-  const liveTag = mode === "live" ? `LIVE ${LIVE_RATES[liveIdx]}x   ` : mode === "tour" ? "TOUR   " : "";
-  ctx.fillText(liveTag + (capName || SCENE_CAPTION[sc] || SCENES[sc - 1] || "") + (H[5] && !(SCENE_CAPTION[sc] && (!capName || capName === SCENE_CAPTION[sc])) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (roll ? `   roll ${roll.toFixed(0)}°` : ""), cx, b.y + b.s + fs * (framed ? 5.7 : 2.0));
-  }
-
-  if (fadeA > 0) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, fadeA)})`; ctx.fillRect(0, 0, W, Hh); }
-  present(now, bloomOn);
-}
-
-// Whole-frame film jitter at about 24 fps (offset 0.2-0.5% of width, sometimes 0.1 deg of rotation,
-// slight brightness flicker), and bloom: blurred downsampled copies added back on top.
-let hairline = 1;   // line width (css px) of the frame just drawn
-let jx = 0, jy = 0, jr = 0, jb = 1, lastJ = 0;
-function present(now, bloomOn) {
-  const w = cv.width, h = cv.height;
-  if (effJit()) {
-    if (effFps() || now - lastJ >= 1000 / 24) {
-      lastJ = now; const a = Math.random() * 6.2832, m = 0.0005 + 0.00075 * Math.random();
-      jx = Math.cos(a) * m; jy = Math.sin(a) * m;
-      jr = Math.random() < 0.2 ? (Math.random() * 2 - 1) * 0.025 * Math.PI / 180 : 0;
-      jb = 0.94 + 0.06 * Math.random();
-    }
-  } else { jx = jy = jr = 0; jb = 1; }
-  mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalCompositeOperation = "source-over"; mctx.globalAlpha = 1;
-  mctx.fillStyle = "#000"; mctx.fillRect(0, 0, w, h);
-  mctx.save();
-  mctx.translate(w / 2 + jx * w, h / 2 + jy * w); mctx.rotate(jr); mctx.translate(-w / 2, -h / 2);
-  mctx.globalAlpha = jb; mctx.drawImage(off, 0, 0);
-  if (bloomOn) {
-    // Multi-scale glow. All sizes are fractions of the canvas width, so the look is the same at any size or dpr:
-    // gaussian sigmas 0.12%, 0.3% and 0.7% of the width (about 1.2, 3 and 7 px at 1000 px) with weights 0.5, 0.27
-    // and 0.12 of the normalised peak. The blurs run on 1/2, 1/4 and 1/8 size copies, the levels are summed, a
-    // contrast curve pulls the faint tail back to black (no haze over empty areas, hatching stays separate), and the
-    // result is added with 'lighter' (which clamps: overlaps saturate to white) under the sharp hairline.
-    const Wd = cv.width, s1 = 0.0012 * Wd, s2 = 0.003 * Wd, s3 = 0.007 * Wd, wd = Math.max(1, hairline * dpr);
-    const bl = (c, src, sw, sigma, gain) => { c.clearRect(0, 0, c.canvas.width, c.canvas.height); c.filter = `blur(${sigma}px)`; c.imageSmoothingQuality = "high"; c.drawImage(src, 0, 0, c.canvas.width, c.canvas.height); };
-    bl(b1c, off, 2, s1 / 2); bl(b2c, bl1, 4, Math.sqrt(s2 * s2 - s1 * s1) / 4); bl(b3c, bl2, 8, Math.sqrt(s3 * s3 - s2 * s2) / 8);
-    // gain = weight * sigma * sqrt(2 pi) / line width restores each level's normalised peak
-    const gain = (wt, sg_) => (wt * sg_ * 2.507 / wd).toFixed(2);
-    a1c.clearRect(0, 0, am1.width, am1.height); a1c.filter = `brightness(${gain(0.5, s1)})`; a1c.drawImage(bl1, 0, 0);
-    a2c.clearRect(0, 0, am2.width, am2.height); a2c.filter = `brightness(${gain(0.27, s2)})`; a2c.drawImage(bl2, 0, 0);
-    a3c.clearRect(0, 0, am3.width, am3.height); a3c.filter = `brightness(${gain(0.12, s3)})`; a3c.drawImage(bl3, 0, 0);
-    a1c.filter = "none"; a1c.globalCompositeOperation = "lighter"; a1c.imageSmoothingQuality = "high";
-    a1c.drawImage(am2, 0, 0, am1.width, am1.height); a1c.drawImage(am3, 0, 0, am1.width, am1.height); a1c.globalCompositeOperation = "source-over";
-    aSc.clearRect(0, 0, amS.width, amS.height); aSc.filter = "contrast(1.4)"; aSc.drawImage(am1, 0, 0);
-    mctx.globalCompositeOperation = "lighter"; mctx.imageSmoothingQuality = "high"; mctx.globalAlpha = jb;
-    mctx.drawImage(amS, 0, 0, w, h);
-  }
-  // film grain, after the glow so the blur gains do not amplify it
-  mctx.globalCompositeOperation = "lighter"; mctx.globalAlpha = 0.018; mctx.filter = "none";
-  mctx.fillStyle = mctx.createPattern(grain, "repeat");
-  mctx.save(); mctx.translate((Math.random() * 128) | 0, (Math.random() * 128) | 0);
-  mctx.fillRect(-128, -128, w + 256, h + 256); mctx.restore();
-  mctx.globalAlpha = 1; mctx.globalCompositeOperation = "source-over";
-  if (effDust()) drawDust(now, w, h);
-  mctx.restore();
-}
-
-// Film dirt, in film-frame coordinates (it moves with the jitter): a few tiny dark specks or off-white
-// hairs per film frame (24 fps), and now and then a faint vertical scratch that lasts a few frames.
-let lastD = 0, specks = [], scratchX = 0, scratchLeft = 0, nextScratch = 0;
-function drawDust(now, w, h) {
-  if (effFps() || now - lastD >= 1000 / 24) {
-    lastD = now; specks = [];
-    const n = Math.floor(Math.pow(Math.random(), 2.2) * 4);          // 0-3, mostly 0 or 1
-    for (let i = 0; i < n; i++) specks.push({ x: Math.random() * w, y: Math.random() * h, dark: Math.random() < 0.6, len: 3 + Math.random() * 6, a: Math.random() * 3.1416, r: 1 + Math.random() * 2 });
-    if (scratchLeft > 0) { scratchLeft--; scratchX += (Math.random() - 0.5) * 3 * dpr; }
-    else if (now > nextScratch) { scratchLeft = 3 + Math.floor(Math.random() * 4); scratchX = Math.random() * w; nextScratch = now + 5000 + Math.random() * 10000; }
-  }
-  mctx.globalCompositeOperation = "source-over"; mctx.globalAlpha = 1; mctx.lineCap = "round";
-  for (const sp of specks) {
-    if (sp.dark) { mctx.fillStyle = "rgba(0,0,0,0.8)"; mctx.beginPath(); mctx.arc(sp.x, sp.y, sp.r * dpr, 0, 6.2832); mctx.fill(); }
-    else { mctx.strokeStyle = "rgba(220,220,210,0.4)"; mctx.lineWidth = dpr; mctx.beginPath(); mctx.moveTo(sp.x, sp.y); mctx.lineTo(sp.x + Math.cos(sp.a) * sp.len * dpr, sp.y + Math.sin(sp.a) * sp.len * dpr); mctx.stroke(); }
-  }
-  if (scratchLeft > 0) { mctx.strokeStyle = "rgba(230,230,220,0.13)"; mctx.lineWidth = dpr; mctx.beginPath(); mctx.moveTo(scratchX, 0); mctx.lineTo(scratchX + 1.5 * dpr, h); mctx.stroke(); }
-}
-
-// ---- BEAM mode: the frame is traced vector by vector on a phosphor that fades ----
-// All rates are our estimates (see docs/univac-1108.md, "The recorder" and "Restomod arithmetic"); no recorder
-// model is claimed. About 13,000 vectors/s is one S-C 4020 character time per vector (60-85 us) and about 1.3 s is
-// the estimated 1108 compute time per frame, both estimates in that page.
-const BEAM_SPEEDS = [
-  { name: "1108 + RECORDER (EST.)", short: "1108+REC", vps: 13000, pause: 1.3, tau: 1.5 },
-  { name: "RECORDER ONLY (EST.)", short: "RECORDER", vps: 13000, pause: 0, tau: 1.5 },
-  { name: "SLOW TRACE", short: "SLOW", vps: 1000, pause: 0, tau: 1.5 },
-  { name: "PERSISTENCE", short: "PERSIST", vps: 0, pause: 0, tau: 0.15 }   // vps 0: the whole frame in 1/15 s
-];
-const BEAM_TIP = "Trace rates are estimates (docs/univac-1108.md); no recorder model is claimed.";
-let beamFrameNo = 0, beamIdx = 0, beamNew = false, beamNextStart = 0, beamPrevCompute = 0, beamFrames = [], beamPen = null;
-// Path-like recorder: strokeText() and the star/vector code call moveTo/lineTo; here they append segments in order.
-function BeamRec() { this.segs = []; }
-BeamRec.prototype.sub = function (dash) { const r = this, o = { x: 0, y: 0, moveTo(x, y) { o.x = x; o.y = y; }, lineTo(x, y) { r.segs.push(o.x, o.y, x, y, dash); o.x = x; o.y = y; } }; return o; };
-// A finished frame becomes a trace: segments in kernel order (vbuf, then stars, then text), each with the time it is drawn.
-// Time per segment is 1 unit plus 2 x its length in plot widths (our choice: a constant per-vector time plus a small
-// per-length term), so a full-width line costs 3 units. Tracing starts after the 1108 compute pause.
-function beamCommit(list, now) {
-  const n = list.length / 5, cfg = BEAM_SPEEDS[beamIdx], sg = new Float32Array(n * 4), dsh = new Uint8Array(n), tOn = new Float64Array(n), cost = new Float64Array(n + 1);
-  for (let i = 0; i < n; i++) {
-    const a = list[i * 5], b = list[i * 5 + 1], c = list[i * 5 + 2], d = list[i * 5 + 3];
-    sg[i * 4] = a; sg[i * 4 + 1] = b; sg[i * 4 + 2] = c; sg[i * 4 + 3] = d; dsh[i] = list[i * 5 + 4];
-    cost[i + 1] = cost[i] + 1 + 2 * Math.hypot(c - a, d - b) / W;
-  }
-  const vps = cfg.vps || Math.max(1, cost[n] * 15);   // PERSISTENCE: the frame takes 1/15 s
-  const t0 = now + cfg.pause * 1000;
-  for (let i = 0; i < n; i++) tOn[i] = t0 + cost[i] / vps * 1000;
-  const tEnd = t0 + cost[n] / vps * 1000;
-  beamFrames.push({ sg, dsh, tOn, n, tEnd, tau: cfg.tau * 1000 });
-  beamNextStart = tEnd;
-}
-const lowerBound = (arr, n, v) => { let lo = 0, hi = n; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] < v) lo = m + 1; else hi = m; } return lo; };
-// Draw every traced segment with an intensity that has decayed exp(-age/tau), in a few intensity buckets so each
-// bucket is one stroke; the pen (beam spot) is drawn at the segment being traced.
-function beamRender(now, lw, flick) {
-  const BK = 14, ps = [], pd = []; for (let b = 0; b < BK; b++) { ps.push(new Path2D()); pd.push(new Path2D()); }
-  beamPen = null;
-  beamFrames = beamFrames.filter(f => now - f.tEnd < 4.6 * f.tau + 50);
-  for (const f of beamFrames) {
-    if (now < f.tOn[0]) continue;
-    const hi = lowerBound(f.tOn, f.n, now + 1e-6), lo = lowerBound(f.tOn, f.n, now - 4.6 * f.tau);
-    for (let i = lo; i < hi; i++) {
-      const b = Math.min(BK - 1, Math.floor(Math.exp(-(now - f.tOn[i]) / f.tau) * BK)), P = f.dsh[i] ? pd[b] : ps[b];
-      P.moveTo(f.sg[i * 4], f.sg[i * 4 + 1]); P.lineTo(f.sg[i * 4 + 2], f.sg[i * 4 + 3]);
-    }
-    if (now < f.tEnd && hi > 0 && hi < f.n) {   // the pen sits partway along the segment being drawn
-      const i = hi - 1, u = Math.min(1, (now - f.tOn[i]) / Math.max(1e-6, f.tOn[i + 1] - f.tOn[i]));
-      beamPen = [f.sg[i * 4] + (f.sg[i * 4 + 2] - f.sg[i * 4]) * u, f.sg[i * 4 + 1] + (f.sg[i * 4 + 3] - f.sg[i * 4 + 1]) * u];
-    }
-  }
-  ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = lw;
-  for (let b = 0; b < BK; b++) {
-    ctx.strokeStyle = `rgba(255,255,255,${(b + 0.5) / BK * flick})`;
-    ctx.setLineDash([]); ctx.stroke(ps[b]); ctx.setLineDash([lw * 5, lw * 4]); ctx.stroke(pd[b]);
-  }
-  ctx.setLineDash([]);
-  if (beamPen) {
-    const r = Math.max(2.5, W * 0.005), g = ctx.createRadialGradient(beamPen[0], beamPen[1], 0, beamPen[0], beamPen[1], r * 2.2);
-    g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.35, "rgba(255,255,255,0.9)"); g.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(beamPen[0], beamPen[1], r * 2.2, 0, 6.2832); ctx.fill();
-  }
-}
-
-// ---- main loop ----
-function step(now) {
-  const dt = last ? Math.min(0.25, (now - last) / 1000) : 0; last = now;
-  if (mode === "attract" || mode === "tour") autoStep(dt);
-  else if (mode === "live") { if (playing) get = Math.max(LIVE_MIN, Math.min(LIVE_MAX, get + dt * LIVE_RATES[liveIdx])); liveSync(); }
-  else if (mode === "beam") {   // time advances one frame per completed trace, by the real time it took x the rate
-    beamNew = now >= beamNextStart;
-    // the clock never runs ahead of the drawing: each frame steps mission time by the real time the previous frame took
-    // (trace plus any 1108 pause) at 1x, whatever the free-look rate is; it changes only when a new frame starts
-    if (beamNew) { if (beamPrevCompute) get += (now - beamPrevCompute) / 1000; beamPrevCompute = now; beamFrameNo++; }
-  }
-  else if (playing) get += dt * SPEEDS[speedIdx];
-  wr("in_get", get); wr("in_yaw", yaw); wr("in_pitch", pitch); wr("in_roll", roll); wr("in_fov", fov);
-  wi("in_flags", 1 | (frame ? 2 : 0) | (hidden ? 4 : 0));   // labels always requested: the NAV catalog needs the 37 named stars
-  if (mode !== "beam" || beamNew) K.view_frame();
-  draw(now); beamNew = false; updateStatus();
-  const sc = document.getElementById("scrub"), gi = document.getElementById("geti");
-  if (mode === "live") { sc.min = LIVE_MIN; sc.max = LIVE_MAX; } else { sc.min = -7200; sc.max = 7200; }
-  if (document.activeElement !== sc) sc.value = mode === "live" ? get : Math.max(-7200, Math.min(7200, get - get0));
-  if (document.activeElement !== gi) gi.value = getStr(get);
-  document.getElementById("utc").textContent = "UTC " + utcStr(get);
-}
-let lastStatus = "", flashMsg = "", flashUntil = 0;
-const flash = m => { flashMsg = m; flashUntil = performance.now() + 1800; };
-function updateStatus() {
-  const rate = mode === "beam" ? `${BEAM_SPEEDS[beamIdx].name} ${BEAM_SPEEDS[beamIdx].vps ? BEAM_SPEEDS[beamIdx].vps + " VEC/S" : "1/15 S FRAME"}` : mode === "live" ? LIVE_RATES[liveIdx] + "X" : mode === "free" ? (playing ? SPEEDS[speedIdx] + "X" : "HOLD") : "AUTO";
-  const t = (performance.now() < flashUntil ? flashMsg + "  " : "") + `MODE ${mode}  G.E.T. ${getStr(get)}  UTC ${utcStr(get)}  ${mode === "beam" ? "FRAME " + beamFrameNo + "  " : ""}${rate}  BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  DUST ${effDust() ? "ON" : "OFF"}  STARS ${effCatalog().toUpperCase()}${effFps() ? "  16 FPS" : ""}`;
-  if (t !== lastStatus) { lastStatus = t; document.getElementById("status").textContent = t; }
-}
-// Film rate: with the toggle on, the kernel is stepped and a frame presented only every 1/16 s and held in between
-// (time keeps running in real time because step() works from the elapsed time).
-let lastPresent = 0;
-function tick(now) {
-  if (effFps()) {
-    if (now - lastPresent < 1000 / 16 - 2) { requestAnimationFrame(tick); return; }
-    lastPresent = now - lastPresent > 125 ? now : lastPresent + 1000 / 16;
-  }
-  step(now); requestAnimationFrame(tick);
-}
-
-// ---- UI ----
-function syncUI() {
-  document.querySelectorAll("#scenes button").forEach((b, i) => b.classList.toggle("on", i + 1 === scene));
-  document.getElementById("bplay").textContent = playing ? "Pause" : "Play";
-  document.getElementById("spd").textContent = mode === "beam" ? BEAM_SPEEDS[beamIdx].short : (mode === "live" ? LIVE_RATES[liveIdx] : SPEEDS[speedIdx]) + "x";
-  document.getElementById("spd").title = mode === "beam" ? BEAM_SPEEDS[beamIdx].name + ". " + BEAM_TIP : "";
-  for (const m of ["attract", "tour", "live", "free", "beam"]) document.getElementById("m" + m).classList.toggle("on", mode === m);
-  document.getElementById("bhid").classList.toggle("on", hidden);
-  document.getElementById("bjit").classList.toggle("on", effJit());
-  document.getElementById("bdust").classList.toggle("on", effDust());
-  document.getElementById("bfps").classList.toggle("on", effFps());
-  document.getElementById("bblm").classList.toggle("on", effBloom());
-  document.getElementById("bcat").textContent = "Catalog " + (effCatalog() === "full" ? "full" : "nav");
-  document.getElementById("blab").classList.toggle("on", labels);
-  document.getElementById("bfrm").classList.toggle("on", frame);
-}
-const $ = id => document.getElementById(id);
-SCENES.forEach((n, i) => { const b = document.createElement("button"); b.textContent = (i + 1) + " " + n; b.onclick = () => setScene(i + 1); $("scenes").appendChild(b); });
-for (const m of ["attract", "tour", "live", "free", "beam"]) $("m" + m).onclick = () => startMode(m);
-for (const id in JUMPS) $(id).onclick = () => liveJump(JUMPS[id]);
-const bump = d => { if (mode === "beam") beamIdx = Math.max(0, Math.min(BEAM_SPEEDS.length - 1, beamIdx + d)); else if (mode === "live") liveIdx = Math.max(0, Math.min(LIVE_RATES.length - 1, liveIdx + d)); else speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, speedIdx + d)); syncUI(); };
-const parseGet = t => {
-  const u = /^\s*(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})\s*Z?\s*$/.exec(t);   // a UTC timestamp
-  if (u) return (Date.UTC(+u[1], +u[2] - 1, +u[3], +u[4], +u[5], +u[6]) - LIFTOFF_MS) / 1000;
-  return parseGetHms(t);
-};
-const parseGetHms = t => { const m = t.trim().split(":").map(Number); if (m.some(isNaN)) return null; return m.length === 3 ? m[0] * 3600 + m[1] * 60 + m[2] : m.length === 2 ? m[0] * 3600 + m[1] * 60 : m[0]; };
-$("geti").onchange = e => { const g = parseGet(e.target.value); if (g === null) return; leaveAttract(); livePin = null; get = mode === "live" ? Math.max(LIVE_MIN, Math.min(LIVE_MAX, g)) : g; e.target.blur(); };
-$("bjit").onclick = () => toggle("jitter");
-$("bdust").onclick = () => toggle("dust");
-$("bfps").onclick = () => toggle("fps");
-$("bblm").onclick = () => toggle("bloom");
-$("bcat").onclick = toggleCatalog;
-$("bhid").onclick = () => { leaveAttract(); hidden = !hidden; syncUI(); };
-$("bplay").onclick = () => { leaveAttract(); playing = !playing; syncUI(); };
-$("bslow").onclick = () => { leaveAttract(); bump(-1); };
-$("bfast").onclick = () => { leaveAttract(); bump(1); };
-$("breset").onclick = () => { leaveAttract(); resetView(); };
-$("blab").onclick = () => { leaveAttract(); labels = !labels; syncUI(); };
-$("bfrm").onclick = () => { leaveAttract(); frame = !frame; syncUI(); };
-// Listing overlay: DARK terminal or LIGHT greenbar; the light sheets are built on first use.
-const fieldata = t => t.toUpperCase().replace(/[^A-Z0-9 @\[\]#)\-+<=>&$*(%:?!,\\';\/.]/g, "?");   // FIELDATA printable set per fourmilab.ch/documents/univac/fieldata.html (octal 00-77, ASCII-representable characters)
-function buildPaper() {
-  const paper = $("paper"); if (paper.dataset.built) return; paper.dataset.built = "1";
-  const lines = $("fsrc").textContent.replace(/\t/g, "        ").split("\n"), PER = 64;   // 64 text lines + header + blank = 66
-  if (lines.length && lines[lines.length - 1] === "") lines.pop();
-  for (let pg = 0; pg * PER < lines.length; pg++) {
-    const el = document.createElement("div"), pre = document.createElement("pre"); el.className = "pg";
-    let txt = "VIEW-1108 FORTRAN LISTING (OUR RECONSTRUCTION)   PAGE " + (pg + 1) + "\n\n";
-    for (let i = pg * PER; i < Math.min(lines.length, (pg + 1) * PER); i++) txt += String(i + 1).padStart(5, " ") + "  " + fieldata(lines[i]) + "\n";
-    pre.textContent = txt; el.appendChild(pre); paper.appendChild(el);
-  }
-}
-let listingLight = UP.get("listing") ? UP.get("listing") === "light" : prefs.listing === "light";   // ?listing=dark|light
-function applyListing() {
-  const light = listingLight;
-  $("list").classList.toggle("light", light); $("blist").textContent = light ? "Dark" : "Light";
-  if (light) buildPaper();
-}
-$("blist").onclick = () => { listingLight = !listingLight; prefs.listing = listingLight ? "light" : "dark"; savePrefs(); applyListing(); };
-$("bsrc").onclick = () => { applyListing(); $("list").classList.add("open"); };
-$("bclose").onclick = () => $("list").classList.remove("open");
-$("scrub").oninput = e => { leaveAttract(); livePin = null; get = mode === "live" ? Number(e.target.value) : get0 + Number(e.target.value); };
-
-const clampFov = v => Math.max(1, Math.min(170, v));
-const plotPx = () => box().s;
-const ptrs = new Map(); let pinch0 = 0, fovPinch = 0;
-cv.addEventListener("pointerdown", e => { leaveAttract(); cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); cv.focus();
-  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); fovPinch = fov; } });
-cv.addEventListener("pointermove", e => {
-  const p = ptrs.get(e.pointerId); if (!p) return;
-  const dx = e.clientX - p[0], dy = e.clientY - p[1]; p[0] = e.clientX; p[1] = e.clientY;
-  if (ptrs.size === 1) {
-    if (scene === 6) {   // Moon view: yaw/pitch are the sub-observer longitude/latitude, so dragging spins the globe under the pointer
-      const Hh_ = new Float64Array(buf(), K.hdr.value, 16), R = Hh_[12] > 0 && Hh_[14] > 0 ? Hh_[12] / Hh_[14] * plotPx() / 2 : 0.85 * (fov0 / fov) * plotPx() / 2;   // disc radius in px: hdr(13) over the box half-width hdr(15)
-      const d = 180 / Math.PI / R;   // degrees of longitude per px at the disc centre
-      yaw -= dx * d; pitch = Math.max(-90, Math.min(90, pitch + dy * d)); yaw = ((yaw + 180) % 360 + 360) % 360 - 180;
-    } else { const Hh_ = new Float64Array(buf(), K.hdr.value, 16), d = 2 * (Hh_[14] > 0 ? Hh_[14] : fov / 2) / plotPx(); yaw -= dx * d; pitch += dy * d; pitch = Math.max(-90, Math.min(90, pitch)); }
-  }
-  else if (ptrs.size === 2 && pinch0 > 0) { const [a, b] = [...ptrs.values()]; fov = clampFov(fovPinch * pinch0 / Math.max(1, Math.hypot(a[0] - b[0], a[1] - b[1]))); }
-});
-const up = e => { ptrs.delete(e.pointerId); pinch0 = 0; };
-cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
-cv.addEventListener("wheel", e => { e.preventDefault(); leaveAttract(); fov = clampFov(fov * Math.exp(e.deltaY * 0.001)); }, { passive: false });
-
-window.addEventListener("keydown", e => {
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if ($("list").classList.contains("open")) { if (e.key === "Escape") $("list").classList.remove("open"); return; }
-  const d = scene === 6 ? 5 : fov * 0.05, k = e.key;
-  if (k === "j" || k === "J") { toggle("jitter"); e.preventDefault(); return; }
-  if (k === "d" || k === "D") { toggle("dust"); e.preventDefault(); return; }
-  if (k === "f" || k === "F") { toggle("fps"); e.preventDefault(); return; }
-  if (k === "t" || k === "T") { startMode("beam"); e.preventDefault(); return; }
-  if (k === "l" || k === "L") { copyLink(); e.preventDefault(); return; }
-  if (k === "b" || k === "B") { toggle("bloom"); e.preventDefault(); return; }
-  if (k === "c" || k === "C") { toggleCatalog(); e.preventDefault(); return; }
-  if (k.length === 1 || k.startsWith("Arrow")) leaveAttract();
-  let h = true;
-  if (k === "ArrowLeft") yaw -= d; else if (k === "ArrowRight") yaw += d;
-  else if (k === "ArrowUp") pitch = Math.min(90, pitch + d); else if (k === "ArrowDown") pitch = Math.max(-90, pitch - d);
-  else if (k === "q" || k === "Q") roll -= 2; else if (k === "e" || k === "E") roll += 2;
-  else if (k === "+" || k === "=") fov = clampFov(fov / 1.1); else if (k === "-" || k === "_") fov = clampFov(fov * 1.1);
-  else if (k === " ") { playing = !playing; syncUI(); }
-  else if (k === "[") bump(-1);
-  else if (k === "]") bump(1);
-  else if (k === "r" || k === "R") resetView();
-  else if (k >= "1" && k <= String(SCENES.length)) setScene(+k);
-  else h = false;
-  if (h) e.preventDefault();
-});
-window.addEventListener("resize", resize);
-
-// ---- LINK: a URL that reproduces the current view (parameters are listed in the README) ----
-function linkURL() {
-  const q = [], add = (k, v) => q.push(k + "=" + encodeURIComponent(v)), rnd = v => +v.toFixed(3);
-  add("mode", mode);
-  if (mode !== "attract" && mode !== "tour") {
-    if (mode !== "live" || livePin) add("scene", scene);
-    add("get", getStr(get)); add("fov", rnd(fov)); add("yaw", rnd(yaw)); add("pitch", rnd(pitch)); add("roll", rnd(roll));
-    if (mode === "live") add("rate", LIVE_RATES[liveIdx]); else if (mode === "beam") add("bspeed", beamIdx + 1); else add("rate", SPEEDS[speedIdx]);
-    if (!labels) add("labels", 0); if (!frame) add("frame", 0); if (hidden) add("hidden", 1);
-  }
-  const dAuto = mode === "attract" || mode === "tour";   // effects whose default is on in the film-like modes
-  if (effJit() !== dAuto) add("jitter", +effJit());
-  if (effDust() !== dAuto) add("dust", +effDust());
-  if (effBloom()) add("bloom", 1);
-  if (effFps() !== (dAuto && mode !== "beam")) add("fps", +effFps());
-  if (effCatalog() === "full") add("catalog", "full");
-  return location.origin === "null" ? location.href.split("?")[0] + "?" + q.join("&") : location.origin + location.pathname + "?" + q.join("&");
-}
-function copyLink() {
-  const url = linkURL(), box = $("linkbox");
-  const fallback = () => { box.style.display = "block"; box.value = url; box.focus(); box.select(); flash("COPY THE LINK BELOW"); };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => { box.style.display = "none"; flash("COPIED"); }, fallback); else fallback();
-}
-$("blink").onclick = copyLink;
-
-// ---- URL parameters: mode, scene, get / utc, fov yaw pitch roll, rate, bspeed, labels frame hidden, effects ----
-function applyParams() {
-  const num = k => { if (!UP.has(k) || UP.get(k).trim() === "") return null; const n = Number(UP.get(k)); return isFinite(n) ? n : null; };
-  const flag = k => UP.get(k) === "1" ? true : UP.get(k) === "0" ? false : null;
-  const md = ["attract", "tour", "live", "free", "beam"].includes(UP.get("mode")) ? UP.get("mode") : "attract";
-  if (md === "attract" || md === "tour") { startMode(md); return; }
-  let g = null; for (const k of ["get", "utc"]) if (UP.has(k)) { const v = parseGet(UP.get(k)); if (v !== null && isFinite(v)) g = v; }
-  const sc = num("scene") === null ? 1 : Math.round(num("scene")), scn = sc >= 1 && sc <= SCENES.length ? sc : 1;
-  if (md === "free" || md === "beam") { setScene(scn); if (g !== null) get = g; if (md === "beam") { const b = Math.round(num("bspeed") ?? 0); if (b >= 1 && b <= BEAM_SPEEDS.length) beamIdx = b - 1; startMode("beam"); } }
-  else {   // live: the scene follows the mission phase, except the LM and docking views, which are pinned
-    if (g !== null) get = g;
-    startMode("live");
-    if (scn === 6) setScene(6);
-    else if (scn === 4 || scn === 5 || scn === 7) { const j = JUMPS[{ 4: "jundock", 5: "jdesc", 7: "jtd" }[scn]]; liveJump({ ...j, get: g ?? j.get }); }
-  }
-  const r = num("rate"); if (r !== null) { if (md === "live" && LIVE_RATES.includes(r)) liveIdx = LIVE_RATES.indexOf(r); else if (md === "free" && SPEEDS.includes(r) && r > 0) speedIdx = SPEEDS.indexOf(r); }
-  const f = num("fov"); if (f !== null) fov = Math.max(1, Math.min(170, f));
-  const y = num("yaw"); if (y !== null) yaw = y;
-  const pt = num("pitch"); if (pt !== null) pitch = Math.max(-90, Math.min(90, pt));
-  const rl = num("roll"); if (rl !== null) roll = rl;
-  if (flag("labels") !== null) labels = flag("labels");
-  if (flag("frame") !== null) frame = flag("frame");
-  if (flag("hidden") !== null) hidden = flag("hidden");
-  syncUI();
-}
-
-boot().then(() => {
-  resize(); setScene(1);
-  if (BARE) { document.body.classList.add("still"); resize(); }
-  if (STILL) { const tq = /[?&]t=(-?[0-9.]+)/.exec(location.search); playing = false; get = get0 + (tq ? parseFloat(tq[1]) : 70); roll = -3; labels = false; syncUI(); }
-  else applyParams();
-  requestAnimationFrame(tick); })
-  .catch(e => { $("err").textContent = "Could not start the kernel: " + e.message; console.error(e); });
-})();
-</script>
+<!-- Page modules, in this order. tools/assemble.py inlines the stylesheet and joins the scripts into one
+     strict-mode closure; served as is (?mock) they load as separate scripts. -->
+<script src="src/config.js"></script>
+<script src="src/kernel.js"></script>
+<script src="src/state.js"></script>
+<script src="src/modes.js"></script>
+<script src="src/prefs.js"></script>
+<script src="src/lettering.js"></script>
+<script src="src/render.js"></script>
+<script src="src/film.js"></script>
+<script src="src/beam.js"></script>
+<script src="src/loop.js"></script>
+<script src="src/controls.js"></script>
+<script src="src/pad.js"></script>
+<script src="src/shades.js"></script>
+<script src="src/listing.js"></script>
+<script src="src/link.js"></script>
+<script src="src/main.js"></script>
 </body>
 </html>

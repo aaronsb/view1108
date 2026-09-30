@@ -74,6 +74,25 @@ Is the film's leg-less LM shot (film seconds 20.5 to 26) this view? We think not
 | `L` | Copy a link to the current view |
 | `B` `J` `D` `F` `C` | Bloom, jitter, dust, film rate, catalog |
 
+## Control pad
+
+The Look group holds a pad of key caps that does what the keyboard does, for mouse and touch. Each cap shows its key.
+
+| Cap | Key | Action | Repeats when held |
+|---|---|---|---|
+| `↑` `↓` `←` `→` | Arrows | Pitch up, pitch down, yaw left, yaw right (in the Moon view, spin the Moon) | yes |
+| `Q` `E` | `Q` `E` | Roll left, roll right, 2° a step | yes |
+| `+` ZOOM, `-` WIDE | `+` `-` | Narrow or widen the field of view by 10% | yes |
+| `R` RESET | `R` | Reset the view | no |
+| `[` SLOWER, `]` FASTER | `[` `]` | Slower / faster | no |
+| `SPC` PAUSE | Space | Pause or play | no |
+
+A press acts at once and leaves Attract or Tour for Free-look, as a key press does. A held cap repeats after 0.5 s, then about 30 times a second (our choice, near common desktop key-repeat settings). Each finger holds its own cap, so two can be held together. Pressing or dragging on the pad does not scroll or zoom the page.
+
+## Control groups
+
+Each control group (Mode, Look, Scene, Time, Display, Film, Listing and link) has a header: `[-]` shows the group is open, `[+]` shut; click or tap the header to change it. The page remembers each group's state in this browser. Until you change one, a screen 600 px wide or less opens only Mode and Look, and puts Look first, under the picture; a wider screen opens every group.
+
 ## Link parameters
 
 | Parameter | Values | Example |
