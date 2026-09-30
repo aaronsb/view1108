@@ -29,6 +29,7 @@ C       vlayer.f  the layer dispatcher and each scene's layer list
 C       Core:  ephem.f (time, Sun, Moon), traj.f (trajectory legs,
 C              the replay), sim.f (the engine), tape.f (the tape it
 C              writes), vsrc.f (the state source: replay or tape),
+C              vview.f (camera target and external view),
 C              pen.f (projection, clipping, visibility, vectors),
 C              vtext.f (text records), vmath.f (vectors, matrices),
 C              models.f (spacecraft model library)
@@ -72,10 +73,10 @@ C     RESTOMOD END
       INTEGER ISC
       DOUBLE PRECISION GET, YAW, PIT, ROL, FOV
       DOUBLE PRECISION R(3), V(3), PM(3), E(3), S(3), X, Y, TFIX
-      INTEGER I, ISNSC(7)
+      INTEGER I, ISNSC(8)
       DOUBLE PRECISION VDOT, EVGET
 C     The scenario of each scene: all Apollo 11 as flown for now.
-      DATA ISNSC / 1, 1, 1, 1, 1, 1, 1 /
+      DATA ISNSC / 1, 1, 1, 1, 1, 1, 1, 1 /
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (INITD .NE. 1) THEN
@@ -86,7 +87,7 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       END IF
 C     RESTOMOD END
       ISCN = ISC
-      IF (ISCN .LT. 1 .OR. ISCN .GT. 7) ISCN = 1
+      IF (ISCN .LT. 1 .OR. ISCN .GT. 8) ISCN = 1
       IF (ISNSC(ISCN) .NE. ISN) CALL SNSET(ISNSC(ISCN))
       YAW = 0.0D0
       PIT = 0.0D0
@@ -150,6 +151,15 @@ C       EARTH PARKING ORBIT, looking forward at the horizon.
 C       LM RENDEZVOUS / INSPECTION, two minutes after undocking.
         GET = EVGET(KEUND) + 120.0D0
         FOV = 12.0D0
+      ELSE IF (ISCN .EQ. 8) THEN
+C       THE DOCKED STACK IN TRANSLUNAR COAST (a modern addition: VIEW
+C       drew vehicles as seen from a vehicle, TN D-6853 p. 12, not
+C       from outside both).  Half an hour into passive thermal
+C       control, which began at 10:58:19 (the scenario's PTC event),
+C       after the LM's extraction (4:17) and before the first
+C       midcourse correction (26:45): our choice of moment.
+        GET = EVGET(KEPTC) + 1800.0D0
+        FOV = 40.0D0
       ELSE IF (ISCN .EQ. 7) THEN
 C       TRANSPOSITION AND DOCKING.  Mid-approach, about 56 ft out
 C       (see S7POSE for the closing law), looking along the CSM +X
@@ -193,7 +203,7 @@ C     RESTOMOD END
       INTEGER NT, TC(MAXTC), NCH
       DOUBLE PRECISION PM(3), CG(3), CV(3), RB, RNG, D1, D2, D3, D4
       DOUBLE PRECISION PB(3), RR, VNRM, VDOT, RHO
-      INTEGER I, IREF, IWIN, IOK, J
+      INTEGER I, IREF, IWIN, IOK, J, LOOKD
       DOUBLE PRECISION MR1(3,3), MR2(3,3)
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
@@ -247,6 +257,8 @@ C     reference body IREF, window code IWIN, reference attitude.
       CALL SCNCAM(GET, PM, CG, CV, IREF, IWIN)
 C     Spacecraft models first: they hide stars and bodies.
       CALL SCNMOD(GET)
+C     The camera target and the external view (vview.f).
+      CALL VIEWPT(GET, PM, CG, YAW, PIT, ROL, LOOKD)
       DO 20 I = 1, 3
         EPOS(I) = -CG(I)
         MPOS(I) = PM(I) - CG(I)
@@ -260,7 +272,7 @@ C     Free look, then the boresight in the Moon frame.
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (ISCN .EQ. 6) THEN
         CALL LOOK(0.0D0, 0.0D0, ROL)
-      ELSE
+      ELSE IF (LOOKD .EQ. 0) THEN
         CALL LOOK(YAW, PIT, ROL)
       END IF
 C     RESTOMOD END
@@ -300,6 +312,7 @@ C     Scene 4: the LM.  Scene 7: the LM's docking target (S7POSE).
         IF (IREF .EQ. 2) PB(I) = MPOS(I)
         IF (ISCN .EQ. 4) PB(I) = 300.0D0 * 0.3048D-3 * BREF(I)
         IF (ISCN .EQ. 7) PB(I) = S7LP(I) - 0.72D-3 * S7AT(I,2)
+        IF (ISCN .EQ. 8) PB(I) = MDP(I,KCSM) + 3.2D-3 * MDAT(I,1,KCSM)
    40 CONTINUE
       RR = RE
       IF (IREF .EQ. 2) RR = RM
@@ -307,6 +320,8 @@ C     Scene 4: the LM.  Scene 7: the LM's docking target (S7POSE).
 C     Scene 7: the LM, half its 14 ft 1 in width (Apollo 11 press kit,
 C     printed p. 96).
       IF (ISCN .EQ. 7) RR = 2.15D-3
+C     Scene 8: about half the stack's length.
+      IF (ISCN .EQ. 8) RR = 1.0D-2
       CALL PROJ(PB, HD(11), HD(12), IOK)
       HD(13) = RHO(DASIN(DMIN1(1.0D0, RR / VNRM(PB))))
       HD(15) = BOXH
@@ -432,6 +447,25 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         END IF
 C     RESTOMOD END
         CALL VUNIT(UREF)
+      ELSE IF (ISCN .EQ. 8) THEN
+C       The docked stack (S8ATT) from 60 m on its far side from the
+C       Earth, looking at it with the Earth behind; the stack's X axis
+C       up.  Its own view is external (VIEWPT), which yaw and pitch
+C       carry around the stack.
+        IREF = 1
+        CALL VSTATE(GET, 1, R, V)
+        CALL S8ATT(GET)
+        DO 120 I = 1, 3
+          BREF(I) = -R(I)
+  120   CONTINUE
+        CALL VUNIT(BREF)
+        K = VDOT(S8AT(1,1), BREF)
+        DO 125 I = 1, 3
+          UREF(I) = S8AT(I,1) - K * BREF(I)
+          CG(I) = R(I) - 0.060D0 * BREF(I)
+          CV(I) = V(I)
+  125   CONTINUE
+        CALL VUNIT(UREF)
       ELSE IF (ISCN .EQ. 7) THEN
 C       Transposition and docking.  The CSM on the translunar ellipse
 C       (30 m from the S-IVB, nothing at this scale), turned around to
@@ -549,6 +583,7 @@ C     RESTOMOD END
       CALL MCLEAR
       IF (ISCN .EQ. 4) CALL LMPIRO(GET)
       IF (ISCN .EQ. 7) CALL S7POSE(GET)
+      IF (ISCN .EQ. 8) CALL S8POSE
       RETURN
       END
 C
@@ -692,3 +727,74 @@ C     The attitude time from the scenario (TDATT).
    10 CONTINUE
       RETURN
       END
+C
+C     VSETIN: the view inputs for the next frame (the chassis calls it
+C     before VFRAME): view, camera target, label level.  Out-of-range
+C     values fall back to 0.
+      SUBROUTINE VSETIN(IV, IT, IL)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      INTEGER IV, IT, IL
+      IVIEW = IV
+      ITARG = IT
+      ILABL = IL
+      IF (IVIEW .LT. 0 .OR. IVIEW .GT. 3) IVIEW = 0
+      IF (ITARG .LT. 0 .OR. ITARG .GT. 5) ITARG = 0
+      IF (ILABL .LT. 0 .OR. ILABL .GT. 3) ILABL = 0
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     S8ATT: the docked stack's attitude in passive thermal control,
+C     CSM body axes in S8AT.  "In this attitude the spacecraft will be
+C     rotated at a rate of about 3 revolutions per hour" (Apollo 11
+C     Flight Journal, commentary after 008:11:00); "rotated about its
+C     X axis" (same, Apollo Control at 8 hours 59 minutes); "PTC is
+C     started now" (Collins, 010:58:19).  The axis is ours: square to
+C     the ecliptic, so the Sun stays square to it (J2000 ecliptic pole);
+C     the roll starts with +Z toward the Sun.  Before PTC, no roll.
+C-----------------------------------------------------------------------
+      SUBROUTINE S8ATT(GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, X(3), Y(3), Z(3), EP, PH, C, S, EVGET
+      INTEGER I
+      EP = 23.4392911D0 * DR
+      CALL SETV(X, 0.0D0, -DSIN(EP), DCOS(EP))
+      CALL VCRS(X, SUNU, Y)
+      CALL VUNIT(Y)
+      CALL VCRS(X, Y, Z)
+      PH = 0.0D0
+      IF (GET .GT. EVGET(KEPTC)) PH = 3.0D0 * 2.0D0 * PI / 3600.0D0
+     &  * (GET - EVGET(KEPTC))
+      C = DCOS(PH)
+      S = DSIN(PH)
+      DO 10 I = 1, 3
+        S8AT(I,1) = X(I)
+        S8AT(I,2) = C * Y(I) + S * Z(I)
+        S8AT(I,3) = C * Z(I) - S * Y(I)
+   10 CONTINUE
+      RETURN
+      END
+C
+C     S8POSE: place the docked stack (STKPL), the LM with its gear
+C     stowed (KLMS) as in translunar coast (press kit p. 103), 60 m
+C     along the reference boresight from the camera.
+      SUBROUTINE S8POSE
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION P(3)
+      INTEGER I
+      DO 10 I = 1, 3
+        P(I) = 0.060D0 * BREF(I)
+   10 CONTINUE
+      CALL STKPL(S8AT, P, KLMS)
+      RETURN
+      END
+

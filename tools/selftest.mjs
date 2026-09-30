@@ -27,9 +27,13 @@ const F = ctx.VIEW1108_ASM(imports);
 
 const f64 = (K, name, n) => Array.from(new Float64Array(K.memory.buffer, K[name].value, n));
 const i32 = (K, name) => new Int32Array(K.memory.buffer, K[name].value, 1)[0];
-function run(K, scene, flags = 3) {
+function run(K, scene, flags = 3, view = 0, target = 0) {
   K.view_init(scene);
   new Int32Array(K.memory.buffer, K.in_flags.value, 1)[0] = flags;
+  if (K.in_view) {
+    new Int32Array(K.memory.buffer, K.in_view.value, 1)[0] = view;
+    new Int32Array(K.memory.buffer, K.in_target.value, 1)[0] = target;
+  }
   K.view_frame();
   const nvec = i32(K, 'nvec'), nstar = i32(K, 'nstar'), nlab = i32(K, 'nlab');
   const ntxt = i32(K, 'ntxt'), nchr = i32(K, 'nchr');
@@ -40,7 +44,7 @@ function run(K, scene, flags = 3) {
 }
 const maxdiff = (a, b) => a.reduce((m, v, i) => Math.max(m, Math.abs(v - b[i])), 0);
 let ok = true;
-for (const scene of [1, 2, 3, 4, 5, 6, 7]) {
+for (const scene of [1, 2, 3, 4, 5, 6, 7, 8]) {
   const a = run(W, scene), b = run(F, scene);
   const t0 = performance.now(); for (let i = 0; i < 50; i++) W.view_frame();
   const ms = (performance.now() - t0) / 50;
@@ -53,6 +57,19 @@ for (const scene of [1, 2, 3, 4, 5, 6, 7]) {
     `  ${same ? 'identical' : 'DIFFER'}  wasm ${ms.toFixed(2)} ms/frame`);
   if (!same || a.nvec === 0) ok = false;
 }
+// Views and camera targets (in_view, in_target): every scene external, and window views aimed at the
+// Earth, the Moon and the Sun; wasm and the fallback must agree.
+if (W.in_view) {
+  let same = true, n = 0;
+  for (const scene of [1, 2, 3, 4, 5, 6, 7, 8])
+    for (const [v, t] of [[1, 0], [1, 4], [0, 1], [0, 2], [0, 3]]) {
+      const a = run(W, scene, 3, v, t), b = run(F, scene, 3, v, t); n++;
+      if (!(a.nvec === b.nvec && a.nstar === b.nstar && maxdiff(a.hdr, b.hdr) === 0 &&
+            maxdiff(a.vbuf, b.vbuf) === 0)) same = false;
+    }
+  console.log(`views and targets: ${n} frames  ${same ? 'identical' : 'DIFFER'}`);
+  if (!same) ok = false;
+}
 // Simulation mode: run the engine with delta correction on (1) and off (0), then draw every
 // scene from the tape (in_flags bit 3) and check wasm and the fallback agree; also time sim_run.
 if (W.sim_run) {
@@ -60,7 +77,7 @@ if (W.sim_run) {
     const t0 = performance.now(); W.sim_run(sf); const ms = performance.now() - t0;
     F.sim_run(sf);
     let same = true, drawn = 0;
-    for (const scene of [1, 2, 3, 4, 5, 6, 7]) {
+    for (const scene of [1, 2, 3, 4, 5, 6, 7, 8]) {
       const a = run(W, scene, 3 | 8), b = run(F, scene, 3 | 8);
       if (!(a.nvec === b.nvec && a.nstar === b.nstar && maxdiff(a.hdr, b.hdr) === 0 &&
             maxdiff(a.vbuf, b.vbuf) === 0)) same = false;

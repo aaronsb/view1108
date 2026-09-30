@@ -68,6 +68,7 @@ EVENT KIND=DOCK T=3:24:03.1 SRC="MR Table 3-I p. 3-4 and Table 7-II p. 7-9; SP p
 EVENT KIND=UNDOCK T=100:12:00.0 SRC="MR Table 3-I p. 3-4"
 EVENT KIND=TOUCH T=102:45:39.9 SRC="MR Table 3-I p. 3-4, lunar landing"
 EVENT KIND=EI T=195:03:05.7 SRC="MR Table 7-VII p. 7-12, entry interface"
+EVENT KIND=PTC T=10:58:19 SRC="Apollo 11 Flight Journal, 010:58:19, Collins: PTC is started now"
 *
 * ---------------------------------------------------------------------
 * SIMULATION (src/sim.f): the START state, the SCORE (burns) and the

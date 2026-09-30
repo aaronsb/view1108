@@ -8,7 +8,8 @@
 ! With VIEW_TIME set in the environment, also times 200 frames and
 ! prints the mean to stderr.  With VIEW_SIM=n, runs the engine first
 ! (sim_run flags n: bit 0 correction on); add 8 to FLAGS to draw from
-! the tape.
+! the tape.  VIEW_VIEW, VIEW_TARGET and VIEW_LABLV set in_view,
+! in_target and in_lablv (default 0).
 program viewsvg
   implicit none
   integer, parameter :: MAXV = 60000, MAXS = 4000, MAXL = 200
@@ -35,6 +36,9 @@ program viewsvg
     subroutine simrun(ifl)
       integer :: ifl
     end subroutine simrun
+    subroutine vsetin(iv, it, il)
+      integer :: iv, it, il
+    end subroutine vsetin
   end interface
 
   na = command_argument_count()
@@ -66,6 +70,7 @@ program viewsvg
     call simrun(k)
   end if
 
+  call vsetin(envint('VIEW_VIEW'), envint('VIEW_TARGET'), envint('VIEW_LABLV'))
   call vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, lb, nl, hd, tb, nt, tc, nch)
 
   call get_environment_variable('VIEW_TIME', tv)
@@ -126,6 +131,14 @@ program viewsvg
   write (*, '(a)') '</text></g></svg>'
 
 contains
+
+  integer function envint(name)
+    character(len=*), intent(in) :: name
+    character(len=16) :: v
+    envint = 0
+    call get_environment_variable(name, v)
+    if (len_trim(v) > 0) read (v, *) envint
+  end function envint
 
   double precision function px(x)
     double precision, intent(in) :: x

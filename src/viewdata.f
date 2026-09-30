@@ -8158,13 +8158,16 @@ C     EVENT 6
 C       TOUCH: MR Table 3-I p. 3-4, lunar landing
 C     EVENT 7
 C       EI: MR Table 7-VII p. 7-12, entry interface
-      DATA (EVT(IBD),IBD=1,7) /
+C     EVENT 8
+C       PTC: Apollo 11 Flight Journal, 010:58:19, Collins: PTC is
+C       started now
+      DATA (EVT(IBD),IBD=1,8) /
      1 11360.0D0,11824.6D0,12030.0D0,12243.1D0,
-     1 360720.0D0,369939.9D0,702185.7D0/
-      DATA (EVSN(IBD),IBD=1,7) /
-     1 1,1,1,1,1,1,1/
-      DATA (EVKND(IBD),IBD=1,7) /
-     1 1,2,3,4,5,6,7/
+     1 360720.0D0,369939.9D0,702185.7D0,39499.0D0/
+      DATA (EVSN(IBD),IBD=1,8) /
+     1 1,1,1,1,1,1,1,1/
+      DATA (EVKND(IBD),IBD=1,8) /
+     1 1,2,3,4,5,6,7,8/
 C     START 1
 C       START: MR Table 7-II p. 7-9, translunar injection
       DATA STP(1,1) / 10213.200D0 /

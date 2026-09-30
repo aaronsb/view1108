@@ -75,6 +75,8 @@ C     RESTOMOD END
      &      + W(1) * P(1) + W(2) * P(2) + W(3) * P(3)
           IF (LWD(J,IS) .LE. 0.0D0) LINS(IS) = 0
    50   CONTINUE
+C       An outline model's solids hide nothing (MDHL = 0).
+        IF (MDHL(K) .EQ. 0) GO TO 60
         LACT(IS) = 1
         NACT = NACT + 1
    60 CONTINUE
@@ -121,7 +123,12 @@ C     the camera is inside the solid.
           IF (LWD(LME(3,J,IS),IS) .GE. 0.0D0 .AND.
      &        LWD(LME(4,J,IS),IS) .GE. 0.0D0) IH = 1
           IF (LINS(IS) .EQ. 1) IH = 0
+C         An outline model (MDHL = 0): every edge, nothing hidden.
+          IF (MDHL(K) .EQ. 0) GO TO 68
           CALL LMSEG(VB, NV, A, B, IS, IH)
+          GO TO 70
+   68     ISTYLE = 1
+          CALL MSEG(VB, NV, A, B)
    70   CONTINUE
    80 CONTINUE
 C     Free lines and face marks.
@@ -144,7 +151,11 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
      &      GO TO 100
         END IF
 C     RESTOMOD END
+        IF (MDHL(K) .EQ. 0) GO TO 95
         CALL LMSEG(VB, NV, A, B, IS, 0)
+        GO TO 100
+   95   ISTYLE = 1
+        CALL MSEG(VB, NV, A, B)
   100 CONTINUE
       ISTYLE = 1
       RETURN
@@ -258,3 +269,33 @@ C     RESTOMOD BEGIN: Cyrus-Beck ray/convex test, published 1978
 C     RESTOMOD END
       RETURN
       END
+C
+C-----------------------------------------------------------------------
+C     STKPL: place the docked CSM and LM.  AT: the CSM's body axes in
+C     EQ; P (km, camera relative): where the centre of the CM's base
+C     is.  The LM (model KL: KLMD gear down, KLMS stowed) faces it,
+C     its X axis against the CSM's and its Z axis along the CSM's (a
+C     half turn about Z; the roll between them is ours), tunnel top
+C     to tunnel top on the CSM's axis.  The two tunnels' tops meet at
+C     the CSM tunnel's top, 10 ft 7 in above the CM's base (CSMBLD).
+C-----------------------------------------------------------------------
+      SUBROUTINE STKPL(AT, P, KL)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION AT(3,3), P(3), AL(3,3), PL(3), BO(3), Z(3)
+      INTEGER KL, I
+      CALL SETV(Z, 0.0D0, 0.0D0, 0.0D0)
+      CALL MPLACE(KCSM, AT, P, Z)
+      DO 10 I = 1, 3
+        AL(I,1) = -AT(I,1)
+        AL(I,2) = -AT(I,2)
+        AL(I,3) = AT(I,3)
+        PL(I) = P(I) + (10.0D0 + 7.0D0 / 12.0D0) * 0.3048D-3 * AT(I,1)
+   10 CONTINUE
+      CALL SETV(BO, 4.35D0, 0.0D0, -0.6D0)
+      CALL MPLACE(KL, AL, PL, BO)
+      RETURN
+      END
+

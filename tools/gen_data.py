@@ -151,9 +151,10 @@ def craters():
 
 # Scenarios (run decks).  Codes shared with the kernel through viewdims.inc.
 LEG_TYPES = {"CIRC": 1, "CONIC": 2, "LUNAR": 3}
-EVENT_KINDS = {"TDATT": 1, "SEP": 2, "APPR": 3, "DOCK": 4, "UNDOCK": 5, "TOUCH": 6, "EI": 7}
+EVENT_KINDS = {"TDATT": 1, "SEP": 2, "APPR": 3, "DOCK": 4, "UNDOCK": 5, "TOUCH": 6, "EI": 7,
+               "PTC": 8}
 EVENT_PARAMS = {"TDATT": "KETDA", "SEP": "KESEP", "APPR": "KEAPR", "DOCK": "KEDOK",
-                "UNDOCK": "KEUND", "TOUCH": "KETD", "EI": "KEEI"}
+                "UNDOCK": "KEUND", "TOUCH": "KETD", "EI": "KEEI", "PTC": "KEPTC"}
 NLGP = 12   # leg parameters, see scenarios()
 # Keys each card type reads.  Other keys are ignored with a warning, so cards can grow
 # (a BURN's TRIGGER= and TARGET= are planned, docs/simulation.md) without breaking old decks.

@@ -55,6 +55,17 @@ C     S-IVB with the instrument unit and the stub of the SLA.
       CALL MODBEG(KSIV)
       CALL SIVBMD
       CALL MODEND(KSIV)
+C     CSM, an outline (MDHL = 0).
+      CALL MODBEG(KCSM)
+      CALL CSMBLD
+      CALL MODEND(KCSM)
+      MDHL(KCSM) = 0
+C     CM cabin: the commander's window outlines about the design eye,
+C     an outline (station view only).
+      CALL MODBEG(KCMC)
+      CALL CMCAB
+      CALL MODEND(KCMC)
+      MDHL(KCMC) = 0
       RETURN
       END
 C
@@ -67,6 +78,7 @@ C     RESTOMOD END
       INTEGER K
       MDS1(K) = NSOL + 1
       MDX1(K) = NXL + 1
+      MDHL(K) = 1
       RETURN
       END
 C
@@ -443,3 +455,297 @@ C     Edges: base, top, uprights.
       NLE(IS) = NE
       RETURN
       END
+C
+C-----------------------------------------------------------------------
+C     MKFRU: frustum over polygon P (NP points in axes A1, A2 about O),
+C     reaching H along AN with the top polygon scaled by SC; faces and
+C     edges numbered as MKPRS's (1..NP sides, NP+1 base, NP+2 top).
+C-----------------------------------------------------------------------
+      SUBROUTINE MKFRU(NP, P, O, A1, A2, AN, H, SC)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      INTEGER NP
+      DOUBLE PRECISION P(2,NP), O(3), A1(3), A2(3), AN(3), H, SC
+      DOUBLE PRECISION CEN(3), E1(3), E2(3), N(3), D, VDOT
+      INTEGER I, K, K2, IS, IA, IB, IC, NE
+      NSOL = NSOL + 1
+      IS = NSOL
+      NLV(IS) = 2 * NP
+      NLF(IS) = NP + 2
+      DO 20 K = 1, NP
+        DO 10 I = 1, 3
+          LMV(I,K,IS) = O(I) + P(1,K) * A1(I) + P(2,K) * A2(I)
+          LMV(I,K+NP,IS) = O(I) + H * AN(I)
+     &      + SC * (P(1,K) * A1(I) + P(2,K) * A2(I))
+   10   CONTINUE
+   20 CONTINUE
+      DO 25 I = 1, 3
+        CEN(I) = O(I) + 0.5D0 * H * AN(I)
+   25 CONTINUE
+      DO 40 K = 1, NP + 2
+        K2 = MOD(K, NP) + 1
+        IA = K
+        IB = K2
+        IC = K + NP
+        IF (K .EQ. NP + 1) IA = 1
+        IF (K .EQ. NP + 1) IB = 3
+        IF (K .EQ. NP + 1) IC = 6
+        IF (K .EQ. NP + 2) IA = 1 + NP
+        IF (K .EQ. NP + 2) IB = 3 + NP
+        IF (K .EQ. NP + 2) IC = 6 + NP
+        DO 30 I = 1, 3
+          E1(I) = LMV(I,IB,IS) - LMV(I,IA,IS)
+          E2(I) = LMV(I,IC,IS) - LMV(I,IA,IS)
+   30   CONTINUE
+        CALL VCRS(E1, E2, N)
+        CALL VUNIT(N)
+        D = VDOT(N, LMV(1,IA,IS))
+        IF (D - VDOT(N, CEN) .GE. 0.0D0) GO TO 36
+        DO 35 I = 1, 3
+          N(I) = -N(I)
+   35   CONTINUE
+        D = -D
+   36   DO 38 I = 1, 3
+          LMN(I,K,IS) = N(I)
+   38   CONTINUE
+        LMD(K,IS) = D
+   40 CONTINUE
+      NE = 0
+      DO 50 K = 1, NP
+        K2 = MOD(K, NP) + 1
+        NE = NE + 1
+        LME(1,NE,IS) = K
+        LME(2,NE,IS) = K2
+        LME(3,NE,IS) = K
+        LME(4,NE,IS) = NP + 1
+        NE = NE + 1
+        LME(1,NE,IS) = K + NP
+        LME(2,NE,IS) = K2 + NP
+        LME(3,NE,IS) = K
+        LME(4,NE,IS) = NP + 2
+        NE = NE + 1
+        LME(1,NE,IS) = K
+        LME(2,NE,IS) = K + NP
+        LME(3,NE,IS) = K
+        LME(4,NE,IS) = MOD(K + NP - 2, NP) + 1
+   50 CONTINUE
+      NLE(IS) = NE
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     CSMBLD: the command and service module.  Body axes X along the
+C     stack toward the CM apex, Y and Z across (Apollo CSM convention:
+C     the RCS quads sit near +-Y and +-Z, below); origin at the centre
+C     of the CM's base, metres.  Sources (CSM News Reference, North
+C     American Rockwell 1969, "NR"; Apollo Operations Handbook SM2A-
+C     03-Block II-(1), 1969, "AOH"; Apollo 11 press kit, "PK"), where
+C     they disagree the one used is named:
+C       CM: "Height 10ft 7 in.", "Diameter 12ft 10in." (NR p. 39; PK
+C         p. 87 has 11 ft 5 in high, AOH p. 1-4 11 ft 1.5 in).  The
+C         cone's shape is ours: a 16-sided frustum to 0.55 m radius at
+C         2.25 m (about 32 deg half-angle), then a tunnel 0.45 m in
+C         radius to the 10 ft 7 in height (tunnel size ours).
+C       Fairing: "22 inches high" (NR p. 54; AOH p. 1-50 has 26 in),
+C         drawn as a short cylinder of the SM's diameter.
+C       SM: the cylinder "12 feet 11 inches long (high) and 12 feet 10
+C         inches in diameter" (AOH p. 1-50).
+C       SPS nozzle: an extension "protruding more than 9 feet below
+C         the aft bulkhead" (NR p. 58); we take 9 ft 8 in, the NR p. 3
+C         "22ft,7 in. excluding fairing" less the AOH's 12 ft 11 in
+C         (ours), and "an exit diameter of 7 feet 10-1/2 inches" (NR
+C         p. 162); the throat end (0.5 m radius) is ours.
+C       RCS quads: "four clusters of 90 degrees apart around the upper
+C         portion" (NR p. 58), "offset about 7 degrees from the Y and Z
+C         axes" (NR p. 148); each "eight feet long and nearly three feet
+C         wide" (NR p. 59), 0.3 m proud of the skin and centred 1.5 m
+C         below the SM's top (ours).
+C       High-gain antenna: on the aft bulkhead; "four 31-inch diameter
+C         parabolas" (NR p. 177); the boom "swings out at right angles
+C         to the spacecraft longitudinal axis, with the boom pointing 52
+C         degrees below the heads-up horizontal" (PK p. 90).  Our
+C         reading: the boom leaves the SM's aft edge in the Y-Z plane,
+C         52 deg from +Y toward -Z; its length (2.4 m) and the dishes'
+C         arrangement (2 by 2, square to the boom) are ours.
+C-----------------------------------------------------------------------
+      SUBROUTINE CSMBLD
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,24), Q(2,8)
+      DOUBLE PRECISION FT, RB, XF, XS, HS, XN, RN, C, S, C2, S2
+      DOUBLE PRECISION BR(3), BD(3), BU(3), T(3), CX, CY, HA, R
+      INTEGER K, J, I
+      FT = 0.3048D0
+      RB = 0.5D0 * (12.0D0 + 10.0D0 / 12.0D0) * FT
+      DO 10 K = 1, 16
+        P(1,K) = RB * DCOS(DBLE(K) * PI / 8.0D0)
+        P(2,K) = RB * DSIN(DBLE(K) * PI / 8.0D0)
+   10 CONTINUE
+      CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
+      CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
+      CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
+C     CM cone and tunnel.
+      CALL SETV(O, 0.0D0, 0.0D0, 0.0D0)
+      CALL MKFRU(16, P, O, A1, A2, AN, 2.25D0, 0.55D0 / RB)
+      DO 12 K = 1, 16
+        P(1,K) = 0.45D0 * DCOS(DBLE(K) * PI / 8.0D0)
+        P(2,K) = 0.45D0 * DSIN(DBLE(K) * PI / 8.0D0)
+   12 CONTINUE
+      CALL SETV(O, 2.25D0, 0.0D0, 0.0D0)
+      CALL MKPRS(16, P, O, A1, A2, AN,
+     &           (10.0D0 + 7.0D0 / 12.0D0) * FT - 2.25D0)
+C     SM and fairing, one cylinder of the SM's diameter up to the CM.
+      XF = 22.0D0 / 12.0D0 * FT
+      HS = (12.0D0 + 11.0D0 / 12.0D0) * FT
+      XS = -XF - HS
+      DO 14 K = 1, 16
+        P(1,K) = RB * DCOS(DBLE(K) * PI / 8.0D0)
+        P(2,K) = RB * DSIN(DBLE(K) * PI / 8.0D0)
+   14 CONTINUE
+      CALL SETV(O, XS, 0.0D0, 0.0D0)
+      CALL MKPRS(16, P, O, A1, A2, AN, HS + XF)
+C     The fairing's joint to the SM, a ring of free lines.
+      DO 16 K = 1, 16
+        CALL XLINE(P(1,K), -XF, P(2,K), P(1,MOD(K,16)+1), -XF,
+     &             P(2,MOD(K,16)+1), 0)
+   16 CONTINUE
+C     SPS nozzle extension, from its throat end at the aft bulkhead.
+      XN = (9.0D0 + 8.0D0 / 12.0D0) * FT
+      RN = 0.5D0 * (7.0D0 + 10.5D0 / 12.0D0) * FT
+      DO 18 K = 1, 16
+        P(1,K) = 0.5D0 * DCOS(DBLE(K) * PI / 8.0D0)
+        P(2,K) = 0.5D0 * DSIN(DBLE(K) * PI / 8.0D0)
+   18 CONTINUE
+      CALL SETV(O, XS, 0.0D0, 0.0D0)
+      CALL SETV(AN, -1.0D0, 0.0D0, 0.0D0)
+      CALL MKFRU(16, P, O, A1, A2, AN, XN, RN / 0.5D0)
+      CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
+C     RCS quad housings.
+      DO 30 J = 0, 3
+        C = DCOS((7.0D0 + 90.0D0 * DBLE(J)) * DR)
+        S = DSIN((7.0D0 + 90.0D0 * DBLE(J)) * DR)
+        CALL SETV(BR, 0.0D0, C, S)
+        CALL SETV(T, 0.0D0, -S, C)
+        CALL OCTAG(0.5D0 * 3.0D0 * FT, 0.15D0, 0.0D0, Q)
+        CALL SETV(O, -XF - 1.5D0 - 0.5D0 * 8.0D0 * FT,
+     &            (RB + 0.15D0) * C, (RB + 0.15D0) * S)
+        CALL MKPRS(8, Q, O, T, BR, AN, 8.0D0 * FT)
+   30 CONTINUE
+C     High-gain antenna: boom and four dishes.
+      C = DCOS(-52.0D0 * DR)
+      S = DSIN(-52.0D0 * DR)
+      CALL SETV(BD, 0.0D0, C, S)
+      CALL SETV(BU, 1.0D0, 0.0D0, 0.0D0)
+      CALL VCRS(BD, BU, T)
+      CALL XLINE(RB * C, XS, RB * S, (RB + 2.4D0) * C, XS,
+     &           (RB + 2.4D0) * S, 0)
+      HA = 0.5D0 * 31.0D0 * 0.0254D0
+      DO 50 I = 0, 3
+        CX = (DBLE(MOD(I, 2)) - 0.5D0) * 2.0D0 * HA
+        CY = (DBLE(I / 2) - 0.5D0) * 2.0D0 * HA
+        DO 40 K = 0, 11
+          C2 = DCOS(DBLE(K) * PI / 6.0D0) * HA
+          S2 = DSIN(DBLE(K) * PI / 6.0D0) * HA
+          R = RB + 2.4D0
+          CALL XLINE(R * C + (CX + C2) * T(2) + (CY + S2) * BU(2),
+     &      XS + (CX + C2) * T(1) + (CY + S2) * BU(1),
+     &      R * S + (CX + C2) * T(3) + (CY + S2) * BU(3),
+     &      R * C + (CX + DCOS(DBLE(K + 1) * PI / 6.0D0) * HA) * T(2)
+     &        + (CY + DSIN(DBLE(K + 1) * PI / 6.0D0) * HA) * BU(2),
+     &      XS + (CX + DCOS(DBLE(K + 1) * PI / 6.0D0) * HA) * T(1)
+     &        + (CY + DSIN(DBLE(K + 1) * PI / 6.0D0) * HA) * BU(1),
+     &      R * S + (CX + DCOS(DBLE(K + 1) * PI / 6.0D0) * HA) * T(3)
+     &        + (CY + DSIN(DBLE(K + 1) * PI / 6.0D0) * HA) * BU(3), 0)
+   40   CONTINUE
+   50 CONTINUE
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     CMCAB: the CM cabin as the station view shows it: the left
+C     rendezvous window's outlines as VIEW drew them, in CSM body
+C     metres about the eye point CMEYE.  MSC IN 69-FM-197, figure 9.0-3
+C     (PDF p. 263): "View as seen along CM X-axis during the PTC
+C     attitudes (X-axis in center of view)", gimbal angles 90, 0, 0,
+C     and "The CM left rendezvous window outline is shown for a zero
+C     roll attitude" (p. 17).  The report draws two outlines; we read
+C     both off the plot by eye (to about 1 deg), in its plot degrees,
+C     where a point at plot radius R lies ATAN(R in radians) off the
+C     centre (as OVLPD).  Our reading of the plot's axes: right is the
+C     CM's +Y, up its -Z (the rendezvous windows are on the -Z half,
+C     TN D-7439 p. 3), which puts the left window up and to the left.
+C     The x at the centre marks the CM X-axis, as in the report's CSM
+C     maneuver views ("the x also denotes the projection of the CM X-
+C     axis", MSC IN 69-FM-197 PDF p. 24, where "The CM left rendezvous
+C     window has been superimposed on these views").  The eye point is
+C     ours; the lines
+C     sit 0.5 m from it, so they are seen exactly along the outlines.
+C     Other windows: no outline we can read, so none drawn.
+C-----------------------------------------------------------------------
+      SUBROUTINE CMCAB
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION WA(2,15), WB(2,13), E(3), A(3), B(3)
+      INTEGER K
+      DATA WA / -20.9D0, 11.5D0, -18.9D0, 16.9D0, -16.7D0, 22.6D0,
+     &  -13.5D0, 28.4D0, -10.7D0, 33.4D0, -6.6D0, 38.6D0,
+     &  -2.5D0, 38.8D0, -0.4D0, 34.5D0, 1.0D0, 30.5D0,
+     &  2.5D0, 25.5D0, 3.2D0, 20.5D0, -14.6D0, 4.3D0,
+     &  -18.7D0, 8.3D0, -20.9D0, 10.4D0, -20.9D0, 11.5D0 /
+      DATA WB / -13.8D0, 10.4D0, -11.1D0, 16.9D0, -8.6D0, 21.9D0,
+     &  -5.4D0, 26.9D0, -1.4D0, 32.7D0, 3.5D0, 38.4D0,
+     &  7.5D0, 38.8D0, 8.0D0, 34.5D0, 9.0D0, 34.2D0,
+     &  9.6D0, 29.1D0, 11.7D0, 19.0D0, -7.1D0, 4.3D0,
+     &  -13.8D0, 10.4D0 /
+      CALL CMEYE(E)
+      DO 10 K = 1, 14
+        CALL CMDIR(E, WA(1,K), WA(2,K), A)
+        CALL CMDIR(E, WA(1,K+1), WA(2,K+1), B)
+        CALL XLINE(A(2), A(1), A(3), B(2), B(1), B(3), 0)
+   10 CONTINUE
+      DO 20 K = 1, 12
+        CALL CMDIR(E, WB(1,K), WB(2,K), A)
+        CALL CMDIR(E, WB(1,K+1), WB(2,K+1), B)
+        CALL XLINE(A(2), A(1), A(3), B(2), B(1), B(3), 0)
+   20 CONTINUE
+      CALL CMDIR(E, -0.7D0, -0.7D0, A)
+      CALL CMDIR(E, 0.7D0, 0.7D0, B)
+      CALL XLINE(A(2), A(1), A(3), B(2), B(1), B(3), 0)
+      CALL CMDIR(E, -0.7D0, 0.7D0, A)
+      CALL CMDIR(E, 0.7D0, -0.7D0, B)
+      CALL XLINE(A(2), A(1), A(3), B(2), B(1), B(3), 0)
+      RETURN
+      END
+C
+C     CMEYE: the CM eye point, CSM body metres: 1.2 m above the CM's
+C     base, 0.5 m to -Y, 0.3 m to -Z (ours: no design-eye position
+C     found in our sources).
+      SUBROUTINE CMEYE(E)
+      DOUBLE PRECISION E(3)
+      E(1) = 1.2D0
+      E(2) = -0.5D0
+      E(3) = -0.3D0
+      RETURN
+      END
+C
+C     CMDIR: the point 0.5 m from the eye E toward plot point (X, Y)
+C     of the station view (right +Y, up -Z, centre +X).
+      SUBROUTINE CMDIR(E, X, Y, P)
+      DOUBLE PRECISION E(3), X, Y, P(3), U(3), DR
+      DR = 3.141592653589793D0 / 180.0D0
+      U(1) = 1.0D0
+      U(2) = X * DR
+      U(3) = -Y * DR
+      CALL VUNIT(U)
+      P(1) = E(1) + 0.5D0 * U(1)
+      P(2) = E(2) + 0.5D0 * U(2)
+      P(3) = E(3) + 0.5D0 * U(3)
+      RETURN
+      END
+

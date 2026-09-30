@@ -47,6 +47,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon), events (`EVGET`), the LM descent, the Earthrise search |
 | Core | `sim.f` | the engine: flies the CSM from the scenario's START through its score (BURN cards), with state vector updates at its REF rows (optional), and writes the tape (`SIMRUN`) |
 | Core | `tape.f` | the tape: time-tagged states, 4 vehicle channels, event marks; cubic Hermite reads (`TPGET`) |
+| Core | `vview.f` | camera pointing: the target and the external view (`VIEWPT`), applied after the scene's camera and models |
 | Core | `vsrc.f` | the state source: the one entry point (`VSTATE`) scenes use for the CSM's state, from the replay or the tape |
 | Core | `pen.f` | projection (`PROJ`), clipping (`EMIT`, `SEG`, `MSEG`), visibility (`PEN`, `ISVIS`), labels, circles, shading, vehicle-fixed overlay lines |
 | Core | `vtext.f` | text records for the character generator |
@@ -152,6 +153,22 @@ Inputs (written by JS):
 - `in_flags` int32: bit 0 labels on, bit 1 draw plot frame and tick marks, bit 2 draw hidden
   LM (and, in scene 7, S-IVB) lines dashed (style 2) instead of dropping them (the film drops
   them).
+- `in_view` int32: 0 the scene's own window view (as before), 1 EXTERNAL (the camera orbits the
+  target: `in_yaw` and `in_pitch` are azimuth and elevation around it, as scene 6 does for the
+  Moon; `in_fov` zooms), 2 CM STATION (the eye at the CM design eye, the cabin around it), 3 LM
+  STATION.
+- `in_target` int32: the camera target, 0 the scene's default, 1 Earth, 2 Moon, 3 Sun, 4 CSM,
+  5 LM. In window and station views the boresight points at the target and yaw, pitch and roll
+  are offsets from it.
+- `in_lablv` int32: label level, 0 off, 1 primary (Moon, Earth, Sun, vehicles CM, SM, LM, S-IVB,
+  the Apollo 11 landing site, the launch site LC-39A), 2 secondary (plus the 37 nav stars, craters
+  of 25 km and up, maria), 3 all. `in_flags` bit 0 keeps working: with `in_lablv` 0 it means
+  all (level 3), as before; with `in_lablv` 1 or more the kernel sets bit 0 itself.
+- Status (2026-09-30): `in_view` 0 and 1 and `in_target` work (`src/vview.f`); stations (2, 3)
+  fall back to the window view until the cabins land, and `in_lablv` is stored but not yet used.
+  Scene 6 ignores both view and target. In an external view of a scene whose camera rides the
+  CSM (1, 2, 3, 4, 7) the CSM is drawn as an outline around the camera. Window overlays (COAS,
+  LPD) and the LM window sill apply only in the window view.
 
 Outputs (written by the kernel):
 - `vbuf(5, MAXV)` real(8), `nvec` int32: line segments `x1, y1, x2, y2, style` in plot
@@ -162,7 +179,8 @@ Outputs (written by the kernel):
 - `lbuf(4, MAXL)` real(8), `nlab` int32: labels `x, y, kind, id`. kind 1 nav star (id 1..37,
   names in `VIEW_NAMES.NAV`), 2 crater (id = crater index, `VIEW_NAMES.CRATER`), 3 Sun,
   4 Earth, 5 Moon, 6 mare/lacus/sinus/oceanus (scene 6; id = index in the kernel's mare table,
-  names come only as text records), 7 Apollo 11 landing site (scene 6, id 0). MAXL = 200. Ids are 1-based: the name is `VIEW_NAMES.NAV[id-1]` /
+  names come only as text records), 7 Apollo 11 landing site (scene 6, id 0), 8 vehicle (id 1
+  CM, 2 SM, 3 LM, 4 S-IVB), 9 launch site (id 0); 8 and 9 have their names as text records. MAXL = 200. Ids are 1-based: the name is `VIEW_NAMES.NAV[id-1]` /
   `VIEW_NAMES.CRATER[id-1]` (crater names may be empty). Sun, Earth, Moon use id 0.
 - `hdr(24)` real(8): 1 GET s, 2 FOV deg, 3 range to reference body centre n.mi.,
   4 altitude stat. mi., 5 inertial speed ft/s, 6 reference body (1 Earth, 2 Moon), 7 scene,
@@ -253,6 +271,14 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
    and S-IVB; the contents and OCR of MSC IN 69-FM-197 list no transposition-and-docking views,
    so this scene has no answer key. We do not think the film's leg-less LM shot (`t22.png`,
    `t25.png`) is this view; see the note under Scenes in `docs/modes.md`.
+8. **Docked stack in translunar coast** — a modern addition (VIEW drew vehicles as seen from a
+   vehicle, TN D-6853 p. 12, not from outside both). Default GET 11:28:19, half an hour into
+   passive thermal control ("PTC is started now", Apollo 11 Flight Journal 010:58:19), after LM
+   extraction and before the first midcourse correction: our choice of moment. The CSM (an
+   outline, `models.f` CSMBLD) docked to the LM with its gear stowed, rolling about the CSM's X
+   axis at 3 revolutions per hour (Flight Journal commentary after 008:11:00); the roll axis,
+   square to the ecliptic, is ours. The scene's own view is external: 60 m from the stack,
+   starting on its far side from the Earth; yaw and pitch carry the camera around it.
 
 Drawing conventions from TN D-6853 (Hyle & Lunde 1972): night sides are straight parallel
 "shading lines"; the 37 prime nav stars are named; the background catalog runs to V 4.5;

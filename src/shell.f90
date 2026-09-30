@@ -4,7 +4,8 @@
 !
 ! Exports (see CLAUDE.md, "Interface contract"):
 !   view_init(scene), view_frame(), sim_run(flags)
-!   in_get, in_yaw, in_pitch, in_roll, in_fov, in_flags, in_src
+!   in_get, in_yaw, in_pitch, in_roll, in_fov, in_flags, in_src,
+!   in_view, in_target, in_lablv
 !   vbuf, nvec, sbuf, nstar, lbuf, nlab, hdr, tbuf, ntxt, tchr, nchr
 module view_shell
   use iso_c_binding, only: c_double, c_int
@@ -20,6 +21,12 @@ module view_shell
   ! State source: 0 replay, 1 the tape the engine wrote (sim_run).  The
   ! kernel takes it as in_flags bit 3.
   integer(c_int), bind(c, name="in_src") :: in_src = 0
+  ! View (0 window, 1 external, 2 CM station, 3 LM station), camera
+  ! target (0 default, 1 Earth, 2 Moon, 3 Sun, 4 CSM, 5 LM), label level
+  ! (0-3; 0 leaves in_flags bit 0 in charge).  See CLAUDE.md.
+  integer(c_int), bind(c, name="in_view") :: in_view = 0
+  integer(c_int), bind(c, name="in_target") :: in_target = 0
+  integer(c_int), bind(c, name="in_lablv") :: in_lablv = 0
 
   real(c_double), bind(c, name="vbuf") :: vbuf(5, MAXV)
   integer(c_int), bind(c, name="nvec") :: nvec = 0
@@ -46,6 +53,9 @@ module view_shell
       double precision :: tb(4, 300)
       integer :: tc(6000)
     end subroutine vframe
+    subroutine vsetin(iview, itarg, ilabl)
+      integer :: iview, itarg, ilabl
+    end subroutine vsetin
     subroutine simrun(ifl)
       integer :: ifl
     end subroutine simrun
@@ -67,7 +77,7 @@ contains
   end subroutine view_init
 
   subroutine view_frame() bind(c, name="view_frame")
-    integer :: iflag, nv, ns, nl, nt, nch
+    integer :: iflag, nv, ns, nl, nt, nch, iv, it, il
     double precision :: get, yaw, pit, rol, fov
     get = in_get
     yaw = in_yaw
@@ -76,6 +86,10 @@ contains
     fov = in_fov
     iflag = in_flags
     if (in_src == 1 .and. mod(iflag / 8, 2) == 0) iflag = iflag + 8
+    iv = in_view
+    it = in_target
+    il = in_lablv
+    call vsetin(iv, it, il)
     call vframe(get, yaw, pit, rol, fov, iflag, vbuf, nv, sbuf, ns, &
                 lbuf, nl, hdr, tbuf, nt, tchr, nch)
     ntxt = nt

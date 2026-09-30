@@ -4,7 +4,7 @@ LF_BIN ?= $(HOME)/lf/bin
 PORT   ?= 8108
 PIDFILE = build/serve.pid
 LOGFILE = build/serve.log
-SCENES  = 1 2 3 4 5 6 7
+SCENES  = 1 2 3 4 5 6 7 8
 # Kernel elements: every fixed-form file in src/ but the generated BLOCK DATA.
 KSRC    = $(filter-out src/viewdata.f,$(wildcard src/*.f))
 

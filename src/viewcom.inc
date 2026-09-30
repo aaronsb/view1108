@@ -22,14 +22,15 @@ C     Also the parenthesised PARAMETER list (FORTRAN 77, 1978).
       PARAMETER (MAXV=60000, MAXS=4000, MAXL=200)
       PARAMETER (MAXT=300, MAXTC=6000)
 C     RESTOMOD END
-      INTEGER MSOL, MVX, MFC, MED, MXL, MMOD, KLMD, KLMS, KSIV
+      INTEGER MSOL, MVX, MFC, MED, MXL, MMOD, KLMD, KLMS, KSIV, KCSM
+      INTEGER KCMC
 C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978);
 C     FORTRAN V wrote PARAMETER I = 2 (UP-4046 Rev 3, sec. 10.4.1)
       PARAMETER (MSOL=32, MVX=48, MFC=26, MED=72, MXL=400, MMOD=8)
 C     Model numbers (MLIB): LM gear down, LM gear stowed with docking
-C     aids, S-IVB with IU and SLA ring.
+C     aids, S-IVB with IU and SLA ring, CSM, CM cabin (window).
 C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)
-      PARAMETER (KLMD=1, KLMS=2, KSIV=3)
+      PARAMETER (KLMD=1, KLMS=2, KSIV=3, KCSM=4, KCMC=5)
 C
 C     Tables loaded by BLOCK DATA VIEWBD (viewdata.f)
 C     RESTOMOD BEGIN: post-1969 data: Natural Earth coast (2009),
@@ -191,6 +192,14 @@ C              (rad/s).
       INTEGER ISN
       COMMON /CSNI/ ISN
 C
+C     /CVIEW/ the view inputs of this frame (VSETIN): IVIEW 0 window,
+C     1 external, 2 CM station, 3 LM station; ITARG camera target 0
+C     scene default, 1 Earth, 2 Moon, 3 Sun, 4 CSM, 5 LM; ILABL label
+C     level 0-3 (0: in_flags bit 0 decides).
+C     IVUSE the view this frame actually uses (VIEWPT).
+      INTEGER IVIEW, ITARG, ILABL, IVUSE
+      COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE
+C
 C     /CSCN/ scene number, flags of this frame, init done.
       INTEGER ISCN, IFLG, INITD
       COMMON /CSCN/ ISCN, IFLG, INITD
@@ -214,6 +223,9 @@ C     (columns X, Y, Z) in EQ, held inertially.  S7LP: the LM tunnel
 C     top centre, camera relative, km.  S7BO: that point in LM body
 C     metres.  S7RNG: CSM to LM docking ring range, ft.
       DOUBLE PRECISION S7AT(3,3), S7LP(3), S7BO(3), S7RNG
+C     S8AT: scene 8's stack attitude, CSM body axes in EQ (S8ATT).
+      DOUBLE PRECISION S8AT(3,3)
+      COMMON /CS8/ S8AT
       COMMON /CS7/ S7AT, S7LP, S7BO, S7RNG
 C
 C     /CMOD/ model table.  Model K is solids MDS1(K)..MDS2(K) and free
@@ -227,4 +239,10 @@ C     placed.
       COMMON /CMODI/ NMOD, MDS1, MDS2, MDX1, MDX2, MDON, LACT, LINS,
      &               NACT
       DOUBLE PRECISION MDAT(3,3,MMOD), MDP(3,MMOD), MDBO(3,MMOD)
+C     MDHL(K) = 1: model K is drawn with hidden lines removed and its
+C     solids hide other things; 0: an outline, every edge drawn and
+C     nothing hidden by it (the CSM; TN D-6853 p. 12 names hidden-line
+C     models of the LM and S-IVB only: our reading).
+      INTEGER MDHL(MMOD)
+      COMMON /CMODH/ MDHL
       COMMON /CMOD/ MDAT, MDP, MDBO
