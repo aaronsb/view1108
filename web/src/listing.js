@@ -1,7 +1,7 @@
 // The FORTRAN listing overlay, dark terminal or LIGHT greenbar.
 "use strict";
 // Listing overlay: DARK terminal or LIGHT greenbar; the light sheets are built on first use.
-const fieldata = t => t.toUpperCase().replace(/[^A-Z0-9 @\[\]#)\-+<=>&$*(%:?!,\\';\/.]/g, "?");   // FIELDATA printable set per fourmilab.ch/documents/univac/fieldata.html (octal 00-77, ASCII-representable characters)
+const fieldata = t => t.toUpperCase().replace(/"/g, "'").replace(/[^A-Z0-9 @\[\]#)\-+<=>&$*(%:?!,\\';\/.]/g, "?");   // FIELDATA printable set per fourmilab.ch/documents/univac/fieldata.html (octal 00-77, ASCII-representable characters); it has no double quote, so " prints as '
 // The kernel arrives as its elements, each after a line of a form feed and its source path (tools/assemble.py).
 // Text before the first such line (all of it on the dev page) is one element with no name.
 const ELEMENTS = $("fsrc").textContent.split(/^\f/m).map((p, i) => {
