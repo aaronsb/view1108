@@ -107,7 +107,8 @@ Inputs (written by JS):
 - `in_fov` real(8): full field of view in degrees (the frame covers ±fov/2 off the boresight,
   which is ±hdr(15) in plot units; see Projection).
 - `in_flags` int32: bit 0 labels on, bit 1 draw plot frame and tick marks, bit 2 draw hidden
-  LM lines dashed (style 2) instead of dropping them (the film drops them).
+  LM (and, in scene 7, S-IVB) lines dashed (style 2) instead of dropping them (the film drops
+  them).
 
 Outputs (written by the kernel):
 - `vbuf(5, MAXV)` real(8), `nvec` int32: line segments `x1, y1, x2, y2, style` in plot
@@ -122,9 +123,10 @@ Outputs (written by the kernel):
   `VIEW_NAMES.CRATER[id-1]` (crater names may be empty). Sun, Earth, Moon use id 0.
 - `hdr(16)` real(8): 1 GET s, 2 FOV deg, 3 range to reference body centre n.mi.,
   4 altitude stat. mi., 5 inertial speed ft/s, 6 reference body (1 Earth, 2 Moon), 7 scene,
-  8 window code (1 CSM window, 2 LM front window), 9 range to the LM ft (scene 4),
-  10 LM altitude ft (scene 5), 11, 12 plot X, Y (deg) of the reference body's centre (Earth in
-  scenes 2 and 3, Moon in 1 and 5, the LM in 4) in the current projection, given even when off
+  8 window code (1 CSM window, 2 LM front window), 9 range to the LM ft (scene 4: 300; scene 7:
+  CSM to LM docking ring, 100 down to 0 at docking), 10 LM altitude ft (scene 5), 11, 12 plot
+  X, Y (deg) of the reference body's centre (Earth in scenes 2 and 3, Moon in 1 and 5, the LM in
+  4, the LM docking target in 7) in the current projection, given even when off
   frame, 13 its angular radius projected as a plot radius, ρ(radius) in plot deg, 14 1 if it
   is in front of the camera else 0, 15 half-width of the plot box in plot deg (ρ(fov/2); the
   frame spans ±hdr(15) on both axes), 16 spare.
@@ -179,6 +181,18 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
    Limb, terminator and night-side shading lines, gazetteer craters of 25 km and up, maria,
    lacus, sinus and oceanus as circles of their gazetteer diameters (the gazetteer gives only
    centre and diameter), and the Apollo 11 landing site as a boxed X. No seeded craters.
+7. **Transposition & docking** — GET 3:20:30 to 3:24:03.1 (docking, Apollo 11 Mission Report
+   MSC-00171 table 7-II, printed p. 7-9). The CSM's COAS view along its +X axis down onto the LM,
+   stowed with its gear retracted (Apollo 11 press kit, printed p. 103) on the S-IVB/IU, with the
+   fixed stub of the SLA (upper panels jettisoned, not drawn). Range closes from 100 ft (Mission
+   Report p. 4-2: "at least 100 feet") to contact at 0.1 ft/s (same page); the closing law, the
+   3:20:30 start, the inertial attitude (X axis square to the Sun, per the Flight Journal's
+   "Sun will shine across the top of the LM"), the COAS offset and the target are our guesses.
+   Hidden-line LM and S-IVB solids hide stars and the Earth. TN D-6853 printed p. 12 lists
+   vehicle outlines of the CSM, LM and S-IVB at apparent size and hidden-line models of the LM
+   and S-IVB; the contents and OCR of MSC IN 69-FM-197 list no transposition-and-docking views,
+   so this scene has no answer key. We do not think the film's leg-less LM shot (`t22.png`,
+   `t25.png`) is this view; see the note under Scenes in `docs/modes.md`.
 
 Drawing conventions from TN D-6853 (Hyle & Lunde 1972): night sides are straight parallel
 "shading lines"; the 37 prime nav stars are named; the background catalog runs to V 4.5;

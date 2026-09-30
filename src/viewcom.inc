@@ -24,7 +24,7 @@ C     RESTOMOD END
       INTEGER MSOL, MVX, MFC, MED, MXL
 C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978);
 C     FORTRAN V wrote PARAMETER I = 2 (UP-4046 Rev 3, sec. 10.4.1)
-      PARAMETER (MSOL=10, MVX=24, MFC=14, MED=36, MXL=64)
+      PARAMETER (MSOL=10, MVX=48, MFC=26, MED=72, MXL=160)
 C
 C     Tables loaded by BLOCK DATA VIEWBD (viewdata.f)
 C     RESTOMOD BEGIN: post-1969 data: Natural Earth coast (2009),
@@ -116,6 +116,8 @@ C     /CSCN/ scene number, flags of this frame, init done.
       COMMON /CSCN/ ISCN, IFLG, INITD
 C
 C     /CLM/ LM wireframe, body axes X up, Y right, Z forward (m).
+C     Scene 7 adds the S-IVB/IU as solid 8 and the SLA stub, stowed
+C     legs, docking target and drogue as free lines (LMBILD).
 C     Solid K is convex: vertices LMV, outward face planes N.x = D
 C     (LMN, LMD), edges LME(1..4,J) = vertex, vertex, face, face.
 C     Free lines LXL (legs, pads) and face marks LXS/LXF (windows).
@@ -127,3 +129,10 @@ C     LWV, LWN, LWD: the same in camera-relative EQ for this frame.
       INTEGER NSOL, NLV(MSOL), NLF(MSOL), NLE(MSOL), LME(4,MED,MSOL)
       INTEGER NXL, LXS(MXL), LXF(MXL)
       COMMON /CLMI/ NSOL, NLV, NLF, NLE, LME, NXL, LXS, LXF
+C
+C     /CS7/ scene 7, transposition and docking.  S7AT: LM body axes
+C     (columns X, Y, Z) in EQ, held inertially.  S7LP: the LM tunnel
+C     top centre, camera relative, km.  S7BO: that point in LM body
+C     metres.  S7RNG: CSM to LM docking ring range, ft.
+      DOUBLE PRECISION S7AT(3,3), S7LP(3), S7BO(3), S7RNG
+      COMMON /CS7/ S7AT, S7LP, S7BO, S7RNG

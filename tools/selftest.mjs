@@ -39,7 +39,7 @@ function run(K, scene) {
 }
 const maxdiff = (a, b) => a.reduce((m, v, i) => Math.max(m, Math.abs(v - b[i])), 0);
 let ok = true;
-for (const scene of [1, 2, 3, 4, 5, 6]) {
+for (const scene of [1, 2, 3, 4, 5, 6, 7]) {
   const a = run(W, scene), b = run(F, scene);
   const t0 = performance.now(); for (let i = 0; i < 50; i++) W.view_frame();
   const ms = (performance.now() - t0) / 50;

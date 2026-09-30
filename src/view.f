@@ -56,12 +56,15 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (INITD .NE. 1) THEN
         CALL TABSET
         CALL ORBSET
-        CALL LMBILD
         INITD = 1
       END IF
 C     RESTOMOD END
       ISCN = ISC
-      IF (ISCN .LT. 1 .OR. ISCN .GT. 6) ISCN = 1
+      IF (ISCN .LT. 1 .OR. ISCN .GT. 7) ISCN = 1
+C     The LM model: legs deployed (scene 4), or stowed in what is left
+C     of the SLA on the S-IVB (scene 7).
+      IF (ISCN .NE. 7) CALL LMBILD(0)
+      IF (ISCN .EQ. 7) CALL LMBILD(1)
       YAW = 0.0D0
       PIT = 0.0D0
       ROL = 0.0D0
@@ -123,6 +126,12 @@ C       EARTH PARKING ORBIT, looking forward at the horizon.
 C       LM RENDEZVOUS / INSPECTION after undocking at 100:12.
         GET = 100.0D0*3600.0D0 + 14.0D0*60.0D0
         FOV = 12.0D0
+      ELSE IF (ISCN .EQ. 7) THEN
+C       TRANSPOSITION AND DOCKING.  Mid-approach, about 56 ft out
+C       (see S7POSE for the closing law), looking along the CSM +X
+C       axis at the LM docking target.  Field of view: ours.
+        GET = 3.0D0*3600.0D0 + 21.0D0*60.0D0 + 30.0D0
+        FOV = 30.0D0
       ELSE IF (ISCN .EQ. 6) THEN
 C       MOON VIEW (a modern addition, not a 1969 plot type we have a
 C       source for).  The camera sits 35,000 km above the sub-observer
@@ -199,6 +208,8 @@ C     reference body IREF, window code IWIN, reference attitude.
       S6LAT = PIT
       S6LON = YAW
       CALL SCNCAM(GET, PM, CG, CV, IREF, IWIN)
+C     Scene 7 places the LM and S-IVB first: they hide stars and Earth.
+      IF (ISCN .EQ. 7) CALL S7POSE(GET)
       DO 20 I = 1, 3
         EPOS(I) = -CG(I)
         MPOS(I) = PM(I) - CG(I)
@@ -225,6 +236,7 @@ C
       CALL DMOON(VB, NV, LB, NL)
       CALL DEARTH(VB, NV, LB, NL)
       IF (ISCN .EQ. 4) CALL LMDRAW(VB, NV, GET)
+      IF (ISCN .EQ. 7) CALL S7DRAW(VB, NV)
       IF (ISCN .EQ. 5) CALL LMSHAD(VB, NV, GET)
       IF (ISCN .EQ. 5) CALL OVLPD(VB, NV)
 C
@@ -248,16 +260,22 @@ C     RESTOMOD END
       HD(8) = DBLE(IWIN)
       IF (ISCN .EQ. 4) HD(9) = 300.0D0
       IF (ISCN .EQ. 5) HD(10) = (RNG - RB) * 1000.0D0 / 0.3048D0
+      IF (ISCN .EQ. 7) HD(9) = S7RNG
 C     Reference body in the picture, for the page's camera steering:
 C     centre X, Y (deg, even off frame), angular radius, in front flag.
+C     Scene 4: the LM.  Scene 7: the LM's docking target (S7POSE).
       DO 40 I = 1, 3
         PB(I) = EPOS(I)
         IF (IREF .EQ. 2) PB(I) = MPOS(I)
         IF (ISCN .EQ. 4) PB(I) = 300.0D0 * 0.3048D-3 * BREF(I)
+        IF (ISCN .EQ. 7) PB(I) = S7LP(I) - 0.72D-3 * S7AT(I,2)
    40 CONTINUE
       RR = RE
       IF (IREF .EQ. 2) RR = RM
       IF (ISCN .EQ. 4) RR = 4.5D-3
+C     Scene 7: the LM, half its 14 ft 1 in width (Apollo 11 press kit,
+C     printed p. 96).
+      IF (ISCN .EQ. 7) RR = 2.15D-3
       CALL PROJ(PB, HD(11), HD(12), IOK)
       HD(13) = RHO(DASIN(DMIN1(1.0D0, RR / VNRM(PB))))
       HD(15) = BOXH
@@ -510,6 +528,21 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         END IF
 C     RESTOMOD END
         CALL VUNIT(UREF)
+      ELSE IF (ISCN .EQ. 7) THEN
+C       Transposition and docking.  The CSM on the translunar ellipse
+C       (30 m from the S-IVB, nothing at this scale), turned around to
+C       face the stack, which holds an inertial attitude (S7ATT).
+C       Boresight along the CSM +X axis, which is down the LM's -X
+C       axis; the LM front (+Z) up.
+        IREF = 1
+        CALL TLIORB(GET, R, V)
+        CALL S7ATT
+        DO 110 I = 1, 3
+          CG(I) = R(I)
+          CV(I) = V(I)
+          BREF(I) = -S7AT(I,1)
+          UREF(I) = S7AT(I,3)
+  110   CONTINUE
       ELSE
 C       LM descent.  Boresight 46 deg down from the LM +Z axis in
 C       the X-Z plane, so the LPD scale 0..80 deg runs top to bottom.
@@ -1373,9 +1406,18 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION P(3), N(3), OCCL, SILL
-      INTEGER I
+      INTEGER I, LMOCC
       ISVIS = 1
       IF (IVMODE .EQ. 0) RETURN
+C     In scene 7 the LM and S-IVB solids hide what lies behind them.
+C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
+      IF (ISCN .EQ. 7) THEN
+        IF (LMOCC(P, 0) .EQ. 1) THEN
+          ISVIS = 0
+          RETURN
+        END IF
+      END IF
+C     RESTOMOD END
 C     From the LM the window sill hides everything below it.
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (ISCN .EQ. 5) THEN
@@ -1515,7 +1557,7 @@ C     RESTOMOD END
       DOUBLE PRECISION SB(3,MAXS), LB(4,MAXL)
       INTEGER NS, NL
       DOUBLE PRECISION U(3), X, Y, RAYHIT
-      INTEGER I, IOK
+      INTEGER I, IOK, LMOCC
       DO 10 I = 1, NSTAR
         U(1) = STX(I)
         U(2) = STY(I)
@@ -1525,7 +1567,10 @@ C     RESTOMOD END
         IF (DABS(X) .GT. BOXH .OR. DABS(Y) .GT. BOXH) GO TO 10
         IF (RAYHIT(U, EPOS, RE) .GT. 0.0D0) GO TO 10
         IF (RAYHIT(U, MPOS, RM) .GT. 0.0D0) GO TO 10
-        IF (NS .GE. MAXS) RETURN
+C       Scene 7: behind the LM or S-IVB (U taken as a point 1 km out).
+        IF (ISCN .NE. 7) GO TO 8
+        IF (LMOCC(U, 0) .EQ. 1) GO TO 10
+    8   IF (NS .GE. MAXS) RETURN
         NS = NS + 1
         SB(1,NS) = X
         SB(2,NS) = Y
@@ -1567,12 +1612,14 @@ C     RESTOMOD END
       DOUBLE PRECISION VB(5,MAXV), LB(4,MAXL)
       INTEGER NV, NL
       DOUBLE PRECISION X, Y, RAYHIT, A, C, S
-      INTEGER IOK, K
+      INTEGER IOK, K, LMOCC
       IF (SUNU(1)*CB(1) + SUNU(2)*CB(2) + SUNU(3)*CB(3) .LT. CSVIEW)
      &  RETURN
       IF (RAYHIT(SUNU, EPOS, RE) .GT. 0.0D0) RETURN
       IF (RAYHIT(SUNU, MPOS, RM) .GT. 0.0D0) RETURN
-      CALL PROJ(SUNU, X, Y, IOK)
+      IF (ISCN .NE. 7) GO TO 5
+      IF (LMOCC(SUNU, 0) .EQ. 1) RETURN
+    5 CALL PROJ(SUNU, X, Y, IOK)
       IF (IOK .EQ. 0) RETURN
       DO 10 K = 0, 23
         A = DBLE(K) * PI / 12.0D0
@@ -1600,7 +1647,7 @@ C     RESTOMOD END
       INTEGER NV, NL
       DOUBLE PRECISION D, AE, C(3), U(3), P(3), Q(3), X, Y, VNRM
       DOUBLE PRECISION OCCL
-      INTEGER I, K, J, IOK, IP
+      INTEGER I, K, J, IOK, IP, LMOCC
       D = VNRM(EPOS)
       IF (D .LE. RE * 1.0001D0) RETURN
       AE = DASIN(RE / D)
@@ -1640,8 +1687,10 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (MOD(IFLG, 2) .EQ. 1 .AND. AE .LT. 0.3D0 * FOVH * DR) THEN
         CALL PROJ(EPOS, X, Y, IOK)
         IF (IOK .EQ. 1) THEN
-          IF (OCCL(EPOS, MPOS, RM) .LE. 0.0D0)
-     &      CALL LABEL(LB, NL, X, Y, 4, 0)
+          IF (OCCL(EPOS, MPOS, RM) .LE. 0.0D0) THEN
+            IF (ISCN .NE. 7 .OR. LMOCC(EPOS, 0) .EQ. 0)
+     &        CALL LABEL(LB, NL, X, Y, 4, 0)
+          END IF
         END IF
       END IF
 C     RESTOMOD END
@@ -2195,14 +2244,18 @@ C     Hidden parts: an edge between two faces turned away is hidden;
 C     any piece whose sight line passes through another solid is
 C     hidden.  Hidden pieces are dropped, as on the film, or drawn
 C     dashed (style 2) when IFLG bit 2 is set.
+C     ISTOW = 0: legs deployed (scene 4).  ISTOW = 1: legs stowed, the
+C     LM in the stub of the SLA on the S-IVB (scene 7).
 C=======================================================================
-      SUBROUTINE LMBILD
+      SUBROUTINE LMBILD(ISTOW)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,8)
-      DOUBLE PRECISION SX, SZ, R0, R1, X0, X1, Q, C, S
+      INTEGER ISTOW
+      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,8), P24(2,24)
+      DOUBLE PRECISION SX, SZ, R0, R1, X0, X1, Q, C, S, C2, S2
+      DOUBLE PRECISION XIU, RIU, XSL, RSL
       INTEGER I, K
       NSOL = 0
       NXL = 0
@@ -2260,6 +2313,7 @@ C     Hatch on the cabin front.
       CALL XLINE(0.4D0, 2.0D0, 1.16D0, 0.4D0, 2.6D0, 1.16D0, 2)
       CALL XLINE(0.4D0, 2.6D0, 1.16D0, -0.4D0, 2.6D0, 1.16D0, 2)
       CALL XLINE(-0.4D0, 2.6D0, 1.16D0, -0.4D0, 2.0D0, 1.16D0, 2)
+      IF (ISTOW .EQ. 1) GO TO 30
 C
 C     Legs on the diagonals: primary strut, two secondaries, pad.
       DO 20 K = 0, 3
@@ -2285,6 +2339,107 @@ C     Legs on the diagonals: primary strut, two secondaries, pad.
      &      R1 * S + 0.45D0 * DSIN(DBLE(I + 1) * PI / 4.0D0), 0)
    10   CONTINUE
    20 CONTINUE
+      RETURN
+C
+C     STOWED, for transposition and docking.  "In a retracted position
+C     until after the crew mans the LM, the landing gear struts are
+C     explosively extended" (Apollo 11 press kit, NASA release 69-83K,
+C     printed p. 103).  How the folded gear lay is our guess: each
+C     primary strut runs up from its outrigger to a pad beside the
+C     ascent stage, the pad (37 in across, same page) square to the
+C     LM X axis; the secondaries are left out.
+   30 DO 40 K = 0, 3
+        C = DCOS((45.0D0 + 90.0D0 * DBLE(K)) * DR)
+        S = DSIN((45.0D0 + 90.0D0 * DBLE(K)) * DR)
+        CALL XLINE(2.33D0 * C, 1.5D0, 2.33D0 * S,
+     &             2.3D0 * C, 2.2D0, 2.3D0 * S, 0)
+        DO 35 I = 0, 11
+          C2 = DCOS(DBLE(I) * PI / 6.0D0) * 0.47D0
+          S2 = DSIN(DBLE(I) * PI / 6.0D0) * 0.47D0
+          CALL XLINE(2.3D0 * C + C2, 2.2D0, 2.3D0 * S + S2,
+     &      2.3D0 * C + DCOS(DBLE(I + 1) * PI / 6.0D0) * 0.47D0, 2.2D0,
+     &      2.3D0 * S + DSIN(DBLE(I + 1) * PI / 6.0D0) * 0.47D0, 0)
+   35   CONTINUE
+   40 CONTINUE
+C
+C     8  S-IVB with the instrument unit on top, one prism of 24 sides:
+C     both 21.7 ft across, 58.3 ft and 3 ft high (Apollo 11 press kit,
+C     printed p. 109).  The top of the IU sits XIU = -1.5 m on the LM
+C     X axis, under the descent stage, which puts the LM tunnel near
+C     the top of the 28 ft SLA (press kit, printed p. 88) with room
+C     for the SPS nozzle: our guess.  The stack's axis is the descent
+C     stage's (Y = Z = 0); our LM model has its tunnel 0.6 m aft of
+C     that.
+      XIU = -1.5D0
+      RIU = 0.5D0 * 260.0D0 * 0.0254D0
+      DO 50 K = 1, 24
+        P24(1,K) = RIU * DCOS(DBLE(K) * PI / 12.0D0)
+        P24(2,K) = RIU * DSIN(DBLE(K) * PI / 12.0D0)
+   50 CONTINUE
+      Q = (58.3D0 + 3.0D0) * 0.3048D0
+      CALL SETV(O, XIU - Q, 0.0D0, 0.0D0)
+      CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
+      CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
+      CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
+      CALL MKPRS(24, P24, O, A1, A2, AN, Q)
+C
+C     The SLA's fixed lower ring, left on the IU when the four upper
+C     panels were jettisoned at separation (AS-506 launch vehicle
+C     flight evaluation report, MPR-SAT-FE-69-9, p. xxiii; Apollo 11
+C     Flight Journal, 003:18:19).  The SLA "is a truncated cone 28
+C     feet long tapering from 260 inches diameter at the base to 154
+C     inches at the forward end" (press kit, printed p. 88).  The
+C     fixed panels are 7 ft high (secondary source: Wikipedia, "Apollo
+C     (spacecraft)"), so the ring's top is 233.5 in across.  The
+C     jettisoned panels are not drawn; by the approach they had drifted
+C     off (our choice).  Rim and four panel joints, the joints on the
+C     LM's Y and Z axes (our guess).
+      XSL = XIU + 7.0D0 * 0.3048D0
+      RSL = 0.5D0 * (260.0D0 - 106.0D0 * 7.0D0 / 28.0D0) * 0.0254D0
+      DO 60 K = 0, 23
+        C = DCOS(DBLE(K) * PI / 12.0D0)
+        S = DSIN(DBLE(K) * PI / 12.0D0)
+        C2 = DCOS(DBLE(K + 1) * PI / 12.0D0)
+        S2 = DSIN(DBLE(K + 1) * PI / 12.0D0)
+        CALL XLINE(RSL * C, XSL, RSL * S, RSL * C2, XSL, RSL * S2, 0)
+        IF (MOD(K, 6) .EQ. 0) CALL XLINE(0.99D0 * RIU * C, XIU + 0.01D0,
+     &    0.99D0 * RIU * S, RSL * C, XSL, RSL * S, 0)
+   60 CONTINUE
+C
+C     Docking drogue, a cone in the tunnel (solid 5, cap face 10): "a
+C     conical drogue mounted in the LM docking tunnel", which is 32 in
+C     across (press kit, printed p. 88 and p. 101).  Depth: ours.
+      DO 70 K = 0, 11
+        C = DCOS(DBLE(K) * PI / 6.0D0)
+        S = DSIN(DBLE(K) * PI / 6.0D0)
+        C2 = DCOS(DBLE(K + 1) * PI / 6.0D0)
+        S2 = DSIN(DBLE(K + 1) * PI / 6.0D0)
+        CALL XLINE(0.4D0 * C, 4.35D0, -0.6D0 + 0.4D0 * S,
+     &             0.4D0 * C2, 4.35D0, -0.6D0 + 0.4D0 * S2, 5)
+        CALL XLINE(0.06D0 * C, 4.05D0, -0.6D0 + 0.06D0 * S,
+     &             0.06D0 * C2, 4.05D0, -0.6D0 + 0.06D0 * S2, 5)
+        IF (MOD(K, 3) .EQ. 0) CALL XLINE(0.4D0 * C, 4.35D0,
+     &    -0.6D0 + 0.4D0 * S, 0.06D0 * C, 4.05D0, -0.6D0 + 0.06D0 * S,
+     &    5)
+   70 CONTINUE
+C
+C     Docking target for the CSM's crewman optical alignment sight
+C     (COAS): a disc on the midsection top (solid 3, face 3) with a
+C     cross on a standoff above it, set off from the tunnel axis by
+C     as much as the COAS line of sight is from the CSM's docking axis
+C     (S7POSE), so it sits on the boresight.  Size, standoff and
+C     offset: our guess.
+      DO 80 K = 0, 11
+        C = 0.18D0 * DCOS(DBLE(K) * PI / 6.0D0)
+        S = 0.18D0 * DSIN(DBLE(K) * PI / 6.0D0)
+        C2 = 0.18D0 * DCOS(DBLE(K + 1) * PI / 6.0D0)
+        S2 = 0.18D0 * DSIN(DBLE(K + 1) * PI / 6.0D0)
+        CALL XLINE(-0.72D0 + C, 4.0D0, -0.6D0 + S,
+     &             -0.72D0 + C2, 4.0D0, -0.6D0 + S2, 3)
+        LXF(NXL) = 3
+   80 CONTINUE
+      CALL XLINE(-0.82D0, 4.45D0, -0.6D0, -0.62D0, 4.45D0, -0.6D0, 0)
+      CALL XLINE(-0.72D0, 4.45D0, -0.7D0, -0.72D0, 4.45D0, -0.5D0, 0)
       RETURN
       END
 C
@@ -2349,7 +2504,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       INTEGER NP
-      DOUBLE PRECISION P(2,8), O(3), A1(3), A2(3), AN(3), H
+      DOUBLE PRECISION P(2,NP), O(3), A1(3), A2(3), AN(3), H
       DOUBLE PRECISION CEN(3), E1(3), E2(3), N(3), D, VDOT
       INTEGER I, K, K2, IS, IA, IB, IC, NE
       NSOL = NSOL + 1
@@ -2439,9 +2594,8 @@ C     RESTOMOD END
       DOUBLE PRECISION VB(5,MAXV), GET
       INTEGER NV
       DOUBLE PRECISION AT(3,3), R1(3,3), R2(3,3), R3(3,3), R4(3,3)
-      DOUBLE PRECISION BX(3,3), LP(3), T, PS, TH, PH, V(3), W(3)
-      DOUBLE PRECISION A(3), B(3), DIST
-      INTEGER I, J, K, IS
+      DOUBLE PRECISION BX(3,3), LP(3), BO(3), T, PS, TH, PH, DIST
+      INTEGER I
 C     Body axes in the reference frame: X up, Z toward the camera.
       DO 10 I = 1, 3
         BX(I,1) = UREF(I)
@@ -2464,13 +2618,28 @@ C     turn in the picture about body Z (toward the camera).
       DO 20 I = 1, 3
         LP(I) = DIST * BREF(I)
    20 CONTINUE
-C     Body metres to camera-relative km, centred on the stage joint.
+C     Centred on the stage joint.
+      CALL SETV(BO, 2.3D0, 0.0D0, 0.0D0)
+      CALL LMPOSE(AT, LP, BO)
+      CALL LMEDGE(VB, NV, AT, LP, BO)
+      RETURN
+      END
+C
+C     LMPOSE: the model's solids to camera-relative EQ km (LWV, LWN,
+C     LWD), body axes AT (columns X, Y, Z in EQ), body point BO (m)
+C     placed at LP (km).
+      SUBROUTINE LMPOSE(AT, LP, BO)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION AT(3,3), LP(3), BO(3), V(3), W(3)
+      INTEGER I, K, IS
       DO 60 IS = 1, NSOL
         DO 40 K = 1, NLV(IS)
           DO 30 I = 1, 3
-            V(I) = LMV(I,K,IS) * 1.0D-3
+            V(I) = (LMV(I,K,IS) - BO(I)) * 1.0D-3
    30     CONTINUE
-          V(1) = V(1) - 2.3D-3
           CALL MXV(AT, V, W)
           DO 35 I = 1, 3
             LWV(I,K,IS) = LP(I) + W(I)
@@ -2481,10 +2650,25 @@ C     Body metres to camera-relative km, centred on the stage joint.
           DO 45 I = 1, 3
             LWN(I,K,IS) = W(I)
    45     CONTINUE
-          LWD(K,IS) = (LMD(K,IS) - 2.3D0 * LMN(1,K,IS)) * 1.0D-3
+          LWD(K,IS) = (LMD(K,IS) - LMN(1,K,IS) * BO(1)
+     &      - LMN(2,K,IS) * BO(2) - LMN(3,K,IS) * BO(3)) * 1.0D-3
      &      + W(1) * LP(1) + W(2) * LP(2) + W(3) * LP(3)
    50   CONTINUE
    60 CONTINUE
+      RETURN
+      END
+C
+C     LMEDGE: draw the posed model (LMPOSE with the same AT, LP, BO):
+C     solid edges, then free lines and face marks.
+      SUBROUTINE LMEDGE(VB, NV, AT, LP, BO)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION VB(5,MAXV), AT(3,3), LP(3), BO(3)
+      INTEGER NV
+      DOUBLE PRECISION V(3), W(3), A(3), B(3)
+      INTEGER I, J, K, IS
 C     Solid edges.
       DO 80 IS = 1, NSOL
         DO 70 J = 1, NLE(IS)
@@ -2506,9 +2690,8 @@ C     Free lines and face marks.
       DO 100 J = 1, NXL
         DO 85 K = 0, 1
           DO 82 I = 1, 3
-            V(I) = LXL(I + 3 * K, J) * 1.0D-3
+            V(I) = (LXL(I + 3 * K, J) - BO(I)) * 1.0D-3
    82     CONTINUE
-          V(1) = V(1) - 2.3D-3
           CALL MXV(AT, V, W)
           DO 84 I = 1, 3
             IF (K .EQ. 0) A(I) = LP(I) + W(I)
@@ -2524,6 +2707,110 @@ C     RESTOMOD END
         CALL LMSEG(VB, NV, A, B, IS, 0)
   100 CONTINUE
       ISTYLE = 1
+      RETURN
+      END
+C
+C=======================================================================
+C     TRANSPOSITION AND DOCKING (scene 7).  TN D-6853 (printed p. 12)
+C     lists among VIEW's capabilities integrating trajectories "after
+C     separation of the LM and the CSM or the CSM/LM and S-IVB
+C     vehicles", drawing "the vehicle outlines of the CSM, LM, and the
+C     S-IVB" at their apparent size, and "hidden-line models of the LM
+C     and the S-IVB".  The contents and OCR of the Apollo 11 report
+C     (MSC IN 69-FM-197) list no such views: no answer key.
+C
+C     Apollo 11 times (Mission Report MSC-00171, table 7-II, printed
+C     p. 7-9): command module/S-IVB separation 3:17:04.6, docking
+C     3:24:03.1.  The crew expected to be "out about 66 feet", and
+C     Collins guessed "around 100 or so" (Apollo 11 Flight Journal,
+C     003:38:07); the report has "a maximum separation distance of at
+C     least 100 feet" and contact "at an estimated 0.1 ft/sec"
+C     (printed p. 4-2).  Our closing law: 100 ft until 3:20:30 (the
+C     turnaround is not modelled; the time is our guess, between the
+C     separation and Collins' "I'm still quite a ways" at 3:22:25),
+C     then range = 100 (A U + (1-A) U**2) ft, U the fraction of the
+C     closing time left, A set so the range rate at contact is 0.1
+C     ft/s.
+C-----------------------------------------------------------------------
+      SUBROUTINE S7POSE(GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, TCLS, TDOK, U, A, D
+      INTEGER I
+      TCLS = 3.0D0 * 3600.0D0 + 20.0D0 * 60.0D0 + 30.0D0
+      TDOK = 3.0D0 * 3600.0D0 + 24.0D0 * 60.0D0 + 3.1D0
+      U = (TDOK - GET) / (TDOK - TCLS)
+      IF (U .GT. 1.0D0) U = 1.0D0
+      IF (U .LT. 0.0D0) U = 0.0D0
+      A = 0.1D0 * (TDOK - TCLS) / 100.0D0
+      S7RNG = 100.0D0 * (A * U + (1.0D0 - A) * U * U)
+C     The camera is the COAS in the CSM's left rendezvous window,
+C     looking parallel to the docking axis 0.72 m to the LM's -Y side
+C     of it and 2 m behind the CSM's docking ring (our guesses; the
+C     target is set off to match, LMBILD).  S7BO: the tunnel top.
+      CALL SETV(S7BO, 4.35D0, 0.0D0, -0.6D0)
+      D = (S7RNG * 0.3048D0 + 2.0D0) * 1.0D-3
+      DO 10 I = 1, 3
+        S7LP(I) = D * BREF(I) + 0.72D-3 * S7AT(I,2)
+   10 CONTINUE
+      CALL LMPOSE(S7AT, S7LP, S7BO)
+      RETURN
+      END
+C
+C     S7ATT: the stack's attitude, LM body axes in S7AT.  The S-IVB
+C     held "a fixed inertial attitude to provide a stable docking
+C     platform" (MPR-SAT-FE-69-9, printed p. 11-1), reached by a
+C     manoeuvre that was to be "completed at plus 09 plus 20", so
+C     "the Sun will shine across the top of the LM after separation"
+C     (Apollo 11 Flight Journal, 002:54:09 and commentary).  The
+C     attitude itself is our guess: the stack's X axis square to the
+C     Sun and in the plane of the trajectory, pointing along the
+C     motion, frozen at 3:09:20; the LM front (+Z) toward the Sun.
+      SUBROUTINE S7ATT
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION T, R(3), V(3), S(3), H(3), X(3), Y(3), VDOT
+      INTEGER I
+      T = 3.0D0 * 3600.0D0 + 9.0D0 * 60.0D0 + 20.0D0
+      CALL TLIORB(T, R, V)
+      CALL SUNG(T, S)
+      CALL VCRS(R, V, H)
+      CALL VUNIT(H)
+      CALL VCRS(S, H, X)
+      CALL VUNIT(X)
+      IF (VDOT(X, V) .LT. 0.0D0) CALL SETV(X, -X(1), -X(2), -X(3))
+      CALL VCRS(S, X, Y)
+      DO 10 I = 1, 3
+        S7AT(I,1) = X(I)
+        S7AT(I,2) = Y(I)
+        S7AT(I,3) = S(I)
+   10 CONTINUE
+      RETURN
+      END
+C
+C     S7DRAW: the posed LM and S-IVB (S7POSE), then the COAS cross
+C     hairs, fixed to the CSM.  TN D-6853 (printed p. 12): "Command
+C     module and LM windows and optics outlines can be simulated."
+C     The reticle's pattern and size here are our guess: a cross
+C     +-6 deg, open in the middle so the target shows.
+      SUBROUTINE S7DRAW(VB, NV)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION VB(5,MAXV)
+      INTEGER NV
+      CALL LMEDGE(VB, NV, S7AT, S7LP, S7BO)
+      IVMODE = 0
+      ISTYLE = 1
+      CALL OVLINE(VB, NV, -6.0D0, 0.0D0, -1.0D0, 0.0D0)
+      CALL OVLINE(VB, NV, 1.0D0, 0.0D0, 6.0D0, 0.0D0)
+      CALL OVLINE(VB, NV, 0.0D0, -6.0D0, 0.0D0, -1.0D0)
+      CALL OVLINE(VB, NV, 0.0D0, 1.0D0, 0.0D0, 6.0D0)
       RETURN
       END
 C

@@ -100,7 +100,7 @@ body.still { padding:0; }
   <div class="grp">
     <button id="blab" class="on">Labels</button>
     <button id="bfrm" class="on">Frame</button>
-    <button id="bhid" title="Show the LM wireframe edges hidden behind the vehicle as dashed lines (the film drops them; TN D-6853 describes hidden-line LM models)">LM hidden lines</button>
+    <button id="bhid" title="Show the LM and S-IVB wireframe edges hidden behind the vehicles as dashed lines (the film drops them; TN D-6853 describes hidden-line LM and S-IVB models)">LM hidden lines</button>
     <button id="bjit" title="J">Film jitter</button>
     <button id="bdust" title="D">Dust</button>
     <button id="bfps" title="F">Film rate</button>
@@ -110,9 +110,9 @@ body.still { padding:0; }
     <button id="blink" title="L: copy a link to this view">Link</button>
   </div>
   <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="19" value="0:00:00" aria-label="ground elapsed time h:mm:ss, or a UTC timestamp YYYY-MM-DD HH:MM:SS"><span id="utc" class="lbl"></span><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0"></div>
-  <div class="grp"><span class="lbl">Jump (Live)</span><button id="jundock">Undocking 100:12:00</button><button id="jdesc">Descent 102:42:00</button></div>
+  <div class="grp"><span class="lbl">Jump (Live)</span><button id="jtd">Docking 3:20:30</button><button id="jundock">Undocking 100:12:00</button><button id="jdesc">Descent 102:42:00</button></div>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-6: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace. L: copy link. B: bloom. C: star catalog. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-7: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace. L: copy link. B: bloom. C: star catalog. Any input leaves Attract or Tour.</div>
 <div id="about">G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197.</div>
 <div id="err"></div>
 
@@ -132,7 +132,7 @@ const UP = new URLSearchParams(location.search);   // shareable view parameters 
 const NOWASM = /[?&]nowasm\b/.test(location.search);
 const USE_MOCK = /[?&]mock\b/.test(location.search) || WASM_B64.startsWith("__");
 const NAMES = (typeof VIEW_NAMES !== "undefined") ? VIEW_NAMES : (window.MOCK_NAMES || { NAV: [], CRATER: [] });
-const SCENES = ["Earthrise", "Translunar coast", "Earth limb", "LM rendezvous", "LM descent", "Moon view"];
+const SCENES = ["Earthrise", "Translunar coast", "Earth limb", "LM rendezvous", "LM descent", "Moon view", "Transposition & docking"];
 const SCENE_CAPTION = { 6: "Moon view \u2014 spin to explore" };   // caption text where a scene needs more than its name
 const SPEEDS = [0, 1, 2, 4, 10, 30, 100, 300, 1000];
 
@@ -216,6 +216,7 @@ const TOUR = [
   { name: "Earthrise",      scene: 1, dur: 200, fl: 2, fov: 14, roll: -3, pitch: u => 4 * u, p: [0, 200] },
   { name: "Earth approach", scene: 2, dur: 150, fl: 0, fov: 60, tte: APPROACH, limb: LIMB },
   { name: "Earth limb",     scene: 3, dur: 90,  fl: 2, yaw: u => -15 + 30 * u, p: [0, 90] },
+  { name: "Transposition & docking", scene: 7, dur: 110, fl: 2, p: [-60, 160] },   // 3:20:30 to just after docking at 3:24:03, about 2x
   { name: "LM pirouette",   scene: 4, dur: 120, fl: 0, p: [0, 240] },
   { name: "LM descent",     scene: 5, dur: 115, fl: 2, p: [-64, 225] },
   { name: "Moon view \u2014 spin to explore", scene: 6, dur: 75, fl: 3, yaw: u => -180 + 360 * u, pitch: u => 14 * Math.sin(2 * Math.PI * u), p: [0, 0] }
@@ -228,7 +229,7 @@ const PHASES = [
   { to: 135 * 3600 + 24 * 60, scene: 1, name: "Lunar orbit" },
   { to: Infinity, scene: 2, name: "Transearth coast" }
 ];
-const JUMPS = { jundock: { scene: 4, get: 360720, len: 1800, name: "LM rendezvous" }, jdesc: { scene: 5, get: 369720, len: 280, name: "LM descent" } };
+const JUMPS = { jtd: { scene: 7, get: 12030, len: 280, name: "Transposition & docking" }, jundock: { scene: 4, get: 360720, len: 1800, name: "LM rendezvous" }, jdesc: { scene: 5, get: 369720, len: 280, name: "LM descent" } };
 const LIVE_RATES = [1, 10, 60, 300, 1000];
 function lerpTab(t, u) { for (let i = 1; i < t.length; i++) if (u <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (u - t[i - 1][0]) / (t[i][0] - t[i - 1][0]); return t[t.length - 1][1]; }
 // Plot units to view angle: the kernel plots a direction at angle theta off the boresight at radius k tan(theta / k)
@@ -856,11 +857,11 @@ function applyParams() {
   let g = null; for (const k of ["get", "utc"]) if (UP.has(k)) { const v = parseGet(UP.get(k)); if (v !== null && isFinite(v)) g = v; }
   const sc = num("scene") === null ? 1 : Math.round(num("scene")), scn = sc >= 1 && sc <= SCENES.length ? sc : 1;
   if (md === "free" || md === "beam") { setScene(scn); if (g !== null) get = g; if (md === "beam") { const b = Math.round(num("bspeed") ?? 0); if (b >= 1 && b <= BEAM_SPEEDS.length) beamIdx = b - 1; startMode("beam"); } }
-  else {   // live: the scene follows the mission phase, except the LM windows, which are pinned
+  else {   // live: the scene follows the mission phase, except the LM and docking views, which are pinned
     if (g !== null) get = g;
     startMode("live");
     if (scn === 6) setScene(6);
-    else if (scn === 4 || scn === 5) liveJump(scn === 4 ? { ...JUMPS.jundock, get: g ?? JUMPS.jundock.get } : { ...JUMPS.jdesc, get: g ?? JUMPS.jdesc.get });
+    else if (scn === 4 || scn === 5 || scn === 7) { const j = JUMPS[{ 4: "jundock", 5: "jdesc", 7: "jtd" }[scn]]; liveJump({ ...j, get: g ?? j.get }); }
   }
   const r = num("rate"); if (r !== null) { if (md === "live" && LIVE_RATES.includes(r)) liveIdx = LIVE_RATES.indexOf(r); else if (md === "free" && SPEEDS.includes(r) && r > 0) speedIdx = SPEEDS.indexOf(r); }
   const f = num("fov"); if (f !== null) fov = Math.max(1, Math.min(170, f));
