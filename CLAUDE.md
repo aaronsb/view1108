@@ -100,7 +100,10 @@ Inputs (written by JS):
 - `in_get` real(8): ground elapsed time, seconds from Apollo 11 lift-off
   (1969-07-16 13:32:00 UTC, JD 2440419.063889).
 - `in_yaw`, `in_pitch`, `in_roll` real(8), degrees: free-look relative to the scene's reference
-  attitude (yaw +right, pitch +up, roll +clockwise as seen by the viewer).
+  attitude (yaw +right, pitch +up, roll +clockwise as seen by the viewer). Scene 6 differs:
+  `in_yaw` and `in_pitch` are the sub-observer selenographic east longitude and latitude
+  (degrees; default 0, 0), so changing them spins the Moon under a camera that always looks at
+  its centre; `in_roll` still rolls about the boresight.
 - `in_fov` real(8): full field of view in degrees (frame spans ±fov/2 on both axes).
 - `in_flags` int32: bit 0 labels on, bit 1 draw plot frame and tick marks, bit 2 draw hidden
   LM lines dashed (style 2) instead of dropping them (the film drops them).
@@ -113,7 +116,8 @@ Outputs (written by the kernel):
   MAXS = 4000.
 - `lbuf(4, MAXL)` real(8), `nlab` int32: labels `x, y, kind, id`. kind 1 nav star (id 1..37,
   names in `VIEW_NAMES.NAV`), 2 crater (id = crater index, `VIEW_NAMES.CRATER`), 3 Sun,
-  4 Earth, 5 Moon. MAXL = 200. Ids are 1-based: the name is `VIEW_NAMES.NAV[id-1]` /
+  4 Earth, 5 Moon, 6 mare/lacus/sinus/oceanus (scene 6; id = index in the kernel's mare table,
+  names come only as text records), 7 Apollo 11 landing site (scene 6, id 0). MAXL = 200. Ids are 1-based: the name is `VIEW_NAMES.NAV[id-1]` /
   `VIEW_NAMES.CRATER[id-1]` (crater names may be empty). Sun, Earth, Moon use id 0.
 - `hdr(16)` real(8): 1 GET s, 2 FOV deg, 3 range to reference body centre n.mi.,
   4 altitude stat. mi., 5 inertial speed ft/s, 6 reference body (1 Earth, 2 Moon), 7 scene,
@@ -131,7 +135,8 @@ Outputs (written by the kernel):
   report: left edge right-aligned just left of the box, right edge just right of it, bottom
   edge centred just below it, height 1.0% of the field. So these records have |x| or |y|
   beyond fov/2; the page must leave a margin to draw them. Names of nav stars, SUN, EARTH and
-  MOON beside their `lbuf` labels when bit 0 is set, height 1.4% of the field. The kernel
+  MOON beside their `lbuf` labels when bit 0 is set, height 1.4% of the field; in scene 6 also
+  mare/lacus/sinus/oceanus names centred on their centres and "LANDING SITE". The kernel
   assumes a character width of 0.7 × height for alignment. Crater names stay in `lbuf`
   (kind 2) for the page. MAXT = 300, MAXTC = 6000.
 
@@ -164,6 +169,12 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
    inspection pirouette). (`t22.png`, `t25.png`)
 5. **LM descent** — LM front window with the LPD scale, horizon rising through the window
    during pitch-over, flattened craters. (`t28.png`, `t31.png`, `t35.png`)
+6. **Moon view** — a modern addition (the inspiration is a present-day VIEW-style plot, not a
+   1969 source): the whole disc from 35,000 km above the sub-observer point, selenographic
+   north up, default GET 102:45:40 (touchdown) and FOV 6.4° (disc about 85% of the frame).
+   Limb, terminator and night-side shading lines, gazetteer craters of 25 km and up, maria,
+   lacus, sinus and oceanus as circles of their gazetteer diameters (the gazetteer gives only
+   centre and diameter), and the Apollo 11 landing site as a boxed X. No seeded craters.
 
 Drawing conventions from TN D-6853 (Hyle & Lunde 1972): night sides are straight parallel
 "shading lines"; the 37 prime nav stars are named; the background catalog runs to V 4.5;

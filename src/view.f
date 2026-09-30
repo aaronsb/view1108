@@ -61,7 +61,7 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       END IF
 C     RESTOMOD END
       ISCN = ISC
-      IF (ISCN .LT. 1 .OR. ISCN .GT. 5) ISCN = 1
+      IF (ISCN .LT. 1 .OR. ISCN .GT. 6) ISCN = 1
       YAW = 0.0D0
       PIT = 0.0D0
       ROL = 0.0D0
@@ -123,6 +123,17 @@ C       EARTH PARKING ORBIT, looking forward at the horizon.
 C       LM RENDEZVOUS / INSPECTION after undocking at 100:12.
         GET = 100.0D0*3600.0D0 + 14.0D0*60.0D0
         FOV = 12.0D0
+      ELSE IF (ISCN .EQ. 6) THEN
+C       MOON VIEW (a modern addition, not a 1969 plot type we have a
+C       source for).  The camera sits 35,000 km above the sub-observer
+C       point, our choice, which with the field below puts the disc at
+C       85 percent of the frame; yaw and pitch then move the
+C       sub-observer point (see SCNCAM).  GET at touchdown, so the
+C       terminator falls as it did for the landing.
+        GET = LUT0
+        S6DST = RM + 35000.0D0
+        FOV = DBLE(NINT(20.0D0 * DASIN(RM / S6DST) / DR / 0.85D0))
+     &      / 10.0D0
       ELSE
 C       LM DESCENT, commander's front window, P64 approach.
         GET = 102.0D0*3600.0D0 + 42.0D0*60.0D0
@@ -179,6 +190,8 @@ C     World at this GET.
 C
 C     Camera position CG (geocentric), velocity CV relative to the
 C     reference body IREF, window code IWIN, reference attitude.
+      S6LAT = PIT
+      S6LON = YAW
       CALL SCNCAM(GET, PM, CG, CV, IREF, IWIN)
       DO 20 I = 1, 3
         EPOS(I) = -CG(I)
@@ -190,7 +203,13 @@ C     reference body IREF, window code IWIN, reference attitude.
    30 CONTINUE
 C
 C     Free look, then the boresight in the Moon frame.
-      CALL LOOK(YAW, PIT, ROL)
+C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
+      IF (ISCN .EQ. 6) THEN
+        CALL LOOK(0.0D0, 0.0D0, ROL)
+      ELSE
+        CALL LOOK(YAW, PIT, ROL)
+      END IF
+C     RESTOMOD END
       CALL MTXV(MMF, CB, CBMF)
 C
       ISTYLE = 1
@@ -264,7 +283,7 @@ C     RESTOMOD END
       DOUBLE PRECISION LB(4,MAXL), TB(4,MAXT)
       INTEGER NL, NT, TC(MAXTC), NCH
       DOUBLE PRECISION B, ST, TL, H, V
-      INTEGER I, J, K, N, ID, IC(12)
+      INTEGER I, J, K, N, ID, IC(24)
       NT = 0
       NCH = 0
       B = BOXH
@@ -308,6 +327,22 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
             N = N + 1
             IC(N) = BODCH((K - 3) * 5 + J)
    25     CONTINUE
+        ELSE IF (K .EQ. 6 .AND. ID .GE. 1 .AND. ID .LE. NMARE) THEN
+C         Mare names centred on the mare's centre.
+          DO 26 J = 1, 24
+            IF (MRCH((ID - 1) * 24 + J) .EQ. 0) GO TO 27
+            N = N + 1
+            IC(N) = MRCH((ID - 1) * 24 + J)
+   26     CONTINUE
+   27     IF (N .GT. 0) CALL TXPUT(TB, NT, TC, NCH,
+     &      LB(1,I) - 0.35D0 * H * DBLE(N), LB(2,I) - 0.5D0 * H,
+     &      H, IC, N)
+          GO TO 40
+        ELSE IF (K .EQ. 7) THEN
+          DO 28 J = 1, 12
+            N = N + 1
+            IC(N) = SITECH(J)
+   28     CONTINUE
         END IF
 C     RESTOMOD END
    30   IF (N .GT. 0) CALL TXPUT(TB, NT, TC, NCH, LB(1,I) + 0.4D0 * H,
@@ -323,7 +358,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION TB(4,MAXT), X, Y, H
-      INTEGER NT, TC(MAXTC), NCH, IC(12), N, K
+      INTEGER NT, TC(MAXTC), NCH, IC(24), N, K
       IF (NT .GE. MAXT .OR. NCH + N + 1 .GT. MAXTC) RETURN
       NT = NT + 1
       TB(1,NT) = X
@@ -340,7 +375,7 @@ C     RESTOMOD END
 C
 C     ITOC: integer IV to character codes IC(1..N), ASCII digits.
       SUBROUTINE ITOC(IV, IC, N)
-      INTEGER IV, IC(12), N, M, K, D(10), ND
+      INTEGER IV, IC(24), N, M, K, D(10), ND
       M = IABS(IV)
       ND = 0
    10 ND = ND + 1
@@ -373,7 +408,7 @@ C     RESTOMOD END
       DOUBLE PRECISION GET, PM(3), CG(3), CV(3)
       INTEGER IREF, IWIN
       DOUBLE PRECISION R(3), V(3), RU(3), VU(3), SU(3), H(3), E(3)
-      DOUBLE PRECISION DIP, CA, SA, CD, SD, P2(3), R2(3)
+      DOUBLE PRECISION DIP, CA, SA, CD, SD, P2(3), R2(3), K, VDOT
       DOUBLE PRECISION XB(3), YB(3), ZB(3), PMF(3), VNRM
       INTEGER I
 C
@@ -441,6 +476,33 @@ C       Parking orbit.  Forward, boresight 8 deg above the horizon.
           BREF(I) = CD * VU(I) - SD * RU(I)
           UREF(I) = SD * VU(I) + CD * RU(I)
    80   CONTINUE
+      ELSE IF (ISCN .EQ. 6) THEN
+C       Moon view: looking at the centre from above the sub-observer
+C       point (S6LAT, S6LON), selenographic north up (our choice; a
+C       J2000-north layout would do as well).
+        IREF = 2
+        E(1) = DCOS(S6LAT * DR) * DCOS(S6LON * DR)
+        E(2) = DCOS(S6LAT * DR) * DSIN(S6LON * DR)
+        E(3) = DSIN(S6LAT * DR)
+        CALL MXV(MMF, E, H)
+        DO 95 I = 1, 3
+          CG(I) = PM(I) + S6DST * H(I)
+          CV(I) = 0.0D0
+          BREF(I) = -H(I)
+          UREF(I) = MMF(I,3)
+   95   CONTINUE
+        K = VDOT(UREF, BREF)
+        DO 96 I = 1, 3
+          UREF(I) = UREF(I) - K * BREF(I)
+   96   CONTINUE
+C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
+        IF (VDOT(UREF, UREF) .LT. 1.0D-12) THEN
+          DO 97 I = 1, 3
+            UREF(I) = MMF(I,1)
+   97     CONTINUE
+        END IF
+C     RESTOMOD END
+        CALL VUNIT(UREF)
       ELSE
 C       LM descent.  Boresight 46 deg down from the LM +Z axis in
 C       the X-Z plane, so the LPD scale 0..80 deg runs top to bottom.
@@ -1255,6 +1317,7 @@ C       2 on the Earth's limb: not behind the Moon
 C       3 on the Moon's surface: facing us, not behind the Earth
 C       4 as 1, and on the night side
 C       5 on the Moon's limb: not behind the Earth
+C       6 on the Moon's surface, facing us and on the night side
 C-----------------------------------------------------------------------
       INTEGER FUNCTION ISVIS(P)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -1299,6 +1362,13 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         END IF
       ELSE IF (IVMODE .EQ. 5) THEN
         IF (OCCL(P, EPOS, RE) .GT. 0.0D0) ISVIS = 0
+      ELSE IF (IVMODE .EQ. 6) THEN
+        DO 30 I = 1, 3
+          N(I) = P(I) - MPOS(I)
+   30   CONTINUE
+        IF (N(1)*P(1) + N(2)*P(2) + N(3)*P(3) .GE. 0.0D0) ISVIS = 0
+        IF (N(1)*SUNU(1) + N(2)*SUNU(2) + N(3)*SUNU(3) .GT. 0.0D0)
+     &    ISVIS = 0
       END IF
 C     RESTOMOD END
       RETURN
@@ -1478,7 +1548,7 @@ C     RESTOMOD END
       DOUBLE PRECISION VB(5,MAXV), LB(4,MAXL)
       INTEGER NV, NL
       DOUBLE PRECISION D, AE, C(3), U(3), P(3), Q(3), X, Y, VNRM
-      DOUBLE PRECISION LA, CF, SF, OCCL
+      DOUBLE PRECISION OCCL
       INTEGER I, K, J, IOK, IP
       D = VNRM(EPOS)
       IF (D .LE. RE * 1.0001D0) RETURN
@@ -1511,37 +1581,9 @@ C
 C     Terminator.
       CALL CIRCLE(VB, NV, EPOS, RE, SUNU, 0.5D0 * PI, 180)
 C
-C     Night side shading: straight parallel lines (TN D-6853, printed
-C     p. 8, fig. 6).  Each
-C     is cut from the sphere by a plane through the eye containing
-C     the Sun's direction across the line of sight, so it draws as a
-C     straight line along the light; 15 of them span the disc.  Not
-C     from low orbit, where the film shows none.
-C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (ISCN .NE. 3) THEN
-        K = 0
-        CF = SUNU(1)*U(1) + SUNU(2)*U(2) + SUNU(3)*U(3)
-        DO 32 I = 1, 3
-          Q(I) = SUNU(I) - CF * U(I)
-   32   CONTINUE
-        IF (Q(1)**2 + Q(2)**2 + Q(3)**2 .LT. 1.0D-12) K = 1
-        IF (K .EQ. 0) THEN
-          CALL VUNIT(Q)
-          CALL VCRS(U, Q, C)
-          IVMODE = 4
-          DO 50 J = -7, 7
-            LA = DBLE(J) * AE / 7.5D0
-            DO 35 I = 1, 3
-              P(I) = C(I) * DCOS(LA) - U(I) * DSIN(LA)
-   35       CONTINUE
-            SF = D * DSIN(LA) / RE
-            IF (DABS(SF) .LT. 1.0D0) THEN
-              CALL CIRCLE(VB, NV, EPOS, RE, P, DACOS(SF), 180)
-            END IF
-   50     CONTINUE
-        END IF
-      END IF
-C     RESTOMOD END
+C     Night side shading (SHADE), not from low orbit, where the film
+C     shows none.
+      IF (ISCN .NE. 3) CALL SHADE(VB, NV, EPOS, RE, 4)
       IVMODE = 0
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (MOD(IFLG, 2) .EQ. 1 .AND. AE .LT. 0.3D0 * FOVH * DR) THEN
@@ -1552,6 +1594,50 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         END IF
       END IF
 C     RESTOMOD END
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     SHADE: night side of the sphere (centre S camera relative, radius
+C     R) as straight parallel lines (TN D-6853, printed p. 8, fig. 6).
+C     Each is cut from the sphere by a plane through the eye that
+C     contains the Sun's direction across the line of sight, so it
+C     draws as a straight line along the light; 15 span the disc.
+C     IVM is the visibility test for the night-side points.
+C-----------------------------------------------------------------------
+      SUBROUTINE SHADE(VB, NV, S, R, IVM)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION VB(5,MAXV), S(3), R
+      INTEGER NV, IVM
+      DOUBLE PRECISION D, AE, U(3), Q(3), C(3), P(3), CF, LA, SF
+      INTEGER I, J
+      D = DSQRT(S(1)**2 + S(2)**2 + S(3)**2)
+      IF (D .LE. R) RETURN
+      AE = DASIN(R / D)
+      DO 10 I = 1, 3
+        U(I) = S(I) / D
+   10 CONTINUE
+      CF = SUNU(1)*U(1) + SUNU(2)*U(2) + SUNU(3)*U(3)
+      DO 20 I = 1, 3
+        Q(I) = SUNU(I) - CF * U(I)
+   20 CONTINUE
+      IF (Q(1)**2 + Q(2)**2 + Q(3)**2 .LT. 1.0D-12) RETURN
+      CALL VUNIT(Q)
+      CALL VCRS(U, Q, C)
+      IVMODE = IVM
+      DO 40 J = -7, 7
+        LA = DBLE(J) * AE / 7.5D0
+        DO 30 I = 1, 3
+          P(I) = C(I) * DCOS(LA) - U(I) * DSIN(LA)
+   30   CONTINUE
+        SF = D * DSIN(LA) / R
+        IF (DABS(SF) .LT. 1.0D0)
+     &    CALL CIRCLE(VB, NV, S, R, P, DACOS(SF), 180)
+   40 CONTINUE
+      IVMODE = 0
       RETURN
       END
 C
@@ -1644,10 +1730,13 @@ C     Gazetteer craters inside the visible cap.
       DO 20 K = 1, NCRAT
         IF (CRV(1,K)*CAMF(1) + CRV(2,K)*CAMF(2) + CRV(3,K)*CAMF(3)
      &      .LT. CA * D) GO TO 20
+C       Whole-disc view: gazetteer craters of 25 km and up only (our
+C       floor, so the disc is not a solid mass), unlabelled.
+        IF (ISCN .EQ. 6 .AND. CRDIA(K) .LT. 25.0D0) GO TO 20
         CALL CRATER(VB, NV, CRV(1,K), 0.5D0 * CRDIA(K) / RM, IOK)
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         IF (IOK .EQ. 1 .AND. CRDIA(K) .GE. 20.0D0 .AND.
-     &      MOD(IFLG, 2) .EQ. 1) THEN
+     &      MOD(IFLG, 2) .EQ. 1 .AND. ISCN .NE. 6) THEN
           DO 15 I = 1, 3
             G(I) = RM * CRV(I,K)
    15     CONTINUE
@@ -1676,11 +1765,17 @@ C     The IN (sec. 3.6, 3.7) notes few craters near the site, from
 C     the flat approach, the oblique look and few large craters;
 C     the patch density is set low to match.  Cells are seeded from
 C     their indices, so craters stay put from frame to frame.
-      CALL PCRAT(VB, NV, 0.5D0, 1.2D0, 2.5D0, 25.0D0, 1,
-     &           -90.0D0, 90.0D0, -180.0D0, 180.0D0, 1)
-      CALL PCRAT(VB, NV, 0.1D0, 0.8D0, 0.505D0, 4.0D0, 2,
-     &           0.674D0 - 5.0D0, 0.674D0 + 5.0D0,
-     &           23.473D0 - 5.0D0, 23.473D0 + 5.0D0, 0)
+C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
+      IF (ISCN .EQ. 6) THEN
+        CALL DMOON6(VB, NV, LB, NL)
+      ELSE
+        CALL PCRAT(VB, NV, 0.5D0, 1.2D0, 2.5D0, 25.0D0, 1,
+     &             -90.0D0, 90.0D0, -180.0D0, 180.0D0, 1)
+        CALL PCRAT(VB, NV, 0.1D0, 0.8D0, 0.505D0, 4.0D0, 2,
+     &             0.674D0 - 5.0D0, 0.674D0 + 5.0D0,
+     &             23.473D0 - 5.0D0, 23.473D0 + 5.0D0, 0)
+      END IF
+C     RESTOMOD END
       IVMODE = 0
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (MOD(IFLG, 2) .EQ. 1 .AND. AM .LT. 0.3D0 * FOVH * DR) THEN
@@ -1691,6 +1786,110 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         END IF
       END IF
 C     RESTOMOD END
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     DMOON6: the whole-disc Moon view's extras.  Terminator; night
+C     side shading as for the Earth (TN D-6853, printed p. 8); maria,
+C     lacus, sinus and oceanus from the IAU gazetteer, which gives
+C     only a centre and a diameter, so each is drawn as a circle of
+C     that diameter, not its true outline; the Apollo 11 landing site
+C     as a small boxed X.  Labels (LB kind 6 = mare, id its index;
+C     kind 7 = landing site) when IFLG bit 0 is set.
+C-----------------------------------------------------------------------
+      SUBROUTINE DMOON6(VB, NV, LB, NL)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION VB(5,MAXV), LB(4,MAXL)
+      INTEGER NV, NL
+      DOUBLE PRECISION CM(3), P(3), X, Y, W, DCAM, XL(64), YL(64), HN
+      INTEGER I, K, IOK, ISVIS, NP
+      IVMODE = 3
+      CALL CIRCLE(VB, NV, MPOS, RM, SUNU, 0.5D0 * PI, 360)
+      CALL SHADE(VB, NV, MPOS, RM, 6)
+      DCAM = DSQRT(CAMF(1)**2 + CAMF(2)**2 + CAMF(3)**2)
+C     Labels placed so far (plot deg), for the clutter test: a label
+C     whose point is within 1.5 name heights (TXALL's 1.4 percent of
+C     the field) of one already placed is dropped.  Our rule.
+      NP = 0
+      HN = 0.028D0 * FOVH
+C     Landing site, 0.674 N 23.473 E, first so its label always wins.
+      IVMODE = 3
+      CALL LLUNIT(0.674D0, 23.473D0, CM)
+      CALL SURFPT(CM, P)
+      IF (ISVIS(P) .EQ. 0) GO TO 10
+      CALL PROJ(P, X, Y, IOK)
+      W = 0.012D0 * FOVH
+      CALL EMIT(VB, NV, X - W, Y - W, X + W, Y - W)
+      CALL EMIT(VB, NV, X + W, Y - W, X + W, Y + W)
+      CALL EMIT(VB, NV, X + W, Y + W, X - W, Y + W)
+      CALL EMIT(VB, NV, X - W, Y + W, X - W, Y - W)
+      CALL EMIT(VB, NV, X - W, Y - W, X + W, Y + W)
+      CALL EMIT(VB, NV, X - W, Y + W, X + W, Y - W)
+C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
+      IF (MOD(IFLG, 2) .EQ. 1) THEN
+        CALL LABEL(LB, NL, X + W, Y + W, 7, 0)
+        NP = 1
+        XL(1) = X
+        YL(1) = Y
+      END IF
+C     RESTOMOD END
+C     Maria etc., largest first (the table is sorted by diameter).
+C     All are drawn; only a mare or oceanus of any size, or another
+C     feature of 150 km or more, is labelled (our clutter rule).
+   10 DO 30 K = 1, NMARE
+        CALL LLUNIT(MRLAT(K), MRLON(K), CM)
+        CALL CRATER(VB, NV, CM, 0.5D0 * MRDIA(K) / RM, IOK)
+        IF (MOD(IFLG, 2) .EQ. 0) GO TO 30
+        IF (MRDIA(K) .LT. 150.0D0 .AND. MRCH((K - 1) * 24 + 1) .NE. 77
+     &      .AND. MRCH((K - 1) * 24 + 1) .NE. 79) GO TO 30
+        IF (CM(1)*CAMF(1) + CM(2)*CAMF(2) + CM(3)*CAMF(3)
+     &      .LT. RM * RM / DCAM) GO TO 30
+        CALL SURFPT(CM, P)
+        CALL PROJ(P, X, Y, IOK)
+        DO 20 I = 1, NP
+          IF ((X - XL(I))**2 + (Y - YL(I))**2 .LT. (1.5D0 * HN)**2)
+     &      GO TO 30
+   20   CONTINUE
+        CALL LABEL(LB, NL, X, Y, 6, K)
+        IF (NP .GE. 64) GO TO 30
+        NP = NP + 1
+        XL(NP) = X
+        YL(NP) = Y
+   30 CONTINUE
+      IVMODE = 0
+      RETURN
+      END
+C
+C     LLUNIT: selenographic latitude, east longitude (deg) to a unit
+C     vector (MF).  SURFPT: unit MF direction to the surface point,
+C     camera relative EQ.
+      SUBROUTINE LLUNIT(FI, LA, U)
+      DOUBLE PRECISION FI, LA, U(3), DR
+      DR = 3.141592653589793D0 / 180.0D0
+      U(1) = DCOS(FI * DR) * DCOS(LA * DR)
+      U(2) = DCOS(FI * DR) * DSIN(LA * DR)
+      U(3) = DSIN(FI * DR)
+      RETURN
+      END
+C
+      SUBROUTINE SURFPT(CM, P)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION CM(3), P(3), G(3)
+      INTEGER I
+      DO 10 I = 1, 3
+        G(I) = RM * CM(I)
+   10 CONTINUE
+      CALL MXV(MMF, G, P)
+      DO 20 I = 1, 3
+        P(I) = P(I) + MPOS(I)
+   20 CONTINUE
       RETURN
       END
 C

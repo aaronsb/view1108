@@ -4,7 +4,7 @@ LF_BIN ?= $(HOME)/lf/bin
 PORT   ?= 8108
 PIDFILE = build/serve.pid
 LOGFILE = build/serve.log
-SCENES  = 1 2 3 4 5
+SCENES  = 1 2 3 4 5 6
 
 export LF_BIN
 

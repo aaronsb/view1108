@@ -40,8 +40,14 @@ C     RESTOMOD END
 C     Label text for the recorder's character generator: ASCII codes,
 C     10 per nav star (NAVCH), 5 each for SUN, EARTH, MOON (BODCH),
 C     zero padded.  Loaded by VIEWBD.
-      INTEGER NAVCH(370), BODCH(15)
-      COMMON /CNAME/ NAVCH, BODCH
+      INTEGER NAVCH(370), BODCH(15), SITECH(12)
+      COMMON /CNAME/ NAVCH, BODCH, SITECH
+C     RESTOMOD BEGIN: post-1969 data: IAU gazetteer maria (centres and
+C     diameters only, so drawn as circles), names as character codes.
+      DOUBLE PRECISION MRLAT(NMARE), MRLON(NMARE), MRDIA(NMARE)
+      INTEGER MRCH(24*NMARE)
+      COMMON /CMARE/ MRLAT, MRLON, MRDIA, MRCH
+C     RESTOMOD END
 C
 C     /CTAB/ unit vectors built from the tables at first call:
 C     crater centres (MF) and coastline points (EF).
@@ -89,16 +95,19 @@ C       semi-major axis TLA, perigee time TLTP.  Transearth: TE*.
 C     AZOFF, ELOFF: scene reference offsets (deg); TERISE: Earthrise.
 C     FXB, FXU: inertially held boresight and up (scene 2), fixed at
 C     FXDT seconds before entry interface.
+C     S6LAT, S6LON, S6DST: scene 6 sub-observer point (deg) and
+C     camera distance from the Moon's centre (km).
       DOUBLE PRECISION LUP0(3), LUV0(3), LURAD, LUN, LUT0
       DOUBLE PRECISION PKP0(3), PKV0(3), PKRAD, PKN, PKU0, PKT0
       DOUBLE PRECISION TLP(3), TLQ(3), TLE, TLA, TLTP
       DOUBLE PRECISION TEP(3), TEQ(3), TEE, TEA, TETP
       DOUBLE PRECISION AZOFF, ELOFF, TERISE, FXB(3), FXU(3), FXDT
+      DOUBLE PRECISION S6LAT, S6LON, S6DST
       COMMON /CORB/ LUP0, LUV0, LURAD, LUN, LUT0,
      &              PKP0, PKV0, PKRAD, PKN, PKU0, PKT0,
      &              TLP, TLQ, TLE, TLA, TLTP,
      &              TEP, TEQ, TEE, TEA, TETP, AZOFF, ELOFF, TERISE,
-     &              FXB, FXU, FXDT
+     &              FXB, FXU, FXDT, S6LAT, S6LON, S6DST
 C
 C     /CSCN/ scene number, flags of this frame, init done.
       INTEGER ISCN, IFLG, INITD
