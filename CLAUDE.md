@@ -157,6 +157,18 @@ circles; the same page's 170° front-window panel shows a fisheye dome, which st
 while keeping circles round. Directions beyond 90°·k off the boresight are not drawn (segments
 are cut there). See the comment at `PROJ` in `src/view.f`.
 
+Spacecraft models (`src/view.f`, "SPACECRAFT MODELS"): a library built once by `MLIB`, each
+model a range of convex solids (`MKPRS` prisms) and free lines or face marks (`XLINE`) in its own
+body frame in metres, listed in the model table `/CMODI/` (numbers `KLMD`, `KLMS`, `KSIV` in
+`viewcom.inc`). Per frame `SCNMOD` places models with `MPLACE(K, axes, position, body point)`,
+and `MDRALL` draws every placed model after the sky, with hidden-line removal against all placed
+solids; placed solids also hide stars, Sun, Earth and Moon. A model can ride on the observer's
+vehicle (position 0, body point = the eye); a solid with the camera inside hides nothing. Model
+edges go through `MSEG`, which splits them where the stereographic plot bends them, cuts them at
+the projection limit, and catches pieces whose ends are both outside the limit but which cross
+the view. To add a model: a builder between `MODBEG(K)` and `MODEND(K)` in `MLIB`, a number in
+`viewcom.inc`, one `MPLACE` in `SCNMOD`.
+
 ## Scenes (priority order; match the video frames)
 
 Fidelity rule: best effort within the spirit of what VIEW had in 1969 (trajectory data,

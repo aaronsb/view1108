@@ -21,10 +21,14 @@ C     Also the parenthesised PARAMETER list (FORTRAN 77, 1978).
       PARAMETER (MAXV=60000, MAXS=4000, MAXL=200)
       PARAMETER (MAXT=300, MAXTC=6000)
 C     RESTOMOD END
-      INTEGER MSOL, MVX, MFC, MED, MXL
+      INTEGER MSOL, MVX, MFC, MED, MXL, MMOD, KLMD, KLMS, KSIV
 C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978);
 C     FORTRAN V wrote PARAMETER I = 2 (UP-4046 Rev 3, sec. 10.4.1)
-      PARAMETER (MSOL=10, MVX=48, MFC=26, MED=72, MXL=160)
+      PARAMETER (MSOL=32, MVX=48, MFC=26, MED=72, MXL=400, MMOD=8)
+C     Model numbers (MLIB): LM gear down, LM gear stowed with docking
+C     aids, S-IVB with IU and SLA ring.
+C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)
+      PARAMETER (KLMD=1, KLMS=2, KSIV=3)
 C
 C     Tables loaded by BLOCK DATA VIEWBD (viewdata.f)
 C     RESTOMOD BEGIN: post-1969 data: Natural Earth coast (2009),
@@ -115,9 +119,8 @@ C     /CSCN/ scene number, flags of this frame, init done.
       INTEGER ISCN, IFLG, INITD
       COMMON /CSCN/ ISCN, IFLG, INITD
 C
-C     /CLM/ LM wireframe, body axes X up, Y right, Z forward (m).
-C     Scene 7 adds the S-IVB/IU as solid 8 and the SLA stub, stowed
-C     legs, docking target and drogue as free lines (LMBILD).
+C     /CLM/ spacecraft wireframe models (MLIB), each in its own body
+C     axes (m); for the LM X up, Y right, Z forward.
 C     Solid K is convex: vertices LMV, outward face planes N.x = D
 C     (LMN, LMD), edges LME(1..4,J) = vertex, vertex, face, face.
 C     Free lines LXL (legs, pads) and face marks LXS/LXF (windows).
@@ -136,3 +139,16 @@ C     top centre, camera relative, km.  S7BO: that point in LM body
 C     metres.  S7RNG: CSM to LM docking ring range, ft.
       DOUBLE PRECISION S7AT(3,3), S7LP(3), S7BO(3), S7RNG
       COMMON /CS7/ S7AT, S7LP, S7BO, S7RNG
+C
+C     /CMOD/ model table.  Model K is solids MDS1(K)..MDS2(K) and free
+C     lines MDX1(K)..MDX2(K) of /CLM/.  This frame: MDON(K) = 1 if
+C     placed (MPLACE), with body axes MDAT (EQ), body point MDBO (m)
+C     at MDP (km, camera relative).  LACT(IS) = 1 if solid IS is
+C     placed, LINS(IS) = 1 if the camera is inside it; NACT solids
+C     placed.
+      INTEGER NMOD, MDS1(MMOD), MDS2(MMOD), MDX1(MMOD), MDX2(MMOD)
+      INTEGER MDON(MMOD), LACT(MSOL), LINS(MSOL), NACT
+      COMMON /CMODI/ NMOD, MDS1, MDS2, MDX1, MDX2, MDON, LACT, LINS,
+     &               NACT
+      DOUBLE PRECISION MDAT(3,3,MMOD), MDP(3,MMOD), MDBO(3,MMOD)
+      COMMON /CMOD/ MDAT, MDP, MDBO
