@@ -1805,15 +1805,17 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION VB(5,MAXV), LB(4,MAXL)
       INTEGER NV, NL
-      DOUBLE PRECISION CM(3), P(3), X, Y, W, DCAM, XL(64), YL(64), HN
-      INTEGER I, K, IOK, ISVIS, NP
+      DOUBLE PRECISION CM(3), P(3), X, Y, W, DCAM, HN, WD
+      DOUBLE PRECISION XA(64), XB(64), YA(64), YB(64)
+      INTEGER I, K, IOK, ISVIS, NP, NC
       IVMODE = 3
       CALL CIRCLE(VB, NV, MPOS, RM, SUNU, 0.5D0 * PI, 360)
       CALL SHADE(VB, NV, MPOS, RM, 6)
       DCAM = DSQRT(CAMF(1)**2 + CAMF(2)**2 + CAMF(3)**2)
-C     Labels placed so far (plot deg), for the clutter test: a label
-C     whose point is within 1.5 name heights (TXALL's 1.4 percent of
-C     the field) of one already placed is dropped.  Our rule.
+C     Labels placed so far, as text rectangles in plot deg (0.7 name
+C     height per character wide, one name height tall, the extents
+C     TXALL will give them), for the clutter test: a label whose
+C     rectangle meets one already placed is dropped.  Our rule.
       NP = 0
       HN = 0.028D0 * FOVH
 C     Landing site, 0.674 N 23.473 E, first so its label always wins.
@@ -1833,8 +1835,10 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (MOD(IFLG, 2) .EQ. 1) THEN
         CALL LABEL(LB, NL, X + W, Y + W, 7, 0)
         NP = 1
-        XL(1) = X
-        YL(1) = Y
+        XA(1) = X + W + 0.4D0 * HN
+        XB(1) = XA(1) + 0.7D0 * HN * 12.0D0
+        YA(1) = Y + W + 0.4D0 * HN
+        YB(1) = YA(1) + HN
       END IF
 C     RESTOMOD END
 C     Maria etc., largest first (the table is sorted by diameter).
@@ -1850,15 +1854,25 @@ C     feature of 150 km or more, is labelled (our clutter rule).
      &      .LT. RM * RM / DCAM) GO TO 30
         CALL SURFPT(CM, P)
         CALL PROJ(P, X, Y, IOK)
+C       Name length, then its rectangle, centred on the point.
+        NC = 0
+        DO 15 I = 1, 24
+          IF (MRCH((K - 1) * 24 + I) .EQ. 0) GO TO 16
+          NC = NC + 1
+   15   CONTINUE
+   16   WD = 0.35D0 * HN * DBLE(NC)
         DO 20 I = 1, NP
-          IF ((X - XL(I))**2 + (Y - YL(I))**2 .LT. (1.5D0 * HN)**2)
+          IF (X - WD .LT. XB(I) .AND. X + WD .GT. XA(I) .AND.
+     &        Y - 0.5D0 * HN .LT. YB(I) .AND. Y + 0.5D0 * HN .GT. YA(I))
      &      GO TO 30
    20   CONTINUE
         CALL LABEL(LB, NL, X, Y, 6, K)
         IF (NP .GE. 64) GO TO 30
         NP = NP + 1
-        XL(NP) = X
-        YL(NP) = Y
+        XA(NP) = X - WD
+        XB(NP) = X + WD
+        YA(NP) = Y - 0.5D0 * HN
+        YB(NP) = Y + 0.5D0 * HN
    30 CONTINUE
       IVMODE = 0
       RETURN
