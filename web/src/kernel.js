@@ -46,7 +46,6 @@ async function boot() {
     }
   }
   if (DEBUG) window.VIEW_KERNEL = K;
-  document.getElementById("lst").textContent = document.getElementById("fsrc").textContent;
 }
 
 // ---- kernel access (views are re-made on every access; memory may grow) ----

@@ -5,7 +5,8 @@ Page modules: each <link rel="stylesheet" href="src/X.css"> becomes an inline <s
 <script src="src/X.js"></script> tags becomes one inline script whose modules share a strict-mode closure,
 joined in tag order. Placeholders: __WASM_B64__ (build/view.opt.wasm), __FALLBACK_JS__ (build/fallback.js),
 __NAMES_JS__ (build/names.js), __FORTRAN_SRC__ (the kernel listing:
-every src/*.f but the generated viewdata.f, the driver vdrive.f (or view.f) first, HTML-escaped),
+every src/*.f but the generated viewdata.f, the driver vdrive.f (or view.f) first, each element preceded by
+a line of a form feed and its path, HTML-escaped),
 __FONT_3270_B64__ (web/fonts/3270-Regular.subset.woff2).
 """
 import base64, html, pathlib, re, sys
@@ -52,7 +53,7 @@ def scripts(m):
 t = re.sub(r'(?:<script src="src/[\w.-]+\.js"></script>\n)+', scripts, t)
 # Function replacements so '\' and '&' in payloads are never interpreted.
 subs = {
-    "__FORTRAN_SRC__": html.escape("".join(f.read_text() for f in KSRC), quote=False),
+    "__FORTRAN_SRC__": html.escape("".join(f"\f{f.relative_to(R)}\n{f.read_text()}" for f in KSRC), quote=False),
     "__FALLBACK_JS__": INPUTS["fallback"].read_text().replace("</script", "<\\/script"),
     "__NAMES_JS__": INPUTS["names"].read_text().replace("</script", "<\\/script"),
     "__FONT_3270_B64__": base64.b64encode(INPUTS["font"].read_bytes()).decode(),

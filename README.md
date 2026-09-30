@@ -108,6 +108,7 @@ micromamba create -p ~/lf -c conda-forge lfortran=0.66.0 llvm-tools=23.1.2 lld=2
 make            # list targets
 make build      # FORTRAN -> wasm -> web/view1108.html, then the self-test
 make serve      # http://localhost:8108/view1108.html   (make stop to end)
+                # page.template.html?mock: the page modules from web/src/, with a toy kernel
 make check      # render every scene natively with gfortran to build/check/
 make lint       # dialect check and compiler warnings
 make sheet      # regenerate the film comparison sheet (headless Chromium)

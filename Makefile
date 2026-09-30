@@ -59,7 +59,7 @@ serve: ## Start a local web server for web/ in the background (PORT=8108)
 	sleep 0.5; \
 	if kill -0 $$(cat $(PIDFILE)) 2>/dev/null; then \
 	  echo "serving web/ on http://localhost:$(PORT)/view1108.html (pid $$(cat $(PIDFILE)))"; \
-	  echo "mock kernel: http://localhost:$(PORT)/page.template.html?mock"; \
+	  echo "mock kernel: http://localhost:$(PORT)/page.template.html?mock (loads the page modules from web/src/)"; \
 	else echo "server failed to start:"; cat $(LOGFILE); rm -f $(PIDFILE); exit 1; fi
 
 stop: ## Stop the local web server started by `make serve`
