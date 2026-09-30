@@ -339,7 +339,7 @@ C         Mare names centred on the mare's centre.
      &      H, IC, N)
           GO TO 40
         ELSE IF (K .EQ. 7) THEN
-          DO 28 J = 1, 12
+          DO 28 J = 1, 22
             N = N + 1
             IC(N) = SITECH(J)
    28     CONTINUE
@@ -743,11 +743,11 @@ C     RESTOMOD END
       DOUBLE PRECISION FI, LA, AZ, TH0
       INTEGER I
 C
-C     Lunar orbit.  Over the landing site 0.674 N 23.473 E at touchdown
+C     Lunar orbit.  Over the landing site (see DMOON6) at touchdown
 C     heading 268.8 deg (westward, 1.2 deg south of west).
       LUT0 = 102.0D0*3600.0D0 + 45.0D0*60.0D0 + 40.0D0
-      FI = 0.674D0 * DR
-      LA = 23.473D0 * DR
+      FI = 0.67416D0 * DR
+      LA = 23.47314D0 * DR
       AZ = 268.8D0 * DR
       S(1) = DCOS(FI) * DCOS(LA)
       S(2) = DCOS(FI) * DSIN(LA)
@@ -972,8 +972,8 @@ C     RESTOMOD END
       DOUBLE PRECISION S(3), N(3), E(3), F(3), U(3), G(3)
       DOUBLE PRECISION FI, LA, AZ, TAU, Q, X, H, TP, C, SN
       INTEGER I
-      FI = 0.674D0 * DR
-      LA = 23.473D0 * DR
+      FI = 0.67416D0 * DR
+      LA = 23.47314D0 * DR
       AZ = 268.8D0 * DR
       S(1) = DCOS(FI) * DCOS(LA)
       S(2) = DCOS(FI) * DSIN(LA)
@@ -1756,7 +1756,7 @@ C     built from photographs of the area near Apollo landing site 2
 C     (TN D-6853, printed p. 7), and "the smallest craters depicted
 C     ... have a size of 1 minute of arc (1658 ft)" (MSC IN
 C     69-FM-197, sec. 3.1).  Our model of that, not the original:
-C       regional patch, site 2 (0.674 N, 23.473 E) +-5 deg, cells of
+C       regional patch, site 2 (see DMOON6) +-5 deg, cells of
 C       0.1 deg, craters 1658 ft (0.505 km) to 4 km, where the
 C       gazetteer takes over;
 C       global fill elsewhere, cells of 0.5 deg, 2.5 to 25 km, so
@@ -1772,8 +1772,8 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         CALL PCRAT(VB, NV, 0.5D0, 1.2D0, 2.5D0, 25.0D0, 1,
      &             -90.0D0, 90.0D0, -180.0D0, 180.0D0, 1)
         CALL PCRAT(VB, NV, 0.1D0, 0.8D0, 0.505D0, 4.0D0, 2,
-     &             0.674D0 - 5.0D0, 0.674D0 + 5.0D0,
-     &             23.473D0 - 5.0D0, 23.473D0 + 5.0D0, 0)
+     &             0.67416D0 - 5.0D0, 0.67416D0 + 5.0D0,
+     &             23.47314D0 - 5.0D0, 23.47314D0 + 5.0D0, 0)
       END IF
 C     RESTOMOD END
       IVMODE = 0
@@ -1818,9 +1818,16 @@ C     TXALL will give them), for the clutter test: a label whose
 C     rectangle meets one already placed is dropped.  Our rule.
       NP = 0
       HN = 0.028D0 * FOVH
-C     Landing site, 0.674 N 23.473 E, first so its label always wins.
+C     Apollo 11 landing site, first so its label always wins.  The
+C     1969 reports call it "landing site 2" (MSC IN 69-FM-197).  LM
+C     position 0.67416 N, 23.47314 E, planetocentric Mean Earth/Polar
+C     Axis (DE421), from LRO images: NSSDC, "Apollo Landing Site
+C     Coordinates", https://nssdc.gsfc.nasa.gov/planetary/lunar/
+C     lunar_sites.html, citing Wagner et al., Icarus 283, 92-103
+C     (2017).  The same values are used for the orbit, the descent and
+C     the crater patch.
       IVMODE = 3
-      CALL LLUNIT(0.674D0, 23.473D0, CM)
+      CALL LLUNIT(0.67416D0, 23.47314D0, CM)
       CALL SURFPT(CM, P)
       IF (ISVIS(P) .EQ. 0) GO TO 10
       CALL PROJ(P, X, Y, IOK)
@@ -1836,7 +1843,7 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         CALL LABEL(LB, NL, X + W, Y + W, 7, 0)
         NP = 1
         XA(1) = X + W + 0.4D0 * HN
-        XB(1) = XA(1) + 0.7D0 * HN * 12.0D0
+        XB(1) = XA(1) + 0.7D0 * HN * 22.0D0
         YA(1) = Y + W + 0.4D0 * HN
         YB(1) = YA(1) + HN
       END IF
@@ -2089,8 +2096,8 @@ C     RESTOMOD: seed for the Park-Miller generator (1988)
           CLON0 = DBLE(JJ) * GC - 180.0D0
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
           IF (IEXC .EQ. 1) THEN
-            FC = CLAT0 + 0.5D0 * GC - 0.674D0
-            LC = CLON0 + 0.5D0 * GC - 23.473D0
+            FC = CLAT0 + 0.5D0 * GC - 0.67416D0
+            LC = CLON0 + 0.5D0 * GC - 23.47314D0
             IF (DABS(FC) .LT. 5.0D0 .AND. DABS(LC) .LT. 5.0D0) GO TO 50
           END IF
 C     RESTOMOD END

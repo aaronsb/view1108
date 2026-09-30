@@ -40,7 +40,7 @@ C     RESTOMOD END
 C     Label text for the recorder's character generator: ASCII codes,
 C     10 per nav star (NAVCH), 5 each for SUN, EARTH, MOON (BODCH),
 C     zero padded.  Loaded by VIEWBD.
-      INTEGER NAVCH(370), BODCH(15), SITECH(12)
+      INTEGER NAVCH(370), BODCH(15), SITECH(22)
       COMMON /CNAME/ NAVCH, BODCH, SITECH
 C     RESTOMOD BEGIN: post-1969 data: IAU gazetteer maria (centres and
 C     diameters only, so drawn as circles), names as character codes.

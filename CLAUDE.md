@@ -136,7 +136,7 @@ Outputs (written by the kernel):
   edge centred just below it, height 1.0% of the field. So these records have |x| or |y|
   beyond fov/2; the page must leave a margin to draw them. Names of nav stars, SUN, EARTH and
   MOON beside their `lbuf` labels when bit 0 is set, height 1.4% of the field; in scene 6 also
-  mare/lacus/sinus/oceanus names centred on their centres and "LANDING SITE". The kernel
+  mare/lacus/sinus/oceanus names centred on their centres and "APOLLO 11 LANDING SITE". The kernel
   assumes a character width of 0.7 × height for alignment. Crater names stay in `lbuf`
   (kind 2) for the page. MAXT = 300, MAXTC = 6000.
 

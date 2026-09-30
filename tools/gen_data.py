@@ -224,7 +224,7 @@ def main():
          "      DOUBLE PRECISION CLON(NCPT), CLAT(NCPT)",
          "      INTEGER KCST(NCST+1)",
          "      DOUBLE PRECISION CRLAT(NCRAT), CRLON(NCRAT), CRDIA(NCRAT)",
-         "      INTEGER NAVCH(370), BODCH(15), SITECH(12)",
+         "      INTEGER NAVCH(370), BODCH(15), SITECH(22)",
          "      DOUBLE PRECISION MRLAT(NMARE), MRLON(NMARE), MRDIA(NMARE)",
          "      INTEGER MRCH(24*NMARE)",
          "      INTEGER IBD",
@@ -254,7 +254,7 @@ def main():
     for nm in ("SUN", "EARTH", "MOON"):
         bodch += [ord(ch) for ch in nm] + [0] * (5 - len(nm))
     body += fdata("NAVCH", navch, "%d", 10) + fdata("BODCH", bodch, "%d", 10)
-    body += fdata("SITECH", [ord(ch) for ch in "LANDING SITE"], "%d", 10)
+    body += fdata("SITECH", [ord(ch) for ch in "APOLLO 11 LANDING SITE"], "%d", 10)
     mrch = []
     for m in mar:
         nm = m[3][:24]

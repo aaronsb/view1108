@@ -15,7 +15,7 @@ C     coastlines (Natural Earth, 2009) and craters (IAU, 1970 on).
       DOUBLE PRECISION CLON(NCPT), CLAT(NCPT)
       INTEGER KCST(NCST+1)
       DOUBLE PRECISION CRLAT(NCRAT), CRLON(NCRAT), CRDIA(NCRAT)
-      INTEGER NAVCH(370), BODCH(15), SITECH(12)
+      INTEGER NAVCH(370), BODCH(15), SITECH(22)
       DOUBLE PRECISION MRLAT(NMARE), MRLON(NMARE), MRDIA(NMARE)
       INTEGER MRCH(24*NMARE)
       INTEGER IBD
@@ -7744,7 +7744,8 @@ C              diameter (km) and names (24 codes each, zero padded).
       DATA (BODCH(IBD),IBD=1,15) /
      1 83,85,78,0,0,69,65,82,84,72,
      1 77,79,79,78,0/
-      DATA (SITECH(IBD),IBD=1,12) /
+      DATA (SITECH(IBD),IBD=1,22) /
+     1 65,80,79,76,76,79,32,49,49,32,
      1 76,65,78,68,73,78,71,32,83,73,
      1 84,69/
       DATA (MRLAT(IBD),IBD=1,56) /
