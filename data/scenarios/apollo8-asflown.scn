@@ -1,0 +1,91 @@
+* APOLLO 8 AS FLOWN: A VIEW-1108 SCENARIO (A RUN DECK, IN 1969 TERMS).
+*
+* The mission as flown, from the post-flight reports.  Card types and units as
+* in apollo11-asflown.scn (its header lists them).  VIEW made Apollo 8 views:
+* "Preflight views produced for the Apollo 8 mission included views as seen
+* through the spacecraft windows during various critical maneuvers of the
+* flight" (TN D-6853, printed p. 3).  None of them survive; the scene built on
+* this scenario uses the formats of the Apollo 11 note, MSC IN 69-FM-197.
+*
+* Sources:
+*   MR8  Apollo 8 Mission Report, MSC-PA-R-69-1, February 1969
+*        https://ntrs.nasa.gov/api/citations/19700033031/downloads/19700033031.pdf
+*        (printed page numbers).  Table 5-I (p. 5-6): latitudes geodetic for
+*        the Earth, selenographic for the Moon; flight-path angle and heading
+*        space-fixed.
+*   SP   R. W. Orloff, Apollo by the Numbers, NASA SP-2000-4029 (printed pages).
+*   SVS  NASA Scientific Visualization Studio 4129, "Earthrise" (E. Wright,
+*        A. Chaikin, 2013), https://svs.gsfc.nasa.gov/4129: the spacecraft's
+*        position in its head-up display for each Earthrise frame.
+*
+SCENARIO ID=2 MISSION="APOLLO 8" NAME="AS FLOWN"
+EPOCH JD=2440212.035417 SRC="MR8 p. 2-1: Range zero for this mission was 12:51:00 G.m.t. (21 December 1968)"
+PAD NAME="LC-39A" LATTYPE=GC LAT=28.4470 LON=-80.6041 SRC="SP p. 45, Apollo 8 ascent phase table, Liftoff 000:00:00.67: geocentric latitude 28.4470 deg N, longitude -80.6041 deg E; SP p. 34: Apollo 8 was launched from Launch Complex 39, Pad A, at the Kennedy Space Center, Florida"
+*
+* Earth parking orbit, as Apollo 11's: the S-IVB first cutoff state on a
+* circle at the mean of SP's 99.99 by 99.57 n mi (p. 45).
+LEG TYPE=CIRC FROM=0:11:34.98 TO=2:50:37.79 T=0:11:24.98 LATTYPE=GC LAT=32.4541 LON=-54.0565 V=25562.43 FPA=-0.001 HDG=88.098 ALT=99.78 SRC="SP p. 45 ascent table, S-IVB 1st burn cutoff: geocentric 32.4541 N, -54.0565 E, space-fixed velocity 25,562.43, flight-path angle -0.001, heading 88.098; orbit 99.99 by 99.57 n mi, same page"
+*
+* Translunar coast: conics from translunar injection and from the first
+* midcourse correction cutoff.  Earth only (no lunar gravity): ours.
+LEG TYPE=CONIC FROM=2:56:05.5 TO=10:59:59.5 T=2:56:05.5 LATTYPE=GD LAT=21.48 LON=-143.02 ALT=187.1 V=35505 FPA=7.90 HDG=67.49 SRC="MR8 Table 5-II p. 5-7, translunar injection"
+LEG TYPE=CONIC FROM=10:59:59.5 TO=69:08:20.4 T=11:00:01.9 LATTYPE=GD LAT=-1.71 LON=-123.75 ALT=52771.7 V=8172 FPA=73.75 HDG=120.54 SRC="MR8 Table 5-II p. 5-7, first midcourse correction cutoff"
+*
+* Lunar orbit.  After insertion, the 168.5 by 60.0 n mi ellipse (MR8 p. 5-3)
+* on a circle through the insertion cutoff and circularization ignition rows
+* at the mean altitude, two revolutions apart ("About two revolutions later",
+* same page): ours, as Apollo 11's.  After circularization (60.7 by 59.7 n
+* mi, MR8 p. 5-3), a circle through the Earthrise photograph's position and
+* the transearth injection ignition row, six whole revolutions between them
+* (the ten of MR8 p. 5-3 end at TEI; the count is ours, from the 7,140 s
+* period); its altitude is the SVS position's 110.0 km (59.40 n mi) above the
+* mean radius, near MR8's 60.2 mean.
+LEG TYPE=LUNAR FROM=69:08:20.4 TO=73:35:07 T=69:12:27.3 LAT=-9.89 LON=179.56 TB=73:35:07 LATB=-11.61 LONB=160.29 N=2 ALT=114.25 SRC="MR8 Table 5-II p. 5-7, lunar orbit insertion cutoff and circularization ignition; altitude the mean of MR8 p. 5-3's 168.5 by 60.0 n mi"
+LEG TYPE=LUNAR FROM=73:35:07 TO=89:19:16.6 T=75:48:39.7 LAT=-11.15 LON=113.80 TB=89:19:16.6 LATB=-9.27 LONB=174.78 N=6 ALT=59.40 SRC="SVS 4129, head-up display at AS08-14-2383 (16:39:39.7 UT = 75:48:39.7 g.e.t.): 11.15 S, 113.80 E, 110.0 km; MR8 Table 5-II p. 5-8, transearth injection ignition"
+*
+* Transearth coast: conics from the third midcourse correction ignition and
+* from entry interface.  Earth only: ours.
+LEG TYPE=CONIC FROM=89:22:40.3 TO=103:59:54 T=103:59:54 LATTYPE=GD LAT=-5.67 LON=-57.27 ALT=165561.5 V=4299 FPA=-80.59 HDG=52.65 SRC="MR8 Table 5-II p. 5-8, third midcourse correction ignition"
+LEG TYPE=CONIC FROM=103:59:54 TO=147:00:42 T=146:46:12.8 LATTYPE=GD LAT=20.83 LON=-179.89 ALT=65.90 V=36221 FPA=-6.50 HDG=121.57 SRC="MR8 Table 5-V p. 5-10, entry interface (400 000 feet); the table prints the flight-path angle unsigned, 6.50, and entry is downward"
+*
+* Events.
+EVENT KIND=TLI T=2:56:05.5 SRC="MR8 Table 5-II p. 5-7, translunar injection (cutoff 2:55:55.5 plus 10 s)"
+EVENT KIND=SEP T=3:20:59.3 SRC="MR8 Table 3-I p. 3-3, spacecraft/S-IVB separation"
+EVENT KIND=LOI1 T=69:08:20.4 SRC="MR8 Table 3-I p. 3-3, lunar orbit insertion ignition"
+EVENT KIND=LOI2 T=73:35:07 SRC="MR8 Table 3-I p. 3-3, lunar orbit circularization ignition"
+EVENT KIND=PHOTO T=75:48:39.7 SRC="SVS 4129: AS08-14-2383, the Earthrise photograph, at 16:39:39.7 UT on 24 December 1968, which is 75:48:39.7 after range zero"
+EVENT KIND=TEI T=89:19:16.6 SRC="MR8 Table 3-I p. 3-3, transearth injection ignition"
+EVENT KIND=EI T=146:46:12.8 SRC="MR8 Table 3-I p. 3-4, entry interface (400 000 feet)"
+*
+* ---------------------------------------------------------------------
+* SIMULATION (src/sim.f), as for Apollo 11.  Burn sizes and firing times
+* from SP p. 46 (Apollo 8 translunar, lunar orbit and transearth phases);
+* mid-burn g.e.t. is the ignition plus half the firing time (ours).  Left
+* out, all below 2.5 ft/s or before the start: the separation manoeuvres
+* (1.1 and 7.7 ft/s, MR8 p. 5-2) and the second midcourse
+* correction (1.4 ft/s, SP p. 46).
+*
+START T=2:56:05.5 END=147:00:00 BODY=EARTH LATTYPE=GD LAT=21.48 LON=-143.02 ALT=187.1 V=35505 FPA=7.90 HDG=67.49 SRC="MR8 Table 5-II p. 5-7, translunar injection"
+*
+BURN T=11:00:00.4 DV=20.4 BODY=EARTH P=-0.798 R=0.576 N=0.174 SRC="SP p. 46: first midcourse correction ignition 010:59:59.2, 2.4 s, 20.4 ft/s. Direction derived by us from the MR8 Table 5-II p. 5-7 ignition and cutoff rows (their difference, less gravity over 2.4 s, is 18.4 ft/s)"
+BURN T=69:10:23.85 DV=2997 BODY=MOON P=-1 R=0 N=0 SRC="SP p. 46: lunar orbit insertion ignition 069:08:20.4, 246.9 s, 2,997 ft/s. Direction against the velocity: our assumption"
+BURN T=73:35:11.4 DV=134.8 BODY=MOON P=-1 R=0 N=0 SRC="SP p. 46: lunar orbit circularization ignition 073:35:06.6, 9.6 s, 134.8 ft/s. Direction against the velocity: our assumption"
+BURN T=89:20:58.45 DV=3519.0 BODY=MOON P=1 R=0 N=0 SRC="SP p. 46: transearth injection ignition 089:19:16.6, 203.7 s, 3,519.0 ft/s. Direction along the velocity: our assumption"
+BURN T=104:00:07.5 DV=4.8 BODY=EARTH P=-1 R=0 N=0 SRC="SP p. 46: midcourse correction ignition 104:00:00.00, 15.00 s, 4.8 ft/s; MR8 p. 5-3: to decrease the inertial velocity by 4.8 ft/sec"
+*
+* Reference rows: MR8 Table 5-II pp. 5-7, 5-8 and Table 5-V p. 5-10.
+* Not used: the third midcourse correction ignition row (103:59:54).  Its
+* flight-path angle, -80.59 deg 306,000 km out, puts the Earth-only conic's
+* perigee 704 km below the surface (0.6 deg shallower gives the entry
+* interface's 35 km); correcting to it left the engine 19,500 km from the
+* entry interface row against 5,000 km without it.  The transearth coast is
+* the engine's weak leg for Apollo 8: from the transearth injection cutoff,
+* 57 h of free flight, it reaches entry thousands of km off (ours: a point
+* mass Moon, an impulsive burn).
+REF T=3:20:59 BODY=EARTH LATTYPE=GD LAT=25.86 LON=-66.23 ALT=3797.8 V=24975 FPA=45.11 HDG=107.12 SRC="spacecraft/S-IVB separation"
+REF T=11:00:01.9 BODY=EARTH LATTYPE=GD LAT=-1.71 LON=-123.75 ALT=52771.7 V=8172 FPA=73.75 HDG=120.54 SRC="first midcourse correction cutoff"
+REF T=69:12:27.3 BODY=MOON LAT=-9.89 LON=179.56 ALT=62.0 V=5458 FPA=-0.79 SRC="lunar orbit insertion cutoff"
+REF T=73:35:16 BODY=MOON LAT=-11.66 LON=159.79 ALT=60.7 V=5345 FPA=-0.02 SRC="lunar orbit circularization cutoff"
+REF T=89:22:40.3 BODY=MOON LAT=-11.17 LON=160.19 ALT=66.1 V=8842 FPA=5.10 SRC="transearth injection cutoff"
+* REF T=103:59:54 BODY=EARTH LATTYPE=GD LAT=-5.67 LON=-57.27 ALT=165561.5 V=4299 FPA=-80.59 HDG=52.65 SRC="third midcourse correction ignition"
+REF T=146:46:12.8 BODY=EARTH LATTYPE=GD LAT=20.83 LON=-179.89 ALT=65.90 V=36221 FPA=-6.50 HDG=121.57 SRC="MR8 Table 5-V p. 5-10, entry interface; flight-path angle printed unsigned"

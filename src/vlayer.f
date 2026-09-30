@@ -32,11 +32,11 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION GET, VB(5,MAXV), SB(3,MAXS), LB(4,MAXL)
       INTEGER NV, NS, NL
-      INTEGER LL(12,8), K, L
+      INTEGER LL(12,9), K, L
 C     Layer lists, one column per scene, ended by 0.  Scene 8 (the
 C     stack in translunar coast) has the sky and the vehicles.  Scene 4
 C     (the LM pirouette) has no stars, as on the film (t22.png,
-C     t25.png).
+C     t25.png).  Scene 9 (Apollo 8 Earthrise) has scene 1's.
       DATA LL / 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0,
      &          1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0,
      &          1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0,
@@ -44,6 +44,7 @@ C     t25.png).
      &          1, 2, 3, 4, 5, 6, 8, 9, 0, 0, 0, 0,
      &          1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0,
      &          1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0,
+     &          1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0,
      &          1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0 /
       DO 90 K = 1, 12
         L = LL(K, ISCN)

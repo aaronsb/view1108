@@ -7997,22 +7997,30 @@ C       PAD: SP p. 103, Apollo 11 ascent phase table, Liftoff
 C       000:00:00.63: geocentric latitude 28.4470 deg N, longitude
 C       -80.6041 deg E; SP p. 92: Apollo 11 was launched from Kennedy
 C       Space Center Launch Complex 39, Pad A
-      DATA (SNJD0(IBD),IBD=1,1) /
-     1 2440419.063889D0/
-      DATA (SNSLA(IBD),IBD=1,1) /
-     1 0.67416D0/
-      DATA (SNSLO(IBD),IBD=1,1) /
-     1 23.47314D0/
-      DATA (SNSAZ(IBD),IBD=1,1) /
-     1 268.800D0/
-      DATA (SNPLA(IBD),IBD=1,1) /
-     1 28.4470D0/
-      DATA (SNPLO(IBD),IBD=1,1) /
-     1 -80.6041D0/
-      DATA (SNPGC(IBD),IBD=1,1) /
-     1 1/
-      DATA (PADCH(IBD),IBD=1,8) /
-     1 76,67,45,51,57,65,0,0/
+C     SCENARIO 2 APOLLO 8 AS FLOWN
+C       EPOCH: MR8 p. 2-1: Range zero for this mission was 12:51:00
+C       G.m.t. (21 December 1968)
+C       PAD: SP p. 45, Apollo 8 ascent phase table, Liftoff
+C       000:00:00.67: geocentric latitude 28.4470 deg N, longitude
+C       -80.6041 deg E; SP p. 34: Apollo 8 was launched from Launch
+C       Complex 39, Pad A, at the Kennedy Space Center, Florida
+      DATA (SNJD0(IBD),IBD=1,2) /
+     1 2440419.063889D0,2440212.035417D0/
+      DATA (SNSLA(IBD),IBD=1,2) /
+     1 0.67416D0,0.00000D0/
+      DATA (SNSLO(IBD),IBD=1,2) /
+     1 23.47314D0,0.00000D0/
+      DATA (SNSAZ(IBD),IBD=1,2) /
+     1 268.800D0,0.000D0/
+      DATA (SNPLA(IBD),IBD=1,2) /
+     1 28.4470D0,28.4470D0/
+      DATA (SNPLO(IBD),IBD=1,2) /
+     1 -80.6041D0,-80.6041D0/
+      DATA (SNPGC(IBD),IBD=1,2) /
+     1 1,1/
+      DATA (PADCH(IBD),IBD=1,16) /
+     1 76,67,45,51,57,65,0,0,76,67,
+     1 45,51,57,65,0,0/
 C     LEG 1
 C       CIRC: SP p. 103 ascent table, S-IVB 1st burn cutoff: geocentric
 C       32.4865 N, -53.4588 E, space-fixed velocity 25,561.6,
@@ -8147,14 +8155,126 @@ C       CONIC: MR Table 7-VII p. 7-12, entry interface (400 000 ft)
       DATA LGP(10,9) / 0.000D0 /
       DATA LGP(11,9) / 0.000D0 /
       DATA LGP(12,9) / 0.000D0 /
-      DATA (LGSN(IBD),IBD=1,9) /
-     1 1,1,1,1,1,1,1,1,1/
-      DATA (LGTYP(IBD),IBD=1,9) /
-     1 1,2,2,3,3,3,2,2,2/
-      DATA (LGN(IBD),IBD=1,9) /
-     1 0,0,0,1,10,14,0,0,0/
-      DATA (LGGC(IBD),IBD=1,9) /
-     1 1,0,0,0,0,0,0,0,0/
+C     LEG 10
+C       CIRC: SP p. 45 ascent table, S-IVB 1st burn cutoff: geocentric
+C       32.4541 N, -54.0565 E, space-fixed velocity 25,562.43,
+C       flight-path angle -0.001, heading 88.098; orbit 99.99 by 99.57
+C       n mi, same page
+      DATA LGP(1,10) / 694.980D0 /
+      DATA LGP(2,10) / 10237.790D0 /
+      DATA LGP(3,10) / 684.980D0 /
+      DATA LGP(4,10) / 32.454D0 /
+      DATA LGP(5,10) / -54.056D0 /
+      DATA LGP(6,10) / 99.780D0 /
+      DATA LGP(7,10) / 25562.430D0 /
+      DATA LGP(8,10) / -0.001D0 /
+      DATA LGP(9,10) / 88.098D0 /
+      DATA LGP(10,10) / 0.000D0 /
+      DATA LGP(11,10) / 0.000D0 /
+      DATA LGP(12,10) / 0.000D0 /
+C     LEG 11
+C       CONIC: MR8 Table 5-II p. 5-7, translunar injection
+      DATA LGP(1,11) / 10565.500D0 /
+      DATA LGP(2,11) / 39599.500D0 /
+      DATA LGP(3,11) / 10565.500D0 /
+      DATA LGP(4,11) / 21.480D0 /
+      DATA LGP(5,11) / -143.020D0 /
+      DATA LGP(6,11) / 187.100D0 /
+      DATA LGP(7,11) / 35505.000D0 /
+      DATA LGP(8,11) / 7.900D0 /
+      DATA LGP(9,11) / 67.490D0 /
+      DATA LGP(10,11) / 0.000D0 /
+      DATA LGP(11,11) / 0.000D0 /
+      DATA LGP(12,11) / 0.000D0 /
+C     LEG 12
+C       CONIC: MR8 Table 5-II p. 5-7, first midcourse correction cutoff
+      DATA LGP(1,12) / 39599.500D0 /
+      DATA LGP(2,12) / 248900.400D0 /
+      DATA LGP(3,12) / 39601.900D0 /
+      DATA LGP(4,12) / -1.710D0 /
+      DATA LGP(5,12) / -123.750D0 /
+      DATA LGP(6,12) / 52771.700D0 /
+      DATA LGP(7,12) / 8172.000D0 /
+      DATA LGP(8,12) / 73.750D0 /
+      DATA LGP(9,12) / 120.540D0 /
+      DATA LGP(10,12) / 0.000D0 /
+      DATA LGP(11,12) / 0.000D0 /
+      DATA LGP(12,12) / 0.000D0 /
+C     LEG 13
+C       LUNAR: MR8 Table 5-II p. 5-7, lunar orbit insertion cutoff and
+C       circularization ignition; altitude the mean of MR8 p. 5-3's
+C       168.5 by 60.0 n mi
+      DATA LGP(1,13) / 248900.400D0 /
+      DATA LGP(2,13) / 264907.000D0 /
+      DATA LGP(3,13) / 249147.300D0 /
+      DATA LGP(4,13) / -9.890D0 /
+      DATA LGP(5,13) / 179.560D0 /
+      DATA LGP(6,13) / 114.250D0 /
+      DATA LGP(7,13) / 0.000D0 /
+      DATA LGP(8,13) / 0.000D0 /
+      DATA LGP(9,13) / 0.000D0 /
+      DATA LGP(10,13) / 264907.000D0 /
+      DATA LGP(11,13) / -11.610D0 /
+      DATA LGP(12,13) / 160.290D0 /
+C     LEG 14
+C       LUNAR: SVS 4129, head-up display at AS08-14-2383 (16:39:39.7 UT
+C       = 75:48:39.7 g.e.t.): 11.15 S, 113.80 E, 110.0 km; MR8 Table
+C       5-II p. 5-8, transearth injection ignition
+      DATA LGP(1,14) / 264907.000D0 /
+      DATA LGP(2,14) / 321556.600D0 /
+      DATA LGP(3,14) / 272919.700D0 /
+      DATA LGP(4,14) / -11.150D0 /
+      DATA LGP(5,14) / 113.800D0 /
+      DATA LGP(6,14) / 59.400D0 /
+      DATA LGP(7,14) / 0.000D0 /
+      DATA LGP(8,14) / 0.000D0 /
+      DATA LGP(9,14) / 0.000D0 /
+      DATA LGP(10,14) / 321556.600D0 /
+      DATA LGP(11,14) / -9.270D0 /
+      DATA LGP(12,14) / 174.780D0 /
+C     LEG 15
+C       CONIC: MR8 Table 5-II p. 5-8, third midcourse correction
+C       ignition
+      DATA LGP(1,15) / 321760.300D0 /
+      DATA LGP(2,15) / 374394.000D0 /
+      DATA LGP(3,15) / 374394.000D0 /
+      DATA LGP(4,15) / -5.670D0 /
+      DATA LGP(5,15) / -57.270D0 /
+      DATA LGP(6,15) / 165561.500D0 /
+      DATA LGP(7,15) / 4299.000D0 /
+      DATA LGP(8,15) / -80.590D0 /
+      DATA LGP(9,15) / 52.650D0 /
+      DATA LGP(10,15) / 0.000D0 /
+      DATA LGP(11,15) / 0.000D0 /
+      DATA LGP(12,15) / 0.000D0 /
+C     LEG 16
+C       CONIC: MR8 Table 5-V p. 5-10, entry interface (400 000 feet);
+C       the table prints the flight-path angle unsigned, 6.50, and
+C       entry is downward
+      DATA LGP(1,16) / 374394.000D0 /
+      DATA LGP(2,16) / 529242.000D0 /
+      DATA LGP(3,16) / 528372.800D0 /
+      DATA LGP(4,16) / 20.830D0 /
+      DATA LGP(5,16) / -179.890D0 /
+      DATA LGP(6,16) / 65.900D0 /
+      DATA LGP(7,16) / 36221.000D0 /
+      DATA LGP(8,16) / -6.500D0 /
+      DATA LGP(9,16) / 121.570D0 /
+      DATA LGP(10,16) / 0.000D0 /
+      DATA LGP(11,16) / 0.000D0 /
+      DATA LGP(12,16) / 0.000D0 /
+      DATA (LGSN(IBD),IBD=1,16) /
+     1 1,1,1,1,1,1,1,1,1,2,
+     1 2,2,2,2,2,2/
+      DATA (LGTYP(IBD),IBD=1,16) /
+     1 1,2,2,3,3,3,2,2,2,1,
+     1 2,2,3,3,2,2/
+      DATA (LGN(IBD),IBD=1,16) /
+     1 0,0,0,1,10,14,0,0,0,0,
+     1 0,0,2,6,0,0/
+      DATA (LGGC(IBD),IBD=1,16) /
+     1 1,0,0,0,0,0,0,0,0,1,
+     1 0,0,0,0,0,0/
 C     EVENT 1
 C       TDATT: Apollo 11 Flight Journal 002:54:09: S-IVB manoeuvre to
 C       separation attitude to be completed at plus 09 plus 20
@@ -8179,13 +8299,35 @@ C       EI: MR Table 7-VII p. 7-12, entry interface
 C     EVENT 8
 C       PTC: Apollo 11 Flight Journal, 010:58:19, Collins: PTC is
 C       started now
-      DATA (EVT(IBD),IBD=1,8) /
+C     EVENT 9
+C       TLI: MR8 Table 5-II p. 5-7, translunar injection (cutoff
+C       2:55:55.5 plus 10 s)
+C     EVENT 10
+C       SEP: MR8 Table 3-I p. 3-3, spacecraft/S-IVB separation
+C     EVENT 11
+C       LOI1: MR8 Table 3-I p. 3-3, lunar orbit insertion ignition
+C     EVENT 12
+C       LOI2: MR8 Table 3-I p. 3-3, lunar orbit circularization
+C       ignition
+C     EVENT 13
+C       PHOTO: SVS 4129: AS08-14-2383, the Earthrise photograph, at
+C       16:39:39.7 UT on 24 December 1968, which is 75:48:39.7 after
+C       range zero
+C     EVENT 14
+C       TEI: MR8 Table 3-I p. 3-3, transearth injection ignition
+C     EVENT 15
+C       EI: MR8 Table 3-I p. 3-4, entry interface (400 000 feet)
+      DATA (EVT(IBD),IBD=1,15) /
      1 11360.0D0,11824.6D0,12030.0D0,12243.1D0,
-     1 360720.0D0,369939.9D0,702185.7D0,39499.0D0/
-      DATA (EVSN(IBD),IBD=1,8) /
-     1 1,1,1,1,1,1,1,1/
-      DATA (EVKND(IBD),IBD=1,8) /
-     1 1,2,3,4,5,6,7,8/
+     1 360720.0D0,369939.9D0,702185.7D0,39499.0D0,
+     1 10565.5D0,12059.3D0,248900.4D0,264907.0D0,
+     1 272919.7D0,321556.6D0,528372.8D0/
+      DATA (EVSN(IBD),IBD=1,15) /
+     1 1,1,1,1,1,1,1,1,2,2,
+     1 2,2,2,2,2/
+      DATA (EVKND(IBD),IBD=1,15) /
+     1 1,2,3,4,5,6,7,8,9,2,
+     1 10,11,12,13,7/
 C     START 1
 C       START: MR Table 7-II p. 7-9, translunar injection
       DATA STP(1,1) / 10213.200D0 /
@@ -8200,12 +8342,26 @@ C       START: MR Table 7-II p. 7-9, translunar injection
       DATA STP(10,1) / 0.000D0 /
       DATA STP(11,1) / 0.000D0 /
       DATA STP(12,1) / 0.000D0 /
-      DATA (STSN(IBD),IBD=1,1) /
-     1 1/
-      DATA (STBOD(IBD),IBD=1,1) /
-     1 1/
-      DATA (STGC(IBD),IBD=1,1) /
-     1 0/
+C     START 2
+C       START: MR8 Table 5-II p. 5-7, translunar injection
+      DATA STP(1,2) / 10565.500D0 /
+      DATA STP(2,2) / 529200.000D0 /
+      DATA STP(3,2) / 10565.500D0 /
+      DATA STP(4,2) / 21.480D0 /
+      DATA STP(5,2) / -143.020D0 /
+      DATA STP(6,2) / 187.100D0 /
+      DATA STP(7,2) / 35505.000D0 /
+      DATA STP(8,2) / 7.900D0 /
+      DATA STP(9,2) / 67.490D0 /
+      DATA STP(10,2) / 0.000D0 /
+      DATA STP(11,2) / 0.000D0 /
+      DATA STP(12,2) / 0.000D0 /
+      DATA (STSN(IBD),IBD=1,2) /
+     1 1,2/
+      DATA (STBOD(IBD),IBD=1,2) /
+     1 1,1/
+      DATA (STGC(IBD),IBD=1,2) /
+     1 0,0/
 C     REF 1
 C       REF: separation manoeuvre cutoff
       DATA RFP(1,1) / 16804.700D0 /
@@ -8374,15 +8530,100 @@ C       REF: MR Table 7-VII p. 7-12, entry interface
       DATA RFP(10,12) / 0.000D0 /
       DATA RFP(11,12) / 0.000D0 /
       DATA RFP(12,12) / 0.000D0 /
-      DATA (RFSN(IBD),IBD=1,12) /
+C     REF 13
+C       REF: spacecraft/S-IVB separation
+      DATA RFP(1,13) / 12059.000D0 /
+      DATA RFP(2,13) / 0.000D0 /
+      DATA RFP(3,13) / 12059.000D0 /
+      DATA RFP(4,13) / 25.860D0 /
+      DATA RFP(5,13) / -66.230D0 /
+      DATA RFP(6,13) / 3797.800D0 /
+      DATA RFP(7,13) / 24975.000D0 /
+      DATA RFP(8,13) / 45.110D0 /
+      DATA RFP(9,13) / 107.120D0 /
+      DATA RFP(10,13) / 0.000D0 /
+      DATA RFP(11,13) / 0.000D0 /
+      DATA RFP(12,13) / 0.000D0 /
+C     REF 14
+C       REF: first midcourse correction cutoff
+      DATA RFP(1,14) / 39601.900D0 /
+      DATA RFP(2,14) / 0.000D0 /
+      DATA RFP(3,14) / 39601.900D0 /
+      DATA RFP(4,14) / -1.710D0 /
+      DATA RFP(5,14) / -123.750D0 /
+      DATA RFP(6,14) / 52771.700D0 /
+      DATA RFP(7,14) / 8172.000D0 /
+      DATA RFP(8,14) / 73.750D0 /
+      DATA RFP(9,14) / 120.540D0 /
+      DATA RFP(10,14) / 0.000D0 /
+      DATA RFP(11,14) / 0.000D0 /
+      DATA RFP(12,14) / 0.000D0 /
+C     REF 15
+C       REF: lunar orbit insertion cutoff
+      DATA RFP(1,15) / 249147.300D0 /
+      DATA RFP(2,15) / 0.000D0 /
+      DATA RFP(3,15) / 249147.300D0 /
+      DATA RFP(4,15) / -9.890D0 /
+      DATA RFP(5,15) / 179.560D0 /
+      DATA RFP(6,15) / 62.000D0 /
+      DATA RFP(7,15) / 5458.000D0 /
+      DATA RFP(8,15) / -0.790D0 /
+      DATA RFP(9,15) / 0.000D0 /
+      DATA RFP(10,15) / 0.000D0 /
+      DATA RFP(11,15) / 0.000D0 /
+      DATA RFP(12,15) / 0.000D0 /
+C     REF 16
+C       REF: lunar orbit circularization cutoff
+      DATA RFP(1,16) / 264916.000D0 /
+      DATA RFP(2,16) / 0.000D0 /
+      DATA RFP(3,16) / 264916.000D0 /
+      DATA RFP(4,16) / -11.660D0 /
+      DATA RFP(5,16) / 159.790D0 /
+      DATA RFP(6,16) / 60.700D0 /
+      DATA RFP(7,16) / 5345.000D0 /
+      DATA RFP(8,16) / -0.020D0 /
+      DATA RFP(9,16) / 0.000D0 /
+      DATA RFP(10,16) / 0.000D0 /
+      DATA RFP(11,16) / 0.000D0 /
+      DATA RFP(12,16) / 0.000D0 /
+C     REF 17
+C       REF: transearth injection cutoff
+      DATA RFP(1,17) / 321760.300D0 /
+      DATA RFP(2,17) / 0.000D0 /
+      DATA RFP(3,17) / 321760.300D0 /
+      DATA RFP(4,17) / -11.170D0 /
+      DATA RFP(5,17) / 160.190D0 /
+      DATA RFP(6,17) / 66.100D0 /
+      DATA RFP(7,17) / 8842.000D0 /
+      DATA RFP(8,17) / 5.100D0 /
+      DATA RFP(9,17) / 0.000D0 /
+      DATA RFP(10,17) / 0.000D0 /
+      DATA RFP(11,17) / 0.000D0 /
+      DATA RFP(12,17) / 0.000D0 /
+C     REF 18
+C       REF: MR8 Table 5-V p. 5-10, entry interface; flight-path angle
+C       printed unsigned
+      DATA RFP(1,18) / 528372.800D0 /
+      DATA RFP(2,18) / 0.000D0 /
+      DATA RFP(3,18) / 528372.800D0 /
+      DATA RFP(4,18) / 20.830D0 /
+      DATA RFP(5,18) / -179.890D0 /
+      DATA RFP(6,18) / 65.900D0 /
+      DATA RFP(7,18) / 36221.000D0 /
+      DATA RFP(8,18) / -6.500D0 /
+      DATA RFP(9,18) / 121.570D0 /
+      DATA RFP(10,18) / 0.000D0 /
+      DATA RFP(11,18) / 0.000D0 /
+      DATA RFP(12,18) / 0.000D0 /
+      DATA (RFSN(IBD),IBD=1,18) /
      1 1,1,1,1,1,1,1,1,1,1,
-     1 1,1/
-      DATA (RFBOD(IBD),IBD=1,12) /
+     1 1,1,2,2,2,2,2,2/
+      DATA (RFBOD(IBD),IBD=1,18) /
      1 1,1,2,2,2,2,2,2,2,1,
-     1 1,1/
-      DATA (RFGC(IBD),IBD=1,12) /
+     1 1,1,1,1,2,2,2,1/
+      DATA (RFGC(IBD),IBD=1,18) /
      1 0,0,0,0,0,0,0,0,0,0,
-     1 0,0/
+     1 0,0,0,0,0,0,0,0/
 C     BURN 1
 C       BURN: MR Table 7-III p. 7-10: spacecraft/S-IVB separation, SPS,
 C       ignition 4:40:01.8, 2.9 s, 19.7 ft/s. Direction derived by us
@@ -8407,25 +8648,53 @@ C     BURN 6
 C       BURN: MR Table 7-VI p. 7-11: second midcourse correction, SM
 C       RCS, ignition 150:29:57.4, 11.2 s, 4.8 ft/s. Direction derived
 C       by us from the Table 7-II ignition and cutoff rows
-      DATA (BNT(IBD),IBD=1,6) /
+C     BURN 7
+C       BURN: SP p. 46: first midcourse correction ignition
+C       010:59:59.2, 2.4 s, 20.4 ft/s. Direction derived by us from the
+C       MR8 Table 5-II p. 5-7 ignition and cutoff rows (their
+C       difference, less gravity over 2.4 s, is 18.4 ft/s)
+C     BURN 8
+C       BURN: SP p. 46: lunar orbit insertion ignition 069:08:20.4,
+C       246.9 s, 2,997 ft/s. Direction against the velocity: our
+C       assumption
+C     BURN 9
+C       BURN: SP p. 46: lunar orbit circularization ignition
+C       073:35:06.6, 9.6 s, 134.8 ft/s. Direction against the velocity:
+C       our assumption
+C     BURN 10
+C       BURN: SP p. 46: transearth injection ignition 089:19:16.6,
+C       203.7 s, 3,519.0 ft/s. Direction along the velocity: our
+C       assumption
+C     BURN 11
+C       BURN: SP p. 46: midcourse correction ignition 104:00:00.00,
+C       15.00 s, 4.8 ft/s; MR8 p. 5-3: to decrease the inertial
+C       velocity by 4.8 ft/sec
+      DATA (BNT(IBD),IBD=1,11) /
      1 16803.25D0,96300.25D0,273169.15D0,288705.20D0,
-     1 487518.00D0,541803.00D0/
-      DATA (BNDV(IBD),IBD=1,6) /
+     1 487518.00D0,541803.00D0,39600.40D0,249023.85D0,
+     1 264911.40D0,321658.45D0,374407.50D0/
+      DATA (BNDV(IBD),IBD=1,11) /
      1 19.7D0,20.9D0,2917.5D0,158.8D0,
-     1 3279.0D0,4.8D0/
-      DATA (BNP(IBD),IBD=1,6) /
+     1 3279.0D0,4.8D0,20.4D0,2997.0D0,
+     1 134.8D0,3519.0D0,4.8D0/
+      DATA (BNP(IBD),IBD=1,11) /
      1 -0.798D0,-0.711D0,-1.000D0,-1.000D0,
-     1 1.000D0,-0.198D0/
-      DATA (BNR(IBD),IBD=1,6) /
+     1 1.000D0,-0.198D0,-0.798D0,-1.000D0,
+     1 -1.000D0,1.000D0,-1.000D0/
+      DATA (BNR(IBD),IBD=1,11) /
      1 0.600D0,0.703D0,0.000D0,0.000D0,
-     1 0.000D0,0.980D0/
-      DATA (BNN(IBD),IBD=1,6) /
+     1 0.000D0,0.980D0,0.576D0,0.000D0,
+     1 0.000D0,0.000D0,0.000D0/
+      DATA (BNN(IBD),IBD=1,11) /
      1 0.052D0,-0.009D0,0.000D0,0.000D0,
-     1 0.000D0,0.000D0/
-      DATA (BNSN(IBD),IBD=1,6) /
-     1 1,1,1,1,1,1/
-      DATA (BNBOD(IBD),IBD=1,6) /
-     1 1,1,2,2,2,1/
+     1 0.000D0,0.000D0,0.174D0,0.000D0,
+     1 0.000D0,0.000D0,0.000D0/
+      DATA (BNSN(IBD),IBD=1,11) /
+     1 1,1,1,1,1,1,2,2,2,2,
+     1 2/
+      DATA (BNBOD(IBD),IBD=1,11) /
+     1 1,1,2,2,2,1,1,2,2,2,
+     1 1/
       DATA (MMA(IBD),IBD=1,95) /
      1 0,0,1,0,6288774,-20905355,
      1 2,0,-1,0,1274027,-3699111,
@@ -8555,6 +8824,6 @@ C       by us from the Table 7-II ignition and cutoff rows
      1 1,0,-1,-1,-119,
      1 4,-1,0,-1,115,
      1 2,-2,0,1,107/
-      DATA NSTART, NRF, NBN / 1, 12, 6 /
+      DATA NSTART, NRF, NBN / 2, 18, 11 /
       END
 C     RESTOMOD END

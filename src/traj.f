@@ -412,27 +412,30 @@ C
 C-----------------------------------------------------------------------
 C     ERFIND: time TERISE at which the Earth's disc clears the lunar
 C     horizon, on the revolution ending at touchdown (the scenario's
-C     TOUCH
-C     event).
+C     TOUCH event), or at its PHOTO event if it has no landing.
 C-----------------------------------------------------------------------
       SUBROUTINE ERFIND
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION T, T1, T2, TM, F1, FM, P, ERCLR
+      DOUBLE PRECISION T, T1, T2, TM, F1, FM, P, ERCLR, TR, EVGET
       INTEGER I, LEGAT
-      P = 2.0D0 * PI / LGEL(11, LEGAT(LUT0, 2))
-      T1 = LUT0 - P
+C     The revolution ends at touchdown, or, in a scenario with no
+C     landing (Apollo 8), at its PHOTO event.
+      TR = LUT0
+      IF (TR .LE. 0.0D0) TR = EVGET(KEPHO)
+      P = 2.0D0 * PI / LGEL(11, LEGAT(TR, 2))
+      T1 = TR - P
       F1 = ERCLR(T1)
       DO 10 I = 1, 720
-        T = LUT0 - P + DBLE(I) * P / 720.0D0
+        T = TR - P + DBLE(I) * P / 720.0D0
         FM = ERCLR(T)
         IF (F1 .LT. 0.0D0 .AND. FM .GE. 0.0D0) GO TO 20
         T1 = T
         F1 = FM
    10 CONTINUE
-      TERISE = LUT0 - 1800.0D0
+      TERISE = TR - 1800.0D0
       RETURN
    20 T2 = T
       DO 30 I = 1, 40

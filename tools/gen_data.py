@@ -152,9 +152,11 @@ def craters():
 # Scenarios (run decks).  Codes shared with the kernel through viewdims.inc.
 LEG_TYPES = {"CIRC": 1, "CONIC": 2, "LUNAR": 3}
 EVENT_KINDS = {"TDATT": 1, "SEP": 2, "APPR": 3, "DOCK": 4, "UNDOCK": 5, "TOUCH": 6, "EI": 7,
-               "PTC": 8}
+               "PTC": 8, "TLI": 9, "LOI1": 10, "LOI2": 11, "PHOTO": 12, "TEI": 13}
 EVENT_PARAMS = {"TDATT": "KETDA", "SEP": "KESEP", "APPR": "KEAPR", "DOCK": "KEDOK",
-                "UNDOCK": "KEUND", "TOUCH": "KETD", "EI": "KEEI", "PTC": "KEPTC"}
+                "UNDOCK": "KEUND", "TOUCH": "KETD", "EI": "KEEI", "PTC": "KEPTC",
+                "TLI": "KETLI", "LOI1": "KELOI1", "LOI2": "KELOI2", "PHOTO": "KEPHO",
+                "TEI": "KETEI"}
 NLGP = 12   # leg parameters, see scenarios()
 # Keys each card type reads.  Other keys are ignored with a warning, so cards can grow
 # (a BURN's TRIGGER= and TARGET= are planned, docs/simulation.md) without breaking old decks.
@@ -359,7 +361,8 @@ def main():
            "C     NLGP parameters, events; leg types and event kinds.",
            "      INTEGER NSN, NLEG, NEVT, NLGP",
            "      INTEGER KCIRC, KCONIC, KLUNAR",
-           "      INTEGER " + ", ".join(EVENT_PARAMS.values()),
+           *["      INTEGER " + ", ".join(list(EVENT_PARAMS.values())[i:i + 8])
+             for i in range(0, len(EVENT_PARAMS), 8)],
            "C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77",
            f"      PARAMETER (NSN={len(mis)}, NLEG={len(legs)}, NEVT={len(evs)}, NLGP={NLGP})",
            "C     Simulation cards (START, BURN, REF): array sizes, at least 1.",
@@ -367,10 +370,9 @@ def main():
            f"      PARAMETER (NSTRT={nst}, NBURN={nbn}, NREF={nrf})",
            "      PARAMETER (" + ", ".join(f"K{k}={v}" for k, v in
                                         (("CIRC", 1), ("CONIC", 2), ("LUNAR", 3))) + ")",
-           "      PARAMETER (" + ", ".join(f"{EVENT_PARAMS[k]}={v}" for k, v in
-                                        list(EVENT_KINDS.items())[:4]) + ")",
-           "      PARAMETER (" + ", ".join(f"{EVENT_PARAMS[k]}={v}" for k, v in
-                                        list(EVENT_KINDS.items())[4:]) + ")",
+           *["      PARAMETER (" + ", ".join(f"{EVENT_PARAMS[k]}={v}" for k, v in
+                                         list(EVENT_KINDS.items())[i:i + 4]) + ")"
+             for i in range(0, len(EVENT_KINDS), 4)],
            "C     RESTOMOD END"]
     for ln in inc:
         assert len(ln) <= 72, ln

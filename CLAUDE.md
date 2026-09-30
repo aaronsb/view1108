@@ -174,14 +174,14 @@ Inputs (written by JS):
   At 1-3 the last 8 `lbuf` places are kept for kinds 8 and 9, so a buffer filled by crater
   labels (it happens in wide Moon views) stops at 192 entries of kinds 1-7 instead of 200.
 - Status (2026-09-30): `in_view`, `in_target` and `in_lablv` work (`src/vview.f`, `src/lvlab.f`).
-  CM station (2): scenes 1, 2, 3, 4, 7, 8; the eye looks along the CSM's +X with
+  CM station (2): scenes 1, 2, 3, 4, 7, 8, 9; the eye looks along the CSM's +X with
   -Z up, the view of MSC IN 69-FM-197's CSM maneuver plots, and the cabin is the CM left
   rendezvous window's two outlines read off its figure 9.0-3 (PDF p. 263) plus the X-axis x
   (`models.f` CMCAB); targets aim it as offsets. LM station (3): scenes 4, 7, 8 (scene 5 is it
   already), the commander's eye with the LM window and LPD overlay of scene 5; it ignores
   targets. Elsewhere a station falls back to the window view.
   Scene 6 ignores both view and target. In an external view of a scene whose camera rides the
-  CSM (1, 2, 3, 4, 7) the CSM is drawn as an outline around the camera. Window overlays (COAS,
+  CSM (1, 2, 3, 4, 7, 9) the CSM is drawn as an outline around the camera. Window overlays (COAS,
   LPD) and the LM window sill apply only in the window view.
 
 Outputs (written by the kernel):
@@ -210,7 +210,9 @@ Outputs (written by the kernel):
   frame, 13 its angular radius projected as a plot radius, ρ(radius) in plot deg, 14 1 if it
   is in front of the camera else 0, 15 half-width of the plot box in plot deg (ρ(fov/2); the
   frame spans ±hdr(15) on both axes), 16 the scenario's epoch offset from Apollo 11 range
-  zero, seconds (0 for Apollo 11). hdr is 24 long: 17 the state source used this frame (0
+  zero, seconds (0 for Apollo 11, -17,887,260 for Apollo 8: its range zero is 1968-12-21
+  12:51:00 UTC, MR8 p. 2-1; the kernel gives -17,887,259.98 from the scenario's JD rounded to
+  six decimals). hdr is 24 long: 17 the state source used this frame (0
   replay, 1 sim with state vector updates, 2 sim without), 18, 19 the last engine run's position (km)
   and velocity (ft/s) error at the reference row nearest the frame's GET, 20 that row's GET
   (s; 18-20 are 0 before any run), 21 the vehicles in this frame's world, a bitmask: 1 the
@@ -302,6 +304,26 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
    axis at 3 revolutions per hour (Flight Journal commentary after 008:11:00); the roll axis,
    square to the ecliptic, is ours. The scene's own view is external: 60 m from the stack,
    starting on its far side from the Earth; yaw and pitch carry the camera around it.
+9. **Apollo 8 Earthrise** — scenario 2 (Apollo 8 as flown). VIEW made Apollo 8 views ("Preflight
+   views produced for the Apollo 8 mission included views as seen through the spacecraft
+   windows during various critical maneuvers", TN D-6853 printed p. 3), but none survive; this
+   uses the Apollo 11 note's formats. Default GET 75:48:39.7, the photograph AS08-14-2383 at
+   16:39:39.7 UT (NASA SVS 4129), with the Earth 48.6 s past clearing the horizon (`TERISE`);
+   FOV 12.72°, the 250 mm lens (Apollo 8 Flight Journal, day 4 orbit 4 commentary) on the
+   55.74 mm gate we measured on the ASU scan (taking the 70 mm perforation pitch as 4.75 mm,
+   unsourced). The CSM is on the scenario's lunar leg through the SVS head-up display position
+   at the photograph (11.15 S, 113.80 E, 110.0 km) and the transearth injection ignition row
+   (MR8 Table 5-II), which gives an inclination of 12.40° (the research fit: 12.35°) and a
+   heading of 275.5° there. The camera is scene 1's forward horizon view, turned by three
+   angles FITTED to the photograph in its usual presentation (the film frame turned a quarter
+   turn clockwise): the Earth's centre at plot (0.855, -0.456) and the horizon's 6.63° tilt
+   (`vdrive.f` S9REF). Checks against the photograph, as measured on the scan (ours):
+   the Earth's angular diameter 1.9303° against 1.9366° (-0.32%; the Earth-camera distance
+   agrees with JPL Horizons' Moon to 6 km, so the rest is the photograph's scale or the
+   Earth's cloud and haze limb); the Earth's centre 3.455° above the smooth-sphere horizon
+   against 3.332° (0.12°, what a far-side horizon 1.4 km above the mean radius, 620 km away,
+   would take up, or 2.4 s of time); the terminator 0.393 R from the centre, lit fraction
+   0.696, night side toward -107.1°, against 0.35-0.39 R, about 0.70 and -107.6°.
 
 Vehicle labels and markers (`src/lvlab.f`, `src/learth.f` DPAD), all ours, drawn only at
 `in_lablv` 1 and up. Each placed model gets its name beside it, off its projected X axis by
@@ -337,13 +359,17 @@ states and coastlines go through that precession too.
 
 A mission's data is a scenario (a run deck, in 1969 terms): `data/scenarios/*.scn`, turned into
 `BLOCK DATA` by `tools/gen_data.py`, holds the epoch, landing site, launch pad, trajectory legs and events,
-each card with its source. A mission can have more than one scenario (Apollo 11 as flown now; a
-pre-flight nominal one could follow), each with its own id. A leg is a simple model fixed
+each card with its source. A mission can have more than one scenario (Apollo 11 as flown, id 1;
+Apollo 8 as flown, id 2; a pre-flight nominal one could follow), each with its own id. A leg is a simple model fixed
 by sourced states: `CIRC` (Earth circular orbit through a state), `CONIC` (Earth-centred Kepler
 conic from a state, no lunar gravity), `LUNAR` (circle about the Moon through two states, its
 plane and mean motion from them). The Apollo 11 as-flown scenario uses the Mission Report's Table 7-II and
-7-VII states and SP-4029's ascent table; see the scenario's comments and `src/traj.f`. `VINIT`
-maps each scene to a scenario (all Apollo 11 as flown now).
+7-VII states and SP-4029's ascent table; the Apollo 8 one the Apollo 8 Mission Report's
+(MSC-PA-R-69-1) Table 5-II and 5-V states, SP-4029's ascent table and the SVS 4129 position
+at the Earthrise photograph; see the scenarios' comments and `src/traj.f`. `VINIT` maps each
+scene to a scenario: 1-8 Apollo 11, 9 Apollo 8. Code keyed to a mission's events looks them
+up by kind (`EVGET`) and copes with their absence: without a TOUCH event (Apollo 8) the
+Earthrise search (`ERFIND`) ends its revolution at the PHOTO event, and no LM is marked.
 
 ## Build
 

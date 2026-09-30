@@ -74,10 +74,11 @@ C     RESTOMOD END
       INTEGER ISC
       DOUBLE PRECISION GET, YAW, PIT, ROL, FOV
       DOUBLE PRECISION R(3), V(3), PM(3), E(3), S(3), X, Y, TFIX
-      INTEGER I, ISNSC(8)
+      INTEGER I, ISNSC(9)
       DOUBLE PRECISION VDOT, EVGET
-C     The scenario of each scene: all Apollo 11 as flown for now.
-      DATA ISNSC / 1, 1, 1, 1, 1, 1, 1, 1 /
+C     The scenario of each scene: Apollo 11 as flown for scenes 1-8,
+C     Apollo 8 as flown for scene 9.
+      DATA ISNSC / 1, 1, 1, 1, 1, 1, 1, 1, 2 /
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (INITD .NE. 1) THEN
@@ -88,20 +89,31 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       END IF
 C     RESTOMOD END
       ISCN = ISC
-      IF (ISCN .LT. 1 .OR. ISCN .GT. 8) ISCN = 1
+      IF (ISCN .LT. 1 .OR. ISCN .GT. 9) ISCN = 1
       IF (ISNSC(ISCN) .NE. ISN) CALL SNSET(ISNSC(ISCN))
       YAW = 0.0D0
       PIT = 0.0D0
       ROL = 0.0D0
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (ISCN .EQ. 1) THEN
-C       EARTHRISE.  One minute before the Earth's disc clears the
-C       lunar horizon on the revolution before the landing.  The view
-C       is turned in azimuth (AZOFF) so the Earth rises mid-frame.
+      IF (ISCN .EQ. 1 .OR. ISCN .EQ. 9) THEN
+C       EARTHRISE.  Scene 1: one minute before the Earth's disc
+C       clears the lunar horizon on the revolution before the landing.
+C       The view is turned in azimuth (AZOFF) so the Earth rises
+C       mid-frame.
+C       Scene 9, APOLLO 8 EARTHRISE: at the photograph AS08-14-2383
+C       (the scenario's PHOTO event), with the field of its 250 mm lens
+C       on the 70 mm frame, 12.72 deg: the lens from the Apollo 8
+C       Flight Journal (day 4, orbit 4, commentary: "another Hasselblad
+C       with a 250-mm lens"), the 55.74 mm gate measured by us on the
+C       ASU scan of AS08-14-2383 (tothemoon.im-ldi.com), taking the
+C       70 mm perforation pitch as 4.75 mm (unsourced).  The azimuth is
+C       set at the photograph's time; the pointing is S9REF's.
         CALL ERFIND
         GET = TERISE - 60.0D0
         FOV = 8.0D0
+        IF (ISCN .EQ. 9) GET = EVGET(KEPHO)
+        IF (ISCN .EQ. 9) FOV = 12.72D0
         CALL VSTATE(GET, 2, R, V)
         CALL MOONG(GET, PM)
         E(1) = -PM(1) - R(1)
@@ -368,7 +380,7 @@ C     RESTOMOD END
 C
       IWIN = 1
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (ISCN .EQ. 1 .OR. ISCN .EQ. 4) THEN
+      IF (ISCN .EQ. 1 .OR. ISCN .EQ. 4 .OR. ISCN .EQ. 9) THEN
 C       CSM in lunar orbit.
         IREF = 2
         CALL VSTATE(GET, 2, R, V)
@@ -380,7 +392,7 @@ C       CSM in lunar orbit.
    10   CONTINUE
         CALL VUNIT(RU)
         CALL VUNIT(VU)
-        IF (ISCN .EQ. 1) THEN
+        IF (ISCN .EQ. 1 .OR. ISCN .EQ. 9) THEN
 C         Forward along the orbit, turned AZOFF in azimuth, down to
 C         the horizon by the dip angle.
           CALL VCRS(VU, RU, SU)
@@ -394,6 +406,8 @@ C         the horizon by the dip angle.
             BREF(I) = CD * H(I) - SD * RU(I)
             UREF(I) = SD * H(I) + CD * RU(I)
    20     CONTINUE
+C         Scene 9: turned to the photograph's framing (S9REF).
+          IF (ISCN .EQ. 9) CALL S9REF
         ELSE
 C         Out of plane toward the LM, local vertical up.
           CALL VCRS(RU, VU, BREF)
@@ -807,4 +821,36 @@ C     RESTOMOD END
       CALL STKPL(S8AT, P, KLMS)
       RETURN
       END
-
+C
+C-----------------------------------------------------------------------
+C     S9REF: scene 9's reference attitude, the forward horizon view of
+C     scene 1 turned to the framing of the photograph AS08-14-2383 as
+C     it is usually shown (the film frame turned a quarter turn
+C     clockwise, the lunar horizon at the bottom): yaw, pitch, roll
+C     offsets in LOOK's sense.  The three angles are FITTED by us (not
+C     sourced): they put the Earth's centre where the photograph has
+C     it and the horizon at its tilt, measured on the ASU scan; the
+C     Earth's size, its height above the horizon and its phase are
+C     then checks, not inputs.
+C-----------------------------------------------------------------------
+      SUBROUTINE S9REF
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION YAW, PIT, ROL
+      INTEGER I
+C     Fitted 2026-09-30 (see CLAUDE.md, scene 9): the Earth's centre at
+C     plot (0.8550, -0.4555) deg and the horizon falling 6.634 deg to
+C     the right, as measured on the scan.
+      DATA YAW, PIT, ROL / -0.9043D0, 3.7599D0, -6.7873D0 /
+      CALL VCRS(BREF, UREF, RREF)
+      CALL VUNIT(RREF)
+      CALL LOOK(YAW, PIT, ROL)
+      DO 10 I = 1, 3
+        BREF(I) = CB(I)
+        UREF(I) = CU(I)
+        RREF(I) = CR(I)
+   10 CONTINUE
+      RETURN
+      END

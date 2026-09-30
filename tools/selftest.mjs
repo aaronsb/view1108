@@ -45,9 +45,11 @@ function run(K, scene, flags = 3, view = 0, target = 0, lablv = 0, get = null) {
            tchr: Array.from(new Int32Array(K.memory.buffer, K.tchr.value, nchr)),
            init: f64(K, 'in_get', 1)[0] };
 }
+// Scenes and the scenario each runs on (1 Apollo 11 as flown; 2 Apollo 8 as flown, scene 9).
+const SCENES = [1, 2, 3, 4, 5, 6, 7, 8, 9], SCN = { 9: 2 };
 const maxdiff = (a, b) => a.reduce((m, v, i) => Math.max(m, Math.abs(v - b[i])), 0);
 let ok = true;
-for (const scene of [1, 2, 3, 4, 5, 6, 7, 8]) {
+for (const scene of SCENES) {
   const a = run(W, scene), b = run(F, scene);
   const t0 = performance.now(); for (let i = 0; i < 50; i++) W.view_frame();
   const ms = (performance.now() - t0) / 50;
@@ -64,7 +66,7 @@ for (const scene of [1, 2, 3, 4, 5, 6, 7, 8]) {
 // Earth, the Moon and the Sun; wasm and the fallback must agree.
 if (W.in_view) {
   let same = true, n = 0;
-  for (const scene of [1, 2, 3, 4, 5, 6, 7, 8])
+  for (const scene of SCENES)
     for (const [v, t] of [[1, 0], [1, 4], [0, 1], [0, 2], [0, 3], [2, 0], [3, 0], [2, 1]]) {
       const a = run(W, scene, 3, v, t), b = run(F, scene, 3, v, t); n++;
       if (!(a.nvec === b.nvec && a.nstar === b.nstar && maxdiff(a.hdr, b.hdr) === 0 &&
@@ -80,10 +82,11 @@ if (W.in_view) {
 if (W.in_lablv) {
   let same = true, n = 0, kinds = new Set();
   const cases = [];
-  for (const scene of [1, 2, 3, 4, 5, 6, 7, 8])
+  for (const scene of SCENES)
     for (const v of [0, 1]) for (const lv of [0, 1, 2, 3]) cases.push([scene, v, 0, lv, null]);
   for (const lv of [1, 2, 3])
-    cases.push([6, 0, 0, lv, 369640], [1, 1, 2, lv, null], [3, 0, 0, lv, 5800], [3, 1, 1, lv, 1200]);
+    cases.push([6, 0, 0, lv, 369640], [1, 1, 2, lv, null], [3, 0, 0, lv, 5800], [3, 1, 1, lv, 1200],
+               [9, 1, 1, lv, 8000]);
   for (const [scene, v, t, lv, get] of cases) {
     const a = run(W, scene, 3, v, t, lv, get), b = run(F, scene, 3, v, t, lv, get); n++;
     for (let i = 0; i < a.nlab; i++) kinds.add(a.lbuf[4 * i + 2]);
@@ -96,20 +99,32 @@ if (W.in_lablv) {
   console.log(`label levels: ${n} frames  ${same ? 'identical' : 'DIFFER'}  vehicle and pad labels ${seen ? 'seen' : 'MISSING'}`);
   if (!same || !seen) ok = false;
 }
+// Scene 9 (Apollo 8 Earthrise, scenario 2): its own g.e.t. base (hdr 16 = the Apollo 8 epoch
+// less Apollo 11's, -17,887,260 s), the Earth in the frame, and scene 1 unchanged after it.
+{
+  const a = run(W, 9), b = run(F, 9), c = run(W, 1);
+  const good = a.hdr[6] === 9 && Math.abs(a.hdr[15] + 17887260) < 0.1 && a.hdr[0] === 272919.7 &&
+               maxdiff(a.vbuf, b.vbuf) === 0 && c.hdr[15] === 0 && a.nvec > 0;
+  console.log(`scene 9: g.e.t. ${a.hdr[0]} s, epoch offset ${a.hdr[15].toFixed(2)} s  ${good ? 'ok' : 'WRONG'}`);
+  if (!good) ok = false;
+}
 // Simulation mode: run the engine with delta correction on (1) and off (0), then draw every
 // scene from the tape (in_flags bit 3) and check wasm and the fallback agree; also time sim_run.
 if (W.sim_run) {
   for (const sf of [1, 0]) {
-    const t0 = performance.now(); W.sim_run(sf); const ms = performance.now() - t0;
-    F.sim_run(sf);
-    let same = true, drawn = 0;
-    for (const scene of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    let same = true, drawn = 0, ms = 0, last = 0;
+    for (const scene of SCENES) {
+      // The engine runs over the current scenario: once for each scenario, after its scene's view_init.
+      if ((SCN[scene] || 1) !== last) {
+        last = SCN[scene] || 1; W.view_init(scene); F.view_init(scene);
+        const t0 = performance.now(); W.sim_run(sf); ms += performance.now() - t0; F.sim_run(sf);
+      }
       const a = run(W, scene, 3 | 8), b = run(F, scene, 3 | 8);
       if (!(a.nvec === b.nvec && a.nstar === b.nstar && maxdiff(a.hdr, b.hdr) === 0 &&
             maxdiff(a.vbuf, b.vbuf) === 0)) same = false;
       if (a.hdr[16] > 0) drawn++;
     }
-    console.log(`sim flags ${sf}: sim_run ${ms.toFixed(1)} ms (wasm)  scenes drawn from the tape ${drawn}` +
+    console.log(`sim flags ${sf}: sim_run ${ms.toFixed(1)} ms (wasm, both scenarios)  scenes drawn from the tape ${drawn}` +
       `  ${same ? 'identical' : 'DIFFER'}`);
     if (!same || drawn === 0) ok = false;
   }
