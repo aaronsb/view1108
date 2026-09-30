@@ -88,6 +88,7 @@ body.still { padding:0; }
     <button id="mtour">Tour</button>
     <button id="mlive">Live</button>
     <button id="mfree">Free-look</button>
+    <button id="mbeam" title="Trace each frame vector by vector on a fading phosphor (key T). Trace rates are estimates; see docs/univac-1108.md.">Beam</button>
   </div>
   <div class="grp" id="scenes"></div>
   <div class="grp">
@@ -109,7 +110,7 @@ body.still { padding:0; }
   <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="19" value="0:00:00" aria-label="ground elapsed time h:mm:ss, or a UTC timestamp YYYY-MM-DD HH:MM:SS"><span id="utc" class="lbl"></span><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0"></div>
   <div class="grp"><span class="lbl">Jump (Live)</span><button id="jundock">Undocking 100:12:00</button><button id="jdesc">Descent 102:42:00</button></div>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-5: scene. J: film jitter. D: dust. F: 16 fps film rate. B: bloom. C: star catalog. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-5: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace. B: bloom. C: star catalog. Any input leaves Attract or Tour.</div>
 <div id="about">G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197.</div>
 <div id="err"></div>
 
@@ -298,6 +299,8 @@ function startMode(m) {
   if (m === "live") {
     get = Math.max(LIVE_MIN, Math.min(LIVE_MAX, get)); livePin = null;
     scene = livePhase(get).scene; K.view_init(scene); const g = get; readDefaults(); get = g; get0 = g; frame = true; labels = true; liveSync(); aimAtBody();
+  } else if (m === "beam") {
+    beamFrames = []; beamNextStart = 0; beamPrevCompute = 0; capName = "";
   } else if (m === "free") {
     if (prev === "attract" || prev === "tour") { /* keep the current view and time */ }
     capName = "";
@@ -309,6 +312,7 @@ if (DEBUG) {   // test hooks, enabled by ?debug
   window.VIEW_STEP = () => step(performance.now());
   window.VIEW_SEEK = t => { autoT = t; step(performance.now()); };   // with ?film=, jump to auto-mode second t
   window.VIEW_MODE = startMode;
+  window.VIEW_STEPAT = t => step(t);   // step at a given time (ms), for BEAM captures
 }
 // The picture is drawn to an offscreen canvas (ctx), then presented to the visible one (mctx) with
 // optional film jitter and bloom.
@@ -325,7 +329,7 @@ const urlFlag = k => { const m = new RegExp("[?&]" + k + "=([01])").exec(locatio
 const effJit = () => urlFlag("jitter") !== null ? urlFlag("jitter") : prefs.jitter !== null ? prefs.jitter : auto();
 const effBloom = () => urlFlag("bloom") !== null ? urlFlag("bloom") : prefs.bloom !== null ? prefs.bloom : auto();   // like the other film effects: on in Attract/Tour, off in Live/Free-look
 const effDust = () => urlFlag("dust") !== null ? urlFlag("dust") : prefs.dust !== null ? prefs.dust : auto();
-const effFps = () => urlFlag("fps") !== null ? urlFlag("fps") : prefs.fps !== null ? prefs.fps : auto();   // film rate: present at 16 fps
+const effFps = () => mode === "beam" ? false : urlFlag("fps") !== null ? urlFlag("fps") : prefs.fps !== null ? prefs.fps : auto();   // film rate: present at 16 fps
 const effCatalog = () => prefs.catalog === "full" ? "full" : "nav";
 const toggleCatalog = () => { prefs.catalog = effCatalog() === "full" ? "nav" : "full"; savePrefs(); syncUI(); };
 const toggle = k => { prefs[k] = !(k === "jitter" ? effJit() : k === "dust" ? effDust() : k === "fps" ? effFps() : effBloom()); savePrefs(); syncUI(); };
@@ -334,7 +338,7 @@ function readDefaults() {
   get = get0 = rd("in_get"); yaw = rd("in_yaw"); pitch = rd("in_pitch"); roll = rd("in_roll"); fov = fov0 = rd("in_fov");
 }
 function setScene(s) {
-  mode = "free"; capName = ""; scene = s; K.view_init(s); readDefaults(); syncUI();
+  if (mode !== "beam") mode = "free"; else beamNextStart = 0; capName = ""; scene = s; K.view_init(s); readDefaults(); syncUI();
 }
 function resetView() { const g = get; K.view_init(scene); readDefaults(); get = g; }
 
@@ -348,6 +352,7 @@ function resize() {
   dpr = Math.max(1, Math.min(dpr, 1800 / W));   // cap the backing store at about 1800 device px wide: the film is soft anyway and bloom cost scales with pixels
   cv.style.width = W + "px"; cv.style.height = Hh + "px";
   cv.width = off.width = Math.round(W * dpr); cv.height = off.height = Math.round(Hh * dpr);
+  beamFrames = []; beamNextStart = 0;   // BEAM traces are in canvas px: retrace after a resize
   bl1.width = Math.ceil(cv.width / 2); bl1.height = Math.ceil(cv.height / 2);
   bl2.width = Math.ceil(cv.width / 4); bl2.height = Math.ceil(cv.height / 4);
   bl3.width = am3.width = Math.ceil(cv.width / 8); bl3.height = am3.height = Math.ceil(cv.height / 8);
@@ -430,7 +435,8 @@ function draw(now) {
   ctx.beginPath(); ctx.rect(framed ? b.x - 2 : 0, b.y - 2, b.s + 4, b.s + 4); ctx.clip();
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   // vectors: solid and dashed batched into paths
-  const solid = new Path2D(), dash = new Path2D();
+  const beam = mode === "beam", rec = beam && beamNew ? new BeamRec() : null;
+  const solid = rec ? rec.sub(0) : new Path2D(), dash = rec ? rec.sub(1) : new Path2D();
   for (let i = 0; i < nv * 5; i += 5) {
     const p = V[i + 4] === 2 ? dash : solid;
     p.moveTo(cx + V[i] * k, cy - V[i + 1] * k); p.lineTo(cx + V[i + 2] * k, cy - V[i + 3] * k);
@@ -446,7 +452,7 @@ function draw(now) {
   // the film's round soft dots are these symbols blurred by the CRT-to-film process.
   const bloomOn = effBloom(), fullCat = effCatalog() === "full";
   const named = (x, y) => { for (let j = 0; j < nl * 4; j += 4) if (L[j + 2] === 1 && Math.abs(L[j] - x) < 0.03 && Math.abs(L[j + 1] - y) < 0.03) return true; return false; };
-  const rF = Math.max(0.8, W * 0.0026) * (effBloom() ? 1.3 : 1), starP = new Path2D();
+  const rF = Math.max(0.8, W * 0.0026) * (effBloom() ? 1.3 : 1), starP = rec ? rec.sub(0) : new Path2D();
   for (let i = 0; i < ns * 3; i += 3) {
     const m = S[i + 2];
     if (!fullCat && m > NAV_MAG && !named(S[i], S[i + 1])) continue;   // the 37 named stars are always in the NAV catalog
@@ -456,7 +462,7 @@ function draw(now) {
     const n = m <= 2 ? 12 : 8, rr = r * 1.1;
     for (let a = 0; a < n; a++) { const th = Math.PI * 2 * a / n - Math.PI / 2; starP.moveTo(x, y); starP.lineTo(x + rr * Math.cos(th), y + rr * Math.sin(th)); }
   }
-  const textP = new Path2D();   // recorder text is not clipped to the plot box: tick numbers sit just outside it
+  const textP = rec ? rec.sub(0) : new Path2D();   // recorder text is not clipped to the plot box: tick numbers sit just outside it
   // Recorder text (kernel tbuf/tchr): tick numbers and names, in the film layer with the vectors.
   if (K.tbuf) {
     const nt = ri("ntxt"), T = new Float64Array(buf(), K.tbuf.value, nt * 4), C = new Int32Array(buf(), K.tchr.value, ri("nchr"));
@@ -476,17 +482,20 @@ function draw(now) {
   const lw = bloomOn ? Math.max(1, 0.0009 * cv.width) / dpr : Math.max(1, W / 420); hairline = lw;   // hairline: 0.09% of canvas width, at least 1 device px
   for (const [w, a] of bloomOn ? [[lw, 1 * flick]] : [[lw * 3.2, 0.10 * flick], [lw, 0.95 * flick]]) {
     ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = w;
+    if (beam) break;
     ctx.setLineDash([]); ctx.stroke(solid);
     ctx.setLineDash([lw * 5, lw * 4]); ctx.stroke(dash);
   }
   // stars: the same stroke as every other line; BLOOM (one whole-frame blur) turns the asterisks into round soft dots
   ctx.setLineDash([]); ctx.lineCap = "round";
-  ctx.strokeStyle = `rgba(255,255,255,${0.98 * flick})`; ctx.lineWidth = lw; ctx.stroke(starP);
+  ctx.strokeStyle = `rgba(255,255,255,${0.98 * flick})`; ctx.lineWidth = lw; if (!beam) ctx.stroke(starP);
   ctx.restore();
   // recorder text, unclipped, same strokes and glow as the vectors
   for (const [w, a] of bloomOn ? [[lw, 1 * flick]] : [[lw * 3.2, 0.10 * flick], [lw, 0.95 * flick]]) {
-    ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = w; ctx.setLineDash([]); ctx.lineCap = "round"; ctx.stroke(textP);
+    ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = w; ctx.setLineDash([]); ctx.lineCap = "round"; if (!beam) ctx.stroke(textP);
   }
+  if (rec) beamCommit(rec.segs, now);
+  if (beam) beamRender(now, lw, flick);
 
   // axis captions (page lettering; tick numbers and names come from the kernel text records)
   if (framed) {
@@ -578,16 +587,84 @@ function drawDust(now, w, h) {
   if (scratchLeft > 0) { mctx.strokeStyle = "rgba(230,230,220,0.13)"; mctx.lineWidth = dpr; mctx.beginPath(); mctx.moveTo(scratchX, 0); mctx.lineTo(scratchX + 1.5 * dpr, h); mctx.stroke(); }
 }
 
+// ---- BEAM mode: the frame is traced vector by vector on a phosphor that fades ----
+// All rates are our estimates (see docs/univac-1108.md, "The recorder" and "Restomod arithmetic"); no recorder
+// model is claimed. About 13,000 vectors/s is one S-C 4020 character time per vector (60-85 us) and about 1.3 s is
+// the estimated 1108 compute time per frame, both estimates in that page.
+const BEAM_SPEEDS = [
+  { name: "1108 + RECORDER (EST.)", short: "1108+REC", vps: 13000, pause: 1.3, tau: 1.5 },
+  { name: "RECORDER ONLY (EST.)", short: "RECORDER", vps: 13000, pause: 0, tau: 1.5 },
+  { name: "SLOW TRACE", short: "SLOW", vps: 1000, pause: 0, tau: 1.5 },
+  { name: "PERSISTENCE", short: "PERSIST", vps: 0, pause: 0, tau: 0.15 }   // vps 0: the whole frame in 1/15 s
+];
+const BEAM_TIP = "Trace rates are estimates (docs/univac-1108.md); no recorder model is claimed.";
+let beamIdx = 0, beamNew = false, beamNextStart = 0, beamPrevCompute = 0, beamFrames = [], beamPen = null;
+// Path-like recorder: strokeText() and the star/vector code call moveTo/lineTo; here they append segments in order.
+function BeamRec() { this.segs = []; }
+BeamRec.prototype.sub = function (dash) { const r = this, o = { x: 0, y: 0, moveTo(x, y) { o.x = x; o.y = y; }, lineTo(x, y) { r.segs.push(o.x, o.y, x, y, dash); o.x = x; o.y = y; } }; return o; };
+// A finished frame becomes a trace: segments in kernel order (vbuf, then stars, then text), each with the time it is drawn.
+// Time per segment is 1 unit plus 2 x its length in plot widths (our choice: a constant per-vector time plus a small
+// per-length term), so a full-width line costs 3 units. Tracing starts after the 1108 compute pause.
+function beamCommit(list, now) {
+  const n = list.length / 5, cfg = BEAM_SPEEDS[beamIdx], sg = new Float32Array(n * 4), dsh = new Uint8Array(n), tOn = new Float64Array(n), cost = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) {
+    const a = list[i * 5], b = list[i * 5 + 1], c = list[i * 5 + 2], d = list[i * 5 + 3];
+    sg[i * 4] = a; sg[i * 4 + 1] = b; sg[i * 4 + 2] = c; sg[i * 4 + 3] = d; dsh[i] = list[i * 5 + 4];
+    cost[i + 1] = cost[i] + 1 + 2 * Math.hypot(c - a, d - b) / W;
+  }
+  const vps = cfg.vps || Math.max(1, cost[n] * 15);   // PERSISTENCE: the frame takes 1/15 s
+  const t0 = now + cfg.pause * 1000;
+  for (let i = 0; i < n; i++) tOn[i] = t0 + cost[i] / vps * 1000;
+  const tEnd = t0 + cost[n] / vps * 1000;
+  beamFrames.push({ sg, dsh, tOn, n, tEnd, tau: cfg.tau * 1000 });
+  beamNextStart = tEnd;
+}
+const lowerBound = (arr, n, v) => { let lo = 0, hi = n; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] < v) lo = m + 1; else hi = m; } return lo; };
+// Draw every traced segment with an intensity that has decayed exp(-age/tau), in a few intensity buckets so each
+// bucket is one stroke; the pen (beam spot) is drawn at the segment being traced.
+function beamRender(now, lw, flick) {
+  const BK = 14, ps = [], pd = []; for (let b = 0; b < BK; b++) { ps.push(new Path2D()); pd.push(new Path2D()); }
+  beamPen = null;
+  beamFrames = beamFrames.filter(f => now - f.tEnd < 4.6 * f.tau + 50);
+  for (const f of beamFrames) {
+    if (now < f.tOn[0]) continue;
+    const hi = lowerBound(f.tOn, f.n, now + 1e-6), lo = lowerBound(f.tOn, f.n, now - 4.6 * f.tau);
+    for (let i = lo; i < hi; i++) {
+      const b = Math.min(BK - 1, Math.floor(Math.exp(-(now - f.tOn[i]) / f.tau) * BK)), P = f.dsh[i] ? pd[b] : ps[b];
+      P.moveTo(f.sg[i * 4], f.sg[i * 4 + 1]); P.lineTo(f.sg[i * 4 + 2], f.sg[i * 4 + 3]);
+    }
+    if (now < f.tEnd && hi > 0 && hi < f.n) {   // the pen sits partway along the segment being drawn
+      const i = hi - 1, u = Math.min(1, (now - f.tOn[i]) / Math.max(1e-6, f.tOn[i + 1] - f.tOn[i]));
+      beamPen = [f.sg[i * 4] + (f.sg[i * 4 + 2] - f.sg[i * 4]) * u, f.sg[i * 4 + 1] + (f.sg[i * 4 + 3] - f.sg[i * 4 + 1]) * u];
+    }
+  }
+  ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = lw;
+  for (let b = 0; b < BK; b++) {
+    ctx.strokeStyle = `rgba(255,255,255,${(b + 0.5) / BK * flick})`;
+    ctx.setLineDash([]); ctx.stroke(ps[b]); ctx.setLineDash([lw * 5, lw * 4]); ctx.stroke(pd[b]);
+  }
+  ctx.setLineDash([]);
+  if (beamPen) {
+    const r = Math.max(2.5, W * 0.005), g = ctx.createRadialGradient(beamPen[0], beamPen[1], 0, beamPen[0], beamPen[1], r * 2.2);
+    g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.35, "rgba(255,255,255,0.9)"); g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(beamPen[0], beamPen[1], r * 2.2, 0, 6.2832); ctx.fill();
+  }
+}
+
 // ---- main loop ----
 function step(now) {
   const dt = last ? Math.min(0.25, (now - last) / 1000) : 0; last = now;
   if (mode === "attract" || mode === "tour") autoStep(dt);
   else if (mode === "live") { if (playing) get = Math.max(LIVE_MIN, Math.min(LIVE_MAX, get + dt * LIVE_RATES[liveIdx])); liveSync(); }
+  else if (mode === "beam") {   // time advances one frame per completed trace, by the real time it took x the rate
+    beamNew = now >= beamNextStart;
+    if (beamNew) { if (beamPrevCompute) get += (now - beamPrevCompute) / 1000 * (SPEEDS[speedIdx] || 1); beamPrevCompute = now; }
+  }
   else if (playing) get += dt * SPEEDS[speedIdx];
   wr("in_get", get); wr("in_yaw", yaw); wr("in_pitch", pitch); wr("in_roll", roll); wr("in_fov", fov);
   wi("in_flags", 1 | (frame ? 2 : 0) | (hidden ? 4 : 0));   // labels always requested: the NAV catalog needs the 37 named stars
-  K.view_frame();
-  draw(now); updateStatus();
+  if (mode !== "beam" || beamNew) K.view_frame();
+  draw(now); beamNew = false; updateStatus();
   const sc = document.getElementById("scrub"), gi = document.getElementById("geti");
   if (mode === "live") { sc.min = LIVE_MIN; sc.max = LIVE_MAX; } else { sc.min = -7200; sc.max = 7200; }
   if (document.activeElement !== sc) sc.value = mode === "live" ? get : Math.max(-7200, Math.min(7200, get - get0));
@@ -596,7 +673,7 @@ function step(now) {
 }
 let lastStatus = "";
 function updateStatus() {
-  const rate = mode === "live" ? LIVE_RATES[liveIdx] + "X" : mode === "free" ? (playing ? SPEEDS[speedIdx] + "X" : "HOLD") : "AUTO";
+  const rate = mode === "beam" ? `${BEAM_SPEEDS[beamIdx].name} ${BEAM_SPEEDS[beamIdx].vps ? BEAM_SPEEDS[beamIdx].vps + " VEC/S" : "1/15 S FRAME"}` : mode === "live" ? LIVE_RATES[liveIdx] + "X" : mode === "free" ? (playing ? SPEEDS[speedIdx] + "X" : "HOLD") : "AUTO";
   const t = `MODE ${mode}  G.E.T. ${getStr(get)}  UTC ${utcStr(get)}  ${rate}  BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  DUST ${effDust() ? "ON" : "OFF"}  STARS ${effCatalog().toUpperCase()}${effFps() ? "  16 FPS" : ""}`;
   if (t !== lastStatus) { lastStatus = t; document.getElementById("status").textContent = t; }
 }
@@ -615,8 +692,9 @@ function tick(now) {
 function syncUI() {
   document.querySelectorAll("#scenes button").forEach((b, i) => b.classList.toggle("on", i + 1 === scene));
   document.getElementById("bplay").textContent = playing ? "Pause" : "Play";
-  document.getElementById("spd").textContent = (mode === "live" ? LIVE_RATES[liveIdx] : SPEEDS[speedIdx]) + "x";
-  for (const m of ["attract", "tour", "live", "free"]) document.getElementById("m" + m).classList.toggle("on", mode === m);
+  document.getElementById("spd").textContent = mode === "beam" ? BEAM_SPEEDS[beamIdx].short : (mode === "live" ? LIVE_RATES[liveIdx] : SPEEDS[speedIdx]) + "x";
+  document.getElementById("spd").title = mode === "beam" ? BEAM_SPEEDS[beamIdx].name + ". " + BEAM_TIP : "";
+  for (const m of ["attract", "tour", "live", "free", "beam"]) document.getElementById("m" + m).classList.toggle("on", mode === m);
   document.getElementById("bhid").classList.toggle("on", hidden);
   document.getElementById("bjit").classList.toggle("on", effJit());
   document.getElementById("bdust").classList.toggle("on", effDust());
@@ -628,9 +706,9 @@ function syncUI() {
 }
 const $ = id => document.getElementById(id);
 SCENES.forEach((n, i) => { const b = document.createElement("button"); b.textContent = (i + 1) + " " + n; b.onclick = () => setScene(i + 1); $("scenes").appendChild(b); });
-for (const m of ["attract", "tour", "live", "free"]) $("m" + m).onclick = () => startMode(m);
+for (const m of ["attract", "tour", "live", "free", "beam"]) $("m" + m).onclick = () => startMode(m);
 for (const id in JUMPS) $(id).onclick = () => liveJump(JUMPS[id]);
-const bump = d => { if (mode === "live") liveIdx = Math.max(0, Math.min(LIVE_RATES.length - 1, liveIdx + d)); else speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, speedIdx + d)); syncUI(); };
+const bump = d => { if (mode === "beam") beamIdx = Math.max(0, Math.min(BEAM_SPEEDS.length - 1, beamIdx + d)); else if (mode === "live") liveIdx = Math.max(0, Math.min(LIVE_RATES.length - 1, liveIdx + d)); else speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, speedIdx + d)); syncUI(); };
 const parseGet = t => {
   const u = /^\s*(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})\s*Z?\s*$/.exec(t);   // a UTC timestamp
   if (u) return (Date.UTC(+u[1], +u[2] - 1, +u[3], +u[4], +u[5], +u[6]) - LIFTOFF_MS) / 1000;
@@ -695,6 +773,7 @@ window.addEventListener("keydown", e => {
   if (k === "j" || k === "J") { toggle("jitter"); e.preventDefault(); return; }
   if (k === "d" || k === "D") { toggle("dust"); e.preventDefault(); return; }
   if (k === "f" || k === "F") { toggle("fps"); e.preventDefault(); return; }
+  if (k === "t" || k === "T") { startMode("beam"); e.preventDefault(); return; }
   if (k === "b" || k === "B") { toggle("bloom"); e.preventDefault(); return; }
   if (k === "c" || k === "C") { toggleCatalog(); e.preventDefault(); return; }
   if (k.length === 1 || k.startsWith("Arrow")) leaveAttract();
@@ -717,6 +796,7 @@ boot().then(() => {
   resize(); setScene(1);
   if (BARE) { document.body.classList.add("still"); resize(); }
   if (STILL) { const tq = /[?&]t=(-?[0-9.]+)/.exec(location.search); playing = false; get = get0 + (tq ? parseFloat(tq[1]) : 70); roll = -3; labels = false; syncUI(); }
+  else if (QP("mode") === "beam") { if (+QP("scene")) setScene(+QP("scene")); if (+QP("bspeed") >= 1 && +QP("bspeed") <= 4) beamIdx = +QP("bspeed") - 1; startMode("beam"); }   // ?mode=beam&scene=N&bspeed=1..4
   else startMode("attract"); requestAnimationFrame(tick); })
   .catch(e => { $("err").textContent = "Could not start the kernel: " + e.message; console.error(e); });
 })();

@@ -38,6 +38,7 @@ The page is the console. It starts by replaying the film, then hands you the con
 | **Attract** | The film's four shots, at the film's pace (36 s). Plays once on load. |
 | **Tour** | A slow loop through Earthrise, Earth approach, Earth limb, the LM pirouette, and the LM descent. |
 | **Live** | The Apollo 11 mission clock at 1× (or 10×, 60×). The scene follows the mission phase from the g.e.t. you type or scrub to. |
+| **Beam** | Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades. Speeds run from an estimated 1108-plus-recorder pace down to a slow trace you can watch, up to a persistence-of-vision blur. The recorder rates are our estimates (see [docs/univac-1108.md](docs/univac-1108.md)). |
 | **Free-look** | Any drag, wheel or key. Look around (yaw, pitch, roll, field of view 1°–170°) at the current moment. |
 
 Keys: arrows look, Q/E roll, +/- field of view, space pause, `[` `]` speed, R reset, 1–5 scenes. The "Fortran listing" link shows the kernel source the page is running.
