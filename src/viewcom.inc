@@ -144,6 +144,17 @@ C     SCORE (BURN) and the REFERENCE rows (layout in src/viewdata.f).
       COMMON /CSIMI/ STSN, STBOD, STGC, NSTART, RFSN, RFBOD, RFGC,
      &               NRF, BNSN, BNBOD, NBN
 C
+C     /CTLN/, /CTLNI/ the scenarios' timelines (TIMELINE cards, from
+C     SP-4029's mission timelines): row K of scenario TLSN(K) at
+C     g.e.t. TLT(K) (s), kind TLK(K): 1 LAUNCH, 2 BURN, 3 STAGING,
+C     4 ORBIT, 5 SEP, 6 SURFACE, 7 TV, 8 CREW, 9 PHOTO, 10 ENTRY,
+C     11 MARK (CLAUDE.md); sorted by scenario and g.e.t.  The names
+C     are the page's (build/names.js).
+      DOUBLE PRECISION TLT(NTL)
+      INTEGER TLK(NTL), TLSN(NTL)
+      COMMON /CTLN/ TLT
+      COMMON /CTLNI/ TLK, TLSN
+C
 C     /CTAPE/ the TAPE (tape.f): per vehicle channel C (1 = CSM; up to
 C     four, TN D-6853 p. 12), NTP(C) samples of g.e.t. TPT and state
 C     TPS (geocentric EQ r km, v km/s), in time order; a burn or a

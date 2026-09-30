@@ -157,6 +157,10 @@ EVENT_PARAMS = {"TDATT": "KETDA", "SEP": "KESEP", "APPR": "KEAPR", "DOCK": "KEDO
                 "UNDOCK": "KEUND", "TOUCH": "KETD", "EI": "KEEI", "PTC": "KEPTC",
                 "TLI": "KETLI", "LOI1": "KELOI1", "LOI2": "KELOI2", "PHOTO": "KEPHO",
                 "TEI": "KETEI"}
+# Timeline card kinds (TIMELINE KIND=): a small enum shared with the kernel (/CTLN/) and the
+# page (build/names.js); see CLAUDE.md, "Scenario timeline".
+TL_KINDS = {"LAUNCH": 1, "BURN": 2, "STAGING": 3, "ORBIT": 4, "SEP": 5, "SURFACE": 6, "TV": 7,
+            "CREW": 8, "PHOTO": 9, "ENTRY": 10, "MARK": 11}
 NLGP = 12   # leg parameters, see scenarios()
 # Keys each card type reads.  Other keys are ignored with a warning, so cards can grow
 # (a BURN's TRIGGER= and TARGET= are planned, docs/simulation.md) without breaking old decks.
@@ -168,6 +172,7 @@ CARD_KEYS = {
     "LEG": {"TYPE", "FROM", "TO", "T", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG",
             "TB", "LATB", "LONB", "N", "SRC"},
     "EVENT": {"KIND", "T", "SRC"},
+    "TIMELINE": {"T", "KIND", "NAME", "SRC"},
     "START": {"T", "END", "BODY", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG", "SRC"},
     "REF": {"T", "BODY", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG", "SRC"},
     "BURN": {"T", "DV", "BODY", "P", "R", "N", "SRC"},
@@ -175,17 +180,19 @@ CARD_KEYS = {
 
 
 def get_s(v):
-    """g.e.t. h:mm:ss.s (or plain seconds) to seconds."""
+    """g.e.t. h:mm:ss.s, h:mm (or plain seconds) to seconds; a leading - counts down to range zero."""
     if ":" not in v:
         return float(v)
-    h, m, x = v.split(":")
-    return int(h) * 3600 + int(m) * 60 + float(x)
+    neg = v.startswith("-")
+    p = v.lstrip("-").split(":")
+    s = int(p[0]) * 3600 + int(p[1]) * 60 + (float(p[2]) if len(p) > 2 else 0.0)
+    return -s if neg else s
 
 
 def scenarios():
     """Parse data/scenarios/*.scn.  Returns scenarios (dicts with id, mission, name, jd,
     site, sources), legs and events, each carrying its scenario id and source string."""
-    mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": []}
+    mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": [], "tl": []}
     for path in sorted((D / "scenarios").glob("*.scn")):
         cur = None
         for ln in path.read_text().splitlines():
@@ -234,6 +241,10 @@ def scenarios():
                                     "dir": (float(kv["P"]), float(kv["R"]), float(kv["N"])),
                                     "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
                                     "src": "BURN: " + kv.get("SRC", "")})
+            elif kind == "TIMELINE":
+                assert kv["KIND"] in TL_KINDS, f"{path.name}: TIMELINE KIND {kv['KIND']}"
+                sim["tl"].append({"m": cur["n"], "t": get_s(kv["T"]), "kind": kv["KIND"],
+                                  "name": kv["NAME"], "src": kv.get("SRC", "")})
             elif kind == "EVENT":
                 evs.append({"m": cur["n"], "kind": EVENT_KINDS[kv["KIND"]], "t": get_s(kv["T"]),
                             "src": kv["KIND"] + ": " + kv.get("SRC", "")})
@@ -368,6 +379,9 @@ def main():
            "C     Simulation cards (START, BURN, REF): array sizes, at least 1.",
            "      INTEGER NSTRT, NBURN, NREF",
            f"      PARAMETER (NSTRT={nst}, NBURN={nbn}, NREF={nrf})",
+           "C     Timeline rows (TIMELINE cards, all scenarios): at least 1.",
+           "      INTEGER NTL",
+           f"      PARAMETER (NTL={max(1, len(sim['tl']))})",
            "      PARAMETER (" + ", ".join(f"K{k}={v}" for k, v in
                                         (("CIRC", 1), ("CONIC", 2), ("LUNAR", 3))) + ")",
            *["      PARAMETER (" + ", ".join(f"{EVENT_PARAMS[k]}={v}" for k, v in
@@ -451,7 +465,16 @@ def main():
          "      INTEGER MMA(360), MMB(300)",
          "      COMMON /CMEEUS/ MMA, MMB",
          "      COMMON /CSIMI/ STSN, STBOD, STGC, NSTART, RFSN, RFBOD, RFGC,",
-         "     &               NRF, BNSN, BNBOD, NBN"]
+         "     &               NRF, BNSN, BNBOD, NBN",
+         "C     /CTLN/   the scenarios' timelines (TIMELINE cards), by scenario then",
+         "C              g.e.t.: row K of scenario TLSN(K) at TLT(K) (s), kind",
+         "C              TLK(K) (1 LAUNCH, 2 BURN, 3 STAGING, 4 ORBIT, 5 SEP,",
+         "C              6 SURFACE, 7 TV, 8 CREW, 9 PHOTO, 10 ENTRY, 11 MARK).",
+         "C              Names are in build/names.js only.",
+         "      DOUBLE PRECISION TLT(NTL)",
+         "      INTEGER TLK(NTL), TLSN(NTL)",
+         "      COMMON /CTLN/ TLT",
+         "      COMMON /CTLNI/ TLK, TLSN"]
     body = "\n".join(b) + "\n"
     f7, f2, f3, f1 = F(dfmt(7)), F(dfmt(2)), F(dfmt(3)), F(dfmt(1))
     body += fdata("STX", sx, f7) + fdata("STY", sy, f7) + fdata("STZ", sz, f7)
@@ -530,6 +553,11 @@ def main():
     body += fdata("BNBOD", [b_["body"] for b_ in bn], "%d", 10)
     body += fdata("MMA", [v for r_ in m47a for v in r_], "%d", 6)
     body += fdata("MMB", [v for r_ in m47b for v in r_], "%d", 5)
+    tl = sorted(sim["tl"], key=lambda r: (r["m"], r["t"])) or \
+        [{"m": 0, "t": 0.0, "kind": "MARK", "name": "", "src": ""}]
+    body += fdata("TLT", [r["t"] for r in tl], F(dfmt(3)), 4)
+    body += fdata("TLK", [TL_KINDS[r["kind"]] for r in tl], "%d", 10)
+    body += fdata("TLSN", [r["m"] for r in tl], "%d", 10)
     body += f"      DATA NSTART, NRF, NBN / {len(sim['start'])}, {len(sim['ref'])}, {len(sim['burn'])} /\n"
     body += "      END\nC     RESTOMOD END\n"
     (R / "src" / "viewdata.f").write_text(body)
@@ -542,12 +570,21 @@ def main():
     # secondary label level's 25 km cut to the names it letters.
     names = {"NAV": NAV_NAMES, "NAV_MAG": nav_mag,
              "CRATER": [c[3] if (c[4] == "AA" and c[2] >= 20) else "" for c in crat],
-             "CRATER_KM": [round(c[2], 1) for c in crat]}
+             "CRATER_KM": [round(c[2], 1) for c in crat],
+             # Each scenario's timeline (TIMELINE cards) for chapter marks: g.e.t. (s from that
+             # scenario's range zero; hdr(16) gives its offset from Apollo 11's), kind, name.
+             "TIMELINE": {str(m["n"]): {"name": m["name"],
+                                        "events": [[round(r["t"], 3), r["kind"], r["name"]]
+                                                   for r in sorted(sim["tl"], key=lambda r: r["t"])
+                                                   if r["m"] == m["n"]]}
+                          for m in mis},
+             "TL_KINDS": list(TL_KINDS)}
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
     print(f"stars {len(sx)} (nav 37), coast {len(coast)} lines / {len(clon)} pts, "
           f"craters {len(crat)}, scenarios {len(mis)} ({len(legs)} legs, {len(evs)} events, "
-          f"{len(sim['start'])} start, {len(sim['burn'])} burns, {len(sim['ref'])} reference rows)")
+          f"{len(sim['start'])} start, {len(sim['burn'])} burns, {len(sim['ref'])} reference rows, "
+          f"{len(sim['tl'])} timeline rows)")
     for i in (4, 12, 29):
         x, y, z = nav[i]
         print(f"  check {NAV_NAMES[i]}: RA {math.degrees(math.atan2(y, x)) % 360:.2f} "

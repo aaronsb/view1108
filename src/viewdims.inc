@@ -17,6 +17,9 @@ C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
 C     Simulation cards (START, BURN, REF): array sizes, at least 1.
       INTEGER NSTRT, NBURN, NREF
       PARAMETER (NSTRT=2, NBURN=11, NREF=18)
+C     Timeline rows (TIMELINE cards, all scenarios): at least 1.
+      INTEGER NTL
+      PARAMETER (NTL=435)
       PARAMETER (KCIRC=1, KCONIC=2, KLUNAR=3)
       PARAMETER (KETDA=1, KESEP=2, KEAPR=3, KEDOK=4)
       PARAMETER (KEUND=5, KETD=6, KEEI=7, KEPTC=8)

@@ -371,6 +371,30 @@ scene to a scenario: 1-8 Apollo 11, 9 Apollo 8. Code keyed to a mission's events
 up by kind (`EVGET`) and copes with their absence: without a TOUCH event (Apollo 8) the
 Earthrise search (`ERFIND`) ends its revolution at the PHOTO event, and no LM is marked.
 
+Scenario timeline. Each scenario also carries its mission's sequence of events as `TIMELINE`
+cards (`T=` g.e.t., negative before range zero; `KIND=`; `NAME=`; `SRC=`), distilled from
+SP-4029's timelines (Apollo 8 printed pp. 47-50, Apollo 11 pp. 105-110), one card per row
+of the book, so the PDFs can stay local. `tools/gen_data.py` puts them in `BLOCK DATA`
+(`/CTLN/`: `TLT`, `TLK`, `TLSN`, sorted by scenario and g.e.t., `NTL` rows) and in
+`build/names.js` as `VIEW_NAMES.TIMELINE[id] = {name, events: [[get, kind, name], ...]}`
+(sorted by g.e.t.; g.e.t. from that scenario's range zero, `hdr(16)` its offset from Apollo
+11's) with `VIEW_NAMES.TL_KINDS` the kind names in code order. The `EVENT` cards stay the
+kernel's keys (`EVGET`) and are unchanged. KIND is ours, a small enum:
+
+| Code | KIND | Rows |
+|---|---|---|
+| 1 | LAUNCH | countdown, lift-off, ascent flight (roll, pitch, Mach 1, max q) |
+| 2 | BURN | a firing, ignition or cutoff: S-IVB, SPS, RCS, LM engines |
+| 3 | STAGING | launch-vehicle stage events: engine cutoffs, separations, jettisons, apex, impact |
+| 4 | ORBIT | orbit and trajectory milestones: insertion, injection, equigravisphere, closest approach |
+| 5 | SEP | spacecraft separation, docking, undocking, ejection, jettison |
+| 6 | SURFACE | on the Moon, from landing to lunar lift-off |
+| 7 | TV | television transmissions |
+| 8 | CREW | crew and CAPCOM words, crew movements between vehicles |
+| 9 | PHOTO | photography and sightings |
+| 10 | ENTRY | entry, landing and recovery |
+| 11 | MARK | anything else: systems, communications, venting |
+
 ## Build
 
 Toolchain: LFortran 0.66 + LLVM tools + binaryen in `~/lf` (micromamba, conda-forge), gfortran
