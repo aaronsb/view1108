@@ -300,7 +300,7 @@ function startMode(m) {
     get = Math.max(LIVE_MIN, Math.min(LIVE_MAX, get)); livePin = null;
     scene = livePhase(get).scene; K.view_init(scene); const g = get; readDefaults(); get = g; get0 = g; frame = true; labels = true; liveSync(); aimAtBody();
   } else if (m === "beam") {
-    beamFrames = []; beamNextStart = 0; beamPrevCompute = 0; capName = "";
+    beamFrames = []; beamNextStart = 0; beamPrevCompute = 0; beamFrameNo = 0; capName = "";
   } else if (m === "free") {
     if (prev === "attract" || prev === "tour") { /* keep the current view and time */ }
     capName = "";
@@ -598,7 +598,7 @@ const BEAM_SPEEDS = [
   { name: "PERSISTENCE", short: "PERSIST", vps: 0, pause: 0, tau: 0.15 }   // vps 0: the whole frame in 1/15 s
 ];
 const BEAM_TIP = "Trace rates are estimates (docs/univac-1108.md); no recorder model is claimed.";
-let beamIdx = 0, beamNew = false, beamNextStart = 0, beamPrevCompute = 0, beamFrames = [], beamPen = null;
+let beamFrameNo = 0, beamIdx = 0, beamNew = false, beamNextStart = 0, beamPrevCompute = 0, beamFrames = [], beamPen = null;
 // Path-like recorder: strokeText() and the star/vector code call moveTo/lineTo; here they append segments in order.
 function BeamRec() { this.segs = []; }
 BeamRec.prototype.sub = function (dash) { const r = this, o = { x: 0, y: 0, moveTo(x, y) { o.x = x; o.y = y; }, lineTo(x, y) { r.segs.push(o.x, o.y, x, y, dash); o.x = x; o.y = y; } }; return o; };
@@ -658,7 +658,9 @@ function step(now) {
   else if (mode === "live") { if (playing) get = Math.max(LIVE_MIN, Math.min(LIVE_MAX, get + dt * LIVE_RATES[liveIdx])); liveSync(); }
   else if (mode === "beam") {   // time advances one frame per completed trace, by the real time it took x the rate
     beamNew = now >= beamNextStart;
-    if (beamNew) { if (beamPrevCompute) get += (now - beamPrevCompute) / 1000 * (SPEEDS[speedIdx] || 1); beamPrevCompute = now; }
+    // the clock never runs ahead of the drawing: each frame steps mission time by the real time the previous frame took
+    // (trace plus any 1108 pause) at 1x, whatever the free-look rate is; it changes only when a new frame starts
+    if (beamNew) { if (beamPrevCompute) get += (now - beamPrevCompute) / 1000; beamPrevCompute = now; beamFrameNo++; }
   }
   else if (playing) get += dt * SPEEDS[speedIdx];
   wr("in_get", get); wr("in_yaw", yaw); wr("in_pitch", pitch); wr("in_roll", roll); wr("in_fov", fov);
@@ -674,7 +676,7 @@ function step(now) {
 let lastStatus = "";
 function updateStatus() {
   const rate = mode === "beam" ? `${BEAM_SPEEDS[beamIdx].name} ${BEAM_SPEEDS[beamIdx].vps ? BEAM_SPEEDS[beamIdx].vps + " VEC/S" : "1/15 S FRAME"}` : mode === "live" ? LIVE_RATES[liveIdx] + "X" : mode === "free" ? (playing ? SPEEDS[speedIdx] + "X" : "HOLD") : "AUTO";
-  const t = `MODE ${mode}  G.E.T. ${getStr(get)}  UTC ${utcStr(get)}  ${rate}  BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  DUST ${effDust() ? "ON" : "OFF"}  STARS ${effCatalog().toUpperCase()}${effFps() ? "  16 FPS" : ""}`;
+  const t = `MODE ${mode}  G.E.T. ${getStr(get)}  UTC ${utcStr(get)}  ${mode === "beam" ? "FRAME " + beamFrameNo + "  " : ""}${rate}  BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  DUST ${effDust() ? "ON" : "OFF"}  STARS ${effCatalog().toUpperCase()}${effFps() ? "  16 FPS" : ""}`;
   if (t !== lastStatus) { lastStatus = t; document.getElementById("status").textContent = t; }
 }
 // Film rate: with the toggle on, the kernel is stepped and a frame presented only every 1/16 s and held in between
