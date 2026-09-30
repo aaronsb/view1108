@@ -104,7 +104,8 @@ Inputs (written by JS):
   `in_yaw` and `in_pitch` are the sub-observer selenographic east longitude and latitude
   (degrees; default 0, 0), so changing them spins the Moon under a camera that always looks at
   its centre; `in_roll` still rolls about the boresight.
-- `in_fov` real(8): full field of view in degrees (frame spans ±fov/2 on both axes).
+- `in_fov` real(8): full field of view in degrees (the frame covers ±fov/2 off the boresight,
+  which is ±hdr(15) in plot units; see Projection).
 - `in_flags` int32: bit 0 labels on, bit 1 draw plot frame and tick marks, bit 2 draw hidden
   LM lines dashed (style 2) instead of dropping them (the film drops them).
 
@@ -124,7 +125,9 @@ Outputs (written by the kernel):
   8 window code (1 CSM window, 2 LM front window), 9 range to the LM ft (scene 4),
   10 LM altitude ft (scene 5), 11, 12 plot X, Y (deg) of the reference body's centre (Earth in
   scenes 2 and 3, Moon in 1 and 5, the LM in 4) in the current projection, given even when off
-  frame, 13 its angular radius (deg), 14 1 if it is in front of the camera else 0, 15..16 spare.
+  frame, 13 its angular radius projected as a plot radius, ρ(radius) in plot deg, 14 1 if it
+  is in front of the camera else 0, 15 half-width of the plot box in plot deg (ρ(fov/2); the
+  frame spans ±hdr(15) on both axes), 16 spare.
   The page letters the report-style header from these.
 - `tbuf(4, MAXT)` real(8), `ntxt` int32, `tchr(MAXTC)` int32, `nchr` int32: text records for the
   recorder's character generator, decided by the kernel. Record k is `x, y, height, start`: plot
@@ -140,16 +143,17 @@ Outputs (written by the kernel):
   assumes a character width of 0.7 × height for alignment. Crater names stay in `lbuf`
   (kind 2) for the page. MAXT = 300, MAXTC = 6000.
 
-Projection: angle-angle about the window's lateral axis, in degrees. For a unit direction with
-components (r, u, b) on the camera's right, up and boresight axes, `X = asin(r)` (angle out of
-the window's vertical plane) and `Y = atan2(u, b)` (angle within that plane). This is our
-inference from the evidence, not stated in either report. In the film's descent frames (t28,
-t31, t35; FOV about 100°) the lunar horizon stays a straight horizontal line from +12° to +36°,
-and in MSC IN 69-FM-197 (PDF p. 170, docking window, FOV 100°) it is straight across ±50° at
-Y ≈ −30°. This mapping draws a horizon under an unrolled window straight at any pitch.
-Azimuthal equidistant and azimuth-elevation about the up axis both bow it. Near the edges of a
-170° field horizons curve, as in the same page's front-window panel. At small fields the
-choices agree. See the comment at `PROJ` in `src/view.f`.
+Projection: radially symmetric about the boresight. A direction at angle θ from the boresight
+and position angle φ (from the right axis toward up) lands at radius ρ = k·tan(θ/k), in degrees
+(×180/π, so ρ ≈ θ near the centre), at `(ρ cos φ, ρ sin φ)`. k = 1 (gnomonic) up to a 100°
+field, rising linearly to k = 2 (stereographic) at 170°. The plot box is ±ρ(fov/2), not ±fov/2:
+the kernel reports its half-width in `hdr(15)`, and the page must scale the plot to that. Ticks
+are evenly spaced in plot units and labelled in degrees. Our inference, not stated in either
+report: the film's descent horizon is straight at every height and MSC IN 69-FM-197 (PDF p. 170)
+shows a straight horizon in a 100° docking-window plot, which a gnomonic plot gives for great
+circles; the same page's 170° front-window panel shows a fisheye dome, which stereographic gives
+while keeping circles round. Directions beyond 90°·k off the boresight are not drawn (segments
+are cut there). See the comment at `PROJ` in `src/view.f`.
 
 ## Scenes (priority order; match the video frames)
 

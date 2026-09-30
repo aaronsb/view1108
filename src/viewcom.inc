@@ -71,11 +71,13 @@ C     /CCAM/ camera.  CR, CU, CB: right, up, boresight (EQ).  RREF,
 C     UREF, BREF: the scene reference attitude before free-look.
 C     FOVH half field (deg), BOXH clip half size (deg), THVIEW angle
 C     from boresight to the frame corner (deg), THLIM the largest
-C     angle from the boresight that is projected at all (deg).
+C     angle from the boresight that is projected at all (deg).  PK
+C     projection constant (1 gnomonic .. 2 stereographic), PTH the last
+C     angle off the boresight PROJ saw (rad).
       DOUBLE PRECISION CR(3), CU(3), CB(3), RREF(3), UREF(3), BREF(3)
-      DOUBLE PRECISION FOVH, BOXH, THVIEW, THLIM, CSVIEW
+      DOUBLE PRECISION FOVH, BOXH, THVIEW, THLIM, CSVIEW, PK, PTH
       COMMON /CCAM/ CR, CU, CB, RREF, UREF, BREF,
-     &              FOVH, BOXH, THVIEW, THLIM, CSVIEW
+     &              FOVH, BOXH, THVIEW, THLIM, CSVIEW, PK, PTH
 C
 C     /CPEN/ the pen.  PPX last point, IPV its visibility, IVMODE the
 C     visibility test for points now being drawn (see ISVIS), ISTYLE

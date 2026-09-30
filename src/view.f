@@ -137,7 +137,10 @@ C       terminator falls as it did for the landing.
       ELSE
 C       LM DESCENT, commander's front window, P64 approach.
         GET = 102.0D0*3600.0D0 + 42.0D0*60.0D0
-        FOV = 100.0D0
+C       The film's descent frame is numbered to +-50 at its edges; in
+C       the gnomonic plot (see PROJ) that is a physical field of
+C       2 ATAN(50 deg in radians) = 82.4 deg.
+        FOV = 82.4D0
       END IF
 C     RESTOMOD END
       RETURN
@@ -156,7 +159,7 @@ C     RESTOMOD END
       DOUBLE PRECISION TB(4,MAXT)
       INTEGER NT, TC(MAXTC), NCH
       DOUBLE PRECISION PM(3), CG(3), CV(3), RB, RNG, D1, D2, D3, D4
-      DOUBLE PRECISION PB(3), RR, VNRM, VDOT
+      DOUBLE PRECISION PB(3), RR, VNRM, VDOT, RHO
       INTEGER I, IREF, IWIN, IOK
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
@@ -174,12 +177,15 @@ C     RESTOMOD END
       FOVH = 0.5D0 * FOV
       IF (FOVH .LT. 0.05D0) FOVH = 0.05D0
       IF (FOVH .GT. 89.0D0) FOVH = 89.0D0
-      BOXH = FOVH
-      THVIEW = FOVH * 1.4143D0 + 0.5D0
-      IF (THVIEW .GT. 179.0D0) THVIEW = 179.0D0
+C     Projection constant (see PROJ), box half-width in plot deg, the
+C     angle to the frame corner, and the projection's usable limit.
+      PK = 1.0D0 + DMIN1(1.0D0, DMAX1(0.0D0, (2.0D0*FOVH - 100.0D0)
+     &     / 70.0D0))
+      BOXH = PK * DTAN(FOVH * DR / PK) / DR
+      THVIEW = PK * DATAN(1.4143D0 * BOXH * DR / PK) / DR + 0.5D0
+      THLIM = 90.0D0 * PK - 0.5D0
+      IF (THVIEW .GT. THLIM) THVIEW = THLIM
       CSVIEW = DCOS(THVIEW * DR)
-      THLIM = THVIEW + 10.0D0
-      IF (THLIM .GT. 170.0D0) THLIM = 170.0D0
 C
 C     World at this GET.
       CALL TSET(GET)
@@ -253,7 +259,8 @@ C     centre X, Y (deg, even off frame), angular radius, in front flag.
       IF (IREF .EQ. 2) RR = RM
       IF (ISCN .EQ. 4) RR = 4.5D-3
       CALL PROJ(PB, HD(11), HD(12), IOK)
-      HD(13) = DASIN(DMIN1(1.0D0, RR / VNRM(PB))) / DR
+      HD(13) = RHO(DASIN(DMIN1(1.0D0, RR / VNRM(PB))))
+      HD(15) = BOXH
       HD(14) = 0.0D0
       IF (VDOT(PB, CB) .GT. 0.0D0) HD(14) = 1.0D0
 C     Text for the recorder's character generator.
@@ -1118,54 +1125,82 @@ C            IVMODE; a segment crossing from seen to hidden is cut at
 C            the boundary by bisection.
 C=======================================================================
 C-----------------------------------------------------------------------
-C     PROJECTION.  Angle-angle about the window's lateral axis:
-C       X = angle out of the window's vertical (pitch) plane, deg
-C       Y = angle within that plane, above the boresight, deg
-C     so X = ASIN(D.R), Y = ATAN2(D.U, D.B) for unit D.
-C     Evidence (our inference, not stated in either report): in the
-C     film's LM descent frames (t28, t31, t35; FOV about 100) the lunar
-C     horizon is a straight horizontal line at every height from +12 to
-C     +36 deg, and in MSC IN 69-FM-197 (PDF p. 170, docking window, FOV
-C     100) it is straight across +-50 deg at Y = -30.  A horizon under a
-C     level (unrolled) window is a near-great circle through the
-C     lateral axis, which this mapping draws straight at any pitch;
-C     azimuthal equidistant and azimuth-elevation about the window's
-C     up axis both bow it.  Near the edges of a 170 deg field
-C     (PDF p. 170, front windows) horizons curve, as they do here when
-C     COS(X) is small.  At small fields all three agree.
-C     The page and the report label the axes "X, deg" and "Y, deg".
+C     PROJECTION.  Radially symmetric about the boresight: a direction
+C     at angle T from the boresight and position angle P (from the
+C     right axis toward up) lands at radius RHO = K TAN(T/K), taken
+C     in degrees (times 180/PI, so RHO is T in degrees near the
+C     centre), at X = RHO COS P, Y = RHO SIN P.  K = 1 (gnomonic, true
+C     perspective) up to a 100 deg field, rising linearly to K = 2
+C     (stereographic) at 170 deg (PK, set in VFRAME).  The frame box
+C     half-width is RHO(FOV/2) (BOXH).
+C     Evidence, and it is our inference, not stated in either report:
+C     the film's descent frames (t28, t31, t35; FOV about 100) show
+C     the lunar horizon as a straight line at every height, and MSC
+C     IN 69-FM-197 (PDF p. 170, docking window, FOV 100) shows it
+C     straight across +-50 at Y = -30: a gnomonic plot draws every
+C     great circle straight.  The same page's 170 deg front-window
+C     panel shows a fisheye dome, which a stereographic plot gives
+C     (conformal, circles stay circles); a gnomonic plot cannot reach
+C     90 deg off axis at all.  The film's evenly spaced ticks,
+C     labelled in degrees, fit a tangent-plane plot marked in degrees
+C     at the centre.  (An earlier angle-angle mapping drew off-axis
+C     circles as rounded squares.)  PTH returns T (rad).
 C-----------------------------------------------------------------------
       SUBROUTINE PROJ(D, X, Y, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION D(3), X, Y, A, B, C, S
+      DOUBLE PRECISION D(3), X, Y, A, B, C, S, T, R
       INTEGER IOK
       A = D(1)*CR(1) + D(2)*CR(2) + D(3)*CR(3)
       B = D(1)*CU(1) + D(2)*CU(2) + D(3)*CU(3)
       C = D(1)*CB(1) + D(2)*CB(2) + D(3)*CB(3)
-      S = DSQRT(A * A + B * B + C * C)
+      S = DSQRT(A * A + B * B)
+      T = DATAN2(S, C)
+      PTH = T
       IOK = 1
-      IF (DATAN2(DSQRT(A * A + B * B), C) / DR .GT. THLIM) IOK = 0
-      X = DASIN(A / S) / DR
-      Y = DATAN2(B, C) / DR
+      IF (T / DR .GT. THLIM) IOK = 0
+      IF (T / DR .GT. THLIM) T = THLIM * DR
+      R = PK * DTAN(T / PK) / DR
+      X = 0.0D0
+      Y = 0.0D0
+      IF (S .GT. 0.0D0) X = R * A / S
+      IF (S .GT. 0.0D0) Y = R * B / S
       RETURN
       END
 C
-C     UNPROJ: plot (X, Y) degrees to a unit direction D.  IREF=1 uses
-C     the reference attitude (for window overlays fixed to the
-C     vehicle), IREF=0 the live camera.
+C     RHO: plot radius (deg) of a direction T (rad) off the boresight.
+      DOUBLE PRECISION FUNCTION RHO(T)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION T
+      RHO = PK * DTAN(T / PK) / DR
+      RETURN
+      END
+C
+C     UNPROJ: plot (X, Y) to a unit direction D.  IREF=1: reference
+C     attitude with K = 1, for window overlays fixed to the vehicle
+C     (their plot coordinates were read off the film's 100 deg,
+C     gnomonic frames); IREF=0: the live camera and PK.
       SUBROUTINE UNPROJ(X, Y, IREF, D)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION X, Y, D(3), A, B, C
+      DOUBLE PRECISION X, Y, D(3), A, B, C, R, T, Q
       INTEGER IREF, I
-      A = DSIN(X * DR)
-      B = DCOS(X * DR) * DSIN(Y * DR)
-      C = DCOS(X * DR) * DCOS(Y * DR)
+      R = DSQRT(X * X + Y * Y)
+      Q = PK
+      IF (IREF .EQ. 1) Q = 1.0D0
+      T = Q * DATAN(R * DR / Q)
+      C = DCOS(T)
+      A = 0.0D0
+      B = 0.0D0
+      IF (R .GT. 0.0D0) A = DSIN(T) * X / R
+      IF (R .GT. 0.0D0) B = DSIN(T) * Y / R
       DO 10 I = 1, 3
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         IF (IREF .EQ. 1) THEN
@@ -1226,9 +1261,9 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     SEG: 3-D segment A-B (camera relative) to the frame.  Segments
-C     whose picture is far longer than their true angular length
-C     straddle the point opposite the boresight and are dropped.
+C     SEG: 3-D segment A-B (camera relative) to the frame.  A segment
+C     running past the projection's limit (THLIM off the boresight) is
+C     cut at the limit by bisection.
       SUBROUTINE SEG(VB, NV, A, B)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -1236,22 +1271,35 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION VB(5,MAXV), A(3), B(3)
       INTEGER NV
-      DOUBLE PRECISION X1, Y1, X2, Y2, CA, PL, VDOT
-      INTEGER K1, K2
+      DOUBLE PRECISION X1, Y1, X2, Y2, P(3), Q(3), M(3), XM, YM
+      INTEGER K1, K2, KM, I, IT
       CALL PROJ(A, X1, Y1, K1)
-      IF (K1 .EQ. 0) RETURN
       CALL PROJ(B, X2, Y2, K2)
-      IF (K2 .EQ. 0) RETURN
-      PL = DSQRT((X2 - X1)**2 + (Y2 - Y1)**2)
-C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (PL .GT. 20.0D0) THEN
-        CA = VDOT(A, B) / DSQRT(VDOT(A, A) * VDOT(B, B))
-        IF (CA .GT. 1.0D0) CA = 1.0D0
-        IF (CA .LT. -1.0D0) CA = -1.0D0
-        IF (PL .GT. 4.0D0 * DACOS(CA) / DR + 5.0D0) RETURN
-      END IF
-C     RESTOMOD END
-      CALL EMIT(VB, NV, X1, Y1, X2, Y2)
+      IF (K1 .EQ. 0 .AND. K2 .EQ. 0) RETURN
+      IF (K1 .EQ. 1 .AND. K2 .EQ. 1) GO TO 50
+C     P inside the limit, Q outside.
+      DO 10 I = 1, 3
+        P(I) = A(I)
+        Q(I) = B(I)
+        IF (K1 .EQ. 0) P(I) = B(I)
+        IF (K1 .EQ. 0) Q(I) = A(I)
+   10 CONTINUE
+      DO 30 IT = 1, 20
+        DO 20 I = 1, 3
+          M(I) = 0.5D0 * (P(I) + Q(I))
+   20   CONTINUE
+        CALL PROJ(M, XM, YM, KM)
+        DO 25 I = 1, 3
+          IF (KM .EQ. 1) P(I) = M(I)
+          IF (KM .EQ. 0) Q(I) = M(I)
+   25   CONTINUE
+   30 CONTINUE
+      CALL PROJ(P, XM, YM, KM)
+      IF (K1 .EQ. 1) X2 = XM
+      IF (K1 .EQ. 1) Y2 = YM
+      IF (K1 .EQ. 0) X1 = XM
+      IF (K1 .EQ. 0) Y1 = YM
+   50 CALL EMIT(VB, NV, X1, Y1, X2, Y2)
       RETURN
       END
 C
@@ -1384,7 +1432,10 @@ C     RESTOMOD END
       DOUBLE PRECISION P(3), B, C
       B = P(1)*UREF(1) + P(2)*UREF(2) + P(3)*UREF(3)
       C = P(1)*BREF(1) + P(2)*BREF(2) + P(3)*BREF(3)
-      SILL = -35.0D0 - DATAN2(B, C) / DR
+C     Reference plot Y with K = 1 is TAN(T) SIN(P) = B / C (deg).
+      SILL = 1.0D0
+      IF (C .GT. 0.0D0) SILL = -35.0D0 - B / C / DR
+      IF (C .LE. 0.0D0 .AND. B .GE. 0.0D0) SILL = -1.0D0
       RETURN
       END
 C

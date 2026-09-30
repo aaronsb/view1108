@@ -69,7 +69,8 @@ program viewsvg
       nv, '  nstar ', ns
   end if
 
-  b = 0.5d0 * fov
+  b = hd(15)
+  if (b <= 0d0) b = 0.5d0 * fov
   s = 400.0d0 / b
   write (*, '(a)') '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="-40 -10 880 850">'
   write (*, '(a)') '<rect x="-40" y="-10" width="880" height="850" fill="black"/>'
