@@ -55,7 +55,9 @@
       <button type="button" data-act="pause" id="ppause" title="Pause or play (Space)" aria-label="Pause or play">SPC<small>PAUSE</small></button>
       <button type="button" data-act="faster" title="Faster (])" aria-label="Faster">]<small>FASTER</small></button>
     </div>
-  </div></section>
+  </div>
+  <div class="grp" id="viewgrp" hidden><span class="lbl">View</span><button title="Out of the scene's window">Window</button><button title="From outside, orbiting the target: drag to go round it">External</button><button title="From the CM crew station">CM</button><button title="From the LM crew station">LM</button></div>
+  <div class="grp" id="targrp" hidden><span class="lbl">Target</span><button title="The scene's own">Default</button><button>Earth</button><button>Moon</button><button>Sun</button><button>CSM</button><button>LM</button></div></section>
   <section class="shade" data-shade="scene"><button class="shade-h" type="button">Scene</button>
   <div class="grp" id="scenes"></div></section>
   <section class="shade" data-shade="time"><button class="shade-h" type="button">Time</button>
@@ -116,6 +118,7 @@
 <script src="src/loop.js"></script>
 <script src="src/controls.js"></script>
 <script src="src/sim.js"></script>
+<script src="src/views.js"></script>
 <script src="src/pad.js"></script>
 <script src="src/shades.js"></script>
 <script src="src/listing.js"></script>

@@ -8,7 +8,8 @@ function linkURL() {
     if (mode !== "live" || livePin) add("scene", scene);
     add("get", getStr(get)); add("fov", rnd(fov)); add("yaw", rnd(yaw)); add("pitch", rnd(pitch)); add("roll", rnd(roll));
     if (mode === "live") add("rate", LIVE_RATES[liveIdx]); else if (mode === "beam") add("bspeed", beamIdx + 1); else add("rate", SPEEDS[speedIdx]);
-    if (!labels) add("labels", 0); if (!frame) add("frame", 0); if (hidden) add("hidden", 1);
+    if (FEAT.lablv) { if (labLv !== 3) add("lab", labLv); } else if (!labLv) add("labels", 0);
+    if (FEAT.view && viewMode) add("view", VIEWS[viewMode]); if (FEAT.target && targetId) add("target", TARGETS[targetId]); if (!frame) add("frame", 0); if (hidden) add("hidden", 1);
   }
   const dAuto = mode === "attract" || mode === "tour";   // effects whose default is on in the film-like modes
   if (effJit() !== dAuto) add("jitter", +effJit());
@@ -46,7 +47,9 @@ function applyParams() {
   const y = num("yaw"); if (y !== null) yaw = y;
   const pt = num("pitch"); if (pt !== null) pitch = Math.max(-90, Math.min(90, pt));
   const rl = num("roll"); if (rl !== null) roll = rl;
-  if (flag("labels") !== null) labels = flag("labels");
+  if (flag("labels") !== null) labLv = flag("labels") ? 3 : 0;
+  const lb = num("lab"); if (lb !== null && lb >= 0 && lb <= 3) labLv = FEAT.lablv ? Math.round(lb) : lb ? 3 : 0;
+  featParams();
   if (flag("frame") !== null) frame = flag("frame");
   if (flag("hidden") !== null) hidden = flag("hidden");
   syncUI();

@@ -14,11 +14,14 @@ function syncUI() {
   document.getElementById("bfps").classList.toggle("on", effFps());
   document.getElementById("bblm").classList.toggle("on", effBloom());
   document.getElementById("bcat").textContent = "Catalog " + (effCatalog() === "full" ? "full" : "nav");
-  document.getElementById("blab").classList.toggle("on", labels);
+  document.getElementById("blab").classList.toggle("on", labLv > 0);
+  if (FEAT.lablv) document.getElementById("blab").textContent = "Labels " + LAB_LEVELS[labLv];
+  featSyncUI();
   document.getElementById("bfrm").classList.toggle("on", frame);
 }
 const $ = id => document.getElementById(id);
-SCENES.forEach((n, i) => { const b = document.createElement("button"); b.textContent = (i + 1) + " " + n; b.onclick = () => setScene(i + 1); $("scenes").appendChild(b); });
+function addSceneButton(s) { const b = document.createElement("button"); b.textContent = s + " " + SCENES[s - 1]; b.onclick = () => setScene(s); $("scenes").appendChild(b); }
+SCENES.forEach((n, i) => addSceneButton(i + 1));
 for (const m of ["attract", "tour", "live", "free", "beam"]) $("m" + m).onclick = () => startMode(m);
 for (const id in JUMPS) $(id).onclick = () => liveJump(JUMPS[id]);
 const bump = d => { if (mode === "beam") beamIdx = Math.max(0, Math.min(BEAM_SPEEDS.length - 1, beamIdx + d)); else if (mode === "live") liveIdx = Math.max(0, Math.min(LIVE_RATES.length - 1, liveIdx + d)); else speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, speedIdx + d)); syncUI(); };
@@ -39,7 +42,7 @@ $("bplay").onclick = () => { leaveAttract(); playing = !playing; syncUI(); };
 $("bslow").onclick = () => { leaveAttract(); bump(-1); };
 $("bfast").onclick = () => { leaveAttract(); bump(1); };
 $("breset").onclick = () => { leaveAttract(); resetView(); };
-$("blab").onclick = () => { leaveAttract(); labels = !labels; syncUI(); };
+$("blab").onclick = () => { leaveAttract(); labLv = FEAT.lablv ? (labLv + 1) % 4 : labLv ? 0 : 3; syncUI(); };   // OFF, PRIMARY, SECONDARY, ALL, or on/off
 $("bfrm").onclick = () => { leaveAttract(); frame = !frame; syncUI(); };
 $("scrub").oninput = e => { leaveAttract(); livePin = null; get = mode === "live" ? Number(e.target.value) : get0 + Number(e.target.value); };
 
@@ -52,7 +55,7 @@ cv.addEventListener("pointermove", e => {
   const p = ptrs.get(e.pointerId); if (!p) return;
   const dx = e.clientX - p[0], dy = e.clientY - p[1]; p[0] = e.clientX; p[1] = e.clientY;
   if (ptrs.size === 1) {
-    if (scene === 6) {   // Moon view: yaw/pitch are the sub-observer longitude/latitude, so dragging spins the globe under the pointer
+    if (orbiting()) {   // Moon view or EXTERNAL: yaw/pitch are longitude/latitude (azimuth/elevation) around the target, so dragging spins it under the pointer
       const Hh_ = new Float64Array(buf(), K.hdr.value, 16), R = Hh_[12] > 0 && Hh_[14] > 0 ? Hh_[12] / Hh_[14] * plotPx() / 2 : 0.85 * (fov0 / fov) * plotPx() / 2;   // disc radius in px: hdr(13) over the box half-width hdr(15)
       const d = 180 / Math.PI / R;   // degrees of longitude per px at the disc centre
       yaw -= dx * d; pitch = Math.max(-90, Math.min(90, pitch + dy * d)); yaw = ((yaw + 180) % 360 + 360) % 360 - 180;
@@ -65,7 +68,7 @@ cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
 cv.addEventListener("wheel", e => { e.preventDefault(); leaveAttract(); fov = clampFov(fov * Math.exp(e.deltaY * 0.001)); }, { passive: false });
 
 // Look and time actions, shared by the keyboard and the control pad (pad.js).
-const lookStep = () => scene === 6 ? 5 : fov * 0.05;
+const lookStep = () => orbiting() ? 5 : fov * 0.05;
 const ACT = {
   left: () => { yaw -= lookStep(); }, right: () => { yaw += lookStep(); },
   up: () => { pitch = Math.min(90, pitch + lookStep()); }, down: () => { pitch = Math.max(-90, pitch - lookStep()); },

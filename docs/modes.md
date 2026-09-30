@@ -8,8 +8,8 @@ Base URL: https://aaronsb.github.io/view1108/
 
 | Mode | What it does | Example |
 |---|---|---|
-| **Attract** | Replays the four shots of the surviving VIEW film at the film's pace (about 36 s): Earthrise, Earth approach, LM pirouette, LM descent. Plays once on a fresh load, then hands over to Tour. | [?mode=attract](https://aaronsb.github.io/view1108/?mode=attract) |
-| **Tour** | A slow loop through every scene, a few minutes each, with a caption naming the shot and its g.e.t. Loops forever. | [?mode=tour](https://aaronsb.github.io/view1108/?mode=tour) |
+| **Attract** | Replays the four shots of the surviving VIEW film at the film's pace (about 36 s): Earthrise, Earth approach, LM pirouette, LM descent. With scene 8 a fifth shot follows, 12 s orbiting the translunar stack from outside, captioned as a modern addition. Plays once on a fresh load, then hands over to Tour. | [?mode=attract](https://aaronsb.github.io/view1108/?mode=attract) |
+| **Tour** | A slow loop through every scene, a few minutes each, with a caption naming the shot and its g.e.t. With scene 8 it ends by orbiting the stack from outside, then looking out of the CM window. Loops forever. | [?mode=tour](https://aaronsb.github.io/view1108/?mode=tour) |
 | **Live** | The Apollo 11 mission clock at 1× (or 10×, 60×, 300×, 1000×). The scene follows the mission phase from the g.e.t.: Earth parking orbit until 2:50:00, translunar coast until 75:50:00, lunar orbit until 135:24:00, then transearth coast. The transposition and docking, the LM rendezvous and the descent are jump windows. | [Live at touchdown](https://aaronsb.github.io/view1108/?mode=live&get=102:45:40) |
 | **Free-look** | Time paused or running at a chosen speed; look anywhere at the current moment. Any drag, wheel or key in Attract or Tour switches to Free-look and keeps the view. | [A frozen Earthrise](https://aaronsb.github.io/view1108/?mode=free&scene=1&get=102:20:06&fov=8) |
 | **Beam** | Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades, with a beam spot on the pen. The mission clock advances one frame at a time, by however long the frame took to draw. | [Slow trace of the Earth](https://aaronsb.github.io/view1108/?mode=beam&scene=2&bspeed=3) |
@@ -36,6 +36,7 @@ Speeds 1 and 2 are our estimates, worked out in [univac-1108.md](univac-1108.md)
 | 5 | LM descent | The commander's front window with the LPD scale; the horizon rises as the LM pitches over. | [scene=5](https://aaronsb.github.io/view1108/?mode=free&scene=5&get=102:44:00) |
 | 6 | Moon view | The whole Moon from 35,000 km; drag to spin it. Maria, craters, the terminator and the landing site. A modern addition, not reconstructed 1969 output. | [scene=6](https://aaronsb.github.io/view1108/?mode=free&scene=6) |
 | 7 | Transposition & docking | Through the CSM's docking sight, down onto the LM stowed on the S-IVB, closing from 100 ft to docking at 3:24:03. Hidden-line LM and S-IVB. | [scene=7](https://aaronsb.github.io/view1108/?mode=free&scene=7) |
+| 8 | Translunar stack | The CSM and LM docked, in translunar coast, seen from outside or from a crew station (View). A modern addition, not reconstructed 1969 output. Shown only when the kernel has it. | [scene=8](https://aaronsb.github.io/view1108/?mode=free&scene=8&view=external) |
 
 ### Scene 7 sources and guesses
 
@@ -49,7 +50,7 @@ Is the film's leg-less LM shot (film seconds 20.5 to 26) this view? We think not
 
 | Toggle | Key | What it does | Default |
 |---|---|---|---|
-| Labels | button | Star, body and feature names, drawn by the recorder's character generator | on |
+| Labels | button | Star, body and feature names, drawn by the recorder's character generator. With a kernel that has label levels, the button cycles OFF, PRIMARY, SECONDARY, ALL; crater names follow the level (none at PRIMARY, craters of 25 km and more at SECONDARY, all at ALL); otherwise it is on/off | on (ALL) |
 | Frame | button | Plot frame, ticks and tick numbers | on in framed shots |
 | LM hidden lines | button | Draws the LM's (and in scene 7 the S-IVB's) hidden edges dashed instead of dropping them | off |
 | Catalog | C | NAV: the 391-star navigation catalog as asterisks (37 named). FULL: every catalog star to V 4.5 as dots. TN D-6853 p. 12 describes both. | NAV |
@@ -69,7 +70,7 @@ Is the film's leg-less LM shot (film seconds 20.5 to 26) this view? We think not
 | Space | Pause |
 | `[` `]` | Slower / faster (the Live rate, the Beam speed, or the Free-look speed) |
 | `R` | Reset the view |
-| `1`–`7` | Scenes |
+| `1`–`8` | Scenes (`8` when the kernel has scene 8) |
 | `T` | Beam mode |
 | `L` | Copy a link to the current view |
 | `B` `J` `D` `F` `C` | Bloom, jitter, dust, film rate, catalog |
@@ -103,6 +104,15 @@ The Look group holds a pad of key caps that does what the keyboard does, for mou
 
 A press acts at once and leaves Attract or Tour for Free-look, as a key press does. A held cap repeats after 0.5 s, then about 30 times a second (our choice, near common desktop key-repeat settings). Each finger holds its own cap, so two can be held together. Pressing or dragging on the pad does not scroll or zoom the page.
 
+## View and target
+
+With a kernel that has them, the Look group adds two rows. They are modern additions: VIEW drew what a crew saw from the vehicle's windows.
+
+| Control | Choices | What it does |
+|---|---|---|
+| View | WINDOW, EXTERNAL, CM, LM | WINDOW is the scene's own window. EXTERNAL looks at the target from outside: drag, the arrows and the pad turn azimuth and elevation around it, as in the Moon view; wheel or pinch sets the field of view. CM and LM look from the CM or LM crew station |
+| Target | DEFAULT, EARTH, MOON, SUN, CSM, LM | What the view points at; DEFAULT is the scene's own |
+
 ## Control groups
 
 Each control group (Mode, Look, Scene, Time, Display, Film, Listing and link) has a header: `[-]` shows the group is open, `[+]` shut; click or tap the header to change it. The page remembers each group's state in this browser. Until you change one, a screen 600 px wide or less opens only Mode and Look, and puts Look first, under the picture; a wider screen opens every group.
@@ -112,13 +122,16 @@ Each control group (Mode, Look, Scene, Time, Display, Film, Listing and link) ha
 | Parameter | Values | Example |
 |---|---|---|
 | `mode` | `attract`, `tour`, `live`, `free`, `beam` | `?mode=live` |
-| `scene` | `1`–`7` (in Live, `4`–`7` pin that view; `1`–`3` follow the mission phase) | `?mode=free&scene=7` |
+| `scene` | `1`–`8` (in Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase) | `?mode=free&scene=7` |
 | `get` | g.e.t. as `h:mm:ss` or seconds | `?get=102:45:40` |
 | `utc` | `YYYY-MM-DDTHH:MM:SS` (Apollo 11 lift-off 1969-07-16T13:32:00Z plus g.e.t.) | `?utc=1969-07-20T20:17:40` |
 | `fov`, `yaw`, `pitch`, `roll` | degrees | `?fov=100&pitch=-10` |
 | `rate` | Live `1`/`10`/`60`/`300`/`1000`; Free-look speed | `?mode=live&rate=60` |
 | `bspeed` | `1`–`4` | `?mode=beam&bspeed=3` |
 | `labels`, `frame`, `hidden` | `0`/`1` | `?labels=0` |
+| `lab` | `0`–`3`: label level OFF, PRIMARY, SECONDARY, ALL (with a kernel that has levels; otherwise `0` is off, else on) | `?lab=1` |
+| `view` | `window`, `external`, `cm`, `lm` | `?mode=free&scene=8&view=external` |
+| `target` | `default`, `earth`, `moon`, `sun`, `csm`, `lm` | `?view=external&target=moon` |
 | `bloom`, `jitter`, `dust`, `fps` | `0`/`1` | `?bloom=0&jitter=0` |
 | `catalog` | `nav`, `full` | `?catalog=full` |
 | `src` | `replay`, `sim` (Simulation; only when the kernel has the engine) | `?src=sim` |

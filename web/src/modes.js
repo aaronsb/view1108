@@ -56,8 +56,19 @@ function steerToEarth(L) {
 }
 const QP = k => { const m = new RegExp("[?&]" + k + "=([^&]+)").exec(location.search); return m ? m[1] : null; };
 const filmQ = /[?&]film=([\d.]+)/.exec(location.search);
+// Scene 8 (a modern addition), appended to the Tour when the kernel has it (views.js): orbit the stack from outside,
+// then look out of the CM window. view: 0 WINDOW, 1 EXTERNAL, 2 CM, 3 LM station.
+// Attract, after the film's four shots, when the kernel has scene 8: orbit the stack from outside, captioned as ours.
+// Yaw circles the stack's long axis, which looks alike from every side, so the shot rises in elevation from side-on
+// toward the LM end and drifts a little in azimuth, with the stack about half the frame.
+const ATTRACT8 = { name: "Translunar stack - a modern addition, not 1969 film", scene: 8, dur: 12, fl: 0, cap: true, view: 1, fov: 24, yaw: u => 150 + 50 * u, pitch: u => -10 + 45 * u, p: [0, 12] };
+const TOUR8 = [
+  { name: "Translunar stack - external", scene: 8, dur: 90, fl: 2, view: 1, fov: 24, yaw: u => 120 + 120 * u, pitch: u => -10 + 45 * (1 - Math.cos(2 * Math.PI * u)) / 2, p: [0, 90] },
+  { name: "Translunar stack - CM window", scene: 8, dur: 60, fl: 2, view: 2, p: [90, 150] }
+];
 const LEN = { attract: ATTRACT.reduce((a, s) => a + s.dur, 0), tour: TOUR.reduce((a, s) => a + s.dur, 0) };
 const val = (x, u) => typeof x === "function" ? x(u) : x;
+let autoCap = false;   // caption an unframed Attract shot (the added, non-film ones)
 let mode = "attract", autoT = filmQ ? +filmQ[1] : 0, autoShot = -1, fadeA = 0, capName = "", livePin = null, liveIdx = 0;
 
 function shotGet(sh, u) {
@@ -74,7 +85,7 @@ function autoStep(dt) {
   const sh = L[i], u = t / sh.dur;
   if (i !== autoShot) {
     autoShot = i; scene = sh.scene; viewInit(sh.scene); readDefaults();
-    labels = !!(sh.fl & 1); frame = !!(sh.fl & 2); capName = sh.name; syncUI();
+    labLv = sh.fl & 1 ? 3 : 0; viewMode = sh.view || 0; frame = !!(sh.fl & 2); capName = sh.name; autoCap = !!sh.cap; syncUI();
   }
   if (sh.fov) fov = sh.fov;
   if (sh.yaw !== undefined) yaw = val(sh.yaw, u);
@@ -117,7 +128,7 @@ function startMode(m) {
   const prev = mode; mode = m; autoT = (m === "attract" && filmQ) ? +filmQ[1] : 0; autoShot = -1; fadeA = 0; playing = true;
   if (m === "live") {
     get = Math.max(LIVE_MIN, Math.min(LIVE_MAX, get)); livePin = null;
-    scene = livePhase(get).scene; viewInit(scene); const g = get; readDefaults(); get = g; get0 = g; frame = true; labels = true; liveSync(); aimAtBody();
+    scene = livePhase(get).scene; viewInit(scene); const g = get; readDefaults(); get = g; get0 = g; frame = true; labLv = 3; liveSync(); aimAtBody();
   } else if (m === "beam") {
     beamFrames = []; beamNextStart = 0; beamPrevCompute = 0; beamFrameNo = 0; capName = "";
   } else if (m === "free") {

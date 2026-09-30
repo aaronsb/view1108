@@ -7,7 +7,8 @@ const mk = () => document.createElement("canvas");
 const off = mk(), bl1 = mk(), bl2 = mk(), bl3 = mk(), am1 = mk(), am2 = mk(), am3 = mk(), amS = mk(), ctx = off.getContext("2d"), b1c = bl1.getContext("2d"), b2c = bl2.getContext("2d"), b3c = bl3.getContext("2d"), a1c = am1.getContext("2d"), a2c = am2.getContext("2d"), a3c = am3.getContext("2d"), aSc = amS.getContext("2d");
 // ---- layout ----
 const HDR = 0.115, BOXF = 0.80, HGT = 1.10;
-const RM_NMI = 938.1;   // lunar radius 1737.4 km (IAU mean radius) in n. mi.
+const RM_NMI = 938.1;
+const craterKm = j => NAMES.CRATER_KM ? NAMES.CRATER_KM[j] : Infinity;   // crater diameter, if build/names.js carries them   // lunar radius 1737.4 km (IAU mean radius) in n. mi.
 function resize() {
   const wrapW = document.getElementById("wrap").clientWidth;
   W = Math.floor(Math.max(280, Math.min(wrapW, (innerHeight - (STILL ? 0 : 190)) / HGT)));
@@ -21,7 +22,11 @@ function resize() {
   bl2.width = Math.ceil(cv.width / 4); bl2.height = Math.ceil(cv.height / 4);
   bl3.width = am3.width = Math.ceil(cv.width / 8); bl3.height = am3.height = Math.ceil(cv.height / 8);
   am1.width = amS.width = bl1.width; am1.height = amS.height = bl1.height; am2.width = bl2.width; am2.height = bl2.height;
+  // Resizing clears the canvas: present the last kernel frame again at once, since the next tick may not come before
+  // a capture (a headless screenshot, or a frame held by the 16 fps film rate).
+  if (drawn) draw(performance.now());
 }
+let drawn = false;   // a kernel frame has been drawn since boot
 // Framed plots sit inside a margin for lettering; unframed shots (as in the film) fill the width.
 let framed = true;
 const box = () => framed ? { x: W * (1 - BOXF) / 2, y: W * HDR, s: W * BOXF } : { x: 0, y: W * 0.02, s: W };
@@ -92,7 +97,7 @@ function draw(now) {
     for (let j = 0; j < nt * 4; j += 4) {
       let str = ""; for (let q = T[j + 3] - 1; q < C.length && C[q]; q++) str += String.fromCharCode(C[q]);
       const alpha = /[A-Z]/.test(str);
-      if (alpha && (!labels || (fullCat && NAMES.NAV.includes(str)))) continue;   // names follow the Labels toggle; FULL catalog has no star names
+      if (alpha && (!labLv || (fullCat && NAMES.NAV.includes(str)))) continue;   // names follow the label level (the kernel picks them by level when it has in_lablv); FULL catalog has no star names
       strokeText(textP, str, cx + T[j] * k, cy - T[j + 1] * k, T[j + 2] * k);
     }
   }
@@ -100,14 +105,15 @@ function draw(now) {
   // by diameter, so a lower id is a larger crater); a name whose text rectangle (0.7 x height per character, one height
   // tall) meets one already placed is dropped, the same rule as the kernel's Moon-view labels. Names of craters within
   // two name heights of the Moon's limb (as angles from the Moon's centre) are dropped too: seen edge-on there, they
-  // would letter over the limb and its crowded rims. Our rules.
-  if (labels) {
+  // would letter over the limb and its crowded rims. Our rules. Level: none at PRIMARY, craters of 25 km and more at
+  // SECONDARY (all of them if the catalog has no diameters), all at ALL.
+  if (labLv >= 2) {
     const hd = 2 * half * 0.014, placed = [], cand = [];
     const dir = (x, y) => { const th = plotToAngle(Math.hypot(x, y), F) * Math.PI / 180, ph = Math.atan2(y, x); return [Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th)]; };
     const moon = H[5] === 2 && H[13] === 1 ? dir(H[10], H[11]) : null;   // hdr(6) reference body Moon, hdr(14) in front
     const limbAt = moon ? Math.asin(Math.min(1, RM_NMI / Math.max(RM_NMI, H[2]))) - 2 * hd * Math.PI / 180 : 0;
     const nearLimb = i => { if (!moon) return false; const d = dir(L[i], L[i + 1]); return Math.acos(Math.min(1, d[0] * moon[0] + d[1] * moon[1] + d[2] * moon[2])) > limbAt; };
-    for (let i = 0; i < nl * 4; i += 4) if ((L[i + 2] | 0) === 2 && NAMES.CRATER[(L[i + 3] | 0) - 1] && !nearLimb(i)) cand.push(i);
+    for (let i = 0; i < nl * 4; i += 4) if ((L[i + 2] | 0) === 2 && NAMES.CRATER[(L[i + 3] | 0) - 1] && !nearLimb(i) && (labLv === 3 || craterKm((L[i + 3] | 0) - 1) >= 25)) cand.push(i);
     cand.sort((a, b) => L[a + 3] - L[b + 3]);
     for (const i of cand) {
       const up = NAMES.CRATER[(L[i + 3] | 0) - 1].toUpperCase(), wd = 0.35 * hd * up.length;
@@ -143,7 +149,7 @@ function draw(now) {
   ctx.fillText("X, deg", cx, b.y + b.s + fs * 2);
   ctx.save(); ctx.translate(b.x - fs * 3.2, cy); ctx.rotate(-Math.PI / 2); ctx.textBaseline = "bottom"; ctx.fillText("Y, deg", 0, 0); ctx.restore();
   }
-  const showCap = framed || mode !== "attract";   // the film has no text on its unframed shots
+  const showCap = framed || mode !== "attract" || autoCap;   // the film has no text on its unframed shots; added shots say what they are
   if (showCap) {
   ctx.textAlign = "center"; ctx.fillStyle = "#eee";
   ctx.textBaseline = "top"; ctx.font = `${fs * 1.1}px "Courier Prime","Courier New",monospace`;
@@ -151,9 +157,9 @@ function draw(now) {
   ctx.fillText("g.e.t. = " + getStr(H[0]), cx, b.y + b.s + fs * (framed ? 4.0 : 0.5));
   ctx.fillStyle = "#aaa"; ctx.font = `${fs}px ${getComputedStyle(document.body).getPropertyValue("--hd")}`;
   const liveTag = mode === "live" ? `LIVE ${LIVE_RATES[liveIdx]}x   ` : mode === "tour" ? "TOUR   " : "";
-  ctx.fillText(liveTag + (capName || SCENE_CAPTION[sc] || SCENES[sc - 1] || "") + (H[5] && !(SCENE_CAPTION[sc] && (!capName || capName === SCENE_CAPTION[sc])) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (roll ? `   roll ${roll.toFixed(0)}°` : ""), cx, b.y + b.s + fs * (framed ? 5.7 : 2.0));
+  ctx.fillText(liveTag + (capName || SCENE_CAPTION[sc] || SCENES[sc - 1] || "") + (H[5] && !autoCap && !(SCENE_CAPTION[sc] && (!capName || capName === SCENE_CAPTION[sc])) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (roll ? `   roll ${roll.toFixed(0)}°` : ""), cx, b.y + b.s + fs * (framed ? 5.7 : 2.0));
   }
 
   if (fadeA > 0) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, fadeA)})`; ctx.fillRect(0, 0, W, Hh); }
-  present(now, bloomOn);
+  present(now, bloomOn); drawn = true;
 }
