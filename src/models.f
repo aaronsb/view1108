@@ -96,19 +96,39 @@ C     RESTOMOD END
 C
 C-----------------------------------------------------------------------
 C     LMBODY: the LM's stages, body axes X up, Y right, Z forward, the
-C     descent stage base at X = 0.  Solids IS0+1 .. IS0+7; windows and
-C     hatch are marks on the cabin front (solid IS0+2, face 10 is its
-C     +Z cap).
+C     descent stage base at X = 0.  Solids IS0+1 .. IS0+8; the hatch
+C     is a mark on the lower cabin's front (solid IS0+2, face 10, its
+C     +Z cap), the windows on the upper cabin's (IS0+8, face 8).
+C     The ascent stage is placed by Grumman's LM inch stations (Lunar
+C     Module Structures ... Study Guide, course 30915, 2-15-67, "SG"):
+C     "a design reference point given as the X 200.00 inch station"
+C     (SG p. 5), drawn at the top of the descent stage (SG Fig. 3, p.
+C     4), is our 1.7 m, so X = 1.7 + 0.0254 (XSTA - 200) m; Y and Z
+C     stations are Y and Z, 0 on the thrust axis, "+Z being forward"
+C     (SG p. 5).  "The aft bulkhead/frame of the crew
+C     compartment, which mates with the midsection, is designated as
+C     station +Z27.000.  The front face assembly is mounted ... at an
+C     angle; the lower end at station +Z64.557 angling to ... 86.180
+C     at the top" (SG p. 10); midsection decks at "+X294.643 and
+C     +X233,500" (same page); the cabin "cylindrical (92 inches in
+C     diameter and 42 inches deep)" (Grumman, Apollo News Reference:
+C     Lunar Module, 1969, "LMNR", p. LV-3).  Ours: the cabin's axis
+C     at X 3.0 m (from SG Fig. 13), the front's knee at X 3.021, the
+C     octagons and the outside of the midsection and aft bay.
 C-----------------------------------------------------------------------
       SUBROUTINE LMBODY
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,8)
-      INTEGER IS0, IC
+      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,8), W(2,3)
+      DOUBLE PRECISION Q(2,6), C(2), F, ZF, LMWIN
+      INTEGER IS0, IC, IU, K, J
+      DATA Q / 1.168D0, 0.0D0, 1.168D0, 0.463D0, 0.484D0, 1.147D0,
+     &  -0.484D0, 1.147D0, -1.168D0, 0.463D0, -1.168D0, 0.0D0 /
       IS0 = NSOL
       IC = IS0 + 2
+      IU = IS0 + 8
 C
 C     1  descent stage: octagon 4.2 m across, X 0 .. 1.7.
       CALL OCTAG(2.1D0, 2.1D0, 0.9D0, P)
@@ -117,51 +137,110 @@ C     1  descent stage: octagon 4.2 m across, X 0 .. 1.7.
       CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
       CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
       CALL MKPRS(8, P, O, A1, A2, AN, 1.7D0)
-C     2  crew cabin, faceted, facing +Z.
-      CALL OCTAG(1.25D0, 1.0D0, 0.45D0, P)
-      CALL SETV(O, 2.9D0, 0.0D0, -0.2D0)
+C     2  crew cabin, an octagon about the 92 in cylinder, from the aft
+C        bulkhead (Z27) to the lower front face (Z64.557).
+      CALL OCTAG(1.168D0, 1.168D0, 0.684D0, P)
+      CALL SETV(O, 3.0D0, 0.0D0, 0.686D0)
       CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
       CALL SETV(A2, 1.0D0, 0.0D0, 0.0D0)
       CALL SETV(AN, 0.0D0, 0.0D0, 1.0D0)
-      CALL MKPRS(8, P, O, A1, A2, AN, 1.35D0)
-C     3  midsection behind the cabin.
-      CALL OCTAG(1.2D0, 1.05D0, 0.3D0, P)
-      CALL SETV(O, 2.95D0, 0.0D0, -1.5D0)
-      CALL MKPRS(8, P, O, A1, A2, AN, 1.3D0)
-C     4  aft equipment bay.
+      CALL MKPRS(8, P, O, A1, A2, AN, 0.954D0)
+C     3  midsection, Z27 aft to Z27 forward, its top the upper deck
+C        (X294.643).
+      CALL OCTAG(1.2D0, 1.102D0, 0.3D0, P)
+      CALL SETV(O, 3.002D0, 0.0D0, -0.686D0)
+      CALL MKPRS(8, P, O, A1, A2, AN, 1.372D0)
+C     4  aft equipment bay, behind the aft bulkhead to Z-65.515 (SG
+C        Fig. 10, "-Z65.515 (REF)").
       CALL OCTAG(1.55D0, 0.5D0, 0.05D0, P)
-      CALL SETV(O, 3.1D0, 0.0D0, -2.2D0)
-      CALL MKPRS(8, P, O, A1, A2, AN, 0.7D0)
-C     5  docking tunnel on top.
-      CALL OCTAG(0.5D0, 0.5D0, 0.2D0, P)
-      CALL SETV(O, 3.9D0, 0.0D0, -0.6D0)
+      CALL SETV(O, 3.1D0, 0.0D0, -1.664D0)
+      CALL MKPRS(8, P, O, A1, A2, AN, 0.978D0)
+C     5  docking tunnel on the thrust axis, "32 inches in diameter and
+C        16 inches long" (LMNR p. LV-6) above the upper deck; its base
+C        sunk 0.1 m into the midsection.
+      CALL OCTAG(0.406D0, 0.406D0, 0.168D0, P)
+      CALL SETV(O, 4.0D0, 0.0D0, 0.0D0)
       CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
       CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
       CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
-      CALL MKPRS(8, P, O, A1, A2, AN, 0.45D0)
+      CALL MKPRS(8, P, O, A1, A2, AN, 0.51D0)
 C     6, 7  propellant tank bulges, left and right.
       CALL OCTAG(0.6D0, 0.6D0, 0.25D0, P)
-      CALL SETV(O, 2.55D0, -1.2D0, -0.85D0)
+      CALL SETV(O, 2.55D0, -1.2D0, 0.0D0)
       CALL SETV(A1, 1.0D0, 0.0D0, 0.0D0)
       CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
       CALL SETV(AN, 0.0D0, -1.0D0, 0.0D0)
       CALL MKPRS(8, P, O, A1, A2, AN, 0.65D0)
-      CALL SETV(O, 2.55D0, 1.2D0, -0.85D0)
+      CALL SETV(O, 2.55D0, 1.2D0, 0.0D0)
       CALL SETV(AN, 0.0D0, 1.0D0, 0.0D0)
       CALL MKPRS(8, P, O, A1, A2, AN, 0.65D0)
+C     8  the cabin's upper front, above the knee, out to the slanted
+C        face (Z64.557 at the knee to Z86.180 at the top); its base
+C        inside solid 2.
+      CALL SETV(O, 3.021D0, 0.0D0, 1.2D0)
+      CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
+      CALL SETV(A2, 1.0D0, 0.0D0, 0.0D0)
+      CALL SETV(AN, 0.0D0, 0.0D0, 1.0D0)
+      CALL MKWDG(6, Q, O, A1, A2, AN, 0.44D0, 0.4784D0)
 C
-C     Windows: two triangles on the cabin front.
-      CALL XLINE(-1.05D0, 3.55D0, 1.16D0, -0.35D0, 3.65D0, 1.16D0, IC)
-      CALL XLINE(-0.35D0, 3.65D0, 1.16D0, -0.55D0, 2.75D0, 1.16D0, IC)
-      CALL XLINE(-0.55D0, 2.75D0, 1.16D0, -1.05D0, 3.55D0, 1.16D0, IC)
-      CALL XLINE(1.05D0, 3.55D0, 1.16D0, 0.35D0, 3.65D0, 1.16D0, IC)
-      CALL XLINE(0.35D0, 3.65D0, 1.16D0, 0.55D0, 2.75D0, 1.16D0, IC)
-      CALL XLINE(0.55D0, 2.75D0, 1.16D0, 1.05D0, 3.55D0, 1.16D0, IC)
-C     Hatch on the cabin front.
-      CALL XLINE(-0.4D0, 2.0D0, 1.16D0, 0.4D0, 2.0D0, 1.16D0, IC)
-      CALL XLINE(0.4D0, 2.0D0, 1.16D0, 0.4D0, 2.6D0, 1.16D0, IC)
-      CALL XLINE(0.4D0, 2.6D0, 1.16D0, -0.4D0, 2.6D0, 1.16D0, IC)
-      CALL XLINE(-0.4D0, 2.6D0, 1.16D0, -0.4D0, 2.0D0, 1.16D0, IC)
+C     Windows: two triangles on the upper front, "approximately 2
+C     square feet of viewing area" each (LMNR p. LV-4): the window
+C     frames (LMWIN) grown to that area about their centre and carried
+C     forward onto the face (ours).
+      DO 20 J = -1, 1, 2
+        DO 10 K = 1, 3
+          W(1,K) = DBLE(J) * LMWIN(2,K)
+          W(2,K) = LMWIN(1,K)
+   10   CONTINUE
+        C(1) = (W(1,1) + W(1,2) + W(1,3)) / 3.0D0
+        C(2) = (W(2,1) + W(2,2) + W(2,3)) / 3.0D0
+        F = 1.265D0
+        DO 15 K = 1, 3
+          W(1,K) = C(1) + F * (W(1,K) - C(1))
+          W(2,K) = C(2) + F * (W(2,K) - C(2))
+   15   CONTINUE
+        DO 18 K = 1, 3
+          CALL XLINE(W(1,K), W(2,K), ZF(W(2,K)),
+     &      W(1,MOD(K,3)+1), W(2,MOD(K,3)+1), ZF(W(2,MOD(K,3)+1)), IU)
+          LXF(NXL) = 8
+   18   CONTINUE
+   20 CONTINUE
+C     Hatch on the lower front, "approximately 32 inches square"
+C     (LMNR p. LV-4), its sill at the cabin floor (ours).
+      CALL XLINE(-0.406D0, 2.094D0, 1.64D0, 0.406D0, 2.094D0, 1.64D0,
+     &  IC)
+      CALL XLINE(0.406D0, 2.094D0, 1.64D0, 0.406D0, 2.906D0, 1.64D0,
+     &  IC)
+      CALL XLINE(0.406D0, 2.906D0, 1.64D0, -0.406D0, 2.906D0, 1.64D0,
+     &  IC)
+      CALL XLINE(-0.406D0, 2.906D0, 1.64D0, -0.406D0, 2.094D0, 1.64D0,
+     &  IC)
+      RETURN
+      END
+C
+C     ZF: Z of the LM's front face at height X (m): Z64.557 up to the
+C     knee at X 3.021 (ours), then slanting to Z86.180 at the cabin's
+C     top (SG p. 10).
+      DOUBLE PRECISION FUNCTION ZF(X)
+      DOUBLE PRECISION X
+      ZF = 1.64D0
+      IF (X .GT. 3.021D0) ZF = 1.64D0 + 0.4784D0 * (X - 3.021D0)
+      RETURN
+      END
+C
+C     LMWIN: corner K (1 inboard top, 2 bottom, 3 outboard) of the
+C     commander's window frame, coordinate I (X, Y, Z) in LM body
+C     metres; the LM pilot's is its mirror in Y.  Rays from the design
+C     eye (LDEYE) along the corners of SG Fig. 25 (p. 35, "visual
+C     elevation" +10 to -65 deg, heading 12 deg inboard to about 80
+C     outboard), ended where they meet the window's outline on SG Fig.
+C     7 (p. 11; corners read by eye): our construction.
+      DOUBLE PRECISION FUNCTION LMWIN(I, K)
+      INTEGER I, K
+      DOUBLE PRECISION W(3,3)
+      DATA W / 3.778D0, -0.483D0, 1.730D0, 3.249D0, -0.533D0, 1.585D0,
+     &  3.727D0, -0.813D0, 1.425D0 /
+      LMWIN = W(I,K)
       RETURN
       END
 C
@@ -228,7 +307,7 @@ C
 C-----------------------------------------------------------------------
 C     LMDOCK: docking drogue and CSM-active docking target, as marks
 C     on the LM model LMBODY has just built (tunnel = its solid 5,
-C     midsection = its solid 3).
+C     midsection = its solid 3, of 8).
 C     Drogue, a cone in the tunnel's +X cap (face 10): "a conical
 C     drogue mounted in the LM docking tunnel", which is 32 in across
 C     (press kit, printed p. 88 and p. 101).  Depth: ours.
@@ -245,32 +324,31 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION C, S, C2, S2
       INTEGER K, IT, IM
-      IT = NSOL - 2
-      IM = NSOL - 4
+      IT = NSOL - 3
+      IM = NSOL - 5
       DO 70 K = 0, 11
         C = DCOS(DBLE(K) * PI / 6.0D0)
         S = DSIN(DBLE(K) * PI / 6.0D0)
         C2 = DCOS(DBLE(K + 1) * PI / 6.0D0)
         S2 = DSIN(DBLE(K + 1) * PI / 6.0D0)
-        CALL XLINE(0.4D0 * C, 4.35D0, -0.6D0 + 0.4D0 * S,
-     &             0.4D0 * C2, 4.35D0, -0.6D0 + 0.4D0 * S2, IT)
-        CALL XLINE(0.06D0 * C, 4.05D0, -0.6D0 + 0.06D0 * S,
-     &             0.06D0 * C2, 4.05D0, -0.6D0 + 0.06D0 * S2, IT)
-        IF (MOD(K, 3) .EQ. 0) CALL XLINE(0.4D0 * C, 4.35D0,
-     &    -0.6D0 + 0.4D0 * S, 0.06D0 * C, 4.05D0, -0.6D0 + 0.06D0 * S,
-     &    IT)
+        CALL XLINE(0.4D0 * C, 4.51D0, 0.4D0 * S,
+     &             0.4D0 * C2, 4.51D0, 0.4D0 * S2, IT)
+        CALL XLINE(0.06D0 * C, 4.21D0, 0.06D0 * S,
+     &             0.06D0 * C2, 4.21D0, 0.06D0 * S2, IT)
+        IF (MOD(K, 3) .EQ. 0) CALL XLINE(0.4D0 * C, 4.51D0,
+     &    0.4D0 * S, 0.06D0 * C, 4.21D0, 0.06D0 * S, IT)
    70 CONTINUE
       DO 80 K = 0, 11
         C = 0.18D0 * DCOS(DBLE(K) * PI / 6.0D0)
         S = 0.18D0 * DSIN(DBLE(K) * PI / 6.0D0)
         C2 = 0.18D0 * DCOS(DBLE(K + 1) * PI / 6.0D0)
         S2 = 0.18D0 * DSIN(DBLE(K + 1) * PI / 6.0D0)
-        CALL XLINE(-0.72D0 + C, 4.0D0, -0.6D0 + S,
-     &             -0.72D0 + C2, 4.0D0, -0.6D0 + S2, IM)
+        CALL XLINE(-0.72D0 + C, 4.104D0, S,
+     &             -0.72D0 + C2, 4.104D0, S2, IM)
         LXF(NXL) = 3
    80 CONTINUE
-      CALL XLINE(-0.82D0, 4.45D0, -0.6D0, -0.62D0, 4.45D0, -0.6D0, 0)
-      CALL XLINE(-0.72D0, 4.45D0, -0.7D0, -0.72D0, 4.45D0, -0.5D0, 0)
+      CALL XLINE(-0.82D0, 4.554D0, 0.0D0, -0.62D0, 4.554D0, 0.0D0, 0)
+      CALL XLINE(-0.72D0, 4.554D0, -0.1D0, -0.72D0, 4.554D0, 0.1D0, 0)
       RETURN
       END
 C
@@ -535,6 +613,43 @@ C     RESTOMOD END
       RETURN
       END
 C
+C     MKWDG: a prism as MKPRS's, its cap tilted: top point K lies H +
+C     G P(2,K) along AN.  The cap stays a plane, so the solid stays
+C     convex; the sides keep their planes.
+      SUBROUTINE MKWDG(NP, P, O, A1, A2, AN, H, G)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      INTEGER NP
+      DOUBLE PRECISION P(2,NP), O(3), A1(3), A2(3), AN(3), H, G
+      DOUBLE PRECISION E1(3), E2(3), N(3), VDOT
+      INTEGER I, K, IS
+      CALL MKPRS(NP, P, O, A1, A2, AN, H)
+      IS = NSOL
+      DO 20 K = 1, NP
+        DO 10 I = 1, 3
+          LMV(I,K+NP,IS) = LMV(I,K+NP,IS) + G * P(2,K) * AN(I)
+   10   CONTINUE
+   20 CONTINUE
+C     The cap's plane again, facing along AN.
+      DO 30 I = 1, 3
+        E1(I) = LMV(I,3+NP,IS) - LMV(I,1+NP,IS)
+        E2(I) = LMV(I,6+NP,IS) - LMV(I,1+NP,IS)
+   30 CONTINUE
+      CALL VCRS(E1, E2, N)
+      CALL VUNIT(N)
+      IF (VDOT(N, AN) .GE. 0.0D0) GO TO 36
+      DO 35 I = 1, 3
+        N(I) = -N(I)
+   35 CONTINUE
+   36 DO 38 I = 1, 3
+        LMN(I,NP+2,IS) = N(I)
+   38 CONTINUE
+      LMD(NP+2,IS) = VDOT(N, LMV(1,1+NP,IS))
+      RETURN
+      END
+C
 C-----------------------------------------------------------------------
 C     CSMBLD: the command and service module.  Body axes X along the
 C     stack toward the CM apex, Y and Z across (Apollo CSM convention:
@@ -731,6 +846,17 @@ C     found in our sources).
       E(1) = 1.2D0
       E(2) = -0.5D0
       E(3) = -0.3D0
+      RETURN
+      END
+C
+C     LDEYE: the LM eye point, LM body metres: "CMDR'S DESIGN EYE
+C     X=279.25, Y=22, Z=54" (SG Fig. 25, p. 35; see LMBODY), the
+C     commander on the left, so Y -22.
+      SUBROUTINE LDEYE(E)
+      DOUBLE PRECISION E(3)
+      E(1) = 1.7D0 + 0.0254D0 * (279.25D0 - 200.0D0)
+      E(2) = 0.0254D0 * (-22.0D0)
+      E(3) = 0.0254D0 * 54.0D0
       RETURN
       END
 C

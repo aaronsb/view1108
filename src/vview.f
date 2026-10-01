@@ -291,11 +291,11 @@ C     RESTOMOD END
       END
 C
 C-----------------------------------------------------------------------
-C     STATLM: the LM station.  The camera at the commander's eye in the
-C     placed LM (scenes 4, 7, 8), 3.2 m up its X axis, 0.5 m to -Y and
-C     0.8 m forward (ours), looking as scene 5 does, 46 deg down from
-C     the LM's +Z in the X-Z plane; the LM window and LPD overlay
-C     (OVLPD) is drawn about that aim.  Not where no LM is placed.
+C     STATLM: the LM station.  The camera at the commander's design eye
+C     (LDEYE) in the placed LM (scenes 4, 7, 8), looking as scene 5
+C     does, 46 deg down from the LM's +Z in the X-Z plane; the LM
+C     window and LPD overlay (OVLPD) is drawn about that aim.  Not where
+C     no LM is placed.
 C-----------------------------------------------------------------------
       SUBROUTINE STATLM(CG, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -310,7 +310,7 @@ C     RESTOMOD END
       IF (MDON(KLMS) .EQ. 1) KL = KLMS
       IF (KL .EQ. 0) RETURN
       IOK = 1
-      CALL SETV(E, 3.2D0, -0.5D0, 0.8D0)
+      CALL LDEYE(E)
       DO 10 I = 1, 3
         V(I) = (E(I) - MDBO(I,KL)) * 1.0D-3
         DO 5 J = 1, 3

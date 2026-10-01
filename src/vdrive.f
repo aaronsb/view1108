@@ -695,7 +695,7 @@ C     The camera is the COAS in the CSM's left rendezvous window,
 C     looking parallel to the docking axis 0.72 m to the LM's -Y side
 C     of it and 2 m behind the CSM's docking ring (our guesses; the
 C     target is set off to match, LMDOCK).  S7BO: the tunnel top.
-      CALL SETV(S7BO, 4.35D0, 0.0D0, -0.6D0)
+      CALL SETV(S7BO, 4.51D0, 0.0D0, 0.0D0)
       D = (S7RNG * 0.3048D0 + 2.0D0) * 1.0D-3
       DO 10 I = 1, 3
         S7LP(I) = D * BREF(I) + 0.72D-3 * S7AT(I,2)
@@ -704,8 +704,7 @@ C     target is set off to match, LMDOCK).  S7BO: the tunnel top.
 C     The S-IVB on the same axes, the top of its IU 1.5 m below the
 C     LM's base on the descent stage's axis (Y = Z = 0), which puts
 C     the LM tunnel near the top of the 28 ft SLA (press kit, printed
-C     p. 88) with room for the SPS nozzle: our guess.  Our LM model
-C     has its tunnel 0.6 m aft of that axis.
+C     p. 88) with room for the SPS nozzle: our guess.
       CALL SETV(V, (-1.5D0 - S7BO(1)) * 1.0D-3, -S7BO(2) * 1.0D-3,
      &          -S7BO(3) * 1.0D-3)
       CALL MXV(S7AT, V, W)

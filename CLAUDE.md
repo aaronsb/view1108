@@ -258,7 +258,9 @@ vehicle (position 0, body point = the eye); a solid with the camera inside hides
 edges go through `MSEG`, which splits them where the stereographic plot bends them, cuts them at
 the projection limit, and catches pieces whose ends are both outside the limit but which cross
 the view. To add a model: a builder between `MODBEG(K)` and `MODEND(K)` in `MLIB`, a number in
-`viewcom.inc`, one `MPLACE` in `SCNMOD`.
+`viewcom.inc`, one `MPLACE` in `SCNMOD`. The LM's ascent stage sits on Grumman's LM inch stations
+(station X200 at the descent stage's top, 1.7 m; Y and Z 0 on the thrust axis), so its tunnel
+is on the descent stage's axis; see LMBODY.
 
 ## Scenes (priority order; match the video frames)
 

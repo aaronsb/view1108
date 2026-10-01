@@ -297,7 +297,7 @@ C     RESTOMOD END
         AL(I,3) = AT(I,3)
         PL(I) = P(I) + (10.0D0 + 7.0D0 / 12.0D0) * 0.3048D-3 * AT(I,1)
    10 CONTINUE
-      CALL SETV(BO, 4.35D0, 0.0D0, -0.6D0)
+      CALL SETV(BO, 4.51D0, 0.0D0, 0.0D0)
       CALL MPLACE(KL, AL, PL, BO)
       RETURN
       END
