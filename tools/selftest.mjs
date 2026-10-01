@@ -75,6 +75,19 @@ if (W.in_view) {
   console.log(`views and targets: ${n} frames  ${same ? 'identical' : 'DIFFER'}`);
   if (!same) ok = false;
 }
+// Cabin interiors (in_flags bit 4): the CM and LM stations in every scene with and without the
+// bit; wasm and the fallback must agree, and the bit must add lines where a station is drawn.
+if (W.in_view) {
+  let same = true, n = 0, more = 0;
+  for (const scene of SCENES)
+    for (const v of [2, 3]) {
+      const off = run(W, scene, 3, v, 0), a = run(W, scene, 3 | 16, v, 0), b = run(F, scene, 3 | 16, v, 0); n++;
+      if (!(a.nvec === b.nvec && maxdiff(a.hdr, b.hdr) === 0 && maxdiff(a.vbuf, b.vbuf) === 0)) same = false;
+      if (a.nvec > off.nvec) more++;
+    }
+  console.log(`cabins: ${n} frames  ${same ? 'identical' : 'DIFFER'}  ${more} with interior lines`);
+  if (!same || more === 0) ok = false;
+}
 // Label levels (in_lablv 0-3) with vehicle labels, markers and the launch pad: every scene in
 // its own view and external, plus frames where markers or the pad show (scene 6 in the LM's
 // descent, scene 1 external on the Moon, scene 3 over Florida); wasm and the fallback must agree

@@ -66,6 +66,15 @@ C     an outline (station view only).
       CALL CMCAB
       CALL MODEND(KCMC)
       MDHL(KCMC) = 0
+C     CM and LM crew compartments, outlines (in_flags bit 4).
+      CALL MODBEG(KCMI)
+      CALL CMINT
+      CALL MODEND(KCMI)
+      MDHL(KCMI) = 0
+      CALL MODBEG(KLMI)
+      CALL LMINT
+      CALL MODEND(KLMI)
+      MDHL(KLMI) = 0
       RETURN
       END
 C
@@ -796,9 +805,9 @@ C     TN D-7439 p. 3), which puts the left window up and to the left.
 C     The x at the centre marks the CM X-axis, as in the report's CSM
 C     maneuver views ("the x also denotes the projection of the CM X-
 C     axis", MSC IN 69-FM-197 PDF p. 24, where "The CM left rendezvous
-C     window has been superimposed on these views").  The eye point is
-C     ours; the lines
-C     sit 0.5 m from it, so they are seen exactly along the outlines.
+C     window has been superimposed on these views").  The lines sit
+C     0.5 m from the eye (CMEYE), so they are seen exactly along the
+C     outlines wherever the eye is.
 C     Other windows: no outline we can read, so none drawn.
 C-----------------------------------------------------------------------
       SUBROUTINE CMCAB
@@ -838,14 +847,16 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     CMEYE: the CM eye point, CSM body metres: 1.2 m above the CM's
-C     base, 0.5 m to -Y, 0.3 m to -Z (ours: no design-eye position
-C     found in our sources).
+C     CMEYE: the CM eye point, CSM body metres: the commander's eye,
+C     80th percentile, between his two eyes ("CYCLOPS"), "XE = 45.7",
+C     "YCY = -24.5", "ZE = -33.8" in (CSM/LM Spacecraft Operational
+C     Data Book Vol. I, SNA-8-D-027(I) Rev 3, 1970, Fig. 4.4-8,
+C     printed p. 4.4-65), with X = 0.0254 (Xc - 18) as CMINT.
       SUBROUTINE CMEYE(E)
       DOUBLE PRECISION E(3)
-      E(1) = 1.2D0
-      E(2) = -0.5D0
-      E(3) = -0.3D0
+      E(1) = 0.0254D0 * (45.7D0 - 18.0D0)
+      E(2) = 0.0254D0 * (-24.5D0)
+      E(3) = 0.0254D0 * (-33.8D0)
       RETURN
       END
 C
@@ -872,6 +883,379 @@ C     of the station view (right +Y, up -Z, centre +X).
       P(1) = E(1) + 0.5D0 * U(1)
       P(2) = E(2) + 0.5D0 * U(2)
       P(3) = E(3) + 0.5D0 * U(3)
+      RETURN
+      END
+
+C
+C-----------------------------------------------------------------------
+C     CMINT: the CM's crew compartment about the station eye, free
+C     lines in CSM body metres (X = 0 at the CM's widest diameter, as
+C     CSMBLD; Y toward the LM pilot, Z toward the crew's feet).  An
+C     outline model (MDHL = 0), drawn with in_flags bit 4: the camera
+C     is inside it, and stars, Earth and Moon show through its walls.
+C     Stations are Xc of the Apollo Operations Handbook (SM2A-03-Block
+C     II-(1), 1969, "AOH", Fig. 1-2, "XC = 0" below the aft heat
+C     shield), X = 0.0254 (Xc - 18) m, the 18 in read off that figure
+C     (ours).  "DB": CSM/LM Spacecraft Operational Data Book Vol. I,
+C     SNA-8-D-027(I) Rev 3, 1970; "NR": CSM News Reference, NAA 1969.
+C       Windows 1 to 5 from -Y to +Y (TN D-7439, p. 3): 1, 2, 3 (left
+C         side, left rendezvous, hatch) are rays from the eye along
+C         DB's outlines for the 80th percentile commander (Figs.
+C         4.4-8, 4.4-6, 4.4-7, printed pp. 4.4-63 to 4.4-65), read by
+C         eye to about 1 deg as DB's look angles (Fig. 4.4-5: azimuth
+C         from +X toward +Y, elevation toward -Z), ended on our inner
+C         wall; 4 and 5 mirror 2 and 1 (ours).  Window 2 is the
+C         outline CMCAB draws, in look angles where CMCAB reads plot
+C         degrees, so near its top the two differ by up to 5 deg.
+C       Inner wall: the outer cone's "33 deg" half-angle (NASA TM X-
+C         1243, Fig. 1(a)) set in 4 in, from the floor's rim to the
+C         forward bulkhead; floor dish, bulkhead and tunnel are ours,
+C         sized to hold about the "10.4 cubic meters" of TN D-8178
+C         (printed p. 10).
+C       Hatches: the forward one "about 30 inches in diameter" at "the
+C         top of the docking tunnel" (NR p. 47); the side one "about
+C         29 inches high and 34 inches wide" (NR p. 45), about window
+C         3 (ours).
+C       Couches CDR, CMP, LMP from -Y, their back pans "32 by 22
+C         inches" (NR p. 79) under the eyes (DB's Y), the seat at the
+C         "85-degree position" (NR p. 72); leg pans and heights ours.
+C       Main display console, lower equipment bay, left and right hand
+C         equipment bays: placed by eye from AOH Figs. 1-26 and 1-27
+C         (ours).
+C-----------------------------------------------------------------------
+      SUBROUTINE CMINT
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION W1(3,5), W2(3,5), W3(3,8), HS(3,4), D1(3,4)
+      DOUBLE PRECISION D2(3,4), CX(5), CZ(5), EB(3,6), HB(3,4), C(3)
+      DOUBLE PRECISION GA(7), CA, SA, YC, YA, YB
+      INTEGER K, J, L
+C     Window 1, left side; 2, left rendezvous; 3, hatch.
+      DATA W1 / 0.742D0, -1.020D0, -0.851D0, 0.879D0, -0.939D0,
+     &  -0.808D0, 0.902D0, -0.945D0, -0.778D0, 0.909D0, -1.016D0,
+     &  -0.675D0, 0.744D0, -1.120D0, -0.711D0 /
+      DATA W2 / 0.924D0, -0.628D0, -1.034D0, 0.929D0, -0.612D0,
+     &  -1.040D0, 1.036D0, -0.579D0, -0.979D0, 1.058D0, -0.690D0,
+     &  -0.886D0, 0.996D0, -0.714D0, -0.918D0 /
+      DATA W3 / 0.986D0, 0.089D0, -1.166D0, 0.942D0, 0.052D0,
+     &  -1.197D0, 0.926D0, 0.0D0, -1.208D0, 0.942D0, -0.052D0,
+     &  -1.197D0, 0.986D0, -0.089D0, -1.166D0, 1.044D0, -0.075D0,
+     &  -1.129D0, 1.073D0, 0.0D0, -1.113D0, 1.044D0, 0.075D0,
+     &  -1.129D0 /
+C     Side hatch, on the wall: 29 in along the cone, 34 in around.
+      DATA HS / 0.688D0, -0.425D0, -1.295D0, 1.306D0, -0.417D0,
+     &  -0.866D0, 1.306D0, 0.417D0, -0.866D0, 0.688D0, 0.425D0,
+     &  -1.295D0 /
+C     Main display console: left wing (panel 1; panel 3 its mirror)
+C     and centre (panel 2), hung from the wall above the side hatch.
+      DATA D1 / 1.372D0, -0.388D0, -0.833D0, 1.016D0, -0.508D0,
+     &  -0.203D0, 0.914D0, -1.118D0, 0.0D0, 1.168D0, -0.953D0,
+     &  -0.444D0 /
+      DATA D2 / 1.372D0, -0.388D0, -0.833D0, 1.372D0, 0.388D0,
+     &  -0.833D0, 1.016D0, 0.508D0, -0.203D0, 1.016D0, -0.508D0,
+     &  -0.203D0 /
+C     A couch's side, X and Z: head, hip, knee, heel, foot.
+      DATA CX / 0.483D0, 0.483D0, 0.940D0, 0.813D0, 0.813D0 /
+      DATA CZ / -1.067D0, 0.025D0, 0.076D0, 0.508D0, 0.610D0 /
+C     Lower equipment bay face (+Z) and left hand bay face (-Y).
+      DATA EB / 0.102D0, -0.965D0, 1.067D0, 0.102D0, 0.965D0, 1.067D0,
+     &  0.762D0, 0.762D0, 1.067D0, 1.016D0, 0.305D0, 1.067D0,
+     &  1.016D0, -0.305D0, 1.067D0, 0.762D0, -0.762D0, 1.067D0 /
+      DATA HB / 0.102D0, -1.27D0, -0.559D0, 0.635D0, -1.27D0,
+     &  -0.559D0, 0.635D0, -1.27D0, 0.559D0, 0.102D0, -1.27D0,
+     &  0.559D0 /
+C     Wall lines, deg from +Y toward +Z; none across the side hatch.
+      DATA GA / 0.0D0, 45.0D0, 90.0D0, 135.0D0, 180.0D0, 225.0D0,
+     &  315.0D0 /
+C
+C     Wall: rings at the floor's rim and the forward bulkhead, lines
+C     between them.
+      CALL SETV(C, 0.051D0, 0.0D0, 0.0D0)
+      CALL XRING(C, 1, 1.777D0, 24)
+      CALL SETV(C, 1.626D0, 0.0D0, 0.0D0)
+      CALL XRING(C, 1, 0.754D0, 24)
+      DO 10 K = 1, 7
+        CA = DCOS(GA(K) * DR)
+        SA = DSIN(GA(K) * DR)
+        CALL XLINE(1.777D0 * CA, 0.051D0, 1.777D0 * SA,
+     &             0.754D0 * CA, 1.626D0, 0.754D0 * SA, 0)
+   10 CONTINUE
+C     Floor, a shallow dish down to X -0.254 at the centre.
+      CALL SETV(C, -0.178D0, 0.0D0, 0.0D0)
+      CALL XRING(C, 1, 0.889D0, 24)
+      DO 20 K = 0, 7
+        CA = DCOS(DBLE(K) * PI / 4.0D0)
+        SA = DSIN(DBLE(K) * PI / 4.0D0)
+        CALL XLINE(1.777D0 * CA, 0.051D0, 1.777D0 * SA,
+     &             0.889D0 * CA, -0.178D0, 0.889D0 * SA, 0)
+        CALL XLINE(0.889D0 * CA, -0.178D0, 0.889D0 * SA,
+     &             0.0D0, -0.254D0, 0.0D0, 0)
+   20 CONTINUE
+C     Forward bulkhead, tunnel and forward hatch.
+      DO 30 K = 0, 7
+        CA = DCOS(DBLE(K) * PI / 4.0D0)
+        SA = DSIN(DBLE(K) * PI / 4.0D0)
+        IF (MOD(K, 2) .EQ. 0) CALL XLINE(0.754D0 * CA, 1.626D0,
+     &    0.754D0 * SA, 0.419D0 * CA, 1.626D0, 0.419D0 * SA, 0)
+        CALL XLINE(0.419D0 * CA, 1.626D0, 0.419D0 * SA,
+     &             0.419D0 * CA, 2.286D0, 0.419D0 * SA, 0)
+   30 CONTINUE
+      CALL SETV(C, 1.626D0, 0.0D0, 0.0D0)
+      CALL XRING(C, 1, 0.419D0, 16)
+      CALL SETV(C, 2.286D0, 0.0D0, 0.0D0)
+      CALL XRING(C, 1, 0.419D0, 16)
+      CALL XRING(C, 1, 0.381D0, 16)
+C     Windows and the side hatch.
+      CALL XPOLY(5, W1, 1, 1.0D0)
+      CALL XPOLY(5, W1, 1, -1.0D0)
+      CALL XPOLY(5, W2, 1, 1.0D0)
+      CALL XPOLY(5, W2, 1, -1.0D0)
+      CALL XPOLY(8, W3, 1, 1.0D0)
+      CALL XPOLY(4, HS, 1, 1.0D0)
+C     Main display console.
+      CALL XPOLY(4, D2, 1, 1.0D0)
+      CALL XPOLY(4, D1, 1, 1.0D0)
+      CALL XPOLY(4, D1, 1, -1.0D0)
+C     Couches: two sides, cross members at each joint.
+      DO 50 J = -1, 1
+        YC = 0.622D0 * DBLE(J)
+        YA = YC - 0.279D0
+        YB = YC + 0.279D0
+        DO 40 K = 1, 5
+          CALL XLINE(YA, CX(K), CZ(K), YB, CX(K), CZ(K), 0)
+          IF (K .EQ. 5) GO TO 40
+          L = K + 1
+          CALL XLINE(YA, CX(K), CZ(K), YA, CX(L), CZ(L), 0)
+          CALL XLINE(YB, CX(K), CZ(K), YB, CX(L), CZ(L), 0)
+   40   CONTINUE
+   50 CONTINUE
+C     Equipment bays.
+      CALL XPOLY(6, EB, 1, 1.0D0)
+      CALL XPOLY(4, HB, 1, 1.0D0)
+      CALL XPOLY(4, HB, 1, -1.0D0)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     LMINT: the LM's crew compartment and midsection about the
+C     commander's station, free lines in LM body metres, the stations
+C     and sources of LMBODY ("SG", "LMNR").  An outline model, drawn
+C     with in_flags bit 4.
+C       Eye: LDEYE.
+C       Cabin: the 92 in cylinder about our X 3.0 m axis, from the aft
+C         bulkhead to the front face (ZF); floor at X 215.5, the lower
+C         deck less the "18-inch step up into the midsection" (LMNR p.
+C         LV-5), "approximately 36 by 55 inches" (LMNR p. LV-4).
+C       Midsection: "54 inches deep and approximately 5 feet high.
+C         The internal shape is elliptical, with a minor axis of
+C         approximately 56 inches" (LMNR p. LV-5), between the decks;
+C         the ellipse's major axis (82.7 in, across the decks, so the
+C         overhead hatch fits the upper one) is ours.  The engine
+C         cover "cylindrical" (LMNR p. LV-6), its size ours.
+C       Hatches: overhead "approximately 33 inches in diameter, ... at
+C         the top centerline of the midsection", under the tunnel;
+C         forward "approximately 32 inches square" (LMNR pp. LV-6,
+C         LV-4), its sill at the floor (ours).
+C       Windows: the commander's (LMWIN), the LM pilot's its mirror;
+C         the docking window above the commander from rays along SG
+C         Fig. 25's docking outline from the docking eye (X280.375,
+C         Z37.75), ended on the shell: our construction.
+C       Panels: "two main display panels (1 & 2), cantered forward
+C         10 deg; two lower center panels (3 & 4), sloping down and aft
+C         45 deg ...; two bottom side panels (5 & 6)" (SG p. 27); the
+C         side consoles run "from the front face assembly to the aft
+C         bulkhead", tiers "cantered up 15 deg", "36.5 deg" (same
+C         page); the alignment optical telescope "between and above
+C         the flight stations" (LMNR p. CD-2).  Sizes and cross-
+C         sections from SG Figs. 12 and 13 by eye (ours).
+C-----------------------------------------------------------------------
+      SUBROUTINE LMINT
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION FL(3,4), FH(3,4), DW(3,4), P1(3,4), P3(3,4)
+      DOUBLE PRECISION P4(3,4), P5(3,4), CN(2,6), WN(3,3), EM(3,14)
+      DOUBLE PRECISION C(3), A, CA, SA, X1, X2, T1, T2, T, ZF, LMWIN
+      DOUBLE PRECISION SY
+      INTEGER K, J, I
+      DATA FL / 2.094D0, -0.699D0, 0.724D0, 2.094D0, 0.699D0, 0.724D0,
+     &  2.094D0, 0.699D0, 1.638D0, 2.094D0, -0.699D0, 1.638D0 /
+      DATA FH / 2.094D0, -0.406D0, 1.64D0, 2.094D0, 0.406D0, 1.64D0,
+     &  2.906D0, 0.406D0, 1.64D0, 2.906D0, -0.406D0, 1.64D0 /
+      DATA DW / 4.027D0, -0.640D0, 1.224D0, 4.027D0, -0.490D0,
+     &  1.224D0, 4.027D0, -0.508D0, 0.925D0, 4.027D0, -0.620D0,
+     &  0.925D0 /
+C     Panels 1, 3, 4, 5 (2 and 6 are the mirrors of 1 and 5).
+      DATA P1 / 3.351D0, -0.483D0, 1.562D0, 3.351D0, 0.0D0, 1.562D0,
+     &  3.961D0, 0.0D0, 1.669D0, 3.961D0, -0.483D0, 1.669D0 /
+      DATA P3 / 3.351D0, -0.406D0, 1.562D0, 3.351D0, 0.406D0,
+     &  1.562D0, 3.122D0, 0.406D0, 1.333D0, 3.122D0, -0.406D0,
+     &  1.333D0 /
+      DATA P4 / 3.122D0, -0.203D0, 1.333D0, 3.122D0, 0.203D0,
+     &  1.333D0, 2.945D0, 0.203D0, 1.156D0, 2.945D0, -0.203D0,
+     &  1.156D0 /
+      DATA P5 / 2.894D0, -0.711D0, 1.575D0, 2.894D0, -0.406D0,
+     &  1.575D0, 3.046D0, -0.406D0, 1.575D0, 3.046D0, -0.711D0,
+     &  1.575D0 /
+C     Commander's side console, X and Y: lower tier, riser, centre
+C     tier, upper (circuit breaker) tier.
+      DATA CN / 2.868D0, -0.787D0, 2.922D0, -0.991D0, 3.072D0,
+     &  -0.991D0, 3.138D0, -1.079D0, 3.275D0, -1.041D0, 3.935D0,
+     &  -0.622D0 /
+C
+C     Shell: the aft bulkhead's ring, the front's rim, and lines along
+C     the cylinder every 45 deg but under the floor.
+      CALL SETV(C, 3.0D0, 0.0D0, 0.686D0)
+      CALL XRING(C, 3, 1.168D0, 24)
+      DO 10 K = 0, 23
+        A = DBLE(K) * PI / 12.0D0
+        X1 = 3.0D0 + 1.168D0 * DCOS(A)
+        X2 = 3.0D0 + 1.168D0 * DCOS(A + PI / 12.0D0)
+        CALL XLINE(1.168D0 * DSIN(A), X1, ZF(X1),
+     &    1.168D0 * DSIN(A + PI / 12.0D0), X2, ZF(X2), 0)
+        IF (MOD(K, 3) .NE. 0 .OR. K .EQ. 12) GO TO 10
+        CALL XLINE(1.168D0 * DSIN(A), X1, 0.686D0,
+     &             1.168D0 * DSIN(A), X1, ZF(X1), 0)
+   10 CONTINUE
+C     The front's knee, floor, forward hatch.
+      CALL XLINE(-1.168D0, 3.021D0, 1.64D0, 1.168D0, 3.021D0, 1.64D0,
+     &  0)
+      CALL XPOLY(4, FL, 1, 1.0D0)
+      CALL XPOLY(4, FH, 1, 1.0D0)
+C     Windows.
+      DO 15 K = 1, 3
+        DO 12 I = 1, 3
+          WN(I,K) = LMWIN(I,K)
+   12   CONTINUE
+   15 CONTINUE
+      CALL XPOLY(3, WN, 1, 1.0D0)
+      CALL XPOLY(3, WN, 1, -1.0D0)
+      CALL XPOLY(4, DW, 1, 1.0D0)
+C     Midsection: its section at both ends, the decks' edges and the
+C     sides joined along it.
+      T1 = DACOS((4.104D0 - 3.327D0) / 1.05D0)
+      T2 = DACOS((2.551D0 - 3.327D0) / 1.05D0)
+      DO 20 K = 1, 7
+        T = T1 + DBLE(K - 1) * (T2 - T1) / 6.0D0
+        EM(1,K) = 3.327D0 + 1.05D0 * DCOS(T)
+        EM(2,K) = 0.711D0 * DSIN(T)
+        EM(1,15-K) = EM(1,K)
+        EM(2,15-K) = -EM(2,K)
+   20 CONTINUE
+      DO 30 J = -1, 1, 2
+        DO 25 K = 1, 14
+          EM(3,K) = 0.686D0 * DBLE(J)
+   25   CONTINUE
+        CALL XPOLY(14, EM, 1, 1.0D0)
+   30 CONTINUE
+      DO 35 K = 1, 14
+        IF (K .EQ. 1 .OR. K .EQ. 4 .OR. K .EQ. 7 .OR. K .EQ. 8
+     &    .OR. K .EQ. 11 .OR. K .EQ. 14) CALL XLINE(EM(2,K), EM(1,K),
+     &    -0.686D0, EM(2,K), EM(1,K), 0.686D0, 0)
+   35 CONTINUE
+C     The step up from the floor to the lower deck.
+      DO 38 J = -1, 1, 2
+        SY = DBLE(J) * EM(2,7)
+        CALL XLINE(SY, 2.094D0, 0.724D0, SY, 2.551D0, 0.686D0, 0)
+   38 CONTINUE
+C     Ascent engine cover, overhead hatch, docking tunnel.
+      CALL SETV(C, 2.551D0, 0.0D0, 0.0D0)
+      CALL XRING(C, 1, 0.356D0, 16)
+      CALL SETV(C, 3.249D0, 0.0D0, 0.0D0)
+      CALL XRING(C, 1, 0.356D0, 16)
+      CALL SETV(C, 4.104D0, 0.0D0, 0.0D0)
+      CALL XRING(C, 1, 0.419D0, 16)
+      CALL SETV(C, 4.51D0, 0.0D0, 0.0D0)
+      CALL XRING(C, 1, 0.406D0, 16)
+      DO 40 K = 0, 3
+        CA = DCOS(DBLE(K) * PI / 2.0D0)
+        SA = DSIN(DBLE(K) * PI / 2.0D0)
+        CALL XLINE(0.356D0 * CA, 2.551D0, 0.356D0 * SA,
+     &             0.356D0 * CA, 3.249D0, 0.356D0 * SA, 0)
+        CA = DCOS((DBLE(K) + 0.5D0) * PI / 2.0D0)
+        SA = DSIN((DBLE(K) + 0.5D0) * PI / 2.0D0)
+        CALL XLINE(0.406D0 * CA, 4.104D0, 0.406D0 * SA,
+     &             0.406D0 * CA, 4.51D0, 0.406D0 * SA, 0)
+   40 CONTINUE
+C     Panels.
+      CALL XPOLY(4, P1, 1, 1.0D0)
+      CALL XPOLY(4, P1, 1, -1.0D0)
+      CALL XPOLY(4, P3, 1, 1.0D0)
+      CALL XPOLY(4, P4, 1, 1.0D0)
+      CALL XPOLY(4, P5, 1, 1.0D0)
+      CALL XPOLY(4, P5, 1, -1.0D0)
+C     Side consoles, aft bulkhead to the panels' plane.
+      DO 60 J = -1, 1, 2
+        SY = DBLE(J)
+        DO 55 K = 1, 6
+          CALL XLINE(SY * CN(2,K), CN(1,K), 0.686D0,
+     &               SY * CN(2,K), CN(1,K), 1.575D0, 0)
+          IF (K .EQ. 6) GO TO 55
+          CALL XLINE(SY * CN(2,K), CN(1,K), 0.686D0,
+     &               SY * CN(2,K+1), CN(1,K+1), 0.686D0, 0)
+          CALL XLINE(SY * CN(2,K), CN(1,K), 1.575D0,
+     &               SY * CN(2,K+1), CN(1,K+1), 1.575D0, 0)
+   55   CONTINUE
+   60 CONTINUE
+C     Alignment optical telescope.
+      CALL SETV(C, 3.757D0, 0.0D0, 1.016D0)
+      CALL XRING(C, 1, 0.1D0, 8)
+      CALL SETV(C, 4.169D0, 0.0D0, 1.016D0)
+      CALL XRING(C, 1, 0.1D0, 8)
+      DO 70 K = 0, 3
+        CA = 0.1D0 * DCOS(DBLE(K) * PI / 2.0D0)
+        SA = 0.1D0 * DSIN(DBLE(K) * PI / 2.0D0)
+        CALL XLINE(CA, 3.757D0, 1.016D0 + SA, CA, 4.169D0,
+     &             1.016D0 + SA, 0)
+   70 CONTINUE
+      RETURN
+      END
+C
+C     XPOLY: free lines through the N points P (X, Y, Z, body metres),
+C     back to the first if ICL = 1; Y is multiplied by SY (-1 mirrors).
+      SUBROUTINE XPOLY(N, P, ICL, SY)
+      INTEGER N, ICL
+      DOUBLE PRECISION P(3,N), SY
+      INTEGER K, J, M
+      M = N - 1
+      IF (ICL .EQ. 1) M = N
+      DO 10 K = 1, M
+        J = MOD(K, N) + 1
+        CALL XLINE(SY * P(2,K), P(1,K), P(3,K),
+     &             SY * P(2,J), P(1,J), P(3,J), 0)
+   10 CONTINUE
+      RETURN
+      END
+C
+C     XRING: a free-line circle, N sides, radius R about C (X, Y, Z,
+C     body metres) square to body axis IA (1 X, 2 Y, 3 Z).
+      SUBROUTINE XRING(C, IA, R, N)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION C(3), R
+      INTEGER IA, N
+      DOUBLE PRECISION A(3), B(3), T1, T2
+      INTEGER K, I, I1, I2
+      I1 = MOD(IA, 3) + 1
+      I2 = MOD(IA + 1, 3) + 1
+      DO 20 K = 1, N
+        T1 = 2.0D0 * PI * DBLE(K - 1) / DBLE(N)
+        T2 = 2.0D0 * PI * DBLE(K) / DBLE(N)
+        DO 10 I = 1, 3
+          A(I) = C(I)
+          B(I) = C(I)
+   10   CONTINUE
+        A(I1) = C(I1) + R * DCOS(T1)
+        A(I2) = C(I2) + R * DSIN(T1)
+        B(I1) = C(I1) + R * DCOS(T2)
+        B(I2) = C(I2) + R * DSIN(T2)
+        CALL XLINE(A(2), A(1), A(3), B(2), B(1), B(3), 0)
+   20 CONTINUE
       RETURN
       END
 

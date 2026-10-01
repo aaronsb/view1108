@@ -14,7 +14,8 @@ C       Window view (in_view 0) with a target: the reference boresight
 C         points from the scene's camera at the target; free-look
 C         yaw, pitch and roll are offsets from it.
 C       Stations (in_view 2, 3): the camera at the CM or LM eye, the
-C         cabin around it (STATCM, STATLM).
+C         cabin around it (STATCM, STATLM), its interior with in_flags
+C         bit 4 (CMINT, LMINT; scene 5 too, S5CAB).
 C       External view (in_view 1): the camera sits D from the target
 C         and looks at it; yaw and pitch carry it around the target
 C         (starting from the side the scene's own camera is on), roll
@@ -45,7 +46,9 @@ C     RESTOMOD END
       IVUSE = IVIEW
 C     Scene 8's own view is the external one.
       IF (ISCN .EQ. 8 .AND. IVUSE .EQ. 0) IVUSE = 1
-C     Scene 5 is the LM station already.
+C     Scene 5 is the LM station already; asked for as one, it gets
+C     the cabin.
+      IF (ISCN .EQ. 5 .AND. IVUSE .EQ. 3) CALL S5CAB(GET)
       IF (ISCN .EQ. 5 .AND. IVUSE .EQ. 3) IVUSE = 0
       IF (ISCN .EQ. 6) IVUSE = 0
       IT = ITARG
@@ -244,7 +247,8 @@ C
 C-----------------------------------------------------------------------
 C     STATCM: the CM station.  The camera at the CM eye (CMEYE), looking
 C     along the CSM's +X axis with its -Z up, the view of MSC IN 69-FM-
-C     197's CSM maneuver plots (see CMCAB); the cabin (KCMC) around it.
+C     197's CSM maneuver plots (see CMCAB); the cabin (KCMC) around it,
+C     and with in_flags bit 4 its interior (KCMI).
 C     The CSM's axes: the placed CSM's (scene 8), else X along the
 C     scene's boresight and Z against its up, so the station looks
 C     where the window view looked (ours).  Not in scenes 5 and 6.
@@ -287,6 +291,7 @@ C     RESTOMOD END
    35 CONTINUE
       CALL VCRS(BREF, UREF, RREF)
       CALL MPLACE(KCMC, AT, Z, E)
+      IF (MOD(IFLG / 16, 2) .EQ. 1) CALL MPLACE(KCMI, AT, Z, E)
       RETURN
       END
 C
@@ -294,8 +299,9 @@ C-----------------------------------------------------------------------
 C     STATLM: the LM station.  The camera at the commander's design eye
 C     (LDEYE) in the placed LM (scenes 4, 7, 8), looking as scene 5
 C     does, 46 deg down from the LM's +Z in the X-Z plane; the LM
-C     window and LPD overlay (OVLPD) is drawn about that aim.  Not where
-C     no LM is placed.
+C     window and LPD overlay (OVLPD) is drawn about that aim, and with
+C     in_flags bit 4 the interior (KLMI) around the eye.  Not where no
+C     LM is placed.
 C-----------------------------------------------------------------------
       SUBROUTINE STATLM(CG, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -303,6 +309,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION CG(3), AT(3,3), E(3), V(3), W(3), DS(3), C, S
+      DOUBLE PRECISION Z(3)
       INTEGER IOK, I, J, KL
       IOK = 0
       KL = 0
@@ -332,6 +339,29 @@ C     RESTOMOD END
    20 CONTINUE
       CALL VCRS(BREF, UREF, RREF)
       CALL VUNIT(RREF)
+      CALL SETV(Z, 0.0D0, 0.0D0, 0.0D0)
+      IF (MOD(IFLG / 16, 2) .EQ. 1) CALL MPLACE(KLMI, AT, Z, E)
+      RETURN
+      END
+C
+C     S5CAB: scene 5's camera is the commander's eye; asked for as the
+C     LM station, with in_flags bit 4 the LM interior goes around it,
+C     on the descending LM's axes (LMDESC).
+      SUBROUTINE S5CAB(GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, PMF(3), XB(3), YB(3), ZB(3), AT(3,3)
+      DOUBLE PRECISION E(3), Z(3)
+      IF (MOD(IFLG / 16, 2) .EQ. 0) RETURN
+      CALL LMDESC(GET, PMF, XB, YB, ZB)
+      CALL MXV(MMF, XB, AT(1,1))
+      CALL MXV(MMF, YB, AT(1,2))
+      CALL MXV(MMF, ZB, AT(1,3))
+      CALL LDEYE(E)
+      CALL SETV(Z, 0.0D0, 0.0D0, 0.0D0)
+      CALL MPLACE(KLMI, AT, Z, E)
       RETURN
       END
 

@@ -23,14 +23,16 @@ C     Also the parenthesised PARAMETER list (FORTRAN 77, 1978).
       PARAMETER (MAXT=300, MAXTC=6000)
 C     RESTOMOD END
       INTEGER MSOL, MVX, MFC, MED, MXL, MMOD, KLMD, KLMS, KSIV, KCSM
-      INTEGER KCMC
+      INTEGER KCMC, KCMI, KLMI
 C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978);
 C     FORTRAN V wrote PARAMETER I = 2 (UP-4046 Rev 3, sec. 10.4.1)
-      PARAMETER (MSOL=32, MVX=48, MFC=26, MED=72, MXL=400, MMOD=8)
+      PARAMETER (MSOL=32, MVX=48, MFC=26, MED=72, MXL=1200, MMOD=8)
 C     Model numbers (MLIB): LM gear down, LM gear stowed with docking
-C     aids, S-IVB with IU and SLA ring, CSM, CM cabin (window).
+C     aids, S-IVB with IU and SLA ring, CSM, CM cabin (window), CM
+C     interior, LM interior (in_flags bit 4).
 C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)
-      PARAMETER (KLMD=1, KLMS=2, KSIV=3, KCSM=4, KCMC=5)
+      PARAMETER (KLMD=1, KLMS=2, KSIV=3, KCSM=4, KCMC=5, KCMI=6,
+     &           KLMI=7)
 C
 C     Tables loaded by BLOCK DATA VIEWBD (viewdata.f)
 C     RESTOMOD BEGIN: post-1969 data: Natural Earth coast (2009),

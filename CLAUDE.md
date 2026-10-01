@@ -152,7 +152,10 @@ Inputs (written by JS):
   may also be set directly.
 - `in_flags` int32: bit 0 labels on, bit 1 draw plot frame and tick marks, bit 2 draw hidden
   LM (and, in scene 7, S-IVB) lines dashed (style 2) instead of dropping them (the film drops
-  them).
+  them), bit 3 the state source (see `in_src`), bit 4 (16) draw the cabin interior in the CM and
+  LM station views (`in_view` 2 and 3; scene 5 with `in_view` 3 too): the crew compartment as
+  plain wireframe around the eye (`models.f` CMINT, LMINT; a modern addition). With bit 4 off a
+  frame is what it was without the interiors.
 - `in_view` int32: 0 the scene's own window view (as before), 1 EXTERNAL (the camera orbits the
   target: `in_yaw` and `in_pitch` are azimuth and elevation around it, as scene 6 does for the
   Moon; `in_fov` zooms), 2 CM STATION (the eye at the CM design eye, the cabin around it), 3 LM
@@ -174,12 +177,15 @@ Inputs (written by JS):
   At 1-3 the last 8 `lbuf` places are kept for kinds 8 and 9, so a buffer filled by crater
   labels (it happens in wide Moon views) stops at 192 entries of kinds 1-7 instead of 200.
 - Status (2026-09-30): `in_view`, `in_target` and `in_lablv` work (`src/vview.f`, `src/lvlab.f`).
-  CM station (2): scenes 1, 2, 3, 4, 7, 8, 9; the eye looks along the CSM's +X with
+  CM station (2): scenes 1, 2, 3, 4, 7, 8, 9; the eye is the commander's design eye of the
+  CSM Data Book (SNA-8-D-027, Fig. 4.4-8; `models.f` CMEYE) and looks along the CSM's +X with
   -Z up, the view of MSC IN 69-FM-197's CSM maneuver plots, and the cabin is the CM left
   rendezvous window's two outlines read off its figure 9.0-3 (PDF p. 263) plus the X-axis x
   (`models.f` CMCAB); targets aim it as offsets. LM station (3): scenes 4, 7, 8 (scene 5 is it
-  already), the commander's eye with the LM window and LPD overlay of scene 5; it ignores
-  targets. Elsewhere a station falls back to the window view.
+  already), the commander's design eye of Grumman's LM stations (`models.f` LDEYE) with the LM
+  window and LPD overlay of scene 5, 46 deg down; it ignores targets. With `in_flags` bit 4 both
+  stations get the interior (CMINT, LMINT), drawn as an outline model: no hidden lines, and the
+  sky shows through its walls. Elsewhere a station falls back to the window view.
   Scene 6 ignores both view and target. In an external view of a scene whose camera rides the
   CSM (1, 2, 3, 4, 7, 9) the CSM is drawn as an outline around the camera. Window overlays (COAS,
   LPD) and the LM window sill apply only in the window view.
@@ -260,7 +266,8 @@ the projection limit, and catches pieces whose ends are both outside the limit b
 the view. To add a model: a builder between `MODBEG(K)` and `MODEND(K)` in `MLIB`, a number in
 `viewcom.inc`, one `MPLACE` in `SCNMOD`. The LM's ascent stage sits on Grumman's LM inch stations
 (station X200 at the descent stage's top, 1.7 m; Y and Z 0 on the thrust axis), so its tunnel
-is on the descent stage's axis; see LMBODY.
+is on the descent stage's axis; see LMBODY. The cabin interiors (KCMI, KLMI) are free lines only,
+placed about the eye by the station views (`vview.f`).
 
 ## Scenes (priority order; match the video frames)
 
