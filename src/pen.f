@@ -14,6 +14,8 @@ C     PROJ   direction to plot degrees
 C     UNPROJ plot degrees to a direction (reference or live camera)
 C     EMIT   clip a plot-degree segment to the frame and store it
 C     SEG    project and emit a 3-D segment
+C     EMIT, SEG and MSEG go through the window mask first (vmask.f),
+C     which calls EMIT0, SEG0 and MSEG0 here.
 C     PEN    move (IP=0) or draw (IP=1) with the visibility test
 C            IVMODE; a segment crossing from seen to hidden is cut at
 C            the boundary by bisection.
@@ -107,8 +109,8 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     EMIT: Liang-Barsky clip to the frame, then store.
-      SUBROUTINE EMIT(VB, NV, X1, Y1, X2, Y2)
+C     EMIT0: Liang-Barsky clip to the frame, then store.
+      SUBROUTINE EMIT0(VB, NV, X1, Y1, X2, Y2)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
@@ -155,10 +157,10 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     SEG: 3-D segment A-B (camera relative) to the frame.  A segment
+C     SEG0: 3-D segment A-B (camera relative) to the frame.  A segment
 C     running past the projection's limit (THLIM off the boresight) is
 C     cut at the limit by bisection.
-      SUBROUTINE SEG(VB, NV, A, B)
+      SUBROUTINE SEG0(VB, NV, A, B)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
@@ -193,7 +195,7 @@ C     P inside the limit, Q outside.
       IF (K1 .EQ. 1) Y2 = YM
       IF (K1 .EQ. 0) X1 = XM
       IF (K1 .EQ. 0) Y1 = YM
-   50 CALL EMIT(VB, NV, X1, Y1, X2, Y2)
+   50 CALL EMIT0(VB, NV, X1, Y1, X2, Y2)
       RETURN
       END
 C
@@ -373,15 +375,19 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION LB(4,MAXL), X, Y
-      INTEGER NL, KIND, ID
+      DOUBLE PRECISION LB(4,MAXL), X, Y, D(3)
+      INTEGER NL, KIND, ID, WMIN
       IF (NL .GE. MAXL) RETURN
 C     With a label level set, the last 8 places are kept for the
 C     vehicle and pad labels (kinds 8, 9), which come after the sky's
 C     (ours: a full buffer of crater labels would crowd them out).
       IF (ILABL .GE. 1 .AND. KIND .LT. 8 .AND. NL .GE. MAXL - 8) RETURN
       IF (DABS(X) .GT. BOXH .OR. DABS(Y) .GT. BOXH) RETURN
-      NL = NL + 1
+C     Outside the windows when the window mask applies (vmask.f).
+      IF (IMSK .EQ. 0) GO TO 10
+      CALL UNPROJ(X, Y, 0, D)
+      IF (WMIN(D) .EQ. 0) RETURN
+   10 NL = NL + 1
       LB(1,NL) = X
       LB(2,NL) = Y
       LB(3,NL) = DBLE(KIND)
@@ -506,7 +512,7 @@ C     RESTOMOD END
       END
 C
 C-----------------------------------------------------------------------
-C     MSEG: 3-D segment A-B (camera relative) to the frame, for model
+C     MSEG0: 3-D segment A-B (camera relative) to the frame, for model
 C     edges, which may pass beside or behind the camera or very close
 C     to it (a cabin seen from inside).  Without recursion, a stack of
 C     pieces:
@@ -524,7 +530,7 @@ C         a line, so a ternary search) and split there if it is seen.
 C     Pieces are split at most 10 deep.  A point at the camera itself
 C     projects to the centre (PROJ); nothing divides by the range.
 C-----------------------------------------------------------------------
-      SUBROUTINE MSEG(VB, NV, A, B)
+      SUBROUTINE MSEG0(VB, NV, A, B)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
@@ -570,7 +576,7 @@ C     midpoint in space need not project to the chord's midpoint).
       CALL MSPUSH(SP, SQ, SD, NS, M, Q, D + 1)
       CALL MSPUSH(SP, SQ, SD, NS, P, M, D + 1)
       GO TO 10
-   20 CALL EMIT(VB, NV, XP, YP, XQ, YQ)
+   20 CALL EMIT0(VB, NV, XP, YP, XQ, YQ)
       GO TO 10
 C     One end past the limit: bisect for the crossing (T seen, M not),
 C     keep the order A to B.

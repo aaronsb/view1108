@@ -31,6 +31,7 @@ C              the replay), sim.f (the engine), tape.f (the tape it
 C              writes), vsrc.f (the state source: replay or tape),
 C              vview.f (camera target and external view),
 C              pen.f (projection, clipping, visibility, vectors),
+C              vmask.f (the outside cut to the cabin's windows),
 C              vtext.f (text records), vmath.f (vectors, matrices),
 C              models.f (spacecraft model library)
 C       Layers, one per drawable, all called as
@@ -298,6 +299,8 @@ C     RESTOMOD END
       CALL MTXV(MMF, CB, CBMF)
 C
       ISTYLE = 1
+C     The cabin's windows for the window mask (vmask.f).
+      CALL WMSET
 C     The scene's layers, in order (vlayer.f).
       CALL LAYERS(GET, VB, NV, SB, NS, LB, NL)
 C

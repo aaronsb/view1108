@@ -88,6 +88,36 @@ if (W.in_view) {
   console.log(`cabins: ${n} frames  ${same ? 'identical' : 'DIFFER'}  ${more} with interior lines`);
   if (!same || more === 0) ok = false;
 }
+// Window mask (in_flags bit 5): with the cabin (bit 4) in the CM and LM stations, the outside only
+// through the windows. Wasm and the fallback must agree; bit 5 without bit 4 changes nothing; a
+// masked frame never has more vectors, stars or labels than the unmasked one, and some have fewer.
+// Scene 7's CM station looks along +X at the LM, where the CM has no window: unmasked, the LM's
+// lines cross the middle of the frame; masked, the only line there is the X-axis mark (CMCAB,
+// about 1 deg from the centre).
+if (W.in_view) {
+  let same = true, inert = true, fewer = 0, n = 0, never = true;
+  for (const scene of SCENES)
+    for (const v of [2, 3]) {
+      const u = run(W, scene, 3 | 16, v, 0, 3), a = run(W, scene, 3 | 16 | 32, v, 0, 3), b = run(F, scene, 3 | 16 | 32, v, 0, 3); n++;
+      if (!(a.nvec === b.nvec && a.nstar === b.nstar && a.nlab === b.nlab && maxdiff(a.vbuf, b.vbuf) === 0 &&
+            maxdiff(a.lbuf, b.lbuf) === 0 && maxdiff(a.tbuf, b.tbuf) === 0)) same = false;
+      const o = run(W, scene, 3, v, 0, 3), o5 = run(W, scene, 3 | 32, v, 0, 3);
+      if (!(o.nvec === o5.nvec && o.nstar === o5.nstar && maxdiff(o.vbuf, o5.vbuf) === 0)) inert = false;
+      if (a.nvec > u.nvec || a.nstar > u.nstar || a.nlab > u.nlab) never = false;
+      if (a.nvec < u.nvec) fewer++;
+    }
+  // Lines with a point within 3 deg of the centre (ends and midpoint), and their largest reach.
+  const mid = r => { let c = 0, far = 0; for (let i = 0; i < r.nvec; i++) {
+    const p = r.vbuf.slice(5 * i, 5 * i + 4), q = [[p[0], p[1]], [p[2], p[3]], [(p[0] + p[2]) / 2, (p[1] + p[3]) / 2]];
+    if (q.some(([x, y]) => Math.hypot(x, y) < 3)) { c++; far = Math.max(far, ...q.map(([x, y]) => Math.hypot(x, y))); } }
+    return [c, far]; };
+  const [cu] = mid(run(W, 7, 1 | 16, 2)), [cm, fm] = mid(run(W, 7, 1 | 16 | 32, 2));
+  const centre = cu > 20 && cm > 0 && fm < 1.2;
+  console.log(`window mask: ${n} frames  ${same ? 'identical' : 'DIFFER'}  bit 5 alone ${inert ? 'inert' : 'CHANGES FRAMES'}` +
+    `  ${fewer} with fewer vectors${never ? '' : '  MORE IN SOME'}  scene 7 centre: ${cu} lines unmasked, ${cm} masked` +
+    ` (out to ${fm.toFixed(2)} deg)${centre ? '' : '  WRONG'}`);
+  if (!same || !inert || !never || fewer === 0 || !centre) ok = false;
+}
 // Label levels (in_lablv 0-3) with vehicle labels, markers and the launch pad: every scene in
 // its own view and external, plus frames where markers or the pad show (scene 6 in the LM's
 // descent, scene 1 external on the Moon, scene 3 over Florida); wasm and the fallback must agree

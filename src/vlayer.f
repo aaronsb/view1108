@@ -51,6 +51,10 @@ C     t25.png).  Scene 9 (Apollo 8 Earthrise) has scene 1's.
         IF (L .LT. 1 .OR. L .GT. 9) GO TO 95
 C       Window overlays (COAS, LPD) only in the scene's window view.
         IF (IVUSE .NE. 0 .AND. (L .EQ. 7 .OR. L .EQ. 9)) GO TO 90
+C       The window mask (vmask.f) is for the outside: not the frame
+C       and the window overlays.
+        IMSK = IMSKON
+        IF (L .EQ. 1 .OR. L .EQ. 7 .OR. L .EQ. 9) IMSK = 0
         GO TO (11, 12, 13, 14, 15, 16, 17, 18, 19), L
    11   CALL DFRAME(GET, VB, NV, SB, NS, LB, NL)
         GO TO 90
@@ -71,6 +75,7 @@ C       Window overlays (COAS, LPD) only in the scene's window view.
    19   CALL OVLPD(GET, VB, NV, SB, NS, LB, NL)
    90 CONTINUE
 C     The LM station view (in_view 3) carries the LM window overlay.
-   95 IF (IVUSE .EQ. 3) CALL OVLPD(GET, VB, NV, SB, NS, LB, NL)
+   95 IMSK = 0
+      IF (IVUSE .EQ. 3) CALL OVLPD(GET, VB, NV, SB, NS, LB, NL)
       RETURN
       END

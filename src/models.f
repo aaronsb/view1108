@@ -39,6 +39,7 @@ C     RESTOMOD END
       NSOL = 0
       NXL = 0
       NMOD = 0
+      NWIN = 0
 C     LM, landing gear deployed (scene 4).
       CALL MODBEG(KLMD)
       CALL LMBODY
@@ -88,6 +89,7 @@ C     RESTOMOD END
       MDS1(K) = NSOL + 1
       MDX1(K) = NXL + 1
       MDHL(K) = 1
+      MDBLD = K
       RETURN
       END
 C
@@ -1018,12 +1020,12 @@ C     Forward bulkhead, tunnel and forward hatch.
       CALL SETV(C, 2.286D0, 0.0D0, 0.0D0)
       CALL XRING(C, 1, 0.419D0, 16)
       CALL XRING(C, 1, 0.381D0, 16)
-C     Windows and the side hatch.
-      CALL XPOLY(5, W1, 1, 1.0D0)
-      CALL XPOLY(5, W1, 1, -1.0D0)
-      CALL XPOLY(5, W2, 1, 1.0D0)
-      CALL XPOLY(5, W2, 1, -1.0D0)
-      CALL XPOLY(8, W3, 1, 1.0D0)
+C     Windows (XWIN: also the window mask's) and the side hatch.
+      CALL XWIN(5, W1, 1.0D0)
+      CALL XWIN(5, W1, -1.0D0)
+      CALL XWIN(5, W2, 1.0D0)
+      CALL XWIN(5, W2, -1.0D0)
+      CALL XWIN(8, W3, 1.0D0)
       CALL XPOLY(4, HS, 1, 1.0D0)
 C     Main display console.
       CALL XPOLY(4, D2, 1, 1.0D0)
@@ -1138,15 +1140,15 @@ C     The front's knee, floor, forward hatch.
      &  0)
       CALL XPOLY(4, FL, 1, 1.0D0)
       CALL XPOLY(4, FH, 1, 1.0D0)
-C     Windows.
+C     Windows (XWIN: also the window mask's).
       DO 15 K = 1, 3
         DO 12 I = 1, 3
           WN(I,K) = LMWIN(I,K)
    12   CONTINUE
    15 CONTINUE
-      CALL XPOLY(3, WN, 1, 1.0D0)
-      CALL XPOLY(3, WN, 1, -1.0D0)
-      CALL XPOLY(4, DW, 1, 1.0D0)
+      CALL XWIN(3, WN, 1.0D0)
+      CALL XWIN(3, WN, -1.0D0)
+      CALL XWIN(4, DW, 1.0D0)
 C     Midsection: its section at both ends, the decks' edges and the
 C     sides joined along it.
       T1 = DACOS((4.104D0 - 3.327D0) / 1.05D0)
@@ -1239,6 +1241,30 @@ C     back to the first if ICL = 1; Y is multiplied by SY (-1 mirrors).
         J = MOD(K, N) + 1
         CALL XLINE(SY * P(2,K), P(1,K), P(3,K),
      &             SY * P(2,J), P(1,J), P(3,J), 0)
+   10 CONTINUE
+      RETURN
+      END
+C
+C     XWIN: a window of the cabin being built, its N corners P as
+C     XPOLY takes them: drawn as a closed outline, and kept in /CWIN/
+C     for the window mask (vmask.f).
+      SUBROUTINE XWIN(N, P, SY)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      INTEGER N
+      DOUBLE PRECISION P(3,N), SY
+      INTEGER K
+      CALL XPOLY(N, P, 1, SY)
+      IF (NWIN .GE. MWIN .OR. N .GT. MWV) RETURN
+      NWIN = NWIN + 1
+      NWV(NWIN) = N
+      WMOD(NWIN) = MDBLD
+      DO 10 K = 1, N
+        WBV(1,K,NWIN) = P(1,K)
+        WBV(2,K,NWIN) = SY * P(2,K)
+        WBV(3,K,NWIN) = P(3,K)
    10 CONTINUE
       RETURN
       END

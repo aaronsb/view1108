@@ -92,10 +92,15 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION GET, VB(5,MAXV), SB(3,MAXS), LB(4,MAXL)
       INTEGER NV, NS, NL
-      INTEGER K
+      INTEGER K, IM
+C     The cabins are drawn whole, outside the window mask (vmask.f).
+      IM = IMSK
       DO 10 K = 1, NMOD
+        IMSK = IM
+        IF (K .EQ. KCMC .OR. K .EQ. KCMI .OR. K .EQ. KLMI) IMSK = 0
         IF (MDON(K) .EQ. 1) CALL MDRAW(VB, NV, K)
    10 CONTINUE
+      IMSK = IM
       ISTYLE = 1
 C     Vehicle labels and markers, with a label level set (lvlab.f).
       IF (ILABL .GE. 1) CALL VLABEL(GET, VB, NV, LB, NL)

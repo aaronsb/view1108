@@ -49,7 +49,8 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Core | `tape.f` | the tape: time-tagged states, 4 vehicle channels, event marks; cubic Hermite reads (`TPGET`) |
 | Core | `vview.f` | camera pointing: the target and the external view (`VIEWPT`), applied after the scene's camera and models |
 | Core | `vsrc.f` | the state source: the one entry point (`VSTATE`) scenes use for the CSM's state, from the replay or the tape |
-| Core | `pen.f` | projection (`PROJ`), clipping (`EMIT`, `SEG`, `MSEG`), visibility (`PEN`, `ISVIS`), labels, circles, shading, vehicle-fixed overlay lines |
+| Core | `pen.f` | projection (`PROJ`), clipping (`EMIT0`, `SEG0`, `MSEG0`), visibility (`PEN`, `ISVIS`), labels, circles, shading, vehicle-fixed overlay lines |
+| Core | `vmask.f` | the window mask (in_flags bit 5): the pen's entry points `EMIT`, `SEG`, `MSEG` cut the outside to the cabin's windows (`WMSET`, `WMCUT`, `WMIN`) |
 | Core | `vtext.f` | text records for the character generator |
 | Core | `vmath.f` | vector and matrix utilities |
 | Core | `models.f` | the spacecraft model library (data built once) |
@@ -155,7 +156,15 @@ Inputs (written by JS):
   them), bit 3 the state source (see `in_src`), bit 4 (16) draw the cabin interior in the CM and
   LM station views (`in_view` 2 and 3; scene 5 with `in_view` 3 too): the crew compartment as
   plain wireframe around the eye (`models.f` CMINT, LMINT; a modern addition). With bit 4 off a
-  frame is what it was without the interiors.
+  frame is what it was without the interiors. Bit 5 (32), with bit 4 where a cabin is drawn:
+  the window mask (`vmask.f`, a modern addition). The outside (stars, Sun, Earth, Moon, their
+  lines and labels, the other vehicles, their labels and markers) shows only through the
+  cabin's windows: the CM's five and the LM's two front windows and docking window, the
+  outlines CMINT and LMINT draw (`XWIN`). Lines are cut where they cross a window's edge
+  (exactly, in direction space: planes through the eye and each edge), stars and `lbuf`
+  labels outside every window are dropped, and with them their text records. The cabin's lines,
+  the plot frame and ticks and the LPD overlay are drawn whole. With bit 5 off, or without the
+  cabin, a frame is what it was without the mask.
 - `in_view` int32: 0 the scene's own window view (as before), 1 EXTERNAL (the camera orbits the
   target: `in_yaw` and `in_pitch` are azimuth and elevation around it, as scene 6 does for the
   Moon; `in_fov` zooms), 2 CM STATION (the eye at the CM design eye, the cabin around it), 3 LM
@@ -185,7 +194,8 @@ Inputs (written by JS):
   already), the commander's design eye of Grumman's LM stations (`models.f` LDEYE) with the LM
   window and LPD overlay of scene 5, 30.2 deg down (`LPDDN`, fitted to the film's LPD marks,
   `llpd.f`); it ignores targets. With `in_flags` bit 4 both stations get the interior (CMINT,
-  LMINT), drawn as an outline model: no hidden lines, and the sky shows through its walls. Elsewhere a station falls back to the window view.
+  LMINT), drawn as an outline model: no hidden lines, and the sky shows through its walls unless
+  bit 5 masks it to the windows. Elsewhere a station falls back to the window view.
   Scene 6 ignores both view and target. In an external view of a scene whose camera rides the
   CSM (1, 2, 3, 4, 7, 9) the CSM is drawn as an outline around the camera. Window overlays (COAS,
   LPD) and the LM window sill apply only in the window view.
@@ -271,7 +281,9 @@ the view. To add a model: a builder between `MODBEG(K)` and `MODEND(K)` in `MLIB
 `viewcom.inc`, one `MPLACE` in `SCNMOD`. The LM's ascent stage sits on Grumman's LM inch stations
 (station X200 at the descent stage's top, 1.7 m; Y and Z 0 on the thrust axis), so its tunnel
 is on the descent stage's axis; see LMBODY. The cabin interiors (KCMI, KLMI) are free lines only,
-placed about the eye by the station views (`vview.f`).
+placed about the eye by the station views (`vview.f`); their windows are also kept as polygons in
+`/CWIN/` (`XWIN`) for the window mask. Each window outline is convex as seen from its eye (our
+check), which the mask's plane test needs; a new window outline must be too, or be split.
 
 ## Scenes (priority order; match the video frames)
 

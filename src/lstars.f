@@ -19,7 +19,7 @@ C     RESTOMOD END
       DOUBLE PRECISION GET, VB(5,MAXV), SB(3,MAXS), LB(4,MAXL)
       INTEGER NV, NS, NL
       DOUBLE PRECISION U(3), X, Y, RAYHIT
-      INTEGER I, IOK, LMOCC
+      INTEGER I, IOK, LMOCC, WMIN
       DO 10 I = 1, NSTAR
         U(1) = STX(I)
         U(2) = STY(I)
@@ -32,7 +32,9 @@ C     RESTOMOD END
 C       Behind a placed spacecraft model (U taken as a point 1 km out).
         IF (NACT .EQ. 0) GO TO 8
         IF (LMOCC(U, 0) .EQ. 1) GO TO 10
-    8   IF (NS .GE. MAXS) RETURN
+C       Outside the windows when the window mask applies (vmask.f).
+    8   IF (IMSK .EQ. 1 .AND. WMIN(U) .EQ. 0) GO TO 10
+        IF (NS .GE. MAXS) RETURN
         NS = NS + 1
         SB(1,NS) = X
         SB(2,NS) = Y

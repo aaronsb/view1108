@@ -274,6 +274,24 @@ C     models of the LM and S-IVB only: our reading).
       COMMON /CMODH/ MDHL
       COMMON /CMOD/ MDAT, MDP, MDBO
 C
+C     /CWIN/ the cabin windows, for the window mask (vmask.f): window
+C     J of model WMOD(J) has NWV(J) corners WBV(1..3, K, J) in that
+C     model's body metres (XWIN, as MLIB builds the cabins; MDBLD is
+C     the model being built).  This frame: WACT(J) = 1 if its model is
+C     placed, with WPN(1..3, K, J) the unit normal, camera relative
+C     EQ, of the plane through the eye and edge K, facing into the
+C     window.  IMSKON = 1 if in_flags bit 5 asks for the mask and a
+C     cabin with windows is placed; IMSK = 1 while the outside draws
+C     and is masked (LAYERS, MDRALL).
+      INTEGER MWIN, MWV
+C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)
+      PARAMETER (MWIN=8, MWV=8)
+      DOUBLE PRECISION WBV(3,MWV,MWIN), WPN(3,MWV,MWIN)
+      INTEGER NWIN, NWV(MWIN), WMOD(MWIN), WACT(MWIN), MDBLD
+      INTEGER IMSKON, IMSK
+      COMMON /CWIN/ WBV, WPN
+      COMMON /CWINI/ NWIN, NWV, WMOD, WACT, MDBLD, IMSKON, IMSK
+C
 C     /CVLAB/ work area of the vehicle labels (lvlab.f): the plot
 C     points of the model being labelled (VLPTS).
       DOUBLE PRECISION VLPX(2400), VLPY(2400)
