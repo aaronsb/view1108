@@ -1,12 +1,15 @@
-// View point, target and label level, and scene 8. Each control appears only when the kernel has its input
-// (in_view, in_target, in_lablv), and scene 8 only when view_init accepts it; an older kernel runs as before.
+// View point, target and label level, the cabin, and scene 8. Each control appears only when the kernel has its
+// input (in_view, in_target, in_lablv; in_flags bit 4 when a station frame changes with it), and scene 8 only when
+// view_init accepts it; an older kernel runs as before.
 "use strict";
 const VIEWS = ["window", "external", "cm", "lm"];          // in_view: 0 WINDOW, 1 EXTERNAL, 2 CM station, 3 LM station
 const TARGETS = ["default", "earth", "moon", "sun", "csm", "lm"];   // in_target: 0 the scene's own
 const LAB_LEVELS = ["off", "primary", "secondary", "all"];  // in_lablv
-const FEAT = { view: false, target: false, lablv: false, scene8: false, scene9: false };
+const FEAT = { view: false, target: false, lablv: false, cabin: false, scene8: false, scene9: false };
 const SCENE_MISSION = { 9: "APOLLO 8" };   // named in the status line when the scene's scenario is not Apollo 11
-let viewMode = 0, targetId = 0;
+let viewMode = 0, targetId = 0, cabin = true;   // cabin: the CM or LM interior in a station view (in_flags bit 4)
+// Attract and Tour draw the cabin in their station shots.
+const cabinFlag = () => FEAT.cabin && (cabin || auto()) ? 16 : 0;
 // EXTERNAL, like the Moon view, orbits the target: drag and the look keys turn azimuth and elevation around it.
 const orbiting = () => scene === 6 || viewMode === 1;
 function featInputs() {   // every frame, before view_frame
@@ -16,8 +19,9 @@ function featInputs() {   // every frame, before view_frame
 }
 function featSyncUI() {
   $("jumps").hidden = epoch !== 0;   // the jump buttons are Apollo 11 times
-  if (FEAT.view) document.querySelectorAll("#viewgrp button").forEach((b, i) => b.classList.toggle("on", i === viewMode));
+  if (FEAT.view) document.querySelectorAll("#viewgrp button:not(#bcab)").forEach((b, i) => b.classList.toggle("on", i === viewMode));
   if (FEAT.target) document.querySelectorAll("#targrp button").forEach((b, i) => b.classList.toggle("on", i === targetId));
+  if (FEAT.cabin) { const b = $("bcab"); b.classList.toggle("on", cabin); b.disabled = viewMode !== 2 && viewMode !== 3; }
 }
 // hdr(21): the vehicles the scene has (1 CM/CSM, 2 LM, 4 S-IVB); the CM and LM station views need theirs.
 let vehMask = -1;
@@ -31,6 +35,11 @@ function featInit() {
   FEAT.view = !!K.in_view; FEAT.target = !!K.in_target; FEAT.lablv = !!K.in_lablv;
   const probe = s => { K.view_init(s); K.view_frame(); return new Float64Array(buf(), K.hdr.value, 7)[6] === s; };
   FEAT.scene8 = probe(8); FEAT.scene9 = probe(9);
+  // The cabin probe: scene 1 from the CM station with a 170 deg field draws more with bit 4 than without.
+  if (FEAT.view) {
+    const nv = fl => { K.view_init(1); wi("in_view", 2); wr("in_fov", 170); wi("in_flags", fl); K.view_frame(); return new Int32Array(buf(), K.nvec.value, 1)[0]; };
+    FEAT.cabin = nv(16) > nv(0); wi("in_view", 0); wi("in_flags", 0);
+  }
   if (FEAT.scene8) {
     SCENES[7] = "Translunar stack"; addSceneButton(8);
     TOUR.push(...TOUR8); ATTRACT.push(ATTRACT8);
@@ -40,8 +49,9 @@ function featInit() {
     $("hint").textContent = $("hint").textContent.replace("1-7: scene", `1-${SCENES.length}: scene`);
     LEN.tour = TOUR.reduce((a, s) => a + s.dur, 0); LEN.attract = ATTRACT.reduce((a, s) => a + s.dur, 0);
   }
-  $("viewgrp").hidden = !FEAT.view; $("targrp").hidden = !FEAT.target;
-  document.querySelectorAll("#viewgrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); viewMode = i; syncUI(); }; });
+  $("viewgrp").hidden = !FEAT.view; $("targrp").hidden = !FEAT.target; $("bcab").hidden = !FEAT.cabin;
+  $("bcab").onclick = toggleCabin;
+  document.querySelectorAll("#viewgrp button:not(#bcab)").forEach((b, i) => { b.onclick = () => { leaveAttract(); viewMode = i; syncUI(); }; });
   document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); targetId = i; syncUI(); }; });
 }
 // ?view=window|external|cm|lm and ?target=default|earth|moon|sun|csm|lm (or their numbers).
@@ -50,4 +60,6 @@ function featParams() {
   const v = pick("view", VIEWS), t = pick("target", TARGETS);
   if (FEAT.view && v !== null) viewMode = v;
   if (FEAT.target && t !== null) targetId = t;
+  if (FEAT.cabin && (UP.get("cabin") === "0" || UP.get("cabin") === "1")) cabin = UP.get("cabin") === "1";
 }
+function toggleCabin() { if (!FEAT.cabin) return; leaveAttract(); cabin = !cabin; syncUI(); }

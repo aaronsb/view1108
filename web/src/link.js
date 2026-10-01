@@ -9,7 +9,7 @@ function linkURL() {
     add("get", getStr(get)); add("fov", rnd(fov)); add("yaw", rnd(yaw)); add("pitch", rnd(pitch)); add("roll", rnd(roll));
     if (mode === "live") add("rate", LIVE_RATES[liveIdx]); else if (mode === "beam") add("bspeed", beamIdx + 1); else add("rate", SPEEDS[speedIdx]);
     if (FEAT.lablv) { if (labLv !== 3) add("lab", labLv); } else if (!labLv) add("labels", 0);
-    if (FEAT.view && viewMode) add("view", VIEWS[viewMode]); if (FEAT.target && targetId) add("target", TARGETS[targetId]); if (!frame) add("frame", 0); if (hidden) add("hidden", 1);
+    if (FEAT.view && viewMode) add("view", VIEWS[viewMode]); if (FEAT.target && targetId) add("target", TARGETS[targetId]); if (FEAT.cabin && !cabin) add("cabin", 0); if (!frame) add("frame", 0); if (hidden) add("hidden", 1);
   }
   const dAuto = mode === "attract" || mode === "tour";   // effects whose default is on in the film-like modes
   if (effJit() !== dAuto) add("jitter", +effJit());

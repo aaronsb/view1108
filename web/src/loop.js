@@ -13,7 +13,7 @@ function step(now) {
   }
   else if (playing) get += dt * SPEEDS[speedIdx];
   wr("in_get", get); wr("in_yaw", yaw); wr("in_pitch", pitch); wr("in_roll", roll); wr("in_fov", fov);
-  wi("in_flags", 1 | (frame ? 2 : 0) | (hidden ? 4 : 0) | simFlags()); featInputs();   // labels always requested: the NAV catalog needs the 37 named stars
+  wi("in_flags", 1 | (frame ? 2 : 0) | (hidden ? 4 : 0) | simFlags() | cabinFlag()); featInputs();   // labels always requested: the NAV catalog needs the 37 named stars
   if (mode !== "beam" || beamNew) K.view_frame();
   draw(now); beamNew = false; updateStatus(); simTick(); featTick();
   const sc = document.getElementById("scrub"), gi = document.getElementById("geti");

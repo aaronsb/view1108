@@ -75,6 +75,7 @@ Is the film's leg-less LM shot (film seconds 20.5 to 26) this view? We think not
 | `T` | Beam mode |
 | `L` | Copy a link to the current view |
 | `B` `J` `D` `F` `C` | Bloom, jitter, dust, film rate, catalog |
+| `I` | Cabin interior on or off (with a kernel that has it) |
 
 ## Simulation
 
@@ -113,6 +114,7 @@ With a kernel that has them, the Look group adds two rows. They are modern addit
 |---|---|---|
 | View | WINDOW, EXTERNAL, CM, LM | WINDOW is the scene's own window. EXTERNAL looks at the target from outside: drag, the arrows and the pad turn azimuth and elevation around it, as in the Moon view; wheel or pinch sets the field of view. CM and LM look from the CM or LM crew station |
 | Target | DEFAULT, EARTH, MOON, SUN, CSM, LM | What the view points at; DEFAULT is the scene's own |
+| Cabin | on, off (`I`) | In the CM and LM views, the crew compartment drawn around the eye as a wireframe: walls, windows, hatches, tunnel, panels, couches or consoles. On by default, and in Attract and Tour. Built from period drawings and data books, with the estimates labelled in `src/models.f` (CMINT, LMINT) |
 
 ## Control groups
 
@@ -133,6 +135,7 @@ Each control group (Mode, Look, Scene, Time, Display, Film, Listing and link) ha
 | `lab` | `0`–`3`: label level OFF, PRIMARY, SECONDARY, ALL (with a kernel that has levels; otherwise `0` is off, else on) | `?lab=1` |
 | `view` | `window`, `external`, `cm`, `lm` | `?mode=free&scene=8&view=external` |
 | `target` | `default`, `earth`, `moon`, `sun`, `csm`, `lm` | `?view=external&target=moon` |
+| `cabin` | `0`/`1`: the cabin interior in the CM and LM views (default 1) | `?mode=free&scene=8&view=cm&cabin=0` |
 | `bloom`, `jitter`, `dust`, `fps` | `0`/`1` | `?bloom=0&jitter=0` |
 | `catalog` | `nav`, `full` | `?catalog=full` |
 | `src` | `replay`, `sim` (Simulation; only when the kernel has the engine) | `?src=sim` |
