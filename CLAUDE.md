@@ -183,9 +183,9 @@ Inputs (written by JS):
   rendezvous window's two outlines read off its figure 9.0-3 (PDF p. 263) plus the X-axis x
   (`models.f` CMCAB); targets aim it as offsets. LM station (3): scenes 4, 7, 8 (scene 5 is it
   already), the commander's design eye of Grumman's LM stations (`models.f` LDEYE) with the LM
-  window and LPD overlay of scene 5, 46 deg down; it ignores targets. With `in_flags` bit 4 both
-  stations get the interior (CMINT, LMINT), drawn as an outline model: no hidden lines, and the
-  sky shows through its walls. Elsewhere a station falls back to the window view.
+  window and LPD overlay of scene 5, 30.2 deg down (`LPDDN`, fitted to the film's LPD marks,
+  `llpd.f`); it ignores targets. With `in_flags` bit 4 both stations get the interior (CMINT,
+  LMINT), drawn as an outline model: no hidden lines, and the sky shows through its walls. Elsewhere a station falls back to the window view.
   Scene 6 ignores both view and target. In an external view of a scene whose camera rides the
   CSM (1, 2, 3, 4, 7, 9) the CSM is drawn as an outline around the camera. Window overlays (COAS,
   LPD) and the LM window sill apply only in the window view.

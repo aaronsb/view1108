@@ -298,7 +298,7 @@ C
 C-----------------------------------------------------------------------
 C     STATLM: the LM station.  The camera at the commander's design eye
 C     (LDEYE) in the placed LM (scenes 4, 7, 8), looking as scene 5
-C     does, 46 deg down from the LM's +Z in the X-Z plane; the LM
+C     does, LPDDN deg down from the LM's +Z in the X-Z plane; the LM
 C     window and LPD overlay (OVLPD) is drawn about that aim, and with
 C     in_flags bit 4 the interior (KLMI) around the eye.  Not where no
 C     LM is placed.
@@ -331,8 +331,8 @@ C     RESTOMOD END
         DS(I) = -W(I)
    15 CONTINUE
       CALL MSHIFT(DS, KL)
-      C = DCOS(46.0D0 * DR)
-      S = DSIN(46.0D0 * DR)
+      C = DCOS(LPDDN * DR)
+      S = DSIN(LPDDN * DR)
       DO 20 I = 1, 3
         BREF(I) = C * AT(I,3) - S * AT(I,1)
         UREF(I) = S * AT(I,3) + C * AT(I,1)

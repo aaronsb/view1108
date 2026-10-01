@@ -333,15 +333,17 @@ C     Range and footpad altitude fall as the square of the time to go
 C     to touchdown (the scenario's TOUCH event, LUT0), reaching 0 there;
 C     after it the LM stands landed.  The line of sight to the site
 C     stays near 16 deg below the horizontal; the LM pitches up from
-C     40 to 5 deg off vertical.  This profile is ours, fitted to the
-C     film's descent frames (VIEW's pre-flight output).  It is NOT the
-C     flown one: the altitude calls (Apollo Lunar Surface Journal,
-C     apollojournals.org/alsj/a11/a11.landing.html) have 1000 ft at
-C     102:42:37, 300 at 102:43:46, 100 at 102:44:45, 40 at 102:45:17,
-C     20 at 102:45:25 and "Contact Light" at 102:45:40; ours has
-C     about 3850, 1490, 350, 60 and 26 ft at those times.  In the last
-C     minute ours falls about 350 ft where the flown descent fell
-C     about 100 ft, mostly a hover.
+C     24 deg off vertical 250 s out to upright 77 s out, and stays
+C     upright.  The film's horizon gives the boresight's depression,
+C     and the pitch is LPDDN less that.  This profile is ours, fitted
+C     to the film's descent frames (VIEW's pre-flight output).  It is
+C     NOT the flown one: the altitude calls (Apollo Lunar Surface
+C     Journal, apollojournals.org/alsj/a11/a11.landing.html) have
+C     1000 ft at 102:42:37, 300 at 102:43:46, 100 at 102:44:45, 40 at
+C     102:45:17, 20 at 102:45:25 and "Contact Light" at 102:45:40;
+C     ours has about 3850, 1490, 350, 60 and 26 ft at those times.
+C     In the last minute ours falls about 350 ft where the flown
+C     descent fell about 100 ft, mostly a hover.
 C     Eye height above the footpads, LMEYE: ours, 5.1 m.  The LM
 C     "stands 22 feet 11 inches high" with the gear out, the ascent
 C     stage is 12 feet 4 inches and the descent stage 10 feet 7 inches
@@ -395,8 +397,9 @@ C     Forward direction made horizontal at the LM.
         F(I) = F(I) - C * U(I)
    40 CONTINUE
       CALL VUNIT(F)
-      TP = (5.0D0 + 35.0D0 * Q) * DR
-      IF (TP .GT. 60.0D0 * DR) TP = 60.0D0 * DR
+      TP = (35.0D0 * Q - 10.8D0) * DR
+      IF (TP .GT. 44.2D0 * DR) TP = 44.2D0 * DR
+      IF (TP .LT. 0.0D0) TP = 0.0D0
       C = DCOS(TP)
       SN = DSIN(TP)
       DO 50 I = 1, 3

@@ -506,8 +506,9 @@ C       axis; the LM front (+Z) up.
           UREF(I) = S7AT(I,3)
   110   CONTINUE
       ELSE
-C       LM descent.  Boresight 46 deg down from the LM +Z axis in
-C       the X-Z plane, so the LPD scale 0..80 deg runs top to bottom.
+C       LM descent.  Boresight LPDDN (30.2) deg down from the LM +Z
+C       axis in the X-Z plane, the LPD's plane; the film's LPD marks
+C       give the angle (llpd.f).
         IREF = 2
         IWIN = 2
         CALL LMDESC(GET, PMF, XB, YB, ZB)
@@ -520,8 +521,8 @@ C       the X-Z plane, so the LPD scale 0..80 deg runs top to bottom.
    90   CONTINUE
         CALL MXV(MMF, XB, H)
         CALL MXV(MMF, ZB, E)
-        CD = DCOS(46.0D0 * DR)
-        SD = DSIN(46.0D0 * DR)
+        CD = DCOS(LPDDN * DR)
+        SD = DSIN(LPDDN * DR)
         DO 100 I = 1, 3
           BREF(I) = CD * E(I) - SD * H(I)
           UREF(I) = SD * E(I) + CD * H(I)

@@ -5,7 +5,7 @@ C     Units: km, km/s, seconds of GET, radians inside, degrees at the
 C     edges (plot coordinates, inputs).  Frame: J2000 equatorial (EQ)
 C     unless a name says MF (Moon fixed, IAU) or EF (Earth fixed).
 C
-      DOUBLE PRECISION PI, DR, RE, RM, GME, GMM, JD0
+      DOUBLE PRECISION PI, DR, RE, RM, GME, GMM, JD0, LPDDN, LPDK
 C     RESTOMOD BEGIN: real-valued PARAMETERs; FORTRAN V PARAMETER was
 C     integer-only, written PARAMETER I = 2 (UP-4046 Rev 3, sec. 10.4.1)
       PARAMETER (PI=3.141592653589793D0, DR=PI/180.0D0)
@@ -14,6 +14,10 @@ C     integer-only, written PARAMETER I = 2 (UP-4046 Rev 3, sec. 10.4.1)
 C     Apollo 11 range zero 1969-07-16 13:32:00 UTC, the page's clock
 C     base: hdr(16) is each scenario's epoch offset from it.
       PARAMETER (JD0=2440419.063889D0)
+C     LM window view: the boresight LPDDN deg below the LM's +Z in the
+C     X-Z plane, and the LPD scale's plot constant LPDK; both fitted
+C     to the film's LPD marks (llpd.f).
+      PARAMETER (LPDDN=30.2D0, LPDK=49.8D0)
 C     RESTOMOD END
 C     RESTOMOD BEGIN: 60000x5 DP buffer is 600K words, core 262,144
 C     (docs/univac-1108.md); VIEW would stream vectors to plot tape.
