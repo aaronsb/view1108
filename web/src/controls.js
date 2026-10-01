@@ -92,6 +92,7 @@ window.addEventListener("keydown", e => {
   if (k === "b" || k === "B") { toggle("bloom"); e.preventDefault(); return; }
   if (k === "c" || k === "C") { toggleCatalog(); e.preventDefault(); return; }
   if ((k === "i" || k === "I") && FEAT.cabin) { toggleCabin(); e.preventDefault(); return; }
+  if ((k === "w" || k === "W") && FEAT.walls) { toggleWalls(); e.preventDefault(); return; }
   if (k.length === 1 || k.startsWith("Arrow")) leaveAttract();
   let h = true;
   if (KEY_ACT[k]) ACT[KEY_ACT[k]]();

@@ -57,7 +57,8 @@ function steerToEarth(L) {
 const QP = k => { const m = new RegExp("[?&]" + k + "=([^&]+)").exec(location.search); return m ? m[1] : null; };
 const filmQ = /[?&]film=([\d.]+)/.exec(location.search);
 // Scene 8 (a modern addition), appended to the Tour when the kernel has it (views.js): orbit the stack from outside,
-// then look out of the CM window. view: 0 WINDOW, 1 EXTERNAL, 2 CM, 3 LM station.
+// then look out of the CM's left rendezvous window (yaw -4, pitch 21 from the CM station's +X: the window's
+// centre seen from the eye, CMINT in src/models.f). view: 0 WINDOW, 1 EXTERNAL, 2 CM, 3 LM station.
 // Attract, after the film's four shots, when the kernel has scene 8: orbit the stack from outside, captioned as ours.
 // Yaw circles the stack's long axis, which looks alike from every side, so the shot rises in elevation from side-on
 // toward the LM end and drifts a little in azimuth, with the stack about half the frame.
@@ -67,7 +68,7 @@ const ATTRACT8 = { name: "Translunar stack - a modern addition, not 1969 film", 
 const TOUR9 = [{ name: "Apollo 8 Earthrise", scene: 9, dur: 120, fl: 2, p: [-120, 360] }];
 const TOUR8 = [
   { name: "Translunar stack - external", scene: 8, dur: 90, fl: 2, view: 1, fov: 24, yaw: u => 120 + 120 * u, pitch: u => -10 + 45 * (1 - Math.cos(2 * Math.PI * u)) / 2, p: [0, 90] },
-  { name: "Translunar stack - CM window", scene: 8, dur: 60, fl: 2, view: 2, p: [90, 150] }
+  { name: "Translunar stack - CM window", scene: 8, dur: 60, fl: 2, view: 2, yaw: -4, pitch: 21, p: [90, 150] }
 ];
 const LEN = { attract: ATTRACT.reduce((a, s) => a + s.dur, 0), tour: TOUR.reduce((a, s) => a + s.dur, 0) };
 const val = (x, u) => typeof x === "function" ? x(u) : x;

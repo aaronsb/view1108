@@ -9,7 +9,7 @@ Base URL: https://aaronsb.github.io/view1108/
 | Mode | What it does | Example |
 |---|---|---|
 | **Attract** | Replays the four shots of the surviving VIEW film at the film's pace (about 36 s): Earthrise, Earth approach, LM pirouette, LM descent. With scene 8 a fifth shot follows, 12 s orbiting the translunar stack from outside, captioned as a modern addition. Plays once on a fresh load, then hands over to Tour. | [?mode=attract](https://aaronsb.github.io/view1108/?mode=attract) |
-| **Tour** | A slow loop through every scene, a few minutes each, with a caption naming the shot and its g.e.t. With scene 8 it ends by orbiting the stack from outside, then looking out of the CM window. Loops forever. | [?mode=tour](https://aaronsb.github.io/view1108/?mode=tour) |
+| **Tour** | A slow loop through every scene, a few minutes each, with a caption naming the shot and its g.e.t. With scene 8 it ends by orbiting the stack from outside, then looking out of the CM's left rendezvous window. Loops forever. | [?mode=tour](https://aaronsb.github.io/view1108/?mode=tour) |
 | **Live** | The Apollo 11 mission clock at 1× (or 10×, 60×, 300×, 1000×). The scene follows the mission phase from the g.e.t.: Earth parking orbit until 2:50:00, translunar coast until 75:50:00, lunar orbit until 135:24:00, then transearth coast. The transposition and docking, the LM rendezvous and the descent are jump windows. | [Live at touchdown](https://aaronsb.github.io/view1108/?mode=live&get=102:45:40) |
 | **Free-look** | Time paused or running at a chosen speed; look anywhere at the current moment. Any drag, wheel or key in Attract or Tour switches to Free-look and keeps the view. | [A frozen Earthrise](https://aaronsb.github.io/view1108/?mode=free&scene=1&get=102:20:06&fov=8) |
 | **Beam** | Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades, with a beam spot on the pen. The mission clock advances one frame at a time, by however long the frame took to draw. | [Slow trace of the Earth](https://aaronsb.github.io/view1108/?mode=beam&scene=2&bspeed=3) |
@@ -76,6 +76,7 @@ Is the film's leg-less LM shot (film seconds 20.5 to 26) this view? We think not
 | `L` | Copy a link to the current view |
 | `B` `J` `D` `F` `C` | Bloom, jitter, dust, film rate, catalog |
 | `I` | Cabin interior on or off (with a kernel that has it) |
+| `W` | Cabin walls on or off: the outside only through the windows (with a kernel that has it) |
 
 ## Simulation
 
@@ -115,6 +116,7 @@ With a kernel that has them, the Look group adds two rows. They are modern addit
 | View | WINDOW, EXTERNAL, CM, LM | WINDOW is the scene's own window. EXTERNAL looks at the target from outside: drag, the arrows and the pad turn azimuth and elevation around it, as in the Moon view; wheel or pinch sets the field of view. CM and LM look from the CM or LM crew station |
 | Target | DEFAULT, EARTH, MOON, SUN, CSM, LM | What the view points at; DEFAULT is the scene's own |
 | Cabin | on, off (`I`) | In the CM and LM views, the crew compartment drawn around the eye as a wireframe: walls, windows, hatches, tunnel, panels, couches or consoles. On by default, and in Attract and Tour. Built from period drawings and data books, with the estimates labelled in `src/models.f` (CMINT, LMINT) |
+| Walls | on, off (`W`) | With the cabin on, its walls hide the outside: stars, Sun, Earth, Moon and the other vehicles show only through the windows (the CM's five, the LM's two front windows and its docking window), as from the seat. The plot frame and the LPD scale draw as before. Off, the outside shows through the wireframe. On by default, and in Attract and Tour. A modern addition (`src/vmask.f`) |
 
 ## Control groups
 
@@ -136,6 +138,7 @@ Each control group (Mode, Look, Scene, Time, Display, Film, Listing and link) ha
 | `view` | `window`, `external`, `cm`, `lm` | `?mode=free&scene=8&view=external` |
 | `target` | `default`, `earth`, `moon`, `sun`, `csm`, `lm` | `?view=external&target=moon` |
 | `cabin` | `0`/`1`: the cabin interior in the CM and LM views (default 1) | `?mode=free&scene=8&view=cm&cabin=0` |
+| `walls` | `0`/`1`: with the cabin, the outside only through its windows (default 1) | `?mode=free&scene=8&view=lm&walls=0` |
 | `bloom`, `jitter`, `dust`, `fps` | `0`/`1` | `?bloom=0&jitter=0` |
 | `catalog` | `nav`, `full` | `?catalog=full` |
 | `src` | `replay`, `sim` (Simulation; only when the kernel has the engine) | `?src=sim` |
