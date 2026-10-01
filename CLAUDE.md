@@ -252,7 +252,11 @@ report: the film's descent horizon is straight at every height and MSC IN 69-FM-
 shows a straight horizon in a 100° docking-window plot, which a gnomonic plot gives for great
 circles; the same page's 170° front-window panel shows a fisheye dome, which stereographic gives
 while keeping circles round. Directions beyond 90°·k off the boresight are not drawn (segments
-are cut there). See the comment at `PROJ` in `src/pen.f`.
+are cut there). See the comment at `PROJ` in `src/pen.f`. Against this: the report's 100° CSM
+plots (figures 5.1-1(a) and 9.0-3, PDF pp. 53, 263) are azimuthal equidistant, ρ = θ: their
+named stars fit it to 0.25° and 0.11° rms and miss a gnomonic fit by 7° and 25° (our fits, see
+CMCAB in `src/models.f`). The kernel still draws them gnomonic; CMDIR reads their window
+outline as ρ = θ. The film's descent LPD marks fit a scaled tangent law (`src/llpd.f`).
 
 Spacecraft models (`src/models.f`, drawn by `src/lvehic.f`): a library built once by `MLIB`, each
 model a range of convex solids (`MKPRS` prisms) and free lines or face marks (`XLINE`) in its own

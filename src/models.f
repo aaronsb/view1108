@@ -798,8 +798,15 @@ C     attitudes (X-axis in center of view)", gimbal angles 90, 0, 0,
 C     and "The CM left rendezvous window outline is shown for a zero
 C     roll attitude" (p. 17).  The report draws two outlines; we read
 C     both off the plot by eye (to about 1 deg), in its plot degrees,
-C     where a point at plot radius R lies ATAN(R in radians) off the
-C     centre (as OVLPD).  Our reading of the plot's axes: right is the
+C     where a point at plot radius R lies R deg off the centre (an
+C     azimuthal equidistant plot): the named stars of figures 9.0-3
+C     and 5.1-1(a) (PDF pp. 263, 53, both with a 100 deg field) lie
+C     there to 0.11 and 0.25 deg rms, where a tangent plot misses by
+C     7 to 25 deg (our fits).  Over the window this agrees to 0.5 deg
+C     with the CSM Data Book's look angles (azimuth, elevation; SNA-
+C     8-D-027(I), Fig. 4.4-5), whose Fig. 4.4-6 has the same two
+C     outlines for the commander's right and left eyes.  Our reading
+C     of the plot's axes: right is the
 C     CM's +Y, up its -Z (the rendezvous windows are on the -Z half,
 C     TN D-7439 p. 3), which puts the left window up and to the left.
 C     The x at the centre marks the CM X-axis, as in the report's CSM
@@ -872,14 +879,17 @@ C     commander on the left, so Y -22.
       END
 C
 C     CMDIR: the point 0.5 m from the eye E toward plot point (X, Y)
-C     of the station view (right +Y, up -Z, centre +X).
+C     of the report's CSM views (right +Y, up -Z, centre +X), which
+C     lies SQRT(X**2 + Y**2) deg off the centre (see CMCAB).
       SUBROUTINE CMDIR(E, X, Y, P)
-      DOUBLE PRECISION E(3), X, Y, P(3), U(3), DR
+      DOUBLE PRECISION E(3), X, Y, P(3), U(3), DR, R, S
       DR = 3.141592653589793D0 / 180.0D0
-      U(1) = 1.0D0
-      U(2) = X * DR
-      U(3) = -Y * DR
-      CALL VUNIT(U)
+      R = DSQRT(X * X + Y * Y)
+      S = 0.0D0
+      IF (R .GT. 0.0D0) S = DSIN(R * DR) / R
+      U(1) = DCOS(R * DR)
+      U(2) = X * S
+      U(3) = -Y * S
       P(1) = E(1) + 0.5D0 * U(1)
       P(2) = E(2) + 0.5D0 * U(2)
       P(3) = E(3) + 0.5D0 * U(3)
@@ -904,9 +914,9 @@ C         DB's outlines for the 80th percentile commander (Figs.
 C         4.4-8, 4.4-6, 4.4-7, printed pp. 4.4-63 to 4.4-65), read by
 C         eye to about 1 deg as DB's look angles (Fig. 4.4-5: azimuth
 C         from +X toward +Y, elevation toward -Z), ended on our inner
-C         wall; 4 and 5 mirror 2 and 1 (ours).  Window 2 is the
-C         outline CMCAB draws, in look angles where CMCAB reads plot
-C         degrees, so near its top the two differ by up to 5 deg.
+C         wall; 4 and 5 mirror 2 and 1 (ours).  Window 2's corners are
+C         the means of the two eyes' corners in CMCAB's outlines, along
+C         CMDIR, so from the eye it lies between those outlines.
 C       Inner wall: the outer cone's "33 deg" half-angle (NASA TM X-
 C         1243, Fig. 1(a)) set in 4 in, from the floor's rim to the
 C         forward bulkhead; floor dish, bulkhead and tunnel are ours,
@@ -937,9 +947,9 @@ C     Window 1, left side; 2, left rendezvous; 3, hatch.
       DATA W1 / 0.742D0, -1.020D0, -0.851D0, 0.879D0, -0.939D0,
      &  -0.808D0, 0.902D0, -0.945D0, -0.778D0, 0.909D0, -1.016D0,
      &  -0.675D0, 0.744D0, -1.120D0, -0.711D0 /
-      DATA W2 / 0.924D0, -0.628D0, -1.034D0, 0.929D0, -0.612D0,
-     &  -1.040D0, 1.036D0, -0.579D0, -0.979D0, 1.058D0, -0.690D0,
-     &  -0.886D0, 0.996D0, -0.714D0, -0.918D0 /
+      DATA W2 / 0.924D0, -0.629D0, -1.034D0, 0.929D0, -0.611D0,
+     &  -1.040D0, 1.036D0, -0.577D0, -0.979D0, 1.058D0, -0.690D0,
+     &  -0.885D0, 0.996D0, -0.715D0, -0.917D0 /
       DATA W3 / 0.986D0, 0.089D0, -1.166D0, 0.942D0, 0.052D0,
      &  -1.197D0, 0.926D0, 0.0D0, -1.208D0, 0.942D0, -0.052D0,
      &  -1.197D0, 0.986D0, -0.089D0, -1.166D0, 1.044D0, -0.075D0,
