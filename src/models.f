@@ -919,6 +919,7 @@ C         3 (ours).
 C       Couches CDR, CMP, LMP from -Y, their back pans "32 by 22
 C         inches" (NR p. 79) under the eyes (DB's Y), the seat at the
 C         "85-degree position" (NR p. 72); leg pans and heights ours.
+C         The commander's back pan is not drawn (the eye is on it).
 C       Main display console, lower equipment bay, left and right hand
 C         equipment bays: placed by eye from AOH Figs. 1-26 and 1-27
 C         (ours).
@@ -1018,12 +1019,14 @@ C     Main display console.
       CALL XPOLY(4, D2, 1, 1.0D0)
       CALL XPOLY(4, D1, 1, 1.0D0)
       CALL XPOLY(4, D1, 1, -1.0D0)
-C     Couches: two sides, cross members at each joint.
+C     Couches: two sides, cross members at each joint; none for the
+C     commander's back pan.
       DO 50 J = -1, 1
         YC = 0.622D0 * DBLE(J)
         YA = YC - 0.279D0
         YB = YC + 0.279D0
         DO 40 K = 1, 5
+          IF (J .EQ. -1 .AND. K .EQ. 1) GO TO 40
           CALL XLINE(YA, CX(K), CZ(K), YB, CX(K), CZ(K), 0)
           IF (K .EQ. 5) GO TO 40
           L = K + 1
