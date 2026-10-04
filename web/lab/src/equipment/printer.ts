@@ -9,7 +9,7 @@
 // kernel listing on greenbar, the page's own column matched to the sheet's width.
 import * as THREE from "three";
 import type { BuildContext, Equipment, LabEvent } from "../types";
-import { PAL, Parts, at, canvasTex, chrome, grid, lampMat, lensGeo, paint, plastic, poseFrom, rng, smoked } from "./kit";
+import { PAL, Parts, at, canvasTex, chrome, grid, lampMat, lensGeo, nameplate, paint, plastic, poseFrom, rng, smoked } from "./kit";
 
 const PAGE = 11 * 0.0254, WIDE = 14.875 * 0.0254;   // 14 7/8 x 11 in fanfold (the usual 132-column stock; ours)
 const LINE = 0.0254 / 6;                             // six lines to the inch
@@ -49,6 +49,9 @@ export function build(_ctx: BuildContext): Equipment {
   for (const y of [0.02, 0.5]) { for (const x of [-bw / 2, bw / 2]) P.box(0.01, 0.01, bd, chrome(), x, y, bz); for (const z of [bz - bd / 2, bz + bd / 2]) P.box(bw, 0.01, 0.01, chrome(), 0, y, z); }
   P.bake(object).forEach(m => mine.push(m.geometry));
 
+  // The maker's plate on the hood's front, left of the print window (ours: the photographs show no legible plate).
+  const name = nameplate("UNIVAC", { height: 0.024, cap: 0.5, track: 0.16, bg: "#d6d7d3", fg: "#26292b" }, mine);
+  name.position.set(-0.5, 1.07, zc + D / 2 - 0.018); object.add(name);
   const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.04, 0.1), smoked(0.25)); mine.push(glass.geometry);
   glass.position.set(-0.1, 1.0, zc + D / 2 - 0.004); object.add(glass);
   const lamps = grid(lensGeo(), lampMat(), 3, 2, (c, r) => at(0.47 + c * 0.05, 1.03 - r * 0.05, zc + D / 2 - 0.005, 0, 0, 0, 0.018), (c, r) => [0x6cf08a, 0x2a2a26, 0xfff2dc, 0xffb040, 0x2a2a26, 0x2a2a26][r * 3 + c]);

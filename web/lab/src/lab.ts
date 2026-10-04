@@ -13,6 +13,7 @@ import { Dust } from "./room/dust";
 import { Post, markScreens } from "./post";
 import { RoomSound } from "./audio/roomsound";
 import { ROOM } from "./room/shell";
+import { PLATE_FONT } from "./equipment/kit";
 import { Walk, type Terminal } from "./walk";
 import type { CameraPose, LabEvent, LabHooks, Placed, Quality, Room } from "./types";
 
@@ -131,7 +132,8 @@ export class Lab {
     this.dust?.light(this.lighting.lit, this.room.glows ?? []);
 
     this.labelEl = document.createElement("div");
-    this.labelEl.style.cssText = "position:absolute;pointer-events:none;display:none;padding:2px 7px;font:12px/1.4 ui-monospace,monospace;color:#d6f5dc;background:rgba(4,10,6,.82);border:1px solid #3d5c45;border-radius:3px;white-space:nowrap;z-index:2";
+    // Hover and hint labels in the equipment's nameplate face, capitals (kit.ts PLATE_FONT).
+    this.labelEl.style.cssText = `position:absolute;pointer-events:none;display:none;padding:3px 8px 2px;font:10px/1.5 ${PLATE_FONT};letter-spacing:.12em;text-transform:uppercase;color:#d6f5dc;background:rgba(4,10,6,.82);border:1px solid #3d5c45;border-radius:3px;white-space:nowrap;z-index:2`;
     this.qualEl = document.createElement("button");
     this.qualEl.style.cssText = "position:absolute;right:10px;bottom:10px;z-index:2;padding:2px 8px;font:11px ui-monospace,monospace;color:#9fb8a5;background:rgba(4,10,6,.7);border:1px solid #2e4434;border-radius:3px;cursor:pointer";
     this.qualEl.onclick = () => this.setQuality(this.quality === "high" ? "low" : "high", true);

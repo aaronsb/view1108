@@ -55,7 +55,7 @@ function roomListingOpen() {
   if (!roomListing) { roomListing = true; $("list").classList.add("light", "open"); buildPaper(); $("paper").scrollTop = 0; }
   $("blroom").hidden = false;
 }
-function roomListingClose() { roomListing = false; $("blroom").hidden = true; $("list").classList.remove("open"); applyListing(); }
+function roomListingClose() { roomListing = false; $("blroom").hidden = true; $("list").classList.remove("open"); $("list").style.visibility = ""; applyListing(); }
 function roomRect(opens) {
   if (opens !== "listing") return roomScreenEl(opens).getBoundingClientRect();
   const p = $("paper").getBoundingClientRect(), g = $("paper").querySelector(".pg").getBoundingClientRect();
@@ -66,7 +66,7 @@ function roomRect(opens) {
 function roomScreenRect(opens) {
   const t = roomTabOf(opens);
   if (tab !== t) setTab(t);
-  if (opens === "listing") roomListingOpen();
+  if (opens === "listing") { roomListingOpen(); $("list").style.visibility = "hidden"; }   // laid out, unseen until arrival
   return roomRect(opens);
 }
 let roomFadeT = 0;
@@ -119,7 +119,7 @@ function roomArrive(opens) {
   if (canvasTab()) cv.focus({ preventScroll: true });
   const el = roomScreenEl(opens), inset = el && roomInset();
   if (inset) roomClip(el, inset, "inset(0px)");
-  if (opens === "listing") { roomListingOpen(); labEvent("print", performance.now(), 6); soundPrintFeed(); }   // the paper moves on as you arrive
+  if (opens === "listing") { roomListingOpen(); $("list").style.visibility = ""; labEvent("print", performance.now(), 6); soundPrintFeed(); }   // the paper moves on as you arrive
   roomFade(false, () => { if (el) roomUnclip(el); if (!roomShown) LAB.hide(); });
   roomSync();
 }
