@@ -339,8 +339,8 @@ export class Lab {
   }
 
   /** The pose square to the equipment's screen at which the picture's part of it (uvRect; the screen mesh a plane
-   *  in its local XY facing +Z, UVs running across its bounds) covers `rect` on the lab canvas. Matched on height,
-   *  or on width where that is the larger, so the screen covers the rect; centred on it. */
+   *  in its local XY facing +Z, UVs running across its bounds) spans `rect`'s height on the lab canvas, centred on
+   *  it. Where the rect is wider than the screen the page widens from the screen's rect (`mismatch`; room.js). */
   private matchShot(name: string, rect: DOMRect): Shot | null {
     const p = this.room.placed.find(q => q.name === name), sc = p?.equipment.anchors.screen;
     if (!p || !sc || rect.width < 2 || rect.height < 2) return null;
@@ -358,7 +358,7 @@ export class Lab {
     U.crossVectors(Nn, R);   // square the frame if the mesh is sheared
     const C = p00.clone().add(p10).add(p01).add(p11).multiplyScalar(0.25);
     const fov = p.equipment.anchors.camera?.fov ?? 35, tn = Math.tan(fov / 2 * D2R);
-    const d = Math.min(h * cr.height / (2 * tn * rect.height), w * cr.height / (2 * tn * rect.width));
+    const d = h * cr.height / (2 * tn * rect.height);
     const k = 2 * d * tn / cr.height;   // metres per CSS px at the screen
     const ox = rect.left + rect.width / 2 - (cr.left + cr.width / 2), oy = (cr.top + cr.height / 2) - (rect.top + rect.height / 2);
     const position = C.clone().addScaledVector(Nn, d).addScaledVector(R, -ox * k).addScaledVector(U, -oy * k);

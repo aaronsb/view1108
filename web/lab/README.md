@@ -48,10 +48,13 @@ which shows the tab (`"workbench"`: the last plot tab, `"source"`: Source), fade
 
 A flight into a terminal ends with the camera square to its screen, at the distance and offset where the picture's
 part of the screen (`anchors.screen`: a plane in the mesh's local XY facing +Z, `uvRect` the part in use) covers
-`screenRect(opens)` on the lab canvas: matched on height, or on width where that is the larger, centred. The vector
-screen carries `#cv` itself, so its edges land on the plot's own (within 0.1 px in the headless check); the page
-then crossfades over 250 ms (`ROOM_FADE` in `web/src/room.js`). Back out, the page measures the same rect, the lab
-starts at that pose under it, fades in, holds for the fade, then flies to the overview. Flights take 1 s (smoothstep,
+`screenRect(opens)` on the lab canvas: matched on height, centred. The vector screen carries `#cv` itself, so its
+edges land on the plot's own (within 0.1 px in the headless check); the page then crossfades over 250 ms
+(`ROOM_FADE` in `web/src/room.js`). Where the element is wider than the screen (the Source workspace on a wide window
+against the UNISCOPE's 2:1 face; 150 px a side at 2399 × 1101) the page also grows sideways out of the screen's rect
+during the crossfade (a `clip-path` inset from `info().mismatch`), and shrinks back into it before the room fades in.
+Back out, the page measures the same rect, the lab starts at that pose under it, fades in, holds for the fade, then
+flies to the overview. Flights take 1 s (smoothstep,
 with a slight rise mid-way); bloom eases out toward a screen so the last frame shows the plot as the page draws it.
 
 ### Rendering

@@ -52,22 +52,44 @@ function roomFade(into, done) {
   h.style.transition = `opacity ${ROOM_FADE}ms linear`; h.style.opacity = into ? "1" : "0";
   roomFadeT = setTimeout(() => { h.classList.remove("fading"); h.style.transition = h.style.opacity = ""; done(); }, ROOM_FADE);
 }
+// The lab matches the screen to the element's height. Where the element is wider (Source's workspace against the
+// UNISCOPE's 2:1 face) the page grows sideways out of the screen's rect as the room fades, and shrinks back into it
+// before the room fades in: a clip-path inset, from the lab's last match (null when the screen spans the element).
+function roomInset() {
+  const m = LAB.info()?.mismatch;
+  if (!m) return null;
+  const i = [m.dy0, -m.dx1, -m.dy1, m.dx0].map(v => Math.max(0, v));
+  return i.some(v => v > 2) ? `inset(${i.map(v => v.toFixed(1) + "px").join(" ")})` : null;
+}
+function roomClip(el, from, to) {
+  el.style.transition = "none"; el.style.clipPath = from;
+  void el.offsetWidth;
+  el.style.transition = `clip-path ${ROOM_FADE}ms cubic-bezier(.25,.7,.3,1)`; el.style.clipPath = to;
+}
+const roomUnclip = el => { el.style.transition = el.style.clipPath = ""; };
 // Show the room; from a terminal ("vector", "glass") the lab starts square to its screen and fades in over the page.
 function roomShowLab(from) {
   if (canvasTab()) roomCanvasTab = tab;
   roomShown = true; roomPlace();
   if (!from) { document.body.classList.add("room"); LAB.show(); roomSync(); return; }
-  const rect = roomScreenEl(from === "glass" ? "source" : "workbench").getBoundingClientRect();
+  const el = roomScreenEl(from === "glass" ? "source" : "workbench"), rect = el.getBoundingClientRect();
   $("labhost").classList.add("fading"); $("labhost").style.opacity = "0";
   LAB.show(from, rect, ROOM_FADE);
-  roomFade(true, () => document.body.classList.add("room"));
+  const inset = roomInset(), fadeIn = () => roomFade(true, () => { roomUnclip(el); document.body.classList.add("room"); });
+  if (inset) {
+    LAB.show(from, rect, 2 * ROOM_FADE);   // hold through the shrink as well
+    roomClip(el, "inset(0px)", inset); clearTimeout(roomFadeT); roomFadeT = setTimeout(fadeIn, ROOM_FADE);
+  }
+  else fadeIn();
   roomSync();
 }
 function roomArrive(opens) {
   roomShown = false; document.body.classList.remove("room");
   setTab(opens === "source" ? "source" : roomCanvasTab);
   if (canvasTab()) cv.focus({ preventScroll: true });
-  roomFade(false, () => { if (!roomShown) LAB.hide(); });
+  const el = roomScreenEl(opens), inset = roomInset();
+  if (inset) roomClip(el, inset, "inset(0px)");
+  roomFade(false, () => { roomUnclip(el); if (!roomShown) LAB.hide(); });
   roomSync();
 }
 // Enter or leave the room to match the choice, the screen width and what the lab could do.
