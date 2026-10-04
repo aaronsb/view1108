@@ -1,6 +1,7 @@
 // Airborne dust: soft motes drifting slowly through a box, catching the light. Additive and depth-tested.
 // Ported from progression (src/eras/teletype/realism/dust.ts, MIT, same author).
 import * as THREE from "three";
+import type { Glow } from "../types";
 
 export interface DustOptions {
   box: THREE.Box3;   // region the motes drift in, metres
@@ -17,6 +18,7 @@ export class Dust {
   private velocity: Float32Array;
   private sprite: THREE.CanvasTexture;
   private time = 0;
+  private base: THREE.Color;
 
   constructor(o: DustOptions) {
     const n = o.count ?? 300;
@@ -45,10 +47,13 @@ export class Dust {
     this.sprite = new THREE.CanvasTexture(c);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    this.base = new THREE.Color(o.color ?? 0xf4f6ff);
+    geo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(n * 3), 3));
     this.object = new THREE.Points(geo, new THREE.PointsMaterial({
-      size: o.size ?? 0.004, map: this.sprite, color: o.color ?? 0xf4f6ff, transparent: true, opacity: o.opacity ?? 0.3,
+      size: o.size ?? 0.004, map: this.sprite, vertexColors: true, transparent: true, opacity: o.opacity ?? 0.3,
       depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true, fog: false,
     }));
+    this.light(1, []);
     this.object.frustumCulled = false;
   }
 
@@ -68,6 +73,22 @@ export class Dust {
       if (a[i + 2] > max.z) a[i + 2] = min.z;
     }
     p.needsUpdate = true;
+  }
+
+  /** Light the motes: `ambient` of their own colour (the troffers' share, 0..1) plus the glows' colours near them, so
+   *  with the room dark they catch the screens' light (ours). */
+  light(ambient: number, glows: Glow[]): void {
+    const p = this.object.geometry.getAttribute("position") as THREE.BufferAttribute, c = this.object.geometry.getAttribute("color") as THREE.BufferAttribute;
+    const a = p.array as Float32Array, col = c.array as Float32Array, g = new THREE.Color();
+    for (let i = 0; i < a.length; i += 3) {
+      let r = this.base.r * ambient, gg = this.base.g * ambient, b = this.base.b * ambient;
+      for (const s of glows) {
+        const dx = a[i] - s.pos.x, dy = a[i + 1] - s.pos.y, dz = a[i + 2] - s.pos.z, k = 2.2 * s.intensity / (1 + (dx * dx + dy * dy + dz * dz) / 0.25);
+        g.set(s.color); r += g.r * k; gg += g.g * k; b += g.b * k;
+      }
+      col[i] = r; col[i + 1] = gg; col[i + 2] = b;
+    }
+    c.needsUpdate = true;
   }
 
   dispose() {

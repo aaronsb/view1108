@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { build as buildRoom } from "./room/room";
 import { Lighting } from "./room/lighting";
 import { Dust } from "./room/dust";
-import { EXPOSURE, Post, markScreens } from "./post";
+import { Post, markScreens } from "./post";
 import { RoomSound } from "./audio/roomsound";
 import { ROOM } from "./room/shell";
 import { Walk, type Terminal } from "./walk";
@@ -29,7 +29,7 @@ const PASS = /^(Escape|Tab|F\d+|m|M)$/;
 // <ms> to the checks: the test hook for the decision path.
 const PROBE = { skip: 4, frames: 24, budget: 1500, ms: 24 };
 const WATCH = { span: 2000, ms: 22 };
-const QKEY = "view1108.labq";
+const QKEY = "view1108.labq", LKEY = "view1108.lights";
 const ease = (t: number) => t * t * (3 - 2 * t);
 const D2R = Math.PI / 180;
 
@@ -101,15 +101,16 @@ export class Lab {
     if (this.room.air) { this.dust = new Dust({ box: this.room.air, count: 420, size: 0.006, opacity: 0.22 }); this.scene.add(this.dust.object); }
     this.home = shotOf(this.room.overview);
     this.sound = new RoomSound(this.room, this.camera, hooks.state, () => this.shown);
-    const terminals: Terminal[] = this.room.placed.filter(p => p.equipment.opens && p.equipment.anchors.screen).map(p => {
+    const terminals: Terminal[] = this.room.placed.filter(p => (p.equipment.opens || p.name === "switch") && p.equipment.anchors.screen).map(p => {
       // A screen lying flat (the printer's sheet) faces the way its machine does.
       const m = p.equipment.anchors.screen!.mesh, n = new THREE.Vector3(0, 0, 1).transformDirection(m.matrixWorld);
       if (Math.abs(n.y) > 0.7) n.set(0, 0, 1).transformDirection(p.equipment.object.matrixWorld);
-      return { name: p.name, screen: new THREE.Vector3().setFromMatrixPosition(m.matrixWorld), normal: new THREE.Vector2(n.x, n.z).normalize() };
+      return { name: p.name, screen: new THREE.Vector3().setFromMatrixPosition(m.matrixWorld), normal: new THREE.Vector2(n.x, n.z).normalize(), use: !p.equipment.opens };
     });
     this.walk = new Walk(this.room.footprints ?? [], { x: ROOM.w / 2, z: ROOM.d / 2 }, terminals, {
       step: fast => this.sound.footstep(fast),
       enter: name => { this.setTarget(name); },
+      use: name => this.room.placed.find(p => p.name === name)?.equipment.use?.(),
     });
     this.walk.setFrom(this.home.position, this.home.quaternion);
 
@@ -121,7 +122,13 @@ export class Lab {
     const gl = this.renderer.getContext(), dbg = gl.getExtension("WEBGL_debug_renderer_info");
     const soft = /swiftshader|llvmpipe|software/i.test(String(gl.getParameter(dbg ? dbg.UNMASKED_RENDERER_WEBGL : gl.RENDERER)));
     this.quality = this.qForced ?? (soft && this.fakeMs === null ? "low" : "high");
-    this.lighting = new Lighting(this.renderer, this.scene, this.quality);
+    let lights: string | null = null;
+    try { lights = localStorage.getItem(LKEY); } catch { /* storage unavailable */ }
+    this.lighting = new Lighting(this.renderer, this.scene, this.quality, k => this.room.tubes?.(k), this.room.glows ?? [], lights !== "0");
+    this.room.setLights?.(this.lighting.on);
+    const sw = this.room.placed.find(p => p.name === "switch");
+    if (sw) sw.equipment.use = () => this.lights(!this.lighting.on);
+    this.dust?.light(this.lighting.lit, this.room.glows ?? []);
 
     this.labelEl = document.createElement("div");
     this.labelEl.style.cssText = "position:absolute;pointer-events:none;display:none;padding:2px 7px;font:12px/1.4 ui-monospace,monospace;color:#d6f5dc;background:rgba(4,10,6,.82);border:1px solid #3d5c45;border-radius:3px;white-space:nowrap;z-index:2";
@@ -191,6 +198,25 @@ export class Lab {
     return true;
   }
 
+  /** The light switch: the troffers on (striking one by one) or off; remembered. Returns the state. */
+  lights(on?: boolean): boolean {
+    if (on !== undefined && on !== this.lighting.on) {
+      this.lighting.switch(on);
+      this.room.setLights?.(on);
+      try { localStorage.setItem(LKEY, on ? "1" : "0"); } catch { /* ignore */ }
+      this.lit();
+    }
+    return this.lighting.on;
+  }
+
+  /** The exposure and the dust for the light there is now. */
+  private lit(): void {
+    const e = this.lighting.exposure, L = this.lighting.lit;
+    this.renderer.toneMappingExposure = e;
+    if (this.post) this.post.exposure = e;
+    this.dust?.light(L, L < 1 ? (this.room.glows ?? []).map(g => ({ ...g, intensity: g.intensity * (1 - L) })) : []);
+  }
+
   event(e: LabEvent): void {
     const s = this.hooks.state();
     for (const p of this.room.placed) p.equipment.event?.(e, s);
@@ -242,7 +268,7 @@ export class Lab {
 
   get info() {
     const w = this.walk;
-    return { quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
+    return { lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
       walk: { x: w.pos.x, z: w.pos.y, yaw: w.yaw / D2R, pitch: w.pitch / D2R, near: w.near?.name ?? null } };
   }
 
@@ -280,6 +306,8 @@ export class Lab {
     for (const p of this.room.placed) p.equipment.update?.(dt, s);
     this.room.update?.(dt, s);
     this.dust?.update(dt);
+    const was = this.lighting.lit; this.lighting.update(dt);
+    if (this.lighting.lit < 1 || this.lighting.lit !== was) this.lit();
     let landed: (() => void) | undefined;
     if (this.flight) landed = this.stepFlight(now);
     else if (this.mode === "free") { this.walk.update(Math.min(0.25, raw)); if (this.mode === "free") this.applyWalk(); }
@@ -336,10 +364,10 @@ export class Lab {
     const high = this.quality === "high", r = this.renderer;
     r.setPixelRatio(Math.min(high ? 2 : 1.25, window.devicePixelRatio || 1));
     r.toneMapping = high ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;   // high: the post chain's tone pass
-    r.toneMappingExposure = EXPOSURE;
     this.post?.dispose(); this.post = null;
     r.setSize(this.size.w, this.size.h, false);
     if (high) this.post = new Post(r, this.scene, this.camera);
+    this.lit();
     this.qualEl.textContent = `${high ? "HIGH" : "LOW"}${this.qForced ? "" : this.slow ? " (auto: slow)" : " (auto)"}`;
     this.qualEl.title = (this.slow && !this.qForced ? "Switched to low: frames took too long at high. " : "") +
       "Rendering quality: click to switch (remembered; ?labq=low|high for one visit)";
@@ -403,7 +431,7 @@ export class Lab {
     if (!t) { if (this.labelEl.dataset.hint) { this.labelEl.style.display = "none"; delete this.labelEl.dataset.hint; } return; }
     if (this.hover) return;
     const v = t.screen.clone().project(this.camera), r = this.renderer.domElement.getBoundingClientRect(), hr = this.host.getBoundingClientRect();
-    this.labelEl.textContent = `${this.room.labels?.[t.name] ?? t.name} · approach or press E`;
+    this.labelEl.textContent = `${this.room.labels?.[t.name] ?? t.name} · ${t.use ? "press E or L" : "approach or press E"}`;
     this.labelEl.style.left = `${r.left - hr.left + (v.x + 1) / 2 * r.width}px`;
     this.labelEl.style.top = `${r.top - hr.top + (1 - v.y) / 2 * r.height + 24}px`;
     this.labelEl.style.display = "block"; this.labelEl.dataset.hint = t.name;
@@ -519,6 +547,7 @@ export class Lab {
     if (this.mode !== "free") return;
     if (this.walk.key(e.key, true, e.shiftKey)) e.preventDefault();
     else if ((e.key === "e" || e.key === "E" || e.key === "Enter") && this.walk.enter()) e.preventDefault();
+    else if (e.key === "l" || e.key === "L") { e.preventDefault(); this.lights(!this.lighting.on); }
     else if (e.key === " ") e.preventDefault();
   };
 
@@ -535,7 +564,7 @@ export class Lab {
       while (o && o.userData.placed === undefined) o = o.parent;
       if (!o) continue;   // the shell
       const p = this.room.placed.find(q => q.name === o!.userData.placed);
-      return p && p.equipment.opens ? p : null;
+      return p && (p.equipment.opens || p.equipment.use) ? p : null;
     }
     return null;
   }
@@ -544,7 +573,7 @@ export class Lab {
     if (this.mode !== "free") return;
     const p = this.hit(x, y);
     this.renderer.domElement.style.cursor = p ? "pointer" : "";
-    if (click) { if (p) this.setTarget(p.name); return; }
+    if (click) { if (p?.equipment.use) p.equipment.use(); else if (p) this.setTarget(p.name); return; }
     if (p !== this.hover) { this.clearHover(); if (p) this.lift(p, true); this.hover = p; }
     const label = p && this.room.labels?.[p.name];
     if (label) {

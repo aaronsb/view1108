@@ -66,6 +66,8 @@ export interface Equipment {
   object: THREE.Object3D;
   anchors: Anchors;
   opens?: Opens;
+  /** Something done in place when clicked or used on foot (E), instead of opening a tab: the light switch. */
+  use?(): void;
   update?(dt: number, state: LabState): void;
   event?(e: LabEvent, state: LabState): void;
   dispose?(): void;
@@ -104,9 +106,18 @@ export interface Room {
   labels?: Record<string, string>;
   /** Region the dust drifts in. */
   air?: THREE.Box3;
+  /** The light switch: whether the troffers are on (the soundscape's ballasts follow it), setting it (the switch's
+   *  lever), each tube's light, and the dim lights that stand for the equipment's glow when they are off. */
+  lightsOn?: boolean;
+  setLights?(on: boolean): void;
+  tubes?(level: (k: number) => number): void;
+  glows?: Glow[];
   update?(dt: number, state: LabState): void;
   dispose?(): void;
 }
+
+/** A dim light standing for an equipment's glow (a screen, a lamp row, the EXIT sign) with the troffers off. */
+export interface Glow { pos: THREE.Vector3; color: number; intensity: number; distance: number }
 
 /** Rendering tier: "high" (shadows, ambient occlusion, bloom) or "low" (direct render, no post). */
 export type Quality = "high" | "low";

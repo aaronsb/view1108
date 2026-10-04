@@ -3,6 +3,7 @@
 // footprint (a circle against rectangles: pushed out along the shallower side, so it slides along them). Near a
 // terminal that opens a tab, in front of its screen and facing it, a short dwell or E/Enter flies in; a terminal
 // re-arms only once the viewer has stepped back out of a slightly larger zone, so leaving one does not pull back in.
+// Something used in place (the light switch) has the same zone but no dwell: E uses it.
 import * as THREE from "three";
 import type { Footprint } from "./types";
 
@@ -17,8 +18,9 @@ const MOVE: Record<string, [number, number]> = {
   w: [1, 0], arrowup: [1, 0], s: [-1, 0], arrowdown: [-1, 0], a: [0, -1], arrowleft: [0, -1], d: [0, 1], arrowright: [0, 1],
 };
 
-/** A terminal the walk can enter: its screen's centre and its facing (horizontal unit normal) in the room. */
-export interface Terminal { name: string; screen: THREE.Vector3; normal: THREE.Vector2 }
+/** A terminal the walk can enter (or, with `use`, use in place): its screen's centre and its facing (horizontal unit
+ *  normal) in the room. */
+export interface Terminal { name: string; screen: THREE.Vector3; normal: THREE.Vector2; use?: boolean }
 
 export class Walk {
   readonly pos = new THREE.Vector2();
@@ -34,7 +36,7 @@ export class Walk {
   private armed = new Map<string, boolean>();
 
   constructor(private footprints: Footprint[], private half: { x: number; z: number }, readonly terminals: Terminal[],
-    private on: { step(fast: boolean): void; enter(name: string): void }) {}
+    private on: { step(fast: boolean): void; enter(name: string): void; use(name: string): void }) {}
 
   /** Stand where the camera is, looking where it looks. */
   setFrom(position: THREE.Vector3, quaternion: THREE.Quaternion): void {
@@ -74,10 +76,12 @@ export class Walk {
   /** Not re-entered until the viewer leaves its re-arm zone. */
   disarm(name: string): void { this.armed.set(name, false); this.dwell = 0; this.near = null; }
 
-  /** E or Enter: fly into the terminal in range. */
+  /** E or Enter: fly into the terminal in range, or use it. */
   enter(): boolean {
-    if (!this.near) return false;
-    const n = this.near.name; this.disarm(n); this.on.enter(n);
+    const t = this.near;
+    if (!t) return false;
+    if (t.use) { this.on.use(t.name); return true; }
+    this.disarm(t.name); this.on.enter(t.name);
     return true;
   }
 
@@ -129,7 +133,7 @@ export class Walk {
     }
     if (near !== this.near) this.dwell = 0;
     this.near = near;
-    if (near && (this.dwell += dt) >= ZONE.dwell) this.enter();
+    if (near && !near.use && (this.dwell += dt) >= ZONE.dwell) this.enter();
   }
 
   /** Where to stand after leaving a terminal: `back` metres out from its screen, outside its re-arm zone. */

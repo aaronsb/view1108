@@ -39,6 +39,7 @@ is chosen.
 | `event(e)` | pass a page event to every placed equipment |
 | `info()`, `project(name)` | for tests: quality, draw calls and triangles of the last frame, the last handover's mismatch, the walk (`x`, `z`, `yaw`, `pitch`, `near`); a placed equipment's screen in client px |
 | `plan(px?)`, `layout()`, `stand(x, z, yaw, pitch?)` | for tests: the room from above as a PNG data URL; the footprints, door and terminals; stand somewhere walking |
+| `lights(on?)` | the light switch: set the troffers on or off (omitted: leave them); returns the state |
 
 `hooks` (`LabHooks` in `src/types.ts`): `screens.vector` is the plot canvas `#cv`; `state()` returns the
 `LabState` below, read once per rendered frame; `screenRect(opens)` lays the page out for that tab behind the room
@@ -92,6 +93,8 @@ Budget at the overview (1600 × 900): high about 230 draw calls and 140k triangl
 merge into one mesh per material, repeated loose parts (reels, glass) become instanced meshes and the machines'
 lamp grids one instanced mesh per geometry and material, copied from the hidden originals each frame, which the
 machines keep animating and the picking keeps hitting. Equipment that opens a tab is not batched.
+
+The light switch (ours) is on the south wall by the door's latch, a `"switch"` placed piece with a `use()`: a click, `E` in its zone or `L` while the room is shown flips it, and `view1108.lights` remembers it. `room.lightsOn` is its state (the soundscape's ballasts follow it). Off, `lighting.ts` darkens the troffers (per tube, through their instance colour), the area lights and the key, drops the fill to a faint blue, raises the exposure (1.0 lit, 2.1 dark; the high tier's tone pass, the low tier's renderer) and adds `room.glows`, dim point lights standing for what stays lit: the 1558's, UNISCOPE's and film recorder's screens, the tape units' lamp row and the EXIT sign (their lamps and screens are unlit materials and shine regardless); the dust motes take the glows' colours near them. On, each tube strikes after up to half a second (two of them a second or two late), flickers for a quarter to half a second, then warms up over a second; the glows go when the last tube is steady, so the lit room pays nothing for them.
 
 `LabState`: `tab`, `mode`, `playing`, `get`, `scene`, `frameNo` (kernel frames drawn; the lab re-uploads the
 vector screen texture when it moves), and `sound` = `{ ctx, out, on, bed, whine }`, the page's `AudioContext`, master gain

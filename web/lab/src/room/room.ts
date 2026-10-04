@@ -8,14 +8,14 @@
 // with the UNISCOPE 100 beside the 1558 graphic console, turned toward the viewer, with its 1557 controller behind
 // them. Along the east wall the microfilm recorder, downstream of the computer as the film was, then the printer;
 // the card reader in the south-west corner. The door is in the south wall, west of centre, with nothing in its
-// swing and a clear aisle from it into the room; every front has an aisle of at least 0.9 m (the plan's check,
-// `footprints`, is what the walk collides with).
+// swing and a clear aisle from it into the room, and the light switch on its latch side; every front has an aisle of
+// at least 0.9 m (the plan's check, `footprints`, is what the walk collides with).
 //
 // A name the registry lacks is placed as a neutral grey box of its FOOTPRINT, so the room composes before every
 // module exists.
 import * as THREE from "three";
 import { EQUIPMENT, FOOTPRINT } from "../equipment";
-import type { BuildContext, Equipment, Footprint, Placed, Room } from "../types";
+import type { BuildContext, Equipment, Footprint, Glow, Placed, Room } from "../types";
 import { DOOR, ROOM, buildShell } from "./shell";
 import { batch } from "./batch";
 
@@ -78,19 +78,63 @@ export function build(ctx: BuildContext): Room {
   place("filmrecorder", [wW - 0.47, 0, 0.85], W, "filmrecorder");
   place("printer", [wW - 0.4, 0, 2.75], W, "printer");
   place("cardreader", [-wW + 0.37, 0, nW - 0.65], E);
+
+  // The light switch (ours): a period toggle plate on the door's latch side; Lab gives it its `use`.
+  const sw = lightSwitch();
+  sw.object.position.set(DOOR.x + DOOR.w / 2 + 0.22, 1.2, nW - 0.004); sw.object.rotation.y = Math.PI;
+  sw.object.userData.placed = "switch"; object.add(sw.object);
+  placed.push({ name: "switch", equipment: sw });
+
+  // What stays lit with the troffers off, as dim lights: the screens, the tape units' lamp row, the EXIT sign.
+  object.updateMatrixWorld(true);
+  const glows: Glow[] = [];
+  const glow = (name: string, color: number, intensity: number, distance: number) => {
+    const m = placed.find(p => p.name === name)?.equipment.anchors.screen?.mesh;
+    if (!m) return;
+    const n = new THREE.Vector3(0, 0, 1).transformDirection(m.matrixWorld);
+    glows.push({ pos: new THREE.Vector3().setFromMatrixPosition(m.matrixWorld).addScaledVector(n, 0.3), color, intensity, distance });
+  };
+  glow("vector", 0xcfe2ff, 0.9, 3.2);
+  glow("glass", 0x7dff9a, 0.45, 2.4);
+  glow("filmrecorder", 0xbcd4ff, 0.25, 2);
+  glows.push({ pos: new THREE.Vector3(-0.24, 1.75, -nW + 1.0), color: 0xffe6c0, intensity: 0.3, distance: 4.5 });
+  glows.push({ pos: shell.exit.clone(), color: 0xff2a1a, intensity: 0.35, distance: 2.5 });
+
   const batches = batch(object, placed);
   object.add(batches.object);
 
-  return {
+  const room: Room = {
     object,
     placed,
     footprints,
     door: { x: DOOR.x, z: nW, w: DOOR.w },
     overview: { position: new THREE.Vector3(2.4, 1.62, 3.15), target: new THREE.Vector3(0.1, 1.0, -1.6), fov: 55 },
     labels: { vector: "UNIVAC 1558 — workbench", glass: "UNISCOPE 100 — source", filmrecorder: "Microfilm recorder (S-C 4020, hypothetical) — print",
-      printer: "Line printer — listing" },
+      printer: "Line printer — listing", switch: "Lights" },
+    lightsOn: true,
+    setLights(on) { room.lightsOn = on; sw.set(on); },
+    tubes: level => shell.tubes(level),
+    glows,
     air: new THREE.Box3(new THREE.Vector3(-4, 0.3, -2.9), new THREE.Vector3(4, 2.5, 3.1)),
     update() { shell.update(); batches.update(); },
-    dispose() { shell.dispose(); batches.dispose(); STANDIN.dispose(); },
+    dispose() { shell.dispose(); batches.dispose(); sw.dispose?.(); STANDIN.dispose(); },
+  };
+  return room;
+}
+
+/** A wall toggle switch on a cream plate, its lever up for on. The plate is its screen anchor (walking up to it). */
+function lightSwitch(): Equipment & { set(on: boolean): void } {
+  const object = new THREE.Group(), mine: { dispose(): void }[] = [];
+  const plateMat = new THREE.MeshStandardMaterial({ color: 0xe9e2cf, roughness: 0.45 }), leverMat = new THREE.MeshStandardMaterial({ color: 0xf2eee2, roughness: 0.3 });
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.115, 0.006), plateMat); plate.position.z = 0.003;
+  const lever = new THREE.Mesh(new THREE.BoxGeometry(0.009, 0.028, 0.009).translate(0, 0.014, 0.0045), leverMat);
+  lever.position.z = 0.007; lever.rotation.x = -0.45;
+  for (const m of [plate, lever]) { mine.push(m.geometry); object.add(m); }
+  mine.push(plateMat, leverMat);
+  return {
+    object,
+    anchors: { screen: { mesh: plate, uvRect: [0, 0, 1, 1] } },
+    set(on) { lever.rotation.x = on ? -0.45 : -Math.PI + 0.45; },
+    dispose() { mine.forEach(d => d.dispose()); },
   };
 }

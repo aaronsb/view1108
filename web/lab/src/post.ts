@@ -63,6 +63,7 @@ export function markScreens(root: THREE.Object3D): void {
 export class Post {
   private composer: EffectComposer;
   private bloom: UnrealBloomPass;
+  private tone: ShaderPass;
 
   constructor(private renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
     const size = renderer.getSize(new THREE.Vector2()), pr = renderer.getPixelRatio();
@@ -75,7 +76,8 @@ export class Post {
     ao.updateGtaoMaterial({ radius: 0.35, samples: 12, distanceExponent: 1, thickness: 1, scale: 1 });
     ao.blendIntensity = 0.8;
     this.composer.addPass(ao);
-    this.composer.addPass(new ShaderPass(ToneShader));
+    this.tone = new ShaderPass(ToneShader);
+    this.composer.addPass(this.tone);
     this.bloom = new UnrealBloomPass(size.clone(), BLOOM, 0.45, 0.82);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());   // sRGB only: the renderer's tone mapping is off in this tier
@@ -83,6 +85,9 @@ export class Post {
 
   /** Bloom strength as a fraction of its usual (the handover turns it down near a screen, as the page has none of ours). */
   set glow(f: number) { this.bloom.strength = BLOOM * f; }
+
+  /** The tone pass's exposure (the lights' level; lighting.ts). */
+  set exposure(v: number) { this.tone.uniforms.exposure.value = v; }
 
   setSize(w: number, h: number): void {
     this.composer.setPixelRatio(this.renderer.getPixelRatio());

@@ -22,6 +22,10 @@ const CLOCK = { x: 0, y: 2.32, r: 0.16 };    // on the north wall, above the tap
 
 export interface Shell {
   object: THREE.Group;
+  /** Each tube's light, 0 (off) to 1, by troffer (row-major over TROFFERS.rows, TROFFERS.xs). */
+  tubes(level: (k: number) => number): void;
+  /** Where the EXIT sign's face is, for its glow. */
+  exit: THREE.Vector3;
   update(): void;
   dispose(): void;
 }
@@ -90,6 +94,7 @@ export function buildShell(aniso: number): Shell {
   const exitTex = exitSign(aniso); texs.push(exitTex);
   const sign = mesh(new THREE.BoxGeometry(0.36, 0.17, 0.07), new THREE.MeshStandardMaterial({ color: 0xe8e6de, roughness: 0.6 }));
   sign.position.set(DOOR.x, DOOR.h + 0.2, D / 2 - 0.04);
+  const exit = sign.position.clone().setZ(D / 2 - 0.12);
   const face = new THREE.Mesh(new THREE.PlaneGeometry(0.33, 0.14), new THREE.MeshBasicMaterial({ map: exitTex, toneMapped: false }));
   geos.push(face.geometry); mats.push(face.material);
   face.position.set(0, 0, -0.036); face.rotation.y = Math.PI; sign.add(face);
@@ -97,8 +102,16 @@ export function buildShell(aniso: number): Shell {
   // Troffers: steel housings and glowing diffusers, instanced (two draw calls for all of them).
   const n = TROFFERS.rows.length * TROFFERS.xs.length, m4 = new THREE.Matrix4();
   const housing = new THREE.InstancedMesh(new THREE.BoxGeometry(TROFFERS.len + 0.04, 0.03, TROFFERS.wid + 0.04), new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.4, metalness: 0.2 }), n);
-  const diffuser = new THREE.InstancedMesh(new THREE.PlaneGeometry(TROFFERS.len, TROFFERS.wid).rotateX(Math.PI / 2),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xeef4ff, emissiveIntensity: 2.6, roughness: 1 }), n);
+  // Each diffuser's glow is its instance colour times the emissive (the light switch dims and flickers them one by one);
+  // the instance colour leaves the diffuse colour alone, so an unlit tube is a white panel.
+  const diffMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xeef4ff, emissiveIntensity: 2.6, roughness: 1 });
+  diffMat.onBeforeCompile = s => {
+    s.fragmentShader = s.fragmentShader.replace("#include <color_fragment>", "")
+      .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n#ifdef USE_COLOR\n  totalEmissiveRadiance *= vColor.rgb;\n#endif");
+  };
+  const diffuser = new THREE.InstancedMesh(new THREE.PlaneGeometry(TROFFERS.len, TROFFERS.wid).rotateX(Math.PI / 2), diffMat, n);
+  const white = new THREE.Color(1, 1, 1);
+  for (let i = 0; i < n; i++) diffuser.setColorAt(i, white);
   let k = 0;
   for (const z of TROFFERS.rows) for (const x of TROFFERS.xs) {
     housing.setMatrixAt(k, m4.makeTranslation(x, H - 0.01, z));
@@ -119,8 +132,14 @@ export function buildShell(aniso: number): Shell {
   const hh = hand(CLOCK.r * 0.55, 0.014, 0.004, black), mh = hand(CLOCK.r * 0.82, 0.009, 0.006, black);
   const sh = hand(CLOCK.r * 0.86, 0.003, 0.008, new THREE.MeshStandardMaterial({ color: 0xb02a1a, roughness: 0.5 }));
 
+  const lvl = new THREE.Color();
   return {
     object,
+    exit,
+    tubes(level) {
+      for (let i = 0; i < n; i++) { const v = level(i); diffuser.setColorAt(i, lvl.setRGB(v, v, v)); }
+      diffuser.instanceColor!.needsUpdate = true;
+    },
     update() {
       const t = new Date(), s = t.getSeconds() + t.getMilliseconds() / 1000, m = t.getMinutes() + s / 60, h = (t.getHours() % 12) + m / 60;
       sh.rotation.z = -s / 60 * 2 * Math.PI;
