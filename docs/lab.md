@@ -67,5 +67,31 @@ Sizes are W x H x D in metres.
 - **Desk clock.** It shows Houston time for the replay's moment: Central time, with daylight time from the last Sunday
   in April to the last Sunday in October (Uniform Time Act of 1966).
 
-Not modelled: drums (FH-432/1782, FASTRAND; we cannot identify them in the MSC photo), a keypunch, and the microfilm
-recorder (no source names MSC's).
+Not modelled: drums (FH-432/1782, FASTRAND; we cannot identify them in the MSC photo; they are heard, see Sound), a
+keypunch, and the microfilm recorder (no source names MSC's).
+
+## Sound
+
+The room has its own soundscape (`web/lab/src/audio/`), synthesized with WebAudio: oscillators, noise made in code,
+filters, a panner per source and one convolver with a made-up response for the room (0.45 s, ours). No source says
+what MSC's machine room sounded like. The aim is a room that was "not quiet but tolerable", with the air handling
+and the fans as a steady bed and the machines heard when you are near them. It plays only with Sound on, through
+the page's master gain, so the Sound button and M mute it everywhere (a 15 ms fade, then the context suspends). While
+the room runs it replaces the page's ambience bed (`web/src/sound.js`); Tiled plays that bed. With a terminal's page
+shown the room ducks 8 dB and its tape units keep turning, so an engine run is still heard.
+
+| Source | Where | What it is | Sourced | Ours |
+|---|---|---|---|---|
+| Air handling | 3 ceiling diffusers, 2 perforated floor tiles | pink noise low-passed to a rumble (most of it under 120 Hz) and band-passed to a hiss (450 to 1000 Hz); slow drift | the raised floor and dropped ceiling (MSC photo) | everything else |
+| Cabinet fans | each 1108 cabinet and the 1557 | a blade-pass tone over band-limited noise, and a faint mains hum (60 Hz and harmonics, 120 Hz strongest) | US mains, 60 Hz | 3,420 to 3,480 rev/min, 5 blades (285 to 290 Hz, so neighbours beat); levels |
+| FH-432 drums | behind the west wall | three drums at 120 Hz and harmonics, windage from the flying heads | 7,200 rev/min (UP-4046 p. 8-5); three FH-432 (or one FH-1782, 1,800 rev/min, p. 8-6) in the minimum system (p. 5-3) | that MSC had these, their place, the slight detune, the windage |
+| FASTRAND II | behind the west wall | a rumble modulated at 14.7 Hz, low harmonics, head seeks (a knock and a click) | 880 rev/min (p. 8-10); 64 heads moved together in 30 to 86 ms (p. 8-8); one FASTRAND in the minimum system (p. 5-3) | the sound of a seek; seeks every 4 to 15 s, and a burst on each engine run |
+| Tape units | each UNISERVO | at rest a faint vacuum blower; moving, two reel-motor whines pitched at the reels' speed, the vacuum columns' air and the tape's hiss; a knock at start and stop | speeds (UP-4046 sec. 8.4.2); the reels' motion from the unit's model | 24 commutator bars (so the whine is 90 to 200 Hz reading, twice that on rewind); levels |
+| Ballasts | each troffer row | 120 Hz hum with harmonics; a strike ticks, flickers and buzzes | | the model (magnetic ballasts hum at twice the mains frequency); it follows the room's light switch (`room.lightsOn`, on when absent) |
+
+The panners use the inverse distance law (1 m reference; rolloff 1 for the machines, 0.5 to 0.8 for the air, the
+drums and the ballasts). The drums are low-passed (1.1 to 1.4 kHz) as heard through the wall. At the overview the
+mix is about -29 dBFS RMS (peaks -13 dBFS) with this spread (share of the power by octave band, dB): 20-63 Hz -7.5,
+63-125 -4.3, 125-250 -10.7, 250-500 -15.6, 500-1k -15.7, 1-2k -16.4, 2-4k -20.5, 4-8k -26.3, 8-16k -34.8. Standing at a
+tape unit raises its level about 10 dB over the overview, and its burst of reads lifts the mix there about 3 dB. The
+printer's sounds come from `web/src/sound.js`.

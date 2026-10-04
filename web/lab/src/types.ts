@@ -12,7 +12,9 @@ export interface LabState {
   get: number;            // g.e.t., s
   scene: number;
   frameNo: number;        // kernel frames drawn since boot; the vector screen is stale when this moves
-  sound: { ctx: AudioContext | null; out: AudioNode | null; on: boolean };   // web/src/sound.js sndCtx, sndOut, sndOn
+  /** web/src/sound.js sndCtx, sndOut, sndOn, and soundBed (the page's ambience bed on or off; the room's sound
+   *  replaces it while the room runs). */
+  sound: { ctx: AudioContext | null; out: AudioNode | null; on: boolean; bed?(on: boolean): void };
 }
 
 /** Discrete events the page sends (VIEW_LAB.event): a beam frame finished, the engine ran, a key clicked. */
