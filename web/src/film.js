@@ -1,4 +1,4 @@
-// Film effects applied when a frame is presented: grain, jitter, bloom, dust.
+// Film effects applied when a frame is presented: grain, jitter, bloom, dust (FILM only; SCOPE presents the frame plain).
 "use strict";
 // ---- film grain tile ----
 const grain = document.createElement("canvas"); grain.width = grain.height = 128;
@@ -45,11 +45,13 @@ function present(now, bloomOn) {
     mctx.globalCompositeOperation = "lighter"; mctx.imageSmoothingQuality = "high"; mctx.globalAlpha = jb;
     mctx.drawImage(amS, 0, 0, w, h);
   }
-  // film grain, after the glow so the blur gains do not amplify it
-  mctx.globalCompositeOperation = "lighter"; mctx.globalAlpha = 0.018; mctx.filter = "none";
-  mctx.fillStyle = mctx.createPattern(grain, "repeat");
-  mctx.save(); mctx.translate((Math.random() * 128) | 0, (Math.random() * 128) | 0);
-  mctx.fillRect(-128, -128, w + 256, h + 256); mctx.restore();
+  // film grain, after the glow so the blur gains do not amplify it; none on the SCOPE (prefs.js effDisp)
+  if (isFilm()) {
+    mctx.globalCompositeOperation = "lighter"; mctx.globalAlpha = 0.018; mctx.filter = "none";
+    mctx.fillStyle = mctx.createPattern(grain, "repeat");
+    mctx.save(); mctx.translate((Math.random() * 128) | 0, (Math.random() * 128) | 0);
+    mctx.fillRect(-128, -128, w + 256, h + 256); mctx.restore();
+  }
   mctx.globalAlpha = 1; mctx.globalCompositeOperation = "source-over";
   if (effDust()) drawDust(now, w, h);
   mctx.restore();

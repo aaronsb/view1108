@@ -40,7 +40,7 @@
 <div id="ws">
   <div id="wrap"><canvas id="cv" tabindex="0" aria-label="VIEW-1108 plot"></canvas></div>
   <div id="status" role="status" aria-live="off"></div>
-  <!-- The kernel's code browser (web/src/srcindex.js, srcview.js), built on first entry. -->
+  <!-- The kernel's code browser (web/src/srcindex.js, srcview.js; its theme srctheme.js), built on first entry. -->
   <section id="srcws" hidden aria-label="Kernel source"><button id="bsrc">Print listing</button></section>
 </div>
 <div id="dock">
@@ -134,9 +134,11 @@
     <button id="bfrm" class="on">Frame</button>
     <button id="bhid" title="Show the LM and S-IVB wireframe edges hidden behind the vehicles as dashed lines (the film drops them; TN D-6853 describes hidden-line LM and S-IVB models)">LM hidden lines</button>
     <button id="bcat" title="C">Catalog</button>
-  </div></section>
+  </div>
+  <div class="grp"><span class="lbl">Screen</span><button data-disp="auto" title="S: the 1558 scope where the page was reached through the room (not in Attract or Print), else film">Auto</button><button data-disp="film" title="S: the microfilm recorder, with its film effects">Film</button><button data-disp="scope" title="S: the room's UNIVAC 1558 vector console: no film effects">Scope</button></div>
+  <div class="grp"><span class="lbl">Refresh</span><button data-hz="16" title="H: the scope redraws the picture every 1/16 s on a fading phosphor">16 Hz</button><button data-hz="steady" title="H: a steady, modern vector picture">Steady</button></div></section>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-7: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. I: cabin. W: cabin walls. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-7: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. S: screen (film or scope). H: scope refresh. I: cabin. W: cabin walls. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
 <div id="about"><p>A reconstruction of VIEW, the Manned Spacecraft Center program that drew Apollo window views on a UNIVAC 1108 (FORTRAN V, output photographed from a CRT onto microfilm: NASA TN D-6853, p. 3). We know of no surviving source code; the geometry here is our own FORTRAN and this page only films it.</p>G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197.</div>
 </div>
 </div>
@@ -175,6 +177,7 @@
 <script src="src/tabs.js"></script>
 <script src="src/srcindex.js"></script>
 <script src="src/srcview.js"></script>
+<script src="src/srctheme.js"></script>
 <script src="src/timeline.js"></script>
 <script src="src/fusion.js"></script>
 <script src="src/room.js"></script>
