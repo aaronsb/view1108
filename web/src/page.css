@@ -10,6 +10,12 @@ h1 { font:400 20px var(--term); letter-spacing:.12em; margin:0 14px 0 0; cursor:
 /* Tab bar: 3270-style fields on a rule; the open tab in reverse video. Link sits at the right end. */
 #tabs { display:flex; flex-wrap:wrap; gap:2px 6px; align-items:center; border-bottom:1px solid var(--line); margin-bottom:8px; padding-top:2px; }
 #tabs .sp { flex:1; }
+/* The room (room.js): the lab's canvas covers everything under the tab bar; the page keeps its layout underneath, so
+   the plot keeps drawing at its size for the vector terminal's screen. */
+#labhost { display:none; position:fixed; left:0; right:0; bottom:0; z-index:5; background:#0b0c0b; }
+body.room #labhost { display:block; }
+body.room #main, body.room #linkbox { visibility:hidden; }
+#tabs button[hidden] { display:none; }
 #wrap { width:100%; display:flex; justify-content:center; align-items:flex-start; }
 /* Source: its own workspace in place of the plot (the browser's styles are the block at the end). */
 body[data-tab=source] #wrap, body[data-tab=source] #status, body[data-tab=source] #dock { display:none; }

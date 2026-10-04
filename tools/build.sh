@@ -2,7 +2,7 @@
 # Full build: Fortran -> LLVM IR (LFortran, one file at a time) -> wasm32 objects (clang)
 #             -> wasm (wasm-ld) -> optimised wasm (wasm-opt) -> JS fallback (wasm2js)
 #             -> single-file page (if the template exists) -> selftest.
-# Needs lfortran, clang, wasm-ld, wasm-opt, wasm2js, python3, node.
+# Needs lfortran, clang, wasm-ld, wasm-opt, wasm2js, python3, node; npm for the optional machine room.
 # Set LF_BIN if the tools are not on PATH (e.g. LF_BIN=$HOME/lf/bin).
 #
 #   tools/build.sh          full build
@@ -86,7 +86,20 @@ OBJS="build/viewdata.o"; for e in $ELEMS; do OBJS="$OBJS build/$e.o"; done
 "${B}wasm2js" -O2 build/view.opt.wasm -o build/view.wasm2js.mjs
 python3 tools/wrap_fallback.py build/view.wasm2js.mjs build/fallback.js
 
-# 4. Page (when the template is there), native driver, selftest.
+# 4. The machine room (web/lab, TypeScript + three.js) -> build/lab.js, with the esbuild pinned in its
+#    package-lock.json.  Optional: without npm, the network or a working bundle the page builds without the Room.
+lab() {
+  local L=web/lab
+  command -v npm >/dev/null || { echo "no npm" >&2; return 1; }
+  if [ ! -d $L/node_modules ] || [ $L/package-lock.json -nt $L/node_modules/.package-lock.json ]; then
+    npm --prefix $L ci --ignore-scripts --no-audit --no-fund || return 1
+  fi
+  npm --prefix $L run --silent build
+}
+rm -f build/lab.js
+lab || { rm -f build/lab.js; echo "lab: not built; the page builds without the Room (see web/lab/README.md)" >&2; }
+
+# 5. Page (when the template is there), native driver, selftest.
 if [ -f web/page.template.html ]; then python3 tools/photo_pack.py; python3 tools/assemble.py; fi
 if command -v gfortran >/dev/null; then native; fi
 node tools/selftest.mjs

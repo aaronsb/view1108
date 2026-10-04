@@ -30,11 +30,12 @@ function updateStatus() {
   if (t !== lastStatus) { lastStatus = t; document.getElementById("status").textContent = t; }
 }
 // Film rate: with the toggle on, the kernel is stepped and a frame presented only every 1/16 s and held in between
-// (time keeps running in real time because step() works from the elapsed time).
+// (time keeps running in real time because step() works from the elapsed time). While the room is shown (room.js)
+// the plot is the vector terminal's screen: frames run at the film rate on every tab, Source included.
 let lastPresent = 0;
 function tick(now) {
-  if (!canvasTab()) { last = now; requestAnimationFrame(tick); return; }   // Source: no kernel frames, time holds
-  if (effFps()) {
+  if (!canvasTab() && !roomShown) { last = now; requestAnimationFrame(tick); return; }   // Source: no kernel frames, time holds
+  if (effFps() || roomShown) {
     if (now - lastPresent < 1000 / 16 - 2) { requestAnimationFrame(tick); return; }
     lastPresent = now - lastPresent > 125 ? now : lastPresent + 1000 / 16;
   }

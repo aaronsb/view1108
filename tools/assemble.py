@@ -9,7 +9,8 @@ every src/*.f but the generated viewdata.f, the driver vdrive.f (or view.f) firs
 viewdims.inc and viewcom.inc, each element preceded by
 a line of a form feed and its path, HTML-escaped),
 __FONT_3270_B64__ (web/fonts/3270-Regular.subset.woff2),
-__PHOTOS_JSON__ (build/photos.json from tools/photo_pack.py, the Fusion tab's photographs; [] when absent).
+__PHOTOS_JSON__ (build/photos.json from tools/photo_pack.py, the Fusion tab's photographs; [] when absent),
+__LAB_JS__ (build/lab.js, the machine room bundled from web/lab; empty when absent, and the page has no Room).
 The kernel's symbol table (build/symbols.json, tools/gen_symbols.py) follows the listing's </pre> as
 <script type="application/json" id="fsym">, when that file is there.
 """
@@ -68,12 +69,14 @@ subs = {
     "__FONT_3270_B64__": base64.b64encode(INPUTS["font"].read_bytes()).decode(),
     "__WASM_B64__": base64.b64encode(INPUTS["wasm"].read_bytes()).decode(),
 }
+LAB = R / "build/lab.js"
+subs["__LAB_JS__"] = LAB.read_text().replace("</script", "<\\/script") if LAB.is_file() else ""
 PHOTOS = R / "build/photos.json"
 subs["__PHOTOS_JSON__"] = PHOTOS.read_text().replace("</", "<\\/") if PHOTOS.is_file() else "[]"
 if "__FSYM__" in t:
     subs["__FSYM__"] = fsym
 # Replace only the payload slots, not the dev-guard `var __FALLBACK_JS__, __NAMES_JS__;` line.
-guard = "var __FALLBACK_JS__, __NAMES_JS__;"
+guard = "var __FALLBACK_JS__, __NAMES_JS__, __LAB_JS__;"
 t = t.replace(guard, "")
 for k, v in subs.items():
     if k not in t:

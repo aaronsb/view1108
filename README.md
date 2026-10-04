@@ -63,6 +63,7 @@ The `[ LINK ]` button (key `L`) copies a URL that reproduces the current view. Y
 | `bloom`, `jitter`, `dust`, `fps` | `0` or `1` (film effects; `fps=1` is the 16 fps film rate) | `bloom=1` |
 | `catalog` | `nav` (391 stars) or `full` | `catalog=full` |
 | `listing` | `dark` or `light` (Fortran listing) | `listing=light` |
+| `space` | `room` or `tiled`: the 3D machine room around the workbench, or the plain page | `space=tiled` |
 | `bare`, `still=earthrise`, `film=N` | chrome hidden; frozen Earthrise; Attract at film second N (for screenshots) | `still=earthrise` |
 
 Example: <https://aaronsb.github.io/view1108/?mode=live&get=102:45:40&fov=100> opens Live at the landing, with a 100 degree field of view.
@@ -103,6 +104,8 @@ Probably, with changes: the fenced items above rewritten in FORTRAN V terms, and
 ## Build
 
 Needs LFortran 0.66, LLVM/clang 23 and binaryen 121 (conda-forge), plus gfortran, node and python3 (with Pillow, for the Fusion photographs).
+
+The machine room (Room, `web/lab/`: TypeScript and three.js, bundled by esbuild) also needs npm and, the first time, the network: `tools/build.sh` runs `npm ci` from `web/lab/package-lock.json` and bundles `build/lab.js`. Without them the build warns and the page comes out without the Room. See [web/lab/README.md](web/lab/README.md).
 
 ```
 micromamba create -p ~/lf -c conda-forge lfortran=0.66.0 llvm-tools=23.1.2 lld=23.1.2 clang=23.1.2 binaryen=121

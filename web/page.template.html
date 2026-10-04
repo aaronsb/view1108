@@ -30,6 +30,8 @@
   <button role="tab" data-tab="fusion" title="Crew photographs over the vector frame">Fusion</button>
   <button role="tab" data-tab="source" title="The kernel's FORTRAN">Source</button>
   <span class="sp"></span>
+  <!-- Room or Tiled (web/src/room.js): shown only when the page carries the lab and the screen is wide. -->
+  <button id="bspace" hidden>Room</button><button id="btiled" hidden title="The plain page">Tiled</button>
   <button id="bsound" title="M: machine-room sound (ours, synthesized)">Sound off</button>
   <button id="blink" title="L: copy a link to this view">Link</button>
 </nav>
@@ -139,13 +141,16 @@
 </div>
 </div>
 <div id="err"></div>
+<!-- The machine room's canvas (build/lab.js), over the workspace while the room is shown. -->
+<div id="labhost"></div>
 
 <div id="list"><h2><span>VIEW KERNEL - our reconstruction; we know of no surviving source code</span><span class="btns"><button id="blist">Light</button><button id="bclose">Close</button></span></h2><pre id="lst"></pre><div id="paper"></div></div>
 <pre id="fsrc" hidden>__FORTRAN_SRC__</pre>
 <script type="application/json" id="photos">__PHOTOS_JSON__</script>
-<script>var __FALLBACK_JS__, __NAMES_JS__;</script>
+<script>var __FALLBACK_JS__, __NAMES_JS__, __LAB_JS__;</script>
 <script>__NAMES_JS__</script>
 <script>__FALLBACK_JS__</script>
+<script>__LAB_JS__</script>
 <!-- Page modules, in this order. tools/assemble.py inlines the stylesheet and joins the scripts into one
      strict-mode closure; served as is (?mock) they load as separate scripts. -->
 <script src="src/config.js"></script>
@@ -172,6 +177,7 @@
 <script src="src/srcview.js"></script>
 <script src="src/timeline.js"></script>
 <script src="src/fusion.js"></script>
+<script src="src/room.js"></script>
 <script src="src/main.js"></script>
 </body>
 </html>

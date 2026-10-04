@@ -20,6 +20,7 @@ function linkURL() {
   if (effFps() !== (dAuto && mode !== "beam")) add("fps", +effFps());
   if (effCatalog() === "full") add("catalog", "full");
   if (simAvail && simOn) { add("src", "sim"); add("svu", +simSvu); }
+  if (roomAvail && roomWant === "tiled") add("space", "tiled");   // Room is the default where it can run (room.js)
   if (tab === "source" && srcLinkParam()) add("code", srcLinkParam());
   return location.origin === "null" ? location.href.split("?")[0] + "?" + q.join("&") : location.origin + location.pathname + "?" + q.join("&");
 }
@@ -31,6 +32,7 @@ function copyLink() {
 $("blink").onclick = copyLink;
 
 // ---- URL parameters: mode, tab, scene, get / utc, fov yaw pitch roll, rate, bspeed, labels frame hidden, effects ----
+// (space= is read by room.js)
 // The tab is the mode's home tab unless ?tab= names another; Beam is always in Print. Without ?mode=, ?tab= picks
 // its tab's mode.
 function applyTab() {

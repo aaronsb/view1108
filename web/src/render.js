@@ -36,7 +36,7 @@ function resize() {
   // a capture (a headless screenshot, or a frame held by the 16 fps film rate).
   if (drawn) draw(performance.now());
 }
-let drawn = false;   // a kernel frame has been drawn since boot
+let drawn = false, drawNo = 0;   // a kernel frame has been drawn since boot; frames drawn (the room's screen follows it)
 // Framed plots sit inside a margin for lettering; unframed shots (as in the film) fill the width.
 let framed = true;
 const box = () => framed ? { x: W * (1 - BOXF) / 2, y: W * HDR, s: W * BOXF } : { x: 0, y: W * 0.02, s: W };
@@ -185,5 +185,5 @@ function draw(now) {
   }
 
   if (fadeA > 0) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, fadeA)})`; ctx.fillRect(0, 0, W, Hh); }
-  present(now, bloomOn); fusionDraw(); drawn = true;
+  present(now, bloomOn); fusionDraw(); drawn = true; drawNo++;
 }

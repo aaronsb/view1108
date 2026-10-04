@@ -22,6 +22,12 @@ The tab bar across the top, after the title, picks the workspace and the control
 
 **Fusion** lays a mission photograph over the plot at its moment. The list is `data/photos.tsv`; the photographs with a scene there are embedded (`tools/photo_pack.py`, 1024 px), the rest are listed greyed out. Picking one opens its scene in the window view in Free-look, held at its g.e.t. (a bracket's midpoint, with a slider across the bracket), with the field of view of its lens on the 70 mm gate (55.74 mm, our measurement; our computation), and lays the photograph over the plot box: opacity, blend (normal, screen, difference), and its centre, rotation and scale in plot degrees and percent. **Move photo** moves it by drag, arrows, `Q`/`E` and `+`/`-` or the wheel (Shift: 10×) instead of the look; Esc ends it. Changes are remembered per photograph in this browser; **Reset alignment** goes back to our fit, **Copy alignment** copies the view and alignment as JSON for `data/`. **Unpin** hides the photograph while you look around, **Return** restores its view. AS08-14-2383, AS08-14-2384 and AS08-13-2329 come fitted by us (pointing and alignment from their Earth discs and horizons); each photograph's panel says what still misfits. Credit NASA/JSC.
 
+## Room and Tiled
+
+**Room** puts the workbench inside a 3D machine room (a modern addition, ours: three.js, built from `web/lab/`). Zoomed out, the room shows a vector terminal whose screen is the live plot and a glass terminal. Click the vector terminal and the camera flies to it; on arrival the room gives way to the workbench on the last plot tab you used (Review the first time). The glass terminal opens Source. A tab picked while the room is shown flies to its terminal first. `[ ROOM ]` in the tab bar, or Esc on a plot tab when Esc has nothing else to close (the listing, Fusion's Move photo), flies back out. While the room is shown the plot keeps running, at the 16 fps film rate on every tab, Source included, so the vector terminal's screen is live.
+
+**Tiled** is the plain page, unchanged: the lab is not started, so there is no WebGL context and no second frame loop. `[ TILED ]` beside `[ ROOM ]` picks it; the choice is remembered. Room is the default where it can run. The page is Tiled, with neither button, on a screen narrower than 1000 px, with `bare` or `still`, where WebGL fails, and in a page built without the lab (the build needs npm for it; see the README).
+
 ## Modes
 
 | Mode | What it does | Example |
@@ -94,6 +100,7 @@ Keys act in the plot tabs (Review, Simulate, Print, Fusion), not in Source.
 | `1`–`9` | Scenes (`8` and `9` when the kernel has them) |
 | `T` | Beam on or off (opens the Print tab) |
 | `L` | Copy a link to the current view |
+| Esc | Back to the machine room, in Room (when Esc has nothing else to close) |
 | `B` `J` `D` `F` `C` | Bloom, jitter, dust, film rate, catalog |
 | `I` | Cabin interior on or off (with a kernel that has it) |
 | `W` | Cabin walls on or off: the outside only through the windows (with a kernel that has it) |
@@ -166,6 +173,7 @@ Each control group in the dock has a header: `[-]` shows the group is open, `[+]
 | `src` | `replay`, `sim` (Simulation; only when the kernel has the engine) | `?src=sim` |
 | `svu` | `0`/`1`: state vector updates in simulation (default 1) | `?src=sim&svu=0` |
 | `listing` | `dark`, `light` | `?listing=light` |
+| `space` | `room`, `tiled` (Room and Tiled; links carry `tiled` when you chose it) | `?space=tiled` |
 | `code` | with `tab=source`: a unit, `/BLOCK/`, a PARAMETER or COMMON member, a file, or `file:line`. `src=` with any value but `replay` or `sim` reads the same | `?tab=source&code=PROJ`, `?tab=source&code=pen.f:120` |
 | `still` | `earthrise` (frozen Earthrise, controls hidden, for screenshots) | `?still=earthrise` |
 | `bare` | present to hide the controls | `?bare&film=8` |
