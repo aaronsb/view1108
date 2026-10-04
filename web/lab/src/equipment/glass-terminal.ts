@@ -54,14 +54,14 @@ export function build(ctx: BuildContext): Equipment {
   P.add(new THREE.BoxGeometry(0.4, 0.022, 0.004), paint(0xb9bab4, 0.7), at(0, st.y, st.z, -TILT));
   // Control panel: two round buttons at the right of the keyboard.
   const KB = at(0, 0.052, 0.23, Math.atan2(0.054, 0.225));
-  for (const x of [0.15, 0.185]) P.add(new THREE.CylinderGeometry(0.008, 0.009, 0.01, 16), satinMetal(0xd0d0cc), KB.clone().multiply(at(x, 0.005, -0.075)));
+  for (const x of [0.15, 0.185]) P.add(new THREE.CylinderGeometry(0.008, 0.009, 0.01, 16), satinMetal(0xd0d0cc), KB.clone().multiply(at(x, 0.005, -0.03)));
   P.bake(object).forEach(m => mine.push(m.geometry));
 
-  // Keys: five rows on the slope, a space bar (instanced).
+  // Keys: five rows on the slope toward the operator's edge, a space bar about 4 cm in from it (instanced).
   const flat = -Math.PI / 2, KP = 0.019, KS = 0.0155, kh = 0.011 / 0.55;
   const places: THREE.Matrix4[] = [], cols: number[] = [];
-  [12, 12, 11, 11, 10].forEach((n, r) => { for (let c = 0; c < n; c++) { places.push(KB.clone().multiply(at(-0.13 + r * 0.005 + c * KP, 0.002, -0.07 + r * KP, flat, 0, 0, KS, KS, kh))); cols.push(c === 0 || c === n - 1 ? 0x8f908c : 0xc9c8c0); } });
-  places.push(KB.clone().multiply(at(-0.03, 0.002, 0.03, flat, 0, 0, KS * 7, KS, kh))); cols.push(0xc9c8c0);
+  [12, 12, 11, 11, 10].forEach((n, r) => { for (let c = 0; c < n; c++) { places.push(KB.clone().multiply(at(-0.13 + r * 0.005 + c * KP, 0.002, -0.025 + r * KP, flat, 0, 0, KS, KS, kh))); cols.push(c === 0 || c === n - 1 ? 0x8f908c : 0xc9c8c0); } });
+  places.push(KB.clone().multiply(at(-0.03, 0.002, 0.075, flat, 0, 0, KS * 7, KS, kh))); cols.push(0xc9c8c0);
   const keys = grid(keyGeo(), plastic(0xffffff, 0.55), places.length, 1, i => places[i], i => cols[i]);
   object.add(keys); mine.push(keys);
   // Two status lamps on the strip (HYPOTHETICAL placement).

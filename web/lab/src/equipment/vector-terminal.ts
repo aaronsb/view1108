@@ -54,11 +54,11 @@ export function build(ctx: BuildContext): Equipment {
 
   // Keys (instanced): typewriter keys, a space bar, the six top-left function keys, the TRANSMIT key.
   const keys = new THREE.Group(); keys.matrixAutoUpdate = false; keys.matrix.copy(tray); object.add(keys);
-  const flat = -Math.PI / 2, KP = 0.025, KS = 0.02;
+  const flat = -Math.PI / 2, KP = 0.025, KS = 0.02, KX = -0.255;   // KX: the typewriter block's left edge, centred on its plate
   const rows = [11, 11, 10, 9], places: THREE.Matrix4[] = [], colors: number[] = [];
-  rows.forEach((n, r) => { for (let c = 0; c < n; c++) { places.push(at(-0.345 + r * 0.008 + c * KP, 0.03, -0.05 + r * KP, flat, 0, 0, KS, KS, 0.012 / 0.55)); colors.push(0xd6d5ce); } });
-  places.push(at(-0.2, 0.03, 0.06 + 0.012, flat, 0, 0, KS, KS, 0.012 / 0.55).multiply(new THREE.Matrix4().makeScale(7, 1, 1))); colors.push(0xd6d5ce);
-  for (let c = 0; c < 6; c++) { places.push(at(-0.345 + c * KP, 0.03, -0.08, flat, 0, 0, KS, KS, 0.012 / 0.55)); colors.push(0x3d4044); }
+  rows.forEach((n, r) => { for (let c = 0; c < n; c++) { places.push(at(KX + r * 0.008 + c * KP, 0.03, -0.05 + r * KP, flat, 0, 0, KS, KS, 0.012 / 0.55)); colors.push(0xd6d5ce); } });
+  places.push(at(KX + 0.145, 0.03, 0.06 + 0.012, flat, 0, 0, KS, KS, 0.012 / 0.55).multiply(new THREE.Matrix4().makeScale(7, 1, 1))); colors.push(0xd6d5ce);
+  for (let c = 0; c < 6; c++) { places.push(at(KX + c * KP, 0.03, -0.08, flat, 0, 0, KS, KS, 0.012 / 0.55)); colors.push(0x3d4044); }
   places.push(at(0.1, 0.03, 0.05, flat, 0, 0, KS, KS, 0.012 / 0.55).multiply(new THREE.Matrix4().makeScale(1.6, 1.6, 1))); colors.push(PAL.orange);
   const typing = grid(keyGeo(), plastic(0xffffff, 0.55), places.length, 1, i => places[i], i => colors[i]);
   keys.add(typing); mine.push(typing);
