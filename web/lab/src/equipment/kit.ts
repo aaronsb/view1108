@@ -286,15 +286,125 @@ export function plate(tex: THREE.Texture, w: number, h: number, emissive = false
   return new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
 }
 
-/** The UNIVAC badge: black "UNIVAC" on brushed aluminium with an orange model panel (brochure p. 3). */
+// ---- nameplate lettering ----
+
+/**
+ * The machines' nameplate face. UNIVAC's manuals and badges letter in Microgramma, which is commercial; Michroma
+ * (Vernon Adams, SIL OFL 1.1, web/fonts/) is an extended face in its spirit. The page declares "Michroma VIEW" in
+ * page.css (gallery.html for the gallery); the fallbacks are wide sans faces.
+ */
+export const PLATE_FONT = '"Michroma VIEW", Eurostile, "Arial Black", Helvetica, Arial, sans-serif';
+
+let fontOK = false;
+let fontWait: Promise<boolean> | null = null;
+/**
+ * Resolves true once "Michroma VIEW" is loaded, false if it is not declared or does not arrive within `ms`. Canvas
+ * text drawn before then falls back silently, hence fontTex.
+ */
+export function plateFontReady(ms = 4000): Promise<boolean> {
+  if (fontWait) return fontWait;
+  if (typeof document === "undefined" || !document.fonts) return fontWait = Promise.resolve(false);
+  const load = document.fonts.load('32px "Michroma VIEW"').then(f => (fontOK = f.length > 0), () => false);
+  const late = new Promise<boolean>(r => setTimeout(() => r(false), ms));
+  return fontWait = Promise.race([load, late]);
+}
+
+/**
+ * A canvasTex whose drawing uses PLATE_FONT: drawn now, and drawn again (canvas cleared) when the font arrives if it
+ * had not yet, unless the texture has been disposed by then.
+ */
+export function fontTex(w: number, h: number, draw: (g: CanvasRenderingContext2D, w: number, h: number) => void, aniso = 4): THREE.CanvasTexture {
+  const t = canvasTex(w, h, draw, aniso);
+  if (!fontOK) {
+    let gone = false;
+    t.addEventListener("dispose", () => { gone = true; });
+    void plateFontReady().then(ok => {
+      if (!ok || gone) return;
+      const g = (t.image as HTMLCanvasElement).getContext("2d")!;
+      g.clearRect(0, 0, w, h);
+      draw(g, w, h); t.needsUpdate = true;
+    });
+  }
+  return t;
+}
+
+/**
+ * Letters `text` in capitals at (x, y) (textBaseline "middle"), `px` high, tracked `track` em between letters, aligned
+ * left, centre or right of x, in the current fillStyle. Michroma has one weight, lighter than the bold extended capitals
+ * of the badges, so the letters are thickened by a stroke `bold` em wide in the same colour. Returns the width drawn.
+ */
+export function plateText(g: CanvasRenderingContext2D, text: string, x: number, y: number, px: number, track = 0.12, align: "left" | "center" | "right" = "left", bold = 0.045): number {
+  const s = [...text.toUpperCase()];
+  g.font = `${px}px ${PLATE_FONT}`; g.textBaseline = "middle"; g.textAlign = "left";
+  g.strokeStyle = g.fillStyle; g.lineWidth = bold * px; g.lineJoin = "round";
+  const ws = s.map(c => g.measureText(c).width), gap = track * px;
+  const wid = ws.reduce((a, b) => a + b, 0) + gap * Math.max(0, ws.length - 1);
+  let cx = align === "left" ? x : align === "center" ? x - wid / 2 : x - wid;
+  s.forEach((c, i) => { g.fillText(c, cx, y); if (bold > 0) g.strokeText(c, cx, y); cx += ws[i] + gap; });
+  return wid;
+}
+
+export interface NameplateOpts {
+  /** Plate height in metres (default 0.02); the width follows the text. */
+  height?: number;
+  fg?: string; bg?: string;
+  /** Letter height as a fraction of the plate height (0.5), tracking in em (0.12), side margin in plate heights (0.5). */
+  cap?: number; track?: number; margin?: number;
+  /** A fine rule just inside the edge, in fg (default off). */
+  rule?: boolean;
+  /** Unlit and outside tone mapping (a light strip or a lamp legend). */
+  emissive?: boolean;
+}
+
+/**
+ * A nameplate mesh facing +Z, centred on its origin: `text` in PLATE_FONT on a plain field. The mesh owns its
+ * geometry, material and texture; pass `mine` to have all three pushed for disposal.
+ */
+export function nameplate(text: string, o: NameplateOpts = {}, mine?: { dispose(): void }[]): THREE.Mesh {
+  const H = o.height ?? 0.02, cap = o.cap ?? 0.5, track = o.track ?? 0.12, margin = o.margin ?? 0.5;
+  const ph = 64, px = ph * cap, n = text.length;
+  // Canvas room: Michroma's capitals and digits average 1.0 em wide (W 1.6 em; our reading of its advance widths).
+  const cw = Math.min(2048, 1 << Math.ceil(Math.log2(n * px * 1.3 + (n - 1) * track * px + 2 * margin * ph)));
+  const geo = new THREE.PlaneGeometry(1, H);
+  // The plate's width follows the text as drawn, so it is set again if the font arrives after the first drawing.
+  let pw = cw, tex: THREE.CanvasTexture | null = null;
+  const fit = () => {
+    tex!.repeat.set(pw / cw, 1); tex!.offset.set((cw - pw) / 2 / cw, 0);
+    const p = geo.attributes.position, half = H * pw / ph / 2;
+    for (let i = 0; i < p.count; i++) p.setX(i, Math.sign(p.getX(i)) * half);
+    p.needsUpdate = true; geo.computeBoundingBox(); geo.computeBoundingSphere();
+  };
+  tex = fontTex(cw, ph, (g, w, h) => {
+    g.font = `${px}px ${PLATE_FONT}`;
+    pw = Math.min(w, Math.ceil(plateText(g, text, -1e4, 0, px, track) + 2 * margin * ph));
+    const x0 = (w - pw) / 2;
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = o.bg ?? "#151617"; g.fillRect(x0, 0, pw, h);
+    if (o.rule) { g.strokeStyle = o.fg ?? "#eeeeea"; g.lineWidth = 2; g.strokeRect(x0 + 4, 4, pw - 8, h - 8); }
+    g.fillStyle = o.fg ?? "#eeeeea";
+    plateText(g, text, w / 2, h / 2 + px * 0.04, px, track, "center");
+    if (tex) fit();
+  });
+  fit();
+  const mat = o.emissive ? new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }) : new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45, metalness: 0.15 });
+  if (mine) mine.push(geo, mat, tex);
+  return new THREE.Mesh(geo, mat);
+}
+
+/**
+ * The UNIVAC badge, as on the 1108 II brochure's cabinet (CHM 102646105, p. 3): "UNIVAC" in extended white capitals
+ * on black, the model number on an orange panel at its right. An empty `model` gives the black UNIVAC plate alone.
+ * 512 x 96, so a plate about 5.3:1.
+ */
 export function badgeTex(model: string): THREE.CanvasTexture {
-  return canvasTex(512, 96, (g, w, h) => {
-    g.fillStyle = "#c9cccd"; g.fillRect(0, 0, w, h);
-    g.fillStyle = "#1a1a1a"; g.font = "bold 64px Helvetica, Arial, sans-serif"; g.textBaseline = "middle";
-    g.fillText("UNIVAC", 18, h / 2 + 3);
+  return fontTex(512, 96, (g, w, h) => {
+    g.fillStyle = "#16181a"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#efeee8";
+    const x = model ? 318 : w;
+    plateText(g, "UNIVAC", model ? 20 : w / 2, h / 2 + 2, 44, 0.1, model ? "left" : "center");
     if (model) {
-      const x = 300; g.fillStyle = "#c8642a"; g.fillRect(x, 10, w - x - 10, h - 20);
-      g.fillStyle = "#f4eee4"; g.font = "bold 56px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.fillText(model, (x + w - 10) / 2, h / 2 + 3);
+      g.fillStyle = "#c8642a"; g.fillRect(x, 8, w - x - 8, h - 16);
+      g.fillStyle = "#4a2410"; plateText(g, model, (x + w - 8) / 2, h / 2 + 2, 34, 0.08, "center");
     }
   });
 }

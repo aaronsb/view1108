@@ -9,7 +9,7 @@
 // so the emptier reel spins faster; the packs trade radius as tape moves, at 12 times the real rate so a burst shows.
 import * as THREE from "three";
 import type { BuildContext, Equipment, LabEvent } from "../types";
-import { PAL, Parts, at, canvasTex, grid, lampMat, lensGeo, paint, rng, satinMetal, sharedGeo, smoked, chrome, plastic, poseFrom } from "./kit";
+import { PAL, Parts, at, canvasTex, grid, lampMat, lensGeo, paint, plateFontReady, plateText, rng, satinMetal, sharedGeo, smoked, chrome, plastic, poseFrom } from "./kit";
 
 export interface UniservoOptions { number?: number; index?: number }
 
@@ -55,25 +55,27 @@ function reel(): Reel {
   return { group, pack };
 }
 
-/** Number plates: black digits on white (the head plate's label) or white on black (the top strip), drawn as
- *  128 x 64 cells of one atlas shared by every unit, so the room draws all the plates at once. */
+/** Number plates, in the nameplate face: black digits on white (the head plate's label) or white on black (the top
+ *  strip), drawn as 128 x 64 cells of one atlas shared by every unit, so the room draws all the plates at once; drawn
+ *  again when the face arrives. */
 const CELLS = 8;
 let atlas: { tex: THREE.CanvasTexture; mat: THREE.MeshStandardMaterial; slots: Map<string, number> } | undefined;
+function drawCell(n: string, light: boolean, k: number): void {
+  const g = (atlas!.tex.image as HTMLCanvasElement).getContext("2d")!, x = (k % CELLS) * 128, y = Math.floor(k / CELLS) * 64;
+  g.fillStyle = light ? "#f2efe6" : "#151617"; g.fillRect(x, y, 128, 64);
+  g.fillStyle = light ? "#141414" : "#eeeeea";
+  plateText(g, n, x + 64, y + 34, n.length > 2 ? 26 : 34, 0.06, "center");
+  atlas!.tex.needsUpdate = true;
+}
 function numberPlate(n: string, light: boolean, w: number, h: number): THREE.Mesh {
-  atlas ??= (() => {
+  if (!atlas) {
     const tex = canvasTex(128 * CELLS, 64 * CELLS, () => {});
-    return { tex, mat: new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 }), slots: new Map() };
-  })();
+    atlas = { tex, mat: new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 }), slots: new Map() };
+    void plateFontReady().then(ok => { if (ok && atlas) for (const [key, k] of atlas.slots) { const [t, l] = key.split("|"); drawCell(t, l === "true", k); } });
+  }
   const key = `${n}|${light}`;
   let k = atlas.slots.get(key);
-  if (k === undefined) {
-    atlas.slots.set(key, k = atlas.slots.size % (CELLS * CELLS));
-    const g = (atlas.tex.image as HTMLCanvasElement).getContext("2d")!, x = (k % CELLS) * 128, y = Math.floor(k / CELLS) * 64;
-    g.fillStyle = light ? "#f2efe6" : "#151617"; g.fillRect(x, y, 128, 64);
-    g.fillStyle = light ? "#141414" : "#eeeeea"; g.font = "bold 44px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText(n, x + 64, y + 34);
-    atlas.tex.needsUpdate = true;
-  }
+  if (k === undefined) { atlas.slots.set(key, k = atlas.slots.size % (CELLS * CELLS)); drawCell(n, light, k); }
   const geo = new THREE.PlaneGeometry(w, h), uv = geo.attributes.uv, u0 = (k % CELLS) / CELLS, v0 = 1 - (Math.floor(k / CELLS) + 1) / CELLS;
   for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + uv.getX(i) / CELLS, v0 + uv.getY(i) / CELLS);
   const m = new THREE.Mesh(geo, atlas.mat);

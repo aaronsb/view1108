@@ -1,7 +1,8 @@
 // Development only: the equipment gallery (web/lab/gallery.html, `npm run gallery`), every registry item in two rows
 // on a plain floor under three-point lighting, for checking models against their references. Not part of the page.
-// URL flags: ?view=<name> flies to that item's close-up (`&q`: a three-quarter view instead), &play runs the fake
-// page clock, &tape sends a `tape` event at load. window.__gallery reports the renderer's counts.
+// URL flags: ?view=<name> flies to that item's close-up (`&q`: a three-quarter view instead; `&cam=px,py,pz,tx,ty,tz,fov`:
+// a camera at p looking at t, in the item's own frame), &play runs the fake page clock, &tape sends a `tape` event at
+// load. window.__gallery reports the renderer's counts.
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { EQUIPMENT, FOOTPRINT, type EquipmentOptions } from "./equipment";
@@ -98,7 +99,9 @@ async function main() {
     p.eq.object.updateMatrixWorld(true);
     const m = p.eq.object.matrixWorld, [w, h, d] = FOOTPRINT[p.kind], y0 = p.eq.object.position.y;
     const c = p.eq.anchors.camera;
-    if (c && !UP.has("q")) pose = { position: c.position.clone().applyMatrix4(m), target: c.target.clone().applyMatrix4(m), fov: c.fov };
+    const cam = UP.get("cam")?.split(",").map(Number);
+    if (cam && cam.length >= 6) pose = { position: new THREE.Vector3(cam[0], cam[1], cam[2]).applyMatrix4(m), target: new THREE.Vector3(cam[3], cam[4], cam[5]).applyMatrix4(m), fov: cam[6] || 20 };
+    else if (c && !UP.has("q")) pose = { position: c.position.clone().applyMatrix4(m), target: c.target.clone().applyMatrix4(m), fov: c.fov };
     else {
       const t = new THREE.Vector3(0, h * 0.55, 0).applyMatrix4(m), s = Math.max(w, h, d);
       pose = { position: t.clone().add(new THREE.Vector3(s * 0.75, s * 0.35 + 0.2 * (y0 > 0 ? 1 : 0), s * 1.35)), target: t, fov: 40 };

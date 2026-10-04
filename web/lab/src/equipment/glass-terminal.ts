@@ -10,7 +10,7 @@
 // the cursor is its own small mesh, blinking.
 import * as THREE from "three";
 import type { BuildContext, Equipment } from "../types";
-import { Parts, at, canvasTex, fitDist, glowMat, grid, keyGeo, lensGeo, own, paint, plastic, satinMetal, tubeGlass } from "./kit";
+import { Parts, at, canvasTex, fitDist, nameplate, glowMat, grid, keyGeo, lensGeo, own, paint, plastic, satinMetal, tubeGlass } from "./kit";
 
 const FOV = 40, COLS = 64, ROWS = 16;
 const SW = 0.254, SH = 0.127;              // 10 x 5 in
@@ -64,6 +64,9 @@ export function build(ctx: BuildContext): Equipment {
   places.push(KB.clone().multiply(at(-0.03, 0.002, 0.075, flat, 0, 0, KS * 7, KS, kh))); cols.push(0xc9c8c0);
   const keys = grid(keyGeo(), plastic(0xffffff, 0.55), places.length, 1, i => places[i], i => cols[i]);
   object.add(keys); mine.push(keys);
+  // The name on a dark plate at the strip's left, where Figure 1-1 shows a dark panel (its lettering is not legible).
+  const name = nameplate("UNISCOPE 100", { height: 0.012, cap: 0.42, track: 0.14, bg: "#1d2022", fg: "#d8d8d2" }, mine);
+  name.position.copy(face(0.08, 0.0045)); name.position.x = -0.13; name.rotation.x = -TILT; object.add(name);
   // Two status lamps on the strip (HYPOTHETICAL placement).
   for (const [x, c] of [[0.15, 0x7dff9a], [0.17, 0xffb040]] as const) {
     const l = new THREE.Mesh(lensGeo(), glowMat(c)); l.position.copy(face(0.08, 0.004)); l.position.x = x; l.rotation.x = -TILT; l.scale.setScalar(0.007); object.add(l);
