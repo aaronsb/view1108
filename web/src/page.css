@@ -20,7 +20,7 @@ h1 { font:400 20px var(--term); letter-spacing:.12em; margin:0 14px 0 0; cursor:
 #tabs .sp { flex:1; }
 /* The room (room.js): the lab's canvas covers everything under the tab bar; the page keeps its layout underneath, so
    the plot keeps drawing at its size for the vector terminal's screen. While it fades (.fading) the page shows through. */
-#labhost { display:none; position:fixed; left:0; right:0; bottom:0; z-index:5; background:#0b0c0b; }
+#labhost { display:none; position:fixed; left:0; right:0; bottom:0; z-index:11; background:#0b0c0b; }
 body.room #labhost, #labhost.fading { display:block; }
 body.room #main, body.room #linkbox { visibility:hidden; }
 #tabs button[hidden] { display:none; }

@@ -3,8 +3,10 @@
 // it and folding into a stacker behind. The look follows the printers in the MSC photograph of 15 July 1969 (behind
 // the tape row and in the foreground); 1.4 x 1.2 x 0.8 m is inferred. The paper path and the stacker are ours.
 //
-// A finished beam frame (`beamFrame`) advances the paper a few lines, at most twice a second; the stack grows a sheet
-// each 11 in and starts again when full.
+// A finished beam frame (`beamFrame`) advances the paper a few lines, at most twice a second, and a `print` event
+// (the page printing the listing) by its lines; the stack grows a sheet each 11 in and starts again when full. On the
+// hood lies the last page torn off, ours: the printer's screen anchor, so walking up to it or clicking it opens the
+// kernel listing on greenbar, the page's own column matched to the sheet's width.
 import * as THREE from "three";
 import type { BuildContext, Equipment, LabEvent } from "../types";
 import { PAL, Parts, at, canvasTex, chrome, grid, lampMat, lensGeo, paint, plastic, poseFrom, rng, smoked } from "./kit";
@@ -13,16 +15,16 @@ const PAGE = 11 * 0.0254, WIDE = 14.875 * 0.0254;   // 14 7/8 x 11 in fanfold (t
 const LINE = 0.0254 / 6;                             // six lines to the inch
 
 /** Greenbar: pale green bands three lines deep, sprocket holes down both edges, a little print. */
-function greenbar(): THREE.CanvasTexture {
-  const t = canvasTex(256, 512, (g, w, h) => {
+function greenbar(w0 = 256, h0 = 512): THREE.CanvasTexture {
+  const t = canvasTex(w0, h0, (g, w, h) => {
     g.fillStyle = "#f4f2ea"; g.fillRect(0, 0, w, h);
     const lh = h / 66;   // 66 lines to an 11 in page
     g.fillStyle = "#cfe5cf";
     for (let l = 0; l < 66; l += 6) g.fillRect(18, l * lh, w - 36, lh * 3);
     g.fillStyle = "#9a9a94";
     for (let k = 0; k < 22; k++) for (const x of [8, w - 8]) { g.beginPath(); g.arc(x, (k + 0.5) * h / 22, 3, 0, Math.PI * 2); g.fill(); }
-    const r = rng(1200); g.fillStyle = "#4a4a4a";
-    for (let l = 2; l < 62; l++) if (r() < 0.7) { let x = 24; while (x < w - 30 && r() < 0.93) { const n = 4 + r() * 22; g.fillRect(x, l * lh + 1, n, lh * 0.5); x += n + 4 + r() * 10; } }
+    const r = rng(1200), k = w / 256; g.fillStyle = "#4a4a4a";
+    for (let l = 2; l < 62; l++) if (r() < 0.7) { let x = 24 * k; while (x < w - 30 * k && r() < 0.93) { const n = (4 + r() * 22) * k; g.fillRect(x, l * lh + 1, n, lh * 0.5); x += n + (4 + r() * 10) * k; } }
     g.strokeStyle = "#c4c2b8"; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(0, h - 1); g.lineTo(w, h - 1); g.stroke();
   });
   t.wrapS = THREE.ClampToEdgeWrapping; t.wrapT = THREE.RepeatWrapping;
@@ -72,24 +74,39 @@ export function build(_ctx: BuildContext): Equipment {
   const stackMat = plastic(0xeeece2, 0.9);
   const stack = new THREE.Mesh(new THREE.BoxGeometry(WIDE, 1, PAGE), stackMat); mine.push(stack.geometry);
   object.add(stack);
+  // The torn-off page on the hood, a little askew, its top toward the back.
+  const sheetTex = greenbar(512, 380); mine.push(sheetTex);
+  sheetTex.wrapT = THREE.ClampToEdgeWrapping;
+  const sheet = new THREE.Mesh(new THREE.PlaneGeometry(WIDE, PAGE), new THREE.MeshStandardMaterial({ map: sheetTex, roughness: 0.92 }));
+  mine.push(sheet.geometry, sheet.material as THREE.Material);
+  sheet.rotation.set(-Math.PI / 2, 0, 0.06); sheet.position.set(-0.3, 1.123, 0.2); object.add(sheet);
+
   let sheets = 60, fed = 0, last = -1e9, blink = 0;
+  const feed = (lines: number) => {
+    const d = LINE * lines;
+    tex.offset.y -= d / PAGE;
+    if ((fed += d) >= PAGE) { fed -= PAGE; if (++sheets > 600) sheets = 60; sizeStack(); }
+    lamps.setColorAt(PRINT, col.set(0xffb040)); lamps.instanceColor!.needsUpdate = true; blink = 0.15;
+  };
   const sizeStack = () => { const h = 0.0004 * sheets; stack.scale.y = h; stack.position.set(0, 0.03 + h / 2, bz); };
   sizeStack();
   const col = new THREE.Color();
 
   return {
     object,
-    anchors: { camera: poseFrom(new THREE.Vector3(0, 0.85, 0.2), [0.5, 0.35, 1], 2.4, 40) },
+    opens: "listing",
+    anchors: {
+      screen: { mesh: sheet, uvRect: [0, 0, 1, 1], fit: "width" },
+      camera: poseFrom(new THREE.Vector3(-0.3, 1.12, 0.2), [0, 1.6, 1], 0.75, 40),
+    },
     update(dt) {
       if (blink > 0 && (blink -= dt) <= 0) { lamps.setColorAt(PRINT, col.set(0x2a2a26)); lamps.instanceColor!.needsUpdate = true; }
     },
     event(e: LabEvent) {
+      if (e.type === "print") { feed(e.lines ?? 1); return; }
       if (e.type !== "beamFrame" || e.at - last < 500) return;
       last = e.at;
-      const d = LINE * 4;   // a frame's worth: four lines (ours)
-      tex.offset.y -= d / PAGE;
-      if ((fed += d) >= PAGE) { fed -= PAGE; if (++sheets > 600) sheets = 60; sizeStack(); }
-      lamps.setColorAt(PRINT, col.set(0xffb040)); lamps.instanceColor!.needsUpdate = true; blink = 0.15;
+      feed(4);   // a frame's worth: four lines (ours)
     },
     dispose() { mine.forEach(d => d.dispose()); },
   };

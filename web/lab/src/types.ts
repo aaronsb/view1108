@@ -1,8 +1,9 @@
 // The lab's interfaces: the page <-> lab contract, and the contract between the room and its equipment.
 import type * as THREE from "three";
 
-/** What a terminal opens when the camera arrives at it: the plot tabs, the Source tab, or the Print tab. */
-export type Opens = "workbench" | "source" | "print";
+/** What a terminal opens when the camera arrives at it: the plot tabs, the Source tab, the Print tab, or the kernel
+ *  listing on greenbar (the line printer). */
+export type Opens = "workbench" | "source" | "print" | "listing";
 
 /** The page's state, read by the lab once per rendered frame (web/src/room.js labState()). */
 export interface LabState {
@@ -18,10 +19,12 @@ export interface LabState {
   sound: { ctx: AudioContext | null; out: AudioNode | null; on: boolean; bed?(on: boolean): void; whine?: { scope: AudioNode; recorder: AudioNode } | null };
 }
 
-/** Discrete events the page sends (VIEW_LAB.event): a beam frame finished, the engine ran, a key clicked. */
+/** Discrete events the page sends (VIEW_LAB.event): a beam frame finished, the engine ran, a key clicked, the
+ *  listing printed `lines` lines (a fresh copy, or a page fed on arrival). */
 export interface LabEvent {
-  type: "beamFrame" | "tape" | "key";
+  type: "beamFrame" | "tape" | "key" | "print";
   at: number;             // performance.now() time it happens
+  lines?: number;
 }
 
 /** Hooks the page hands to VIEW_LAB.start. */
@@ -47,6 +50,8 @@ export interface CameraPose {
 export interface ScreenAnchor {
   mesh: THREE.Mesh;
   uvRect: [number, number, number, number];   // u0, v0, u1, v1
+  /** What the handover matches to the page's rect: the height (the default) or the width. */
+  fit?: "height" | "width";
 }
 
 /** Named points on a piece of equipment, in its own frame (the room's placement transforms them). */

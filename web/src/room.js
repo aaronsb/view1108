@@ -1,7 +1,8 @@
 // Room and Tiled: the workbench inside a 3D machine room (web/lab, inlined from build/lab.js as VIEW_LAB), or the
 // plain page. The lab is started only when Room is chosen: in Tiled there is no WebGL context and no extra frame loop.
-// In the room the vector terminal's screen is the plot (#cv), the glass terminal opens Source and the microfilm recorder
-// opens Print; clicking one flies the camera to it, and on arrival the page shows that tab. The Room button, or Esc on a plot tab or in Source (once
+// In the room the vector terminal's screen is the plot (#cv), the glass terminal opens Source, the microfilm recorder
+// opens Print and the line printer the kernel listing on greenbar; clicking one flies the camera to it, and on arrival
+// the page shows that tab (or the listing, over it). The Room button, or Esc on a plot tab or in Source (once
 // Source has closed its own overlays), flies back out.
 "use strict";
 const LAB = typeof VIEW_LAB !== "undefined" ? VIEW_LAB : null;
@@ -22,7 +23,7 @@ function labState() {
   return s;
 }
 // Discrete events for the room's equipment (beam frames, engine runs).
-function labEvent(type, at = performance.now()) { if (roomIn) LAB.event({ type, at }); }
+function labEvent(type, at = performance.now(), lines = 0) { if (roomIn) LAB.event({ type, at, lines }); }
 
 // The Room button by state: lit in the room; in Room space with a terminal's page showing, "← Room", unlit, to go
 // back; in Tiled, plain. The button sits after the bar's spacer, so the longer label grows into it and nothing to its
@@ -39,19 +40,34 @@ function roomSync() {
 const roomBusy = () => $("labhost").classList.contains("fading") || (roomIn && LAB.info()?.mode === "flight");
 function roomPlace() { $("labhost").style.top = $("tabs").getBoundingClientRect().bottom + "px"; }
 // The handover: the lab's flight into a terminal ends where its screen covers the element that screen becomes on the
-// page (#cv, or the Source workspace), and the two crossfade over ROOM_FADE ms. Leaving, the lab starts at that pose
-// and fades in over the page before it flies out.
+// page (#cv, the Source workspace, or the listing's page column), and the two crossfade over ROOM_FADE ms. Leaving,
+// the lab starts at that pose and fades in over the page before it flies out.
 const ROOM_FADE = 250;
 // What each terminal opens (its `opens`), the tab that is, and the terminal a tab belongs to.
-const ROOM_OPENS = { vector: "workbench", glass: "source", filmrecorder: "print" };
-const roomTabOf = opens => opens === "source" || opens === "print" ? opens : roomCanvasTab;
+const ROOM_OPENS = { vector: "workbench", glass: "source", filmrecorder: "print", printer: "listing" };
+const roomTabOf = opens => opens === "source" || opens === "print" ? opens : opens === "listing" ? tab : roomCanvasTab;
 const roomTermOf = t => t === "source" ? "glass" : t === "print" ? "filmrecorder" : "vector";
-const roomScreenEl = opens => opens === "source" ? $("srcws") : cv;
+const roomScreenEl = opens => opens === "source" ? $("srcws") : opens === "listing" ? null : cv;
+// The printer's page: the listing (listing.js) on greenbar, open over the page; the room fades over it (page.css).
+// Its rect is the first sheet's column as far as it shows, as tall as the printer's 14 7/8 x 11 in sheet would be.
+let roomListing = false;
+function roomListingOpen() {
+  if (!roomListing) { roomListing = true; $("list").classList.add("light", "open"); buildPaper(); $("paper").scrollTop = 0; }
+  $("blroom").hidden = false;
+}
+function roomListingClose() { roomListing = false; $("blroom").hidden = true; $("list").classList.remove("open"); applyListing(); }
+function roomRect(opens) {
+  if (opens !== "listing") return roomScreenEl(opens).getBoundingClientRect();
+  const p = $("paper").getBoundingClientRect(), g = $("paper").querySelector(".pg").getBoundingClientRect();
+  const x0 = Math.max(p.left, g.left), x1 = Math.min(p.right, g.right);
+  return new DOMRect(x0, p.top, x1 - x0, (x1 - x0) * 11 / 14.875);
+}
 // Lay the page out for a terminal behind the room (hidden, so nothing shows) and give its screen element's rect.
 function roomScreenRect(opens) {
   const t = roomTabOf(opens);
   if (tab !== t) setTab(t);
-  return roomScreenEl(opens).getBoundingClientRect();
+  if (opens === "listing") roomListingOpen();
+  return roomRect(opens);
 }
 let roomFadeT = 0;
 function roomFade(into, done) {
@@ -82,10 +98,14 @@ function roomShowLab(from) {
   if (canvasTab() && tab !== "print") roomCanvasTab = tab;
   roomShown = true; roomPlace();
   if (!from) { document.body.classList.add("room"); LAB.show(); roomSync(); return; }
-  const el = roomScreenEl(ROOM_OPENS[from]), rect = el.getBoundingClientRect();
+  const opens = ROOM_OPENS[from], el = roomScreenEl(opens), rect = roomRect(opens);
   $("labhost").classList.add("fading"); $("labhost").style.opacity = "0";
   LAB.show(from, rect, ROOM_FADE);
-  const inset = roomInset(), fadeIn = () => roomFade(true, () => { roomUnclip(el); document.body.classList.add("room"); });
+  const inset = el && roomInset(), fadeIn = () => roomFade(true, () => {
+    if (el) roomUnclip(el);
+    if (opens === "listing") roomListingClose();
+    document.body.classList.add("room");
+  });
   if (inset) {
     LAB.show(from, rect, 2 * ROOM_FADE);   // hold through the shrink as well
     roomClip(el, "inset(0px)", inset); clearTimeout(roomFadeT); roomFadeT = setTimeout(fadeIn, ROOM_FADE);
@@ -97,9 +117,10 @@ function roomArrive(opens) {
   roomShown = false; document.body.classList.remove("room");
   setTab(roomTabOf(opens));
   if (canvasTab()) cv.focus({ preventScroll: true });
-  const el = roomScreenEl(opens), inset = roomInset();
+  const el = roomScreenEl(opens), inset = el && roomInset();
   if (inset) roomClip(el, inset, "inset(0px)");
-  roomFade(false, () => { roomUnclip(el); if (!roomShown) LAB.hide(); });
+  if (opens === "listing") { roomListingOpen(); labEvent("print", performance.now(), 6); soundPrintFeed(); }   // the paper moves on as you arrive
+  roomFade(false, () => { if (el) roomUnclip(el); if (!roomShown) LAB.hide(); });
   roomSync();
 }
 // Enter or leave the room to match the choice, the screen width and what the lab could do.
@@ -135,5 +156,13 @@ window.addEventListener("keydown", e => {
   if (tab !== "source" && fOn()) return;   // Source closed its own overlays first (srcview.js)
   e.preventDefault(); roomShowLab(roomTermOf(tab));
 });
+// The listing opened from the printer: Esc and its own ← Room go back to the printer (a fresh copy printing takes Esc
+// first, printout.js); Close leaves it for the page underneath.
+window.addEventListener("keydown", e => {
+  if (e.key !== "Escape" || e.defaultPrevented || !roomListing || !roomIn || roomShown || roomBusy()) return;
+  e.preventDefault(); e.stopImmediatePropagation(); roomShowLab("printer");
+}, true);
+$("blroom").onclick = () => { if (roomIn && !roomShown && !roomBusy()) roomShowLab("printer"); };
+$("bclose").addEventListener("click", () => { if (roomListing) { roomListing = false; $("blroom").hidden = true; } });
 WIDE.addEventListener("change", roomApply);
 window.addEventListener("resize", () => { if (roomShown) roomPlace(); });

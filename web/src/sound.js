@@ -106,6 +106,67 @@ function soundKey(repeat) {
   sndBurst(t, 3200 + Math.random() * 600, 1.5, 0.014, 0.12);
 }
 
+// ---- the line printer printing the listing (printout.js) ----
+// Ours, adapted from progression's teletype (src/eras/teletype/sound.ts, MIT, same author): there a dot-matrix head's
+// needle rasp per character, the tractor's ratchet per line feed and a servo whine; here a drum line printer, so one
+// hammer burst per line (the hammers fire as the drum's rows come round, all within the drum's turn, so a line is a
+// short dense rasp), the ratchet on each line feed, a thunk and a rush of paper at each form feed, and the drum's
+// motor humming while it prints. No source describes the 1108 printer's sound.
+let sndPrRun = null, sndPrBufs = null, sndPrLast = 0;
+function sndPrBuffers() {
+  if (sndPrBufs && sndPrBufs.sr === sndCtx.sampleRate) return sndPrBufs;
+  const sr = sndCtx.sampleRate, mk = (dur, fill) => { const b = sndCtx.createBuffer(1, Math.round(sr * dur), sr); fill(b.getChannelData(0), sr); return b; };
+  const hammers = [0, 1, 2, 3, 4, 5].map(() => mk(0.045, (d, sr) => {
+    for (let k = 0; k < 40; k++) {   // impacts spread over the drum's 25 ms or so
+      const s = Math.round((Math.random() * 0.025) * sr), amp = 0.12 + Math.random() * 0.1;
+      for (let j = 0; j < sr * 0.003 && s + j < d.length; j++) { const tt = j / sr; d[s + j] += amp * (Math.exp(-tt / 0.0003) * (Math.random() * 2 - 1) + 0.4 * Math.exp(-tt / 0.0009) * Math.sin(2 * Math.PI * 2700 * tt)); }
+    }
+  }));
+  const ratchet = mk(0.05, (d, sr) => {
+    for (const [ms, amp, decay] of [[0, 0.3, 0.0006], [5, 0.25, 0.0006], [16, 0.45, 0.002]])
+      for (let j = 0; j < sr * 0.02; j++) { const i = Math.round(ms / 1000 * sr) + j; if (i < d.length) d[i] += amp * Math.exp(-j / sr / decay) * (Math.random() * 2 - 1); }
+  });
+  return sndPrBufs = { sr, hammers, ratchet };
+}
+function sndPrPlay(buf, t, freq, q, gain) {
+  const s = sndCtx.createBufferSource(), f = sndCtx.createBiquadFilter(), g = sndCtx.createGain();
+  s.buffer = buf; f.type = "bandpass"; f.frequency.value = freq; f.Q.value = q; g.gain.value = gain;
+  s.connect(f).connect(g).connect(sndOut); s.start(t);
+}
+// The drum motor while printing: a low sawtooth hum and the drum's whir, faded in and out.
+function soundPrintRun(on) {
+  if (!sndLive()) return;
+  if (!sndPrRun && on) {
+    const o = sndCtx.createOscillator(), lp = sndCtx.createBiquadFilter(), w = sndCtx.createBufferSource(), bp = sndCtx.createBiquadFilter(), g = sndCtx.createGain();
+    o.type = "sawtooth"; o.frequency.value = 58; lp.type = "lowpass"; lp.frequency.value = 240;
+    w.buffer = sndNoise(sndCtx); w.loop = true; w.playbackRate.value = 2.5; bp.type = "bandpass"; bp.frequency.value = 900; bp.Q.value = 0.9;
+    const wg = sndCtx.createGain(); wg.gain.value = 0.6;
+    o.connect(lp).connect(g); w.connect(bp).connect(wg).connect(g); g.gain.value = 0; g.connect(sndOut); o.start(); w.start();
+    sndPrRun = { g, stop: () => { o.stop(); w.stop(); } };
+  }
+  if (!sndPrRun) return;
+  sndPrRun.g.gain.setTargetAtTime(on ? 0.05 : 0, sndCtx.currentTime, on ? 0.2 : 0.35);
+  if (!on) { const r = sndPrRun; sndPrRun = null; setTimeout(() => r.stop(), 2000); }
+}
+// One line printed at audio time t (default now): the hammer bank's rasp, then the line feed's ratchet. At most one
+// every 45 ms: faster printing blurs into the run.
+function soundPrintLine(t) {
+  if (!sndLive()) return;
+  t = Math.max(t ?? 0, sndCtx.currentTime);
+  if (t - sndPrLast < 0.045) return; sndPrLast = t;
+  const B = sndPrBuffers();
+  sndPrPlay(B.hammers[Math.random() * B.hammers.length | 0], t, 2700, 0.8, 0.5 + Math.random() * 0.15);
+  sndPrPlay(B.ratchet, t + 0.03, 1300, 0.7, 0.35);
+}
+// A form feed (a page break, or the paper moving on): a thunk and a rush of paper over a run of ratchet clicks.
+function soundPrintFeed() {
+  if (!sndLive()) return;
+  const t = sndCtx.currentTime, B = sndPrBuffers();
+  sndTone(t, "sine", 85, 40, 0.14, 0.3);
+  sndBurst(t, 700, 0.5, 0.28, 0.12);
+  for (let k = 0; k < 6; k++) sndPrPlay(B.ratchet, t + 0.02 + k * 0.03, 1300, 0.7, 0.2);
+}
+
 // ---- toggle: the button, key M and the stored choice ----
 function syncSound() { const b = $("bsound"); b.textContent = sndOn ? "Sound on" : "Sound off"; b.classList.toggle("on", sndOn); }
 function toggleSound() {
@@ -125,7 +186,7 @@ window.addEventListener("pointerdown", e => { if (sndOn && sndCtx && sndCtx.stat
 window.addEventListener("keydown", e => {
   if (sndOn && (!sndCtx || sndCtx.state !== "running")) sndStart();
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  soundKey(e.repeat);
+  if (!roomShown) soundKey(e.repeat);   // in the room the keys walk (room.js, web/lab), with footsteps of their own
   if ((e.key === "m" || e.key === "M") && !typingIn() && !$("list").classList.contains("open")) { toggleSound(); e.preventDefault(); e.stopImmediatePropagation(); }   // not a look key: Attract keeps playing
 }, { capture: true });
 document.addEventListener("visibilitychange", () => { if (!sndCtx || !sndOn) return; if (document.hidden) sndCtx.suspend(); else sndStart(); });

@@ -102,7 +102,9 @@ export class Lab {
     this.home = shotOf(this.room.overview);
     this.sound = new RoomSound(this.room, this.camera, hooks.state, () => this.shown);
     const terminals: Terminal[] = this.room.placed.filter(p => p.equipment.opens && p.equipment.anchors.screen).map(p => {
+      // A screen lying flat (the printer's sheet) faces the way its machine does.
       const m = p.equipment.anchors.screen!.mesh, n = new THREE.Vector3(0, 0, 1).transformDirection(m.matrixWorld);
+      if (Math.abs(n.y) > 0.7) n.set(0, 0, 1).transformDirection(p.equipment.object.matrixWorld);
       return { name: p.name, screen: new THREE.Vector3().setFromMatrixPosition(m.matrixWorld), normal: new THREE.Vector2(n.x, n.z).normalize() };
     });
     this.walk = new Walk(this.room.footprints ?? [], { x: ROOM.w / 2, z: ROOM.d / 2 }, terminals, {
@@ -416,8 +418,9 @@ export class Lab {
   }
 
   /** The pose square to the equipment's screen at which the picture's part of it (uvRect; the screen mesh a plane
-   *  in its local XY facing +Z, UVs running across its bounds) spans `rect`'s height on the lab canvas, centred on
-   *  it. Where the rect is wider than the screen the page widens from the screen's rect (`mismatch`; room.js). */
+   *  in its local XY facing +Z, UVs running across its bounds) spans `rect`'s height (its width, with `fit`) on the
+   *  lab canvas, centred on it. Where the rect is wider than the screen the page widens from the screen's rect
+   *  (`mismatch`; room.js). */
   private matchShot(name: string, rect: DOMRect): Shot | null {
     const p = this.room.placed.find(q => q.name === name), sc = p?.equipment.anchors.screen;
     if (!p || !sc || rect.width < 2 || rect.height < 2) return null;
@@ -435,7 +438,7 @@ export class Lab {
     U.crossVectors(Nn, R);   // square the frame if the mesh is sheared
     const C = p00.clone().add(p10).add(p01).add(p11).multiplyScalar(0.25);
     const fov = p.equipment.anchors.camera?.fov ?? 35, tn = Math.tan(fov / 2 * D2R);
-    const d = h * cr.height / (2 * tn * rect.height);
+    const d = sc.fit === "width" ? w * cr.height / (2 * tn * rect.width) : h * cr.height / (2 * tn * rect.height);
     const k = 2 * d * tn / cr.height;   // metres per CSS px at the screen
     const ox = rect.left + rect.width / 2 - (cr.left + cr.width / 2), oy = (cr.top + cr.height / 2) - (rect.top + rect.height / 2);
     const position = C.clone().addScaledVector(Nn, d).addScaledVector(R, -ox * k).addScaledVector(U, -oy * k);

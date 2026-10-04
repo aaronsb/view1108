@@ -157,7 +157,7 @@ The registry (`EQUIPMENT`, with sizes in `FOOTPRINT`, W x H x D in metres; sourc
 | `cpu` | `lampPanel` | 1108 cabinet, 0.8 x 1.9 x 0.8; with the lamp panel, the processor's maintenance panel |
 | `console4009` | | 1108 Display Console with Day Clock, CRT and PAGEWRITER, 2.8 x 1.25 x 0.95 |
 | `controller1557` | | 1557 display controller, 1.2 x 1.6 x 0.6 |
-| `printer` | | line printer with fanfold paper, 1.4 x 1.2 x 0.8 |
+| `printer` | | line printer with fanfold paper, 1.4 x 1.2 x 0.8; the page on its hood is its screen (`fit: "width"`); `print` events feed its paper; opens `"listing"` |
 | `cardreader` | | card reader, 1.0 x 1.1 x 0.7 |
 | `reeltable` | | table with reels and a desk clock, 1.6 x 0.75 x 0.8 |
 | `desk` | | desk, 1.5 x 0.73 x 0.75; anchor `top` |

@@ -146,7 +146,7 @@
 <!-- The machine room's canvas (build/lab.js), over the workspace while the room is shown. -->
 <div id="labhost"></div>
 
-<div id="list"><h2><span>VIEW KERNEL - our reconstruction; we know of no surviving source code</span><span class="btns"><button id="blist">Light</button><button id="bclose">Close</button></span></h2><pre id="lst"></pre><div id="paper"></div></div>
+<div id="list"><h2><span>VIEW KERNEL - our reconstruction; we know of no surviving source code</span><span class="btns"><button id="bfresh" title="Clear the paper and print the listing again, line by line (any click, Esc or scroll skips to the end)">Print fresh copy</button><button id="bpspeed" title="Print speed: REAL, 1,200 lines a minute (UP-4046 sec. 8.5), or FAST, ten times that">Real</button><button id="bpdf" title="The listing as a PDF of 14 7/8 x 11 in greenbar pages">Download PDF</button><button id="blist">Light</button><button id="blroom" hidden title="Return to the room (Esc)">← Room</button><button id="bclose">Close</button></span></h2><pre id="lst"></pre><div id="paper"></div></div>
 <pre id="fsrc" hidden>__FORTRAN_SRC__</pre>
 <script type="application/json" id="photos">__PHOTOS_JSON__</script>
 <script>var __FALLBACK_JS__, __NAMES_JS__, __LAB_JS__;</script>
@@ -172,6 +172,7 @@
 <script src="src/pad.js"></script>
 <script src="src/shades.js"></script>
 <script src="src/listing.js"></script>
+<script src="src/printout.js"></script>
 <script src="src/link.js"></script>
 <script src="src/sound.js"></script>
 <script src="src/whine.js"></script>

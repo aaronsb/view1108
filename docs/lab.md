@@ -124,4 +124,6 @@ drums and the ballasts). The drums are low-passed (1.1 to 1.4 kHz) as heard thro
 mix is about -29 dBFS RMS (peaks -13 dBFS) with this spread (share of the power by octave band, dB): 20-63 Hz -7.5,
 63-125 -4.3, 125-250 -10.7, 250-500 -15.6, 500-1k -15.7, 1-2k -16.4, 2-4k -20.5, 4-8k -26.3, 8-16k -34.8. Standing at a
 tape unit raises its level about 10 dB over the overview, and its burst of reads lifts the mix there about 3 dB. The
-printer's sounds come from `web/src/sound.js`.
+printer's sounds come from `web/src/sound.js`: printing the listing (a fresh copy, `web/src/printout.js`) plays a hammer
+burst and a ratchet per line, a thunk and a paper rush per form feed and the drum motor's hum, ours, adapted from
+progression's teletype (`src/eras/teletype/sound.ts`, MIT, same author).

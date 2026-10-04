@@ -76,7 +76,7 @@ export function build(ctx: BuildContext): Room {
   place("vector", [1.2, 0, -1.0], 0.32, "vector");   // beside the desk, turned toward the overview's eye
   place("controller1557", [3.4, 0, -nW + 0.38], S);
   place("filmrecorder", [wW - 0.47, 0, 0.85], W, "filmrecorder");
-  place("printer", [wW - 0.4, 0, 2.75], W);
+  place("printer", [wW - 0.4, 0, 2.75], W, "printer");
   place("cardreader", [-wW + 0.37, 0, nW - 0.65], E);
   const batches = batch(object, placed);
   object.add(batches.object);
@@ -87,7 +87,8 @@ export function build(ctx: BuildContext): Room {
     footprints,
     door: { x: DOOR.x, z: nW, w: DOOR.w },
     overview: { position: new THREE.Vector3(2.4, 1.62, 3.15), target: new THREE.Vector3(0.1, 1.0, -1.6), fov: 55 },
-    labels: { vector: "UNIVAC 1558 — workbench", glass: "UNISCOPE 100 — source", filmrecorder: "Microfilm recorder (S-C 4020, hypothetical) — print" },
+    labels: { vector: "UNIVAC 1558 — workbench", glass: "UNISCOPE 100 — source", filmrecorder: "Microfilm recorder (S-C 4020, hypothetical) — print",
+      printer: "Line printer — listing" },
     air: new THREE.Box3(new THREE.Vector3(-4, 0.3, -2.9), new THREE.Vector3(4, 2.5, 3.1)),
     update() { shell.update(); batches.update(); },
     dispose() { shell.dispose(); batches.dispose(); STANDIN.dispose(); },
