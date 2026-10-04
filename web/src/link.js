@@ -4,6 +4,8 @@
 function linkURL() {
   const q = [], add = (k, v) => q.push(k + "=" + encodeURIComponent(v)), rnd = v => +v.toFixed(3);
   add("mode", mode);
+  if (tab !== TAB_OF[mode]) add("tab", tab);
+  if (tab === "fusion" && fCur) add("photo", fCur.frame);
   if (mode !== "attract" && mode !== "tour") {
     if (mode !== "live" || livePin) add("scene", scene);
     add("get", getStr(get)); add("fov", rnd(fov)); add("yaw", rnd(yaw)); add("pitch", rnd(pitch)); add("roll", rnd(roll));
@@ -11,13 +13,14 @@ function linkURL() {
     if (FEAT.lablv) { if (labLv !== 3) add("lab", labLv); } else if (!labLv) add("labels", 0);
     if (FEAT.view && viewMode) add("view", VIEWS[viewMode]); if (FEAT.target && targetId) add("target", TARGETS[targetId]); if (FEAT.cabin && !cabin) add("cabin", 0); if (FEAT.walls && !walls) add("walls", 0); if (!frame) add("frame", 0); if (hidden) add("hidden", 1);
   }
-  const dAuto = mode === "attract" || mode === "tour";   // effects whose default is on in the film-like modes
+  const dAuto = filmAuto();   // effects whose default is on in the film-like modes and the Print tab
   if (effJit() !== dAuto) add("jitter", +effJit());
   if (effDust() !== dAuto) add("dust", +effDust());
   if (effBloom()) add("bloom", 1);
   if (effFps() !== (dAuto && mode !== "beam")) add("fps", +effFps());
   if (effCatalog() === "full") add("catalog", "full");
   if (simAvail && simOn) { add("src", "sim"); add("svu", +simSvu); }
+  if (tab === "source" && srcLinkParam()) add("code", srcLinkParam());
   return location.origin === "null" ? location.href.split("?")[0] + "?" + q.join("&") : location.origin + location.pathname + "?" + q.join("&");
 }
 function copyLink() {
@@ -27,12 +30,18 @@ function copyLink() {
 }
 $("blink").onclick = copyLink;
 
-// ---- URL parameters: mode, scene, get / utc, fov yaw pitch roll, rate, bspeed, labels frame hidden, effects ----
+// ---- URL parameters: mode, tab, scene, get / utc, fov yaw pitch roll, rate, bspeed, labels frame hidden, effects ----
+// The tab is the mode's home tab unless ?tab= names another; Beam is always in Print. Without ?mode=, ?tab= picks
+// its tab's mode.
+function applyTab() {
+  const t = UP.get("tab");
+  if (mode === "beam" || !TABS.includes(t)) setTab(TAB_OF[mode], false); else setTab(t, !UP.has("mode"));
+}
 function applyParams() {
   const num = k => { if (!UP.has(k) || UP.get(k).trim() === "") return null; const n = Number(UP.get(k)); return isFinite(n) ? n : null; };
   const flag = k => UP.get(k) === "1" ? true : UP.get(k) === "0" ? false : null;
   const md = ["attract", "tour", "live", "free", "beam"].includes(UP.get("mode")) ? UP.get("mode") : "attract";
-  if (md === "attract" || md === "tour") { startMode(md); return; }
+  if (md === "attract" || md === "tour") { startMode(md); applyTab(); return; }
   // get/utc are read after the scene is set: a utc is converted with that scene's scenario epoch.
   const gOf = () => { let g = null; for (const k of ["get", "utc"]) if (UP.has(k)) { const v = parseGet(UP.get(k)); if (v !== null && isFinite(v)) g = v; } return g; };
   const sc = num("scene") === null ? 1 : Math.round(num("scene")), scn = hasScene(sc) ? sc : 1;
@@ -54,5 +63,5 @@ function applyParams() {
   featParams();
   if (flag("frame") !== null) frame = flag("frame");
   if (flag("hidden") !== null) hidden = flag("hidden");
-  syncUI();
+  applyTab();
 }

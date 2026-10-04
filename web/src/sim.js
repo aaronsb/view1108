@@ -10,7 +10,7 @@
 const SIM_FLAG = 8;
 const SIMK = {
   present: () => !!K && typeof K.sim_run === "function",
-  run: svu => K.sim_run(svu ? 1 : 0),
+  run: svu => { soundTape(); return K.sim_run(svu ? 1 : 0); },
   flags: sim => sim ? SIM_FLAG : 0,   // ORed into in_flags every frame (loop.js)
   // Re-aim the scene with the new source (scene 1's Earthrise aim is computed in view_init), keeping time and look.
   reinit: sim => {

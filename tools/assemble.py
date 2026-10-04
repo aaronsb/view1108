@@ -5,9 +5,13 @@ Page modules: each <link rel="stylesheet" href="src/X.css"> becomes an inline <s
 <script src="src/X.js"></script> tags becomes one inline script whose modules share a strict-mode closure,
 joined in tag order. Placeholders: __WASM_B64__ (build/view.opt.wasm), __FALLBACK_JS__ (build/fallback.js),
 __NAMES_JS__ (build/names.js), __FORTRAN_SRC__ (the kernel listing:
-every src/*.f but the generated viewdata.f, the driver vdrive.f (or view.f) first, each element preceded by
+every src/*.f but the generated viewdata.f, the driver vdrive.f (or view.f) first, then the INCLUDE files
+viewdims.inc and viewcom.inc, each element preceded by
 a line of a form feed and its path, HTML-escaped),
-__FONT_3270_B64__ (web/fonts/3270-Regular.subset.woff2).
+__FONT_3270_B64__ (web/fonts/3270-Regular.subset.woff2),
+__PHOTOS_JSON__ (build/photos.json from tools/photo_pack.py, the Fusion tab's photographs; [] when absent).
+The kernel's symbol table (build/symbols.json, tools/gen_symbols.py) follows the listing's </pre> as
+<script type="application/json" id="fsym">, when that file is there.
 """
 import base64, html, pathlib, re, sys
 
@@ -24,6 +28,7 @@ if missing:
     sys.exit("assemble.py: missing inputs (run tools/build.sh first):\n" + "\n".join(missing))
 
 KSRC = sorted((f for f in (R / "src").glob("*.f") if f.name != "viewdata.f"), key=lambda f: (f.name not in ("vdrive.f", "view.f"), f.name))
+KSRC += [R / "src" / n for n in ("viewdims.inc", "viewcom.inc") if (R / "src" / n).is_file()]
 if not KSRC:
     sys.exit("assemble.py: no kernel sources src/*.f")
 t = INPUTS["template"].read_text()
@@ -51,6 +56,10 @@ def scripts(m):
 
 
 t = re.sub(r'(?:<script src="src/[\w.-]+\.js"></script>\n)+', scripts, t)
+SYMS = R / "build/symbols.json"
+if SYMS.is_file():
+    fsym = '<script type="application/json" id="fsym">' + SYMS.read_text().replace("</", "<\\/") + "</script>"
+    t = t.replace("__FORTRAN_SRC__</pre>", "__FORTRAN_SRC__</pre>\n__FSYM__", 1)
 # Function replacements so '\' and '&' in payloads are never interpreted.
 subs = {
     "__FORTRAN_SRC__": html.escape("".join(f"\f{f.relative_to(R)}\n{f.read_text()}" for f in KSRC), quote=False),
@@ -59,6 +68,10 @@ subs = {
     "__FONT_3270_B64__": base64.b64encode(INPUTS["font"].read_bytes()).decode(),
     "__WASM_B64__": base64.b64encode(INPUTS["wasm"].read_bytes()).decode(),
 }
+PHOTOS = R / "build/photos.json"
+subs["__PHOTOS_JSON__"] = PHOTOS.read_text().replace("</", "<\\/") if PHOTOS.is_file() else "[]"
+if "__FSYM__" in t:
+    subs["__FSYM__"] = fsym
 # Replace only the payload slots, not the dev-guard `var __FALLBACK_JS__, __NAMES_JS__;` line.
 guard = "var __FALLBACK_JS__, __NAMES_JS__;"
 t = t.replace(guard, "")

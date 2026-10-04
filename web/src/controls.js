@@ -7,7 +7,9 @@ function syncUI() {
   document.querySelector("#ppause small").textContent = playing ? "PAUSE" : "PLAY";
   document.getElementById("spd").textContent = mode === "beam" ? BEAM_SPEEDS[beamIdx].short : (mode === "live" ? LIVE_RATES[liveIdx] : SPEEDS[speedIdx]) + "x";
   document.getElementById("spd").title = mode === "beam" ? BEAM_SPEEDS[beamIdx].name + ". " + BEAM_TIP : "";
-  for (const m of ["attract", "tour", "live", "free", "beam"]) document.getElementById("m" + m).classList.toggle("on", mode === m);
+  document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("on", mode === b.dataset.mode));
+  document.getElementById("bbeam").classList.toggle("on", mode === "beam");
+  document.getElementById("bspd").textContent = BEAM_SPEEDS[beamIdx].name;
   document.getElementById("bhid").classList.toggle("on", hidden);
   document.getElementById("bjit").classList.toggle("on", effJit());
   document.getElementById("bdust").classList.toggle("on", effDust());
@@ -22,7 +24,7 @@ function syncUI() {
 const $ = id => document.getElementById(id);
 function addSceneButton(s) { const b = document.createElement("button"); b.textContent = s + " " + SCENES[s - 1]; b.dataset.scene = s; b.onclick = () => setScene(s); $("scenes").appendChild(b); }
 SCENES.forEach((n, i) => addSceneButton(i + 1));
-for (const m of ["attract", "tour", "live", "free", "beam"]) $("m" + m).onclick = () => startMode(m);
+document.querySelectorAll("[data-mode]").forEach(b => { b.onclick = () => startMode(b.dataset.mode); });
 for (const id in JUMPS) $(id).onclick = () => liveJump(JUMPS[id]);
 const bump = d => { if (mode === "beam") beamIdx = Math.max(0, Math.min(BEAM_SPEEDS.length - 1, beamIdx + d)); else if (mode === "live") liveIdx = Math.max(0, Math.min(LIVE_RATES.length - 1, liveIdx + d)); else speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, speedIdx + d)); syncUI(); };
 const parseGet = t => {
@@ -80,14 +82,17 @@ const ACT = {
 };
 const KEY_ACT = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down", q: "rollL", Q: "rollL", e: "rollR", E: "rollR",
   "+": "zoomIn", "=": "zoomIn", "-": "zoomOut", "_": "zoomOut", " ": "pause", "[": "slower", "]": "faster", r: "reset", R: "reset" };
+// A key typed into a text or number field (the g.e.t. box, Fusion's alignment) is that field's, not a command.
+const typingIn = () => { const a = document.activeElement; return !!a && (a.tagName === "TEXTAREA" || a.tagName === "SELECT" || (a.tagName === "INPUT" && !["range", "button", "checkbox", "radio"].includes(a.type))); };
 window.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if ($("list").classList.contains("open")) { if (e.key === "Escape") $("list").classList.remove("open"); return; }
+  if (!canvasTab() || typingIn()) return;
   const k = e.key;
   if (k === "j" || k === "J") { toggle("jitter"); e.preventDefault(); return; }
   if (k === "d" || k === "D") { toggle("dust"); e.preventDefault(); return; }
   if (k === "f" || k === "F") { toggle("fps"); e.preventDefault(); return; }
-  if (k === "t" || k === "T") { startMode("beam"); e.preventDefault(); return; }
+  if (k === "t" || k === "T") { toggleBeam(); e.preventDefault(); return; }
   if (k === "l" || k === "L") { copyLink(); e.preventDefault(); return; }
   if (k === "b" || k === "B") { toggle("bloom"); e.preventDefault(); return; }
   if (k === "c" || k === "C") { toggleCatalog(); e.preventDefault(); return; }
@@ -101,3 +106,4 @@ window.addEventListener("keydown", e => {
   if (h) e.preventDefault();
 });
 window.addEventListener("resize", resize);
+new ResizeObserver(() => requestAnimationFrame(resize)).observe($("wrap"));   // the workspace changes size with the tab, the dock and the link box too

@@ -33,17 +33,17 @@ A short clip believed to be VIEW film output (shared by NB, [@Noahbolanowski](ht
 
 ## Operating it
 
-The page is the console. It starts by replaying the film, then hands you the controls. [docs/modes.md](docs/modes.md) lists every mode, scene, toggle and link parameter, with example links to share.
+The page is the console. It starts by replaying the film, then hands you the controls. A tab bar picks the workspace: **Review** (the film, the tour, the scenes), **Simulate** (the mission clock and our trajectory engine), **Print** (the beam trace and film effects), **Fusion** (crew photographs over the plot at their moment) and **Source** (the kernel's FORTRAN). [docs/modes.md](docs/modes.md) lists every tab, mode, scene, toggle and link parameter, with example links to share.
 
-| Mode | What it does |
-|---|---|
-| **Attract** | The film's four shots, at the film's pace (36 s). Plays once on load. |
-| **Tour** | A slow loop through Earthrise, Earth approach, Earth limb, the LM pirouette, the LM descent, and a slow spin of the whole Moon. |
-| **Live** | The Apollo 11 mission clock at 1× (or 10×, 60×). The scene follows the mission phase from the g.e.t. you type or scrub to. |
-| **Beam** | Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades. Speeds run from an estimated 1108-plus-recorder pace down to a slow trace you can watch, up to a persistence-of-vision blur. The recorder rates are our estimates (see [docs/univac-1108.md](docs/univac-1108.md)). |
-| **Free-look** | Any drag, wheel or key. Look around (yaw, pitch, roll, field of view 1°–170°) at the current moment. |
+| Mode | Tab | What it does |
+|---|---|---|
+| **Attract** | Review | The film's four shots, at the film's pace (36 s). Plays once on load. |
+| **Tour** | Review | A slow loop through Earthrise, Earth approach, Earth limb, the LM pirouette, the LM descent, and a slow spin of the whole Moon. |
+| **Free-look** | Review, Simulate | Any drag, wheel or key. Look around (yaw, pitch, roll, field of view 1°–170°) at the current moment. |
+| **Live** | Simulate | The Apollo 11 mission clock at 1× (or 10×, 60×). The scene follows the mission phase from the g.e.t. you type or scrub to. |
+| **Beam** | Print | Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades. Speeds run from an estimated 1108-plus-recorder pace down to a slow trace you can watch, up to a persistence-of-vision blur. The recorder rates are our estimates (see [docs/univac-1108.md](docs/univac-1108.md)). |
 
-Keys: arrows look, Q/E roll, +/- field of view, space pause, `[` `]` speed, R reset, 1–6 scenes, `L` copy link. The "Fortran listing" link shows the kernel source the page is running.
+Keys (in every tab but Source): arrows look, Q/E roll, +/- field of view, space pause, `[` `]` speed, R reset, 1–9 scenes, `T` beam (opens Print), `L` copy link, `M` sound. The Source tab browses the kernel source the page is running (routines, COMMON blocks, call graph; [docs/modes.md](docs/modes.md)), and its Print listing button shows it as a period compile listing.
 
 ## Link parameters
 
@@ -52,6 +52,7 @@ The `[ LINK ]` button (key `L`) copies a URL that reproduces the current view. Y
 | Parameter | Values | Example |
 |---|---|---|
 | `mode` | `attract`, `tour`, `live`, `free`, `beam` | `mode=live` |
+| `tab` | `review`, `simulate`, `print`, `fusion`, `source` (default: the mode's tab) | `tab=print` |
 | `scene` | `1`..`6` (Free-look, Beam; in Live only the LM windows 4 and 5 apply) | `scene=5` |
 | `get` | g.e.t. as `h:mm:ss` or seconds | `get=102:45:40` |
 | `utc` | UTC as `YYYY-MM-DDTHH:MM:SS` | `utc=1969-07-20T20:17:40` |
@@ -101,7 +102,7 @@ Probably, with changes: the fenced items above rewritten in FORTRAN V terms, and
 
 ## Build
 
-Needs LFortran 0.66, LLVM/clang 23 and binaryen 121 (conda-forge), plus gfortran, node and python3.
+Needs LFortran 0.66, LLVM/clang 23 and binaryen 121 (conda-forge), plus gfortran, node and python3 (with Pillow, for the Fusion photographs).
 
 ```
 micromamba create -p ~/lf -c conda-forge lfortran=0.66.0 llvm-tools=23.1.2 lld=23.1.2 clang=23.1.2 binaryen=121

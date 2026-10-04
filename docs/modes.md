@@ -4,6 +4,24 @@ Every example below is a live link to the page. Links set the view for that visi
 
 Base URL: https://aaronsb.github.io/view1108/
 
+## Tabs
+
+The tab bar across the top, after the title, picks the workspace and the control groups in the dock (below the plot on a narrow screen, beside it on a screen 1000 px wide or more). Link, at the right end of the bar, copies a link to the current view. Sound, beside it (key `M`), plays a synthesized machine room of our own invention: air handling and a cooling fan, a frame-advance clunk per Beam frame, a tape whir when the engine runs, and key clicks. It is off by default and remembered.
+
+| Tab | Workspace | Dock | On entering |
+|---|---|---|---|
+| **Review** | the plot | Mode (Attract, Tour, Free-look), Scene, Time, Timeline, Look, Display | keeps Attract, Tour or Free-look; from any other mode, starts Tour. The page opens here, in Attract |
+| **Simulate** | the plot | Mission clock (Live, Free-look, the jumps), Simulation, Scene, Time, Look, Display | starts Live |
+| **Print** | the plot | Beam (the trace and its speed), Film (with Print SVG and Paper SVG: the frame as an SVG file, white on black or black on white), Scene, Time, Look, Display | stops Attract or Tour for Free-look; film effects default on. Beam runs only here: leaving Print leaves Beam for Free-look |
+| **Fusion** | the plot, with a crew photograph over it | Fusion (the photographs, the overlay and its alignment), Look, Display | stops Attract or Tour for Free-look |
+| **Source** | its own: the kernel's code browser (below) | none | keeps the mode; the plot stops drawing and time holds until you return. The plot's keys do nothing here |
+
+**Timeline** (Review) lists the scene's scenario's events (its TIMELINE cards, from SP-4029's mission timelines): g.e.t., kind and name, filtered by kind or by Noteworthy, our own short list of milestones (lift-off, Earth orbit insertion, TLI, transposition docking, LOI, undocking, powered descent, landing, lunar lift-off, docking, TEI, entry, splashdown). Clicking an event sets the time as the g.e.t. box does and re-centres the Free-look scrubber on it; the scene stays, so its camera may not suit every moment. The event at or before the current time is highlighted, and the shown events within the scrubber's span are marked under it. For Apollo 11, **Companion** opens [Apollo in Real Time](https://apolloinrealtime.org/11/) (Ben Feist) at the current g.e.t. in a window of its own; each discrete jump (an event, a scene, a released scrub, a Live jump, the g.e.t. box) re-points it, and **Resync** does so on demand. It plays in real time on its own; its pause and rate are independent. Each event's ↗ opens that moment in the same window.
+
+**The code browser** (Source) has three panes: a tree (the files grouped by kind as in CLAUDE.md's element table, each file's units, under each unit an outline of its DO loops, block IFs, GO TOs, CALLs, RETURNs and labels; then the COMMON blocks and PARAMETERs, with a filter), the listing (fixed-form colouring, RESTOMOD fences as a shaded band with their reason on hover, a rule after column 72, folds on DO and IF, the open unit's lines lit), and an inspector (the unit's signature, doc comment, declarations, COMMON and PARAMETERs used, a callers-and-callees graph, calls, called-by and fences; or a COMMON block's, PARAMETER's or variable's card). In the listing a routine's name goes to its definition, a COMMON member or PARAMETER opens its card, a local or argument marks its uses in the unit, and a label after GO TO or DO goes to that label. On a narrow screen the tree is a drawer (Files) and the inspector follows the listing. Keys: `Ctrl+P` or `/` go to a unit, block, member, PARAMETER, file or `file:line` by fuzzy match; `Alt+Left` and `Alt+Right` go back and forward; `Esc` closes. The symbols and outline come from `tools/gen_symbols.py`.
+
+**Fusion** lays a mission photograph over the plot at its moment. The list is `data/photos.tsv`; the photographs with a scene there are embedded (`tools/photo_pack.py`, 1024 px), the rest are listed greyed out. Picking one opens its scene in the window view in Free-look, held at its g.e.t. (a bracket's midpoint, with a slider across the bracket), with the field of view of its lens on the 70 mm gate (55.74 mm, our measurement; our computation), and lays the photograph over the plot box: opacity, blend (normal, screen, difference), and its centre, rotation and scale in plot degrees and percent. **Move photo** moves it by drag, arrows, `Q`/`E` and `+`/`-` or the wheel (Shift: 10×) instead of the look; Esc ends it. Changes are remembered per photograph in this browser; **Reset alignment** goes back to our fit, **Copy alignment** copies the view and alignment as JSON for `data/`. **Unpin** hides the photograph while you look around, **Return** restores its view. AS08-14-2383, AS08-14-2384 and AS08-13-2329 come fitted by us (pointing and alignment from their Earth discs and horizons); each photograph's panel says what still misfits. Credit NASA/JSC.
+
 ## Modes
 
 | Mode | What it does | Example |
@@ -12,7 +30,7 @@ Base URL: https://aaronsb.github.io/view1108/
 | **Tour** | A slow loop through every scene, a few minutes each, with a caption naming the shot and its g.e.t. With scene 8 it ends by orbiting the stack from outside, then looking out of the CM's left rendezvous window. Loops forever. | [?mode=tour](https://aaronsb.github.io/view1108/?mode=tour) |
 | **Live** | The Apollo 11 mission clock at 1× (or 10×, 60×, 300×, 1000×). The scene follows the mission phase from the g.e.t.: Earth parking orbit until 2:50:00, translunar coast until 75:50:00, lunar orbit until 135:24:00, then transearth coast. The transposition and docking, the LM rendezvous and the descent are jump windows. | [Live at touchdown](https://aaronsb.github.io/view1108/?mode=live&get=102:45:40) |
 | **Free-look** | Time paused or running at a chosen speed; look anywhere at the current moment. Any drag, wheel or key in Attract or Tour switches to Free-look and keeps the view. | [A frozen Earthrise](https://aaronsb.github.io/view1108/?mode=free&scene=1&get=102:20:06&fov=8) |
-| **Beam** | Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades, with a beam spot on the pen. The mission clock advances one frame at a time, by however long the frame took to draw. | [Slow trace of the Earth](https://aaronsb.github.io/view1108/?mode=beam&scene=2&bspeed=3) |
+| **Beam** | In the Print tab. Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades, with a beam spot on the pen. The mission clock advances one frame at a time, by however long the frame took to draw. | [Slow trace of the Earth](https://aaronsb.github.io/view1108/?mode=beam&scene=2&bspeed=3) |
 
 ### Beam speeds (`bspeed`)
 
@@ -55,13 +73,15 @@ Is the film's leg-less LM shot (film seconds 20.5 to 26) this view? We think not
 | Frame | button | Plot frame, ticks and tick numbers | on in framed shots |
 | LM hidden lines | button | Draws the LM's (and in scene 7 the S-IVB's) hidden edges dashed instead of dropping them | off |
 | Catalog | C | NAV: the 391-star navigation catalog as asterisks (37 named). FULL: every catalog star to V 4.5 as dots. TN D-6853 p. 12 describes both. | NAV |
-| Bloom | B | CRT/film glow: a hairline core with a gaussian halo | on in Attract and Tour |
-| Film jitter | J | Frame-to-frame registration wobble of the film | on in Attract and Tour |
-| Dust | D | Specks and occasional scratches | on in Attract and Tour |
-| Film rate | F | Presents frames at a steady 16 fps | on in Attract and Tour; off in Beam |
-| Listing | button | The FORTRAN listing, dark terminal or LIGHT greenbar paper | dark |
+| Bloom | B | CRT/film glow: a hairline core with a gaussian halo | on in Attract, Tour and the Print tab |
+| Film jitter | J | Frame-to-frame registration wobble of the film | on in Attract, Tour and the Print tab |
+| Dust | D | Specks and occasional scratches | on in Attract, Tour and the Print tab |
+| Film rate | F | Presents frames at a steady 16 fps | on in Attract, Tour and the Print tab; off in Beam |
+| Print listing | button (Source tab) | The FORTRAN as a period compile listing, dark terminal or LIGHT greenbar paper | dark |
 
 ## Keys
+
+Keys act in the plot tabs (Review, Simulate, Print, Fusion), not in Source.
 
 | Key | Action |
 |---|---|
@@ -72,7 +92,7 @@ Is the film's leg-less LM shot (film seconds 20.5 to 26) this view? We think not
 | `[` `]` | Slower / faster (the Live rate, the Beam speed, or the Free-look speed) |
 | `R` | Reset the view |
 | `1`–`9` | Scenes (`8` and `9` when the kernel has them) |
-| `T` | Beam mode |
+| `T` | Beam on or off (opens the Print tab) |
 | `L` | Copy a link to the current view |
 | `B` `J` `D` `F` `C` | Bloom, jitter, dust, film rate, catalog |
 | `I` | Cabin interior on or off (with a kernel that has it) |
@@ -80,7 +100,7 @@ Is the film's leg-less LM shot (film seconds 20.5 to 26) this view? We think not
 
 ## Simulation
 
-A modern addition, in the RESTOMOD spirit: VIEW drew pre-flight predictions (TN D-6853, p. 3); this engine integrates our own trajectory. The Simulation control group appears only when the kernel has the engine (a `sim_run` export); on a phone it starts shut.
+A modern addition, in the RESTOMOD spirit: VIEW drew pre-flight predictions (TN D-6853, p. 3); this engine integrates our own trajectory. The Simulation control group, in the Simulate tab, appears only when the kernel has the engine (a `sim_run` export); on a phone it starts shut.
 
 | Control | What it does |
 |---|---|
@@ -120,14 +140,16 @@ With a kernel that has them, the Look group adds two rows. They are modern addit
 
 ## Control groups
 
-Each control group (Mode, Look, Scene, Time, Display, Film, Listing and link) has a header: `[-]` shows the group is open, `[+]` shut; click or tap the header to change it. The page remembers each group's state in this browser. Until you change one, a screen 600 px wide or less opens only Mode and Look, and puts Look first, under the picture; a wider screen opens every group.
+Each control group in the dock has a header: `[-]` shows the group is open, `[+]` shut; click or tap the header to change it. The tab decides which groups the dock shows (see Tabs). The page remembers each group's state in this browser. Until you change one, a screen 600 px wide or less opens only the tab's own groups (Mode, Mission clock, Beam, Film, Fusion) and Look, and puts Look first, under the picture; a wider screen opens every group.
 
 ## Link parameters
 
 | Parameter | Values | Example |
 |---|---|---|
 | `mode` | `attract`, `tour`, `live`, `free`, `beam` | `?mode=live` |
+| `tab` | `review`, `simulate`, `print`, `fusion`, `source`. Without it, the mode's tab (Live: Simulate, Beam: Print, else Review); with no `mode`, the tab's mode on entering. Beam is always in Print | `?tab=simulate` |
 | `scene` | `1`–`9` (in Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase; `9` opens in Free-look) | `?mode=free&scene=7` |
+| `photo` | a frame in `data/photos.tsv` with a scene: opens it in Fusion, then `get`, `fov`, `yaw`, `pitch` and `roll` apply on top | `?tab=fusion&photo=AS08-14-2383` |
 | `get` | g.e.t. as `h:mm:ss` or seconds | `?get=102:45:40` |
 | `utc` | `YYYY-MM-DDTHH:MM:SS` (the scene's mission lift-off plus g.e.t.; Apollo 11: 1969-07-16T13:32:00Z) | `?utc=1969-07-20T20:17:40` |
 | `fov`, `yaw`, `pitch`, `roll` | degrees | `?fov=100&pitch=-10` |
@@ -144,6 +166,7 @@ Each control group (Mode, Look, Scene, Time, Display, Film, Listing and link) ha
 | `src` | `replay`, `sim` (Simulation; only when the kernel has the engine) | `?src=sim` |
 | `svu` | `0`/`1`: state vector updates in simulation (default 1) | `?src=sim&svu=0` |
 | `listing` | `dark`, `light` | `?listing=light` |
+| `code` | with `tab=source`: a unit, `/BLOCK/`, a PARAMETER or COMMON member, a file, or `file:line`. `src=` with any value but `replay` or `sim` reads the same | `?tab=source&code=PROJ`, `?tab=source&code=pen.f:120` |
 | `still` | `earthrise` (frozen Earthrise, controls hidden, for screenshots) | `?still=earthrise` |
 | `bare` | present to hide the controls | `?bare&film=8` |
 

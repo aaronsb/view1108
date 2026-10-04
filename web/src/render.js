@@ -9,12 +9,22 @@ const off = mk(), bl1 = mk(), bl2 = mk(), bl3 = mk(), am1 = mk(), am2 = mk(), am
 const HDR = 0.115, BOXF = 0.80, HGT = 1.10;
 const RM_NMI = 938.1;
 const craterKm = j => NAMES.CRATER_KM ? NAMES.CRATER_KM[j] : Infinity;   // crater diameter, if build/names.js carries them   // lunar radius 1737.4 km (IAU mean radius) in n. mi.
+// The canvas fills the workspace's plot area (#wrap): on a wide screen the layout gives #wrap its height; on a narrow
+// one the page scrolls, and the plot fits the window under the tab bar with the status line. ?bare keeps the old
+// window height less 190 px, which tools/film_sheet.py assumes.
+const WIDE = matchMedia("(min-width: 1000px)");
+let sized = "";   // the width and dpr the canvas was last sized for
 function resize() {
-  const wrapW = document.getElementById("wrap").clientWidth;
-  W = Math.floor(Math.max(280, Math.min(wrapW, (innerHeight - (STILL ? 0 : 190)) / HGT)));
-  Hh = Math.floor(W * HGT);
-  dpr = (DEBUG && +QP("dpr")) || window.devicePixelRatio || 1;
-  dpr = Math.max(1, Math.min(dpr, 1800 / W));   // cap the backing store at about 1800 device px wide: the film is soft anyway and bloom cost scales with pixels
+  const wrap = document.getElementById("wrap"), wrapW = wrap.clientWidth;
+  if (!wrapW) return;   // hidden: the Source tab
+  const availH = STILL ? innerHeight : BARE ? innerHeight - 190 : WIDE.matches ? wrap.clientHeight
+    : innerHeight - document.getElementById("tabs").offsetHeight - document.getElementById("status").offsetHeight - 16;
+  const w = Math.floor(Math.max(280, Math.min(wrapW, availH / HGT)));
+  let d = (DEBUG && +QP("dpr")) || window.devicePixelRatio || 1;
+  d = Math.max(1, Math.min(d, 1800 / w));   // cap the backing store at about 1800 device px wide: the film is soft anyway and bloom cost scales with pixels
+  if (sized === w + "@" + d) return;
+  sized = w + "@" + d;
+  W = w; Hh = Math.floor(W * HGT); dpr = d;
   cv.style.width = W + "px"; cv.style.height = Hh + "px";
   cv.width = off.width = Math.round(W * dpr); cv.height = off.height = Math.round(Hh * dpr);
   beamFrames = []; beamNextStart = 0;   // BEAM traces are in canvas px: retrace after a resize
@@ -31,6 +41,52 @@ let drawn = false;   // a kernel frame has been drawn since boot
 let framed = true;
 const box = () => framed ? { x: W * (1 - BOXF) / 2, y: W * HDR, s: W * BOXF } : { x: 0, y: W * 0.02, s: W };
 
+// The caption line under the plot (also lettered by svgout.js).
+function captionText(H) {
+  const sc = H[6] | 0, liveTag = mode === "live" ? `LIVE ${LIVE_RATES[liveIdx]}x   ` : mode === "tour" ? "TOUR   " : "";
+  return liveTag + (capName || SCENE_CAPTION[sc] || SCENES[sc - 1] || "") + (H[5] && !autoCap && !(SCENE_CAPTION[sc] && (!capName || capName === SCENE_CAPTION[sc])) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (roll ? `   roll ${roll.toFixed(0)}°` : "");
+}
+// Text records the page letters, in plot degrees: x, y the lower-left of the first character, h its height. The
+// kernel's tbuf/tchr records; names follow the label level (the kernel picks them by level when it has in_lablv),
+// and the FULL catalog has no star names.
+function textRecords(fullCat) {
+  const out = [];
+  if (!K.tbuf) return out;
+  const nt = ri("ntxt"), T = new Float64Array(buf(), K.tbuf.value, nt * 4), C = new Int32Array(buf(), K.tchr.value, ri("nchr"));
+  for (let j = 0; j < nt * 4; j += 4) {
+    let str = ""; for (let q = T[j + 3] - 1; q < C.length && C[q]; q++) str += String.fromCharCode(C[q]);
+    if (/[A-Z]/.test(str) && (!labLv || (fullCat && NAMES.NAV.includes(str)))) continue;
+    out.push({ s: str, x: T[j], y: T[j + 1], h: T[j + 2] });
+  }
+  return out;
+}
+// Crater names stay page-side, in the same font, centred on the crater. Largest crater first (the catalog is sorted
+// by diameter, so a lower id is a larger crater); a name whose text rectangle (0.7 x height per character, one height
+// tall) meets one already placed is dropped, the same rule as the kernel's Moon-view labels. Names of craters within
+// two name heights of the Moon's limb (as angles from the Moon's centre) are dropped too: seen edge-on there, they
+// would letter over the limb and its crowded rims. Our rules. Level: none at PRIMARY, craters of 25 km and more at
+// SECONDARY (all of them if the catalog has no diameters), all at ALL.
+// Records in plot degrees, as textRecords gives them.
+function craterNames(L, nl, H, F, half) {
+  const out = [];
+  if (labLv >= 2) {
+    const hd = 2 * half * 0.014, placed = [], cand = [];
+    const dir = (x, y) => { const th = plotToAngle(Math.hypot(x, y), F) * Math.PI / 180, ph = Math.atan2(y, x); return [Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th)]; };
+    const moon = H[5] === 2 && H[13] === 1 ? dir(H[10], H[11]) : null;   // hdr(6) reference body Moon, hdr(14) in front
+    const limbAt = moon ? Math.asin(Math.min(1, RM_NMI / Math.max(RM_NMI, H[2]))) - 2 * hd * Math.PI / 180 : 0;
+    const nearLimb = i => { if (!moon) return false; const d = dir(L[i], L[i + 1]); return Math.acos(Math.min(1, d[0] * moon[0] + d[1] * moon[1] + d[2] * moon[2])) > limbAt; };
+    for (let i = 0; i < nl * 4; i += 4) if ((L[i + 2] | 0) === 2 && NAMES.CRATER[(L[i + 3] | 0) - 1] && !nearLimb(i) && (labLv === 3 || craterKm((L[i + 3] | 0) - 1) >= 25)) cand.push(i);
+    cand.sort((a, b) => L[a + 3] - L[b + 3]);
+    for (const i of cand) {
+      const up = NAMES.CRATER[(L[i + 3] | 0) - 1].toUpperCase(), wd = 0.35 * hd * up.length;
+      const r = [L[i] - wd, L[i] + wd, L[i + 1] - 0.5 * hd, L[i + 1] + 0.5 * hd];
+      if (placed.some(q => r[0] < q[1] && r[1] > q[0] && r[2] < q[3] && r[3] > q[2])) continue;
+      placed.push(r);
+      out.push({ s: up, x: L[i] - up.length * 0.7 * hd / 2, y: L[i + 1] - hd / 2, h: hd });
+    }
+  }
+  return out;
+}
 // ---- draw ----
 function draw(now) {
   const fl = ri("in_flags");
@@ -91,38 +147,8 @@ function draw(now) {
     for (let a = 0; a < n; a++) { const th = Math.PI * 2 * a / n - Math.PI / 2; starP.moveTo(x, y); starP.lineTo(x + rr * Math.cos(th), y + rr * Math.sin(th)); }
   }
   const textP = rec ? rec.sub(0) : new Path2D();   // recorder text is not clipped to the plot box: tick numbers sit just outside it
-  // Recorder text (kernel tbuf/tchr): tick numbers and names, in the film layer with the vectors.
-  if (K.tbuf) {
-    const nt = ri("ntxt"), T = new Float64Array(buf(), K.tbuf.value, nt * 4), C = new Int32Array(buf(), K.tchr.value, ri("nchr"));
-    for (let j = 0; j < nt * 4; j += 4) {
-      let str = ""; for (let q = T[j + 3] - 1; q < C.length && C[q]; q++) str += String.fromCharCode(C[q]);
-      const alpha = /[A-Z]/.test(str);
-      if (alpha && (!labLv || (fullCat && NAMES.NAV.includes(str)))) continue;   // names follow the label level (the kernel picks them by level when it has in_lablv); FULL catalog has no star names
-      strokeText(textP, str, cx + T[j] * k, cy - T[j + 1] * k, T[j + 2] * k);
-    }
-  }
-  // Crater names stay page-side, in the same font, centred on the crater. Largest crater first (the catalog is sorted
-  // by diameter, so a lower id is a larger crater); a name whose text rectangle (0.7 x height per character, one height
-  // tall) meets one already placed is dropped, the same rule as the kernel's Moon-view labels. Names of craters within
-  // two name heights of the Moon's limb (as angles from the Moon's centre) are dropped too: seen edge-on there, they
-  // would letter over the limb and its crowded rims. Our rules. Level: none at PRIMARY, craters of 25 km and more at
-  // SECONDARY (all of them if the catalog has no diameters), all at ALL.
-  if (labLv >= 2) {
-    const hd = 2 * half * 0.014, placed = [], cand = [];
-    const dir = (x, y) => { const th = plotToAngle(Math.hypot(x, y), F) * Math.PI / 180, ph = Math.atan2(y, x); return [Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th)]; };
-    const moon = H[5] === 2 && H[13] === 1 ? dir(H[10], H[11]) : null;   // hdr(6) reference body Moon, hdr(14) in front
-    const limbAt = moon ? Math.asin(Math.min(1, RM_NMI / Math.max(RM_NMI, H[2]))) - 2 * hd * Math.PI / 180 : 0;
-    const nearLimb = i => { if (!moon) return false; const d = dir(L[i], L[i + 1]); return Math.acos(Math.min(1, d[0] * moon[0] + d[1] * moon[1] + d[2] * moon[2])) > limbAt; };
-    for (let i = 0; i < nl * 4; i += 4) if ((L[i + 2] | 0) === 2 && NAMES.CRATER[(L[i + 3] | 0) - 1] && !nearLimb(i) && (labLv === 3 || craterKm((L[i + 3] | 0) - 1) >= 25)) cand.push(i);
-    cand.sort((a, b) => L[a + 3] - L[b + 3]);
-    for (const i of cand) {
-      const up = NAMES.CRATER[(L[i + 3] | 0) - 1].toUpperCase(), wd = 0.35 * hd * up.length;
-      const r = [L[i] - wd, L[i] + wd, L[i + 1] - 0.5 * hd, L[i + 1] + 0.5 * hd];
-      if (placed.some(q => r[0] < q[1] && r[1] > q[0] && r[2] < q[3] && r[3] > q[2])) continue;
-      placed.push(r);
-      strokeText(textP, up, cx + L[i] * k - up.length * 0.7 * hd * k / 2, cy - L[i + 1] * k + hd * k / 2, hd * k);
-    }
-  }
+  // Recorder text (kernel tbuf/tchr): tick numbers and names, in the film layer with the vectors; then crater names.
+  for (const t of textRecords(fullCat).concat(craterNames(L, nl, H, F, half))) strokeText(textP, t.s, cx + t.x * k, cy - t.y * k, t.h * k);
   // BLOOM: a hairline (about 1 device px) beam; all glow comes from the blur passes in present().
   const lw = bloomOn ? Math.max(1, 0.0009 * cv.width) / dpr : Math.max(1, W / 420); hairline = lw;   // hairline: 0.09% of canvas width, at least 1 device px
   for (const [w, a] of bloomOn ? [[lw, 1 * flick]] : [[lw * 3.2, 0.10 * flick], [lw, 0.95 * flick]]) {
@@ -153,13 +179,11 @@ function draw(now) {
   if (showCap) {
   ctx.textAlign = "center"; ctx.fillStyle = "#eee";
   ctx.textBaseline = "top"; ctx.font = `${fs * 1.1}px "Courier Prime","Courier New",monospace`;
-  const sc = H[6] | 0;
   ctx.fillText("g.e.t. = " + getStr(H[0]), cx, b.y + b.s + fs * (framed ? 4.0 : 0.5));
   ctx.fillStyle = "#aaa"; ctx.font = `${fs}px ${getComputedStyle(document.body).getPropertyValue("--hd")}`;
-  const liveTag = mode === "live" ? `LIVE ${LIVE_RATES[liveIdx]}x   ` : mode === "tour" ? "TOUR   " : "";
-  ctx.fillText(liveTag + (capName || SCENE_CAPTION[sc] || SCENES[sc - 1] || "") + (H[5] && !autoCap && !(SCENE_CAPTION[sc] && (!capName || capName === SCENE_CAPTION[sc])) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (roll ? `   roll ${roll.toFixed(0)}°` : ""), cx, b.y + b.s + fs * (framed ? 5.7 : 2.0));
+  ctx.fillText(captionText(H), cx, b.y + b.s + fs * (framed ? 5.7 : 2.0));
   }
 
   if (fadeA > 0) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, fadeA)})`; ctx.fillRect(0, 0, W, Hh); }
-  present(now, bloomOn); drawn = true;
+  present(now, bloomOn); fusionDraw(); drawn = true;
 }

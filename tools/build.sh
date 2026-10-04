@@ -13,6 +13,7 @@ B="${LF_BIN:+$LF_BIN/}"
 mkdir -p build
 
 python3 tools/gen_data.py
+python3 tools/gen_symbols.py || echo "gen_symbols failed; the page builds without the Source tab's symbols" >&2
 
 # The kernel's elements: every fixed-form file in src/ but the BLOCK DATA
 # (see the header of src/vdrive.f).  A new element needs no change here.
@@ -86,6 +87,6 @@ OBJS="build/viewdata.o"; for e in $ELEMS; do OBJS="$OBJS build/$e.o"; done
 python3 tools/wrap_fallback.py build/view.wasm2js.mjs build/fallback.js
 
 # 4. Page (when the template is there), native driver, selftest.
-if [ -f web/page.template.html ]; then python3 tools/assemble.py; fi
+if [ -f web/page.template.html ]; then python3 tools/photo_pack.py; python3 tools/assemble.py; fi
 if command -v gfortran >/dev/null; then native; fi
 node tools/selftest.mjs
