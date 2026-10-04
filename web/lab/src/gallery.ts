@@ -86,6 +86,7 @@ async function main() {
   };
   row(-2, [["uniservo", "uniservo", { number: 60, index: 1 }], ["uniservo61", "uniservo", { number: 61, index: 2 }], ["uniservo62", "uniservo", { number: 62, index: 3 }],
     ["cpu", "cpu"], ["cpu-lamps", "cpu", { lampPanel: true }], ["controller1557", "controller1557"], ["printer", "printer"]]);
+  row(4, [["filmrecorder", "filmrecorder"]]);
   row(1, [["vector", "vector"], ["desk", "desk"], ["console4009", "console4009"], ["cardreader", "cardreader"], ["reeltable", "reeltable"], ["chair", "chair"]]);
   const desk = placed.find(p => p.name === "desk")!.eq;
   place("glass", "glass", desk.object.position.x, desk.object.position.z, undefined, (desk.anchors.top as THREE.Vector3).y);
