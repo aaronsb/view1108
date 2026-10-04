@@ -13,6 +13,7 @@ B="${LF_BIN:+$LF_BIN/}"
 mkdir -p build
 
 python3 tools/gen_data.py
+python3 tools/gen_symbols.py
 
 # The kernel's elements: every fixed-form file in src/ but the BLOCK DATA
 # (see the header of src/vdrive.f).  A new element needs no change here.

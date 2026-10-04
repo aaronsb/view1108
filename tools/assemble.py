@@ -8,6 +8,8 @@ __NAMES_JS__ (build/names.js), __FORTRAN_SRC__ (the kernel listing:
 every src/*.f but the generated viewdata.f, the driver vdrive.f (or view.f) first, each element preceded by
 a line of a form feed and its path, HTML-escaped),
 __FONT_3270_B64__ (web/fonts/3270-Regular.subset.woff2).
+The kernel's symbol table (build/symbols.json, tools/gen_symbols.py) follows the listing's </pre> as
+<script type="application/json" id="fsym">, when that file is there.
 """
 import base64, html, pathlib, re, sys
 
@@ -51,6 +53,10 @@ def scripts(m):
 
 
 t = re.sub(r'(?:<script src="src/[\w.-]+\.js"></script>\n)+', scripts, t)
+SYMS = R / "build/symbols.json"
+if SYMS.is_file():
+    fsym = '<script type="application/json" id="fsym">' + SYMS.read_text().replace("</", "<\\/") + "</script>"
+    t = t.replace("__FORTRAN_SRC__</pre>", "__FORTRAN_SRC__</pre>\n__FSYM__", 1)
 # Function replacements so '\' and '&' in payloads are never interpreted.
 subs = {
     "__FORTRAN_SRC__": html.escape("".join(f"\f{f.relative_to(R)}\n{f.read_text()}" for f in KSRC), quote=False),
@@ -59,6 +65,8 @@ subs = {
     "__FONT_3270_B64__": base64.b64encode(INPUTS["font"].read_bytes()).decode(),
     "__WASM_B64__": base64.b64encode(INPUTS["wasm"].read_bytes()).decode(),
 }
+if "__FSYM__" in t:
+    subs["__FSYM__"] = fsym
 # Replace only the payload slots, not the dev-guard `var __FALLBACK_JS__, __NAMES_JS__;` line.
 guard = "var __FALLBACK_JS__, __NAMES_JS__;"
 t = t.replace(guard, "")
