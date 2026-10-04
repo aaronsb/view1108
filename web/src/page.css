@@ -10,7 +10,9 @@
 ::-webkit-scrollbar-thumb { background:var(--sb-thumb); border:2px solid var(--sb-track); border-radius:5px; }
 ::-webkit-scrollbar-thumb:hover { background:var(--sb-hover); }
 html,body { margin:0; background:var(--bg); color:var(--fg); font-family:var(--term); font-size:16px; }
-body { padding:8px 16px 24px; max-width:1400px; margin:0 auto; text-transform:none; }
+/* The page spans the window; ?bare and ?still (body.still) keep the 1400 px column their screenshots were made in. */
+body { padding:8px 16px 24px; text-transform:none; }
+body.still { max-width:1400px; margin:0 auto; }
 h1 { font:400 20px var(--term); letter-spacing:.12em; margin:0 14px 0 0; cursor:help; }
 #about p { margin:0 0 8px; }
 /* Tab bar: 3270-style fields on a rule; the open tab in reverse video. Link sits at the right end. */
@@ -34,7 +36,7 @@ body[data-tab=source] #wrap, body[data-tab=source] #status, body[data-tab=source
   body:not(.still) #wrap { flex:1; min-height:0; overflow:hidden; }
   body:not(.still) #srcws { flex:1; min-height:0; }
   body:not(.still) #status { flex:none; height:calc(2.5em + 10px); line-height:1.25; overflow:hidden; }   /* a fixed height, so the plot keeps its size as the line changes */
-  #dock { flex:none; width:360px; overflow-y:auto; padding-right:4px; }
+  #dock { flex:none; width:clamp(360px, 22vw, 440px); overflow-y:auto; padding-right:4px; }
   #dock #ctl { flex-direction:column; flex-wrap:nowrap; align-items:stretch; margin-top:0; }
   #dock .shade { align-items:flex-start; }
   #dock #hint, #dock #about { text-align:left; }
