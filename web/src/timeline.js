@@ -28,6 +28,13 @@ const airtOn = () => tlScenario() === "1";
 function airtSync() { if (airt && !airt.closed && airtOn()) try { airt.location = airtUrl(get); } catch (e) { airt = null; } }   // refused: wait for the button
 
 // A jump to an event: what the GET box does, with the free-look scrubber re-centred on it.
+// Apollo in Real Time plays at 1x, so a link to it puts the replay at 1x and playing too (Tour and Attract,
+// which drive time themselves, give way to Free-look; Live keeps its clock at 1x).
+function airtRealTime() {
+  if (mode === "attract" || mode === "tour") startMode("free");
+  if (mode === "live") liveIdx = LIVE_RATES.indexOf(1); else speedIdx = SPEEDS.indexOf(1);
+  playing = true; syncUI();
+}
 function tlJump(g) {
   leaveAttract(); livePin = null;
   get = mode === "live" ? Math.max(LIVE_MIN, Math.min(LIVE_MAX, g)) : g;
@@ -56,7 +63,7 @@ function tlList() {
     r.onclick = () => tlJump(e[0]);
     if (on) {
       const a = document.createElement("a"); a.href = airtUrl(e[0]); a.target = "airt"; a.textContent = "↗"; a.title = "Open this moment in Apollo in Real Time";
-      a.onclick = ev => ev.stopPropagation();
+      a.onclick = ev => { ev.stopPropagation(); tlJump(e[0]); airtRealTime(); };
       r.appendChild(a);
     }
     box.appendChild(r);
@@ -93,8 +100,8 @@ function tlTick() {
   const box = $("tllist"), top = best.offsetTop;   // the list is the offset parent (page.css)
   if (top < box.scrollTop || top + best.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = top - box.clientHeight / 3;
 }
-$("bairt").onclick = () => { airt = window.open(airtUrl(get), "airt"); };   // kept with its opener: re-pointing a named window needs it
-$("bairtre").onclick = airtSync;
+$("bairt").onclick = () => { airtRealTime(); airt = window.open(airtUrl(get), "airt"); };   // kept with its opener: re-pointing a named window needs it
+$("bairtre").onclick = () => { airtRealTime(); airtSync(); };
 $("scrub").addEventListener("change", airtSync);   // a released scrub, not each step of the drag
 $("geti").addEventListener("change", airtSync);    // after controls.js's handler has set the time
 for (const id in JUMPS) $(id).addEventListener("click", airtSync);
