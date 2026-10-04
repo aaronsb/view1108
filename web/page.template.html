@@ -91,12 +91,13 @@
   <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="19" value="0:00:00" aria-label="ground elapsed time h:mm:ss, or a UTC timestamp YYYY-MM-DD HH:MM:SS"><span id="utc" class="lbl"></span><span id="scrubw"><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0" aria-label="time offset"><span id="tlmarks" aria-hidden="true"></span></span></div></section>
   <!-- Timeline (web/src/timeline.js): the scenario's events from SP-4029, and the Apollo in Real Time companion. -->
   <section class="shade" data-shade="timeline" data-tabs="review" id="tlgrp"><button class="shade-h" type="button">Timeline</button>
-  <div class="grp" id="tlkinds"></div>
-  <div id="tllist" role="list" aria-label="Mission events"></div>
   <div id="tlairt">
     <div class="grp"><button id="bairt" title="Open Apollo in Real Time at this g.e.t. in its own window">Companion</button><button id="bairtre" title="Point the companion at this g.e.t. again">Resync</button></div>
     <div class="grp note">Jumps here re-point it; it plays in real time on its own, and its pause and rate are independent. Apollo in Real Time (Ben Feist), apolloinrealtime.org</div>
-  </div></section>
+  </div>
+  <div class="grp" id="tlkinds"></div>
+  <div id="tllist" role="list" aria-label="Mission events"></div>
+</section>
   <section class="shade" data-shade="look" data-tabs="review simulate print fusion"><button class="shade-h" type="button">Look</button>
   <div class="grp">
     <!-- Control pad (web/src/pad.js): the keyboard's look and time keys; the key letter is on each cap. -->
