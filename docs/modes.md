@@ -12,7 +12,7 @@ The tab bar across the top, after the title, picks the workspace and the control
 |---|---|---|---|
 | **Review** | the plot | Mode (Attract, Tour, Free-look), Scene, Time, Timeline, Look, Display | keeps Attract, Tour or Free-look; from any other mode, starts Tour. The page opens here, in Attract |
 | **Simulate** | the plot | Mission clock (Live, Free-look, the jumps), Simulation, Scene, Time, Look, Display | starts Live |
-| **Print** | the plot | Beam (the trace and its speed), Film, Scene, Time, Look, Display | stops Attract or Tour for Free-look; film effects default on. Beam runs only here: leaving Print leaves Beam for Free-look |
+| **Print** | the plot | Beam (the trace and its speed), Film (with Print SVG and Paper SVG: the frame as an SVG file, white on black or black on white), Scene, Time, Look, Display | stops Attract or Tour for Free-look; film effects default on. Beam runs only here: leaving Print leaves Beam for Free-look |
 | **Fusion** | the plot | a note (crew photographs over the vector frame, to come), Look, Display | stops Attract or Tour for Free-look |
 | **Source** | its own: the Fortran listing button for now | none | keeps the mode; the plot stops drawing and time holds until you return. Keys do nothing here |
 
