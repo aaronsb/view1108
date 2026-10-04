@@ -37,7 +37,8 @@ is chosen.
 | `hide()` | stop rendering (the page is shown) |
 | `setTarget(name)` | fly to a placed equipment (`null`: the overview); a terminal ends at its handover pose and calls `hooks.arrive` |
 | `event(e)` | pass a page event to every placed equipment |
-| `info()`, `project(name)` | for tests: quality, draw calls and triangles of the last frame, the last handover's mismatch; a placed equipment's screen in client px |
+| `info()`, `project(name)` | for tests: quality, draw calls and triangles of the last frame, the last handover's mismatch, the walk (`x`, `z`, `yaw`, `pitch`, `near`); a placed equipment's screen in client px |
+| `plan(px?)`, `layout()`, `stand(x, z, yaw, pitch?)` | for tests: the room from above as a PNG data URL; the footprints, door and terminals; stand somewhere walking |
 
 `hooks` (`LabHooks` in `src/types.ts`): `screens.vector` is the plot canvas `#cv`; `state()` returns the
 `LabState` below, read once per rendered frame; `screenRect(opens)` lays the page out for that tab behind the room
@@ -54,8 +55,19 @@ edges land on the plot's own (within 0.1 px in the headless check); the page the
 against the UNISCOPE's 2:1 face; 150 px a side at 2399 × 1101) the page also grows sideways out of the screen's rect
 during the crossfade (a `clip-path` inset from `info().mismatch`), and shrinks back into it before the room fades in.
 Back out, the page measures the same rect, the lab starts at that pose under it, fades in, holds for the fade, then
-flies to the overview. Flights take 1 s (smoothstep,
-with a slight rise mid-way); bloom eases out toward a screen so the last frame shows the plot as the page draws it.
+flies back to stand 2 m out from the screen, facing it, walking. Flights take 1 s (smoothstep, with a slight rise
+mid-way); bloom eases out toward a screen so the last frame shows the plot as the page draws it.
+
+### Walking
+
+`src/walk.ts`: from the overview the viewer walks at its eye height, 1.4 m/s (2.6 with Shift) with eased starts and
+stops, on `W` `A` `S` `D` or the arrows; a drag turns (yaw free, pitch ±35°), the wheel or a pinch steps along the
+view. The body is a 0.25 m circle against the walls and every `footprint`, pushed out along the shallower side so it
+slides. While the room is shown a capture listener on `window` keeps every key from the page but Esc, Tab, `M`,
+function keys and modifier chords, so the plot's keys cannot act behind the room. Each terminal (`opens` and
+`anchors.screen`) has a zone: within 1.3 m of its screen, in front of it, facing it within 35°. There a hint names it,
+and a 0.4 s dwell or `E`/Enter flies in as a click does; the terminal re-arms once the viewer is 1.7 m out. Footsteps
+come from `src/audio/roomsound.ts` (`footstep`), one per 0.77 m actually walked.
 
 ### Rendering
 

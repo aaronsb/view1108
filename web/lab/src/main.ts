@@ -30,6 +30,8 @@ const VIEW_LAB = {
   plan(px?: number) { return lab?.plan(px) ?? null; },
   /** Footprints of the pieces on the floor and the door: for tests. */
   layout() { return lab?.layout ?? null; },
+  /** Stand at (x, z), looking yaw degrees left of north, pitch up: for tests. */
+  stand(x: number, z: number, yaw: number, pitch?: number) { lab?.stand(x, z, yaw, pitch); },
 };
 
 (window as unknown as { VIEW_LAB: typeof VIEW_LAB }).VIEW_LAB = VIEW_LAB;

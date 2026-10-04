@@ -24,13 +24,19 @@ function labState() {
 // Discrete events for the room's equipment (beam frames, engine runs).
 function labEvent(type, at = performance.now()) { if (roomIn) LAB.event({ type, at }); }
 
+// The Room button by state: lit in the room; in Room space with a terminal's page showing, "← Room", unlit, to go
+// back; in Tiled, plain. The button sits after the bar's spacer, so the longer label grows into it and nothing to its
+// right moves.
 function roomSync() {
-  const vis = roomAvail && WIDE.matches;
-  $("bspace").hidden = $("btiled").hidden = !vis;
-  $("bspace").classList.toggle("on", roomIn); $("btiled").classList.toggle("on", !roomIn);
-  $("bspace").title = roomIn && !roomShown ? "Back to the machine room (Esc on a plot tab)" : "The workbench inside a machine room";
+  const vis = roomAvail && WIDE.matches, b = $("bspace"), back = roomIn && !roomShown;
+  b.hidden = $("btiled").hidden = !vis;
+  b.textContent = back ? "← Room" : "Room";
+  b.classList.toggle("on", roomIn && !back); $("btiled").classList.toggle("on", !roomIn);
+  b.title = back ? "Return to the room (Esc)" : "The workbench inside a machine room";
   syncUI();   // the screen (prefs.js effDisp) follows the room
 }
+// A flight or a crossfade under way: the room's buttons wait for it.
+const roomBusy = () => $("labhost").classList.contains("fading") || (roomIn && LAB.info()?.mode === "flight");
 function roomPlace() { $("labhost").style.top = $("tabs").getBoundingClientRect().bottom + "px"; }
 // The handover: the lab's flight into a terminal ends where its screen covers the element that screen becomes on the
 // page (#cv, or the Source workspace), and the two crossfade over ROOM_FADE ms. Leaving, the lab starts at that pose
@@ -108,6 +114,7 @@ function roomApply() {
   roomSync();
 }
 function roomChoose(v) {
+  if (roomBusy()) return;
   roomWant = v; try { localStorage.setItem(ROOM_KEY, v); } catch (e) { /* ignore */ }
   if (v === "room" && roomIn && !roomShown) roomShowLab(roomTermOf(tab));
   else roomApply();

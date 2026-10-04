@@ -1,24 +1,27 @@
-// The lab: renderer, quality tier, camera (free look at the overview, flights to the terminals), hover and picking,
-// and the handover to the page. It renders only while shown; the page decides when that is (web/src/room.js).
+// The lab: renderer, quality tier, camera (walking the room from the overview, walk.ts; flights to the terminals),
+// hover and picking, and the handover to the page. It renders only while shown; the page decides when that is
+// (web/src/room.js). While it is shown the keys are the walk's: a capture listener keeps them from the page.
 //
 // Handover: a flight into a terminal that opens a tab ends where the terminal's screen covers, on the lab canvas,
 // the rect the page's element will occupy (hooks.screenRect: #cv for the workbench, the Source workspace for
 // source), with the camera square to the screen. The page then crossfades from the lab to itself. Back out, the
-// lab starts at that pose under the page, fades in, holds, then flies to the overview.
+// lab starts at that pose under the page, fades in, holds, then flies back to stand in front of the terminal.
 import * as THREE from "three";
 import { build as buildRoom } from "./room/room";
 import { Lighting } from "./room/lighting";
 import { Dust } from "./room/dust";
 import { EXPOSURE, Post, markScreens } from "./post";
 import { RoomSound } from "./audio/roomsound";
+import { ROOM } from "./room/shell";
+import { Walk, type Terminal } from "./walk";
 import type { CameraPose, LabEvent, LabHooks, Placed, Quality, Room } from "./types";
 
 const FLY_S = 1.0;
 const ARC_M = 0.12;                 // the flight's rise at its middle, metres per 2 m flown (at most one unit)
-const YAW_MAX = 60, PITCH_MAX = 20; // free look about the overview, deg
-const DOLLY_IN = 2.2, DOLLY_OUT = 0.4;
-const PARALLAX = { x: 0.06, y: 0.035 };
 const CLICK_PX = 5;
+const WHEEL_M = 0.0018;             // metres stepped per wheel pixel
+/** Keys the walk leaves to the page while the room is shown (modifier chords pass too). */
+const PASS = /^(Escape|Tab|F\d+|m|M)$/;
 // Auto quality. A software rasteriser starts low; a GPU starts high and is checked twice each time the room is shown:
 // the probe, the median frame time over the first frames (after `skip`; `frames` of them, or as many as fit in
 // `budget` ms) above `ms`, then the watch, the mean over the next `span` ms of frames above `ms`. Either drops to
@@ -32,7 +35,7 @@ const D2R = Math.PI / 180;
 
 /** A camera state: position, orientation, vertical field of view (deg), and how much bloom it wants (0..1). */
 interface Shot { position: THREE.Vector3; quaternion: THREE.Quaternion; fov: number; glow: number }
-interface Flight { from: Shot; to: Shot; t0: number; delay: number; done?: () => void }
+interface Flight { from: Shot; to: Shot; t0: number; delay: number; free: boolean; done?: () => void }
 type Mode = "free" | "flight" | "hold";
 
 function shotOf(p: CameraPose, glow = 1): Shot {
@@ -60,7 +63,7 @@ export class Lab {
   private mode: Mode = "free";
   private flight: Flight | null = null;
   private glow = 1;
-  private look = { yaw: 0, pitch: 0, dolly: 0, px: 0, py: 0, tx: 0, ty: 0 };
+  private walk: Walk;
   private drag: { id: number; x: number; y: number; yaw: number; pitch: number; t: number; moved: boolean } | null = null;
   private pinch = new Map<number, { x: number; y: number }>();
   private pinchD = 0;
@@ -98,6 +101,15 @@ export class Lab {
     if (this.room.air) { this.dust = new Dust({ box: this.room.air, count: 420, size: 0.006, opacity: 0.22 }); this.scene.add(this.dust.object); }
     this.home = shotOf(this.room.overview);
     this.sound = new RoomSound(this.room, this.camera, hooks.state, () => this.shown);
+    const terminals: Terminal[] = this.room.placed.filter(p => p.equipment.opens && p.equipment.anchors.screen).map(p => {
+      const m = p.equipment.anchors.screen!.mesh, n = new THREE.Vector3(0, 0, 1).transformDirection(m.matrixWorld);
+      return { name: p.name, screen: new THREE.Vector3().setFromMatrixPosition(m.matrixWorld), normal: new THREE.Vector2(n.x, n.z).normalize() };
+    });
+    this.walk = new Walk(this.room.footprints ?? [], { x: ROOM.w / 2, z: ROOM.d / 2 }, terminals, {
+      step: fast => this.sound.footstep(fast),
+      enter: name => { this.setTarget(name); },
+    });
+    this.walk.setFrom(this.home.position, this.home.quaternion);
 
     const qs = new URLSearchParams(location.search), q = qs.get("labq"), fake = parseFloat(qs.get("labprobe") ?? "");
     if (fake > 0) this.fakeMs = fake;
@@ -128,10 +140,14 @@ export class Lab {
     c.addEventListener("pointerleave", this.onLeave);
     c.addEventListener("wheel", this.onWheel, { passive: false });
     window.addEventListener("keydown", this.onKey);
+    window.addEventListener("keydown", this.onKeyCapture, true);
+    window.addEventListener("keyup", this.onKeyCapture, true);
+    window.addEventListener("blur", this.onBlur);
   }
 
   /** Show the room. With `from`, the camera starts at that terminal: with `rect` (the page element's client rect)
-   *  at the pose where the screen covers it, held `holdMs` while the page fades the lab in; then it flies out. */
+   *  at the pose where the screen covers it, held `holdMs` while the page fades the lab in; then it flies back to
+   *  stand in front of it, outside its zone (walk.ts), so the walk does not pull straight back in. */
   show(from?: string, rect?: DOMRect | null, holdMs = 0): void {
     this.shown = true;
     this.resize();
@@ -140,8 +156,8 @@ export class Lab {
     const s = from ? (rect && this.matchShot(from, rect)) || this.anchorShot(from) : null;
     if (s) {
       this.setShot(s); this.mode = "hold";
-      this.fly(this.home, holdMs);
-    } else { this.resetLook(); this.setShot(this.home); this.mode = "free"; }
+      this.fly(this.standBack(from!) ?? this.home, holdMs, true);
+    } else { this.walk.setFrom(this.home.position, this.home.quaternion); this.setShot(this.home); this.mode = "free"; }
     this.draw();
     this.probe = this.qForced || this.slow || this.quality === "low" ? null : []; this.watch = null;
     if (!this.raf) { this.last = 0; this.raf = requestAnimationFrame(this.tick); }
@@ -149,7 +165,7 @@ export class Lab {
 
   /** Stop rendering; the canvas keeps its last picture. */
   hide(): void {
-    this.shown = false; this.flight = null; this.clearHover();
+    this.shown = false; this.flight = null; this.clearHover(); this.walk.clearKeys();
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
   }
@@ -158,14 +174,15 @@ export class Lab {
    *  calls hooks.arrive. */
   setTarget(name: string | null): boolean {
     this.clearHover();
-    if (name === null) { this.resetLook(); this.fly(this.home); return true; }
+    if (name === null) { this.fly(this.home, 0, true); return true; }
     const p = this.room.placed.find(q => q.name === name);
     if (!p) return false;
     const opens = p.equipment.opens;
     const rect = opens ? this.hooks.screenRect?.(opens) ?? null : null;
     const s = (rect && this.matchShot(name, rect)) || this.anchorShot(name);
     if (!s) return false;
-    this.fly(s, 0, () => {
+    this.walk.disarm(name); this.walk.clearKeys();
+    this.fly(s, 0, false, () => {
       this.mode = "hold";
       if (opens) this.hooks.arrive(opens);
     });
@@ -208,15 +225,33 @@ export class Lab {
   }
 
   /** The floor plan: each piece's footprint and the door (for tests and the walk). */
-  get layout() { return { footprints: this.room.footprints ?? [], door: this.room.door ?? null }; }
+  get layout() {
+    const terminals = this.walk.terminals.map(t => ({ name: t.name, x: t.screen.x, y: t.screen.y, z: t.screen.z, nx: t.normal.x, nz: t.normal.y }));
+    return { footprints: this.room.footprints ?? [], door: this.room.door ?? null, terminals };
+  }
 
-  get info() { return { quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info }; }
+  /** Stand at (x, z) looking `yaw` degrees left of north and `pitch` up, walking: for tests. */
+  stand(x: number, z: number, yaw: number, pitch = 0): void {
+    this.flight = null; this.mode = "free";
+    this.walk.setFrom(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch * D2R, yaw * D2R, 0, "YXZ")));
+    this.walk.pos.copy(this.walk.collide(this.walk.pos.clone()));
+    this.applyWalk();
+  }
+
+  get info() {
+    const w = this.walk;
+    return { quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
+      walk: { x: w.pos.x, z: w.pos.y, yaw: w.yaw / D2R, pitch: w.pitch / D2R, near: w.near?.name ?? null } };
+  }
 
   dispose(): void {
     this.hide();
     this.sound.dispose();
     this.ro.disconnect();
     window.removeEventListener("keydown", this.onKey);
+    window.removeEventListener("keydown", this.onKeyCapture, true);
+    window.removeEventListener("keyup", this.onKeyCapture, true);
+    window.removeEventListener("blur", this.onBlur);
     for (const p of this.room.placed) p.equipment.dispose?.();
     this.room.dispose?.();
     for (const [, [, lift]] of this.lifted) lift.dispose();
@@ -235,7 +270,7 @@ export class Lab {
 
   private tick = (now: number) => {
     this.raf = requestAnimationFrame(this.tick);
-    const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0;
+    const raw = this.last ? (now - this.last) / 1000 : 0, dt = Math.min(0.1, raw);
     if ((this.probe || this.watch) && this.last) this.sample(now - this.last);
     this.last = now;
     const s = this.hooks.state();
@@ -245,8 +280,9 @@ export class Lab {
     this.dust?.update(dt);
     let landed: (() => void) | undefined;
     if (this.flight) landed = this.stepFlight(now);
-    else if (this.mode === "free") this.freeLook(dt);
+    else if (this.mode === "free") { this.walk.update(Math.min(0.25, raw)); if (this.mode === "free") this.applyWalk(); }
     if (this.pointer && this.mode === "free" && !this.drag) this.pick(this.pointer.x, this.pointer.y, false);
+    this.hint();
     if (this.shown) this.draw();
     landed?.();   // after the final frame is drawn: the page crossfades from it
   };
@@ -319,9 +355,10 @@ export class Lab {
     return { position: this.camera.position.clone(), quaternion: this.camera.quaternion.clone(), fov: this.camera.fov, glow: this.glow };
   }
 
-  private fly(to: Shot, delay = 0, done?: () => void): void {
+  /** Fly to `to`; `free`: land walking there, else hold (at a terminal). */
+  private fly(to: Shot, delay = 0, free = false, done?: () => void): void {
     this.mode = "flight";
-    this.flight = { from: this.current(), to, t0: performance.now(), delay, done };
+    this.flight = { from: this.current(), to, t0: performance.now(), delay, free, done };
   }
 
   /** One step of the flight (wall clock: a slow GPU skips, never drags). Returns the arrival action when it lands. */
@@ -336,25 +373,38 @@ export class Lab {
     this.camera.updateProjectionMatrix(); this.camera.updateMatrixWorld();
     if (t < 1) return undefined;
     this.flight = null;
-    this.mode = f.to === this.home ? "free" : "hold";
-    if (this.mode === "free") { this.look.px = this.look.py = 0; }
+    this.mode = f.free ? "free" : "hold";
+    if (f.free) this.walk.setFrom(this.camera.position, this.camera.quaternion);
     return f.done ?? (() => {});
   }
 
-  private resetLook(): void { Object.assign(this.look, { yaw: 0, pitch: 0, dolly: 0, px: 0, py: 0 }); }
-
-  /** The overview turned by the viewer's yaw and pitch, dollied, and shifted a little after the pointer. */
-  private freeLook(dt: number): void {
-    const L = this.look, k = 1 - Math.exp(-dt * 4);
-    L.px += (L.tx - L.px) * k; L.py += (L.ty - L.py) * k;
-    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), L.yaw * D2R).multiply(this.home.quaternion)
-      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), L.pitch * D2R));
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q), right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
-    this.camera.quaternion.copy(q);
-    this.camera.position.copy(this.home.position).addScaledVector(fwd, L.dolly).addScaledVector(right, L.px * PARALLAX.x);
-    this.camera.position.y += L.py * PARALLAX.y;
-    this.camera.fov = this.home.fov;
+  /** The camera where the walk stands, at the overview's eye height and field. */
+  private applyWalk(): void {
+    this.camera.position.set(this.walk.pos.x, this.home.position.y, this.walk.pos.y);
+    this.walk.quaternion(this.camera.quaternion);
+    this.camera.fov = this.home.fov; this.glow = 1;
     this.camera.updateProjectionMatrix(); this.camera.updateMatrixWorld();
+  }
+
+  /** Standing in front of a terminal, outside its zone, looking at its screen. */
+  private standBack(name: string): Shot | null {
+    const t = this.walk.terminals.find(q => q.name === name);
+    if (!t) return null;
+    this.walk.disarm(name);
+    const p = this.walk.standBack(t);
+    return shotOf({ position: new THREE.Vector3(p.x, this.home.position.y, p.y), target: t.screen, fov: this.home.fov });
+  }
+
+  /** In a terminal's zone: its name and how to go in, by its screen. */
+  private hint(): void {
+    const t = this.mode === "free" ? this.walk.near : null;
+    if (!t) { if (this.labelEl.dataset.hint) { this.labelEl.style.display = "none"; delete this.labelEl.dataset.hint; } return; }
+    if (this.hover) return;
+    const v = t.screen.clone().project(this.camera), r = this.renderer.domElement.getBoundingClientRect(), hr = this.host.getBoundingClientRect();
+    this.labelEl.textContent = `${this.room.labels?.[t.name] ?? t.name} · approach or press E`;
+    this.labelEl.style.left = `${r.left - hr.left + (v.x + 1) / 2 * r.width}px`;
+    this.labelEl.style.top = `${r.top - hr.top + (1 - v.y) / 2 * r.height + 24}px`;
+    this.labelEl.style.display = "block"; this.labelEl.dataset.hint = t.name;
   }
 
   /** A placed equipment's own zoom-in pose (anchors.camera) in room coordinates. */
@@ -407,20 +457,19 @@ export class Lab {
       if (this.pinch.size === 2) { const [a, b] = [...this.pinch.values()]; this.pinchD = Math.hypot(a.x - b.x, a.y - b.y); this.drag = null; return; }
     }
     if (e.button !== 0) return;
-    this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, yaw: this.look.yaw, pitch: this.look.pitch, t: performance.now(), moved: false };
+    this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, yaw: this.walk.yaw, pitch: this.walk.pitch, t: performance.now(), moved: false };
     this.renderer.domElement.setPointerCapture(e.pointerId);
   };
 
   private onMove = (e: PointerEvent) => {
     const r = this.renderer.domElement.getBoundingClientRect();
-    this.look.tx = ((e.clientX - r.left) / r.width) * 2 - 1;
-    this.look.ty = -(((e.clientY - r.top) / r.height) * 2 - 1);
     this.pointer = { x: e.clientX, y: e.clientY };
     if (this.pinch.has(e.pointerId)) {
       this.pinch.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (this.pinch.size === 2) {
         const [a, b] = [...this.pinch.values()], dd = Math.hypot(a.x - b.x, a.y - b.y);
-        this.dollyBy((dd - this.pinchD) * 0.006); this.pinchD = dd;
+        if (this.mode === "free") this.walk.nudge((dd - this.pinchD) * 0.006);
+        this.pinchD = dd;
         return;
       }
     }
@@ -429,9 +478,8 @@ export class Lab {
     const dx = e.clientX - g.x, dy = e.clientY - g.y;
     if (!g.moved && Math.hypot(dx, dy) < CLICK_PX) return;
     if (!g.moved) { g.moved = true; this.clearHover(); }
-    const degPx = this.camera.fov / r.height;   // the scene follows the pointer
-    this.look.yaw = THREE.MathUtils.clamp(g.yaw + dx * degPx, -YAW_MAX, YAW_MAX);
-    this.look.pitch = THREE.MathUtils.clamp(g.pitch + dy * degPx, -PITCH_MAX, PITCH_MAX);
+    const radPx = this.camera.fov * D2R / r.height;   // the scene follows the pointer
+    this.walk.turn(g.yaw + dx * radPx - this.walk.yaw, g.pitch + dy * radPx - this.walk.pitch);
   };
 
   private onUp = (e: PointerEvent) => {
@@ -442,20 +490,36 @@ export class Lab {
     if (!g.moved && e.type === "pointerup") this.pick(e.clientX, e.clientY, true);
   };
 
-  private onLeave = () => { this.pointer = null; this.look.tx = this.look.ty = 0; this.clearHover(); };
+  private onLeave = () => { this.pointer = null; this.clearHover(); };
 
   private onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    if (this.mode === "free") this.dollyBy(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0018));
+    if (this.mode === "free") this.walk.nudge(-e.deltaY * (e.deltaMode === 1 ? 28 : 1) * WHEEL_M);
   };
 
+  /** Esc, walked or turned away from the overview: back to it. */
   private onKey = (e: KeyboardEvent) => {
     if (!this.shown || e.key !== "Escape" || this.mode !== "free") return;
-    const L = this.look;
-    if (L.yaw || L.pitch || L.dolly) { e.preventDefault(); this.setTarget(null); }
+    const h = this.home.position;
+    if (this.walk.pos.distanceTo(new THREE.Vector2(h.x, h.z)) > 0.05 || this.camera.quaternion.angleTo(this.home.quaternion) > 0.01) {
+      e.preventDefault(); this.setTarget(null);
+    }
   };
 
-  private dollyBy(m: number): void { this.look.dolly = THREE.MathUtils.clamp(this.look.dolly + m, -DOLLY_OUT, DOLLY_IN); }
+  /** While the room is shown its keys are the walk's (and E/Enter for a terminal in range); the page gets none but
+   *  PASS and modifier chords, so its plot keys cannot act behind the room. */
+  private onKeyCapture = (e: KeyboardEvent) => {
+    if (!this.shown) return;
+    if (e.type === "keyup") { this.walk.key(e.key, false, e.shiftKey); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey || PASS.test(e.key)) return;
+    e.stopPropagation();
+    if (this.mode !== "free") return;
+    if (this.walk.key(e.key, true, e.shiftKey)) e.preventDefault();
+    else if ((e.key === "e" || e.key === "E" || e.key === "Enter") && this.walk.enter()) e.preventDefault();
+    else if (e.key === " ") e.preventDefault();
+  };
+
+  private onBlur = () => this.walk.clearKeys();
 
   // ---- hover and picking ----
 

@@ -58,6 +58,8 @@ export class RoomSound {
   private r = rng(1108);
   private bedOff: ((on: boolean) => void) | null = null;
   private v = new THREE.Vector3();
+  private foot = 1;
+  private steps = 0;              // footsteps played, for tests
 
   /** `auto` runs the live loop (STEP_S) against the page's context; without it the caller attaches and steps. */
   constructor(private room: Room, private camera: THREE.Camera, private state: () => LabState, private shown: () => boolean, auto = true) {
@@ -322,7 +324,7 @@ export class RoomSound {
     const p = this.v.setFromMatrixPosition(this.camera.matrixWorld);
     const at = (s: Src) => { const r = Math.max(1, p.distanceTo(s.pos)); return 1 / (1 + s.panner.rolloffFactor * (r - 1)); };
     return {
-      built: true, sources: g.nodes.length, panners: g.srcs.length, shots: this.shots, master: g.master.gain.value,
+      built: true, sources: g.nodes.length, panners: g.srcs.length, shots: this.shots, steps: this.steps, master: g.master.gain.value,
       rmsDb: 10 * Math.log10(e / d.length + 1e-12), lit: g.lit,
       tapes: g.tapes.map(u => ({ name: u.src.name, v: u.motion.v, motor: u.motorG.gain.value, hiss: u.hiss.gain.value, atListener: at(u.src) })),
       at: Object.fromEntries(g.srcs.map(s => [s.name, at(s)])),
@@ -342,6 +344,26 @@ export class RoomSound {
     g.master.disconnect();
     g.whine?.scope.disconnect(); g.whine?.recorder.disconnect();
     this.g = null;
+  }
+
+  /** A footstep of the walking viewer (ours): a soft heel-then-toe tap on the raised floor, band-passed noise with a
+   *  faint hollow knock (a tile on pedestals, 180-300 Hz), alternating feet with a little variation; quiet, at the
+   *  listener, so unpanned. */
+  footstep(fast: boolean): void {
+    const g = this.g;
+    if (!g || g.ctx.state !== "running") return;
+    const ctx = g.ctx, t = ctx.currentTime + 0.01, r = this.r, side = (this.foot = -this.foot);
+    this.steps++;
+    const out = ctx.createGain(), pan = ctx.createStereoPanner();
+    out.gain.value = (fast ? 1.25 : 1) * (0.85 + r() * 0.3); pan.pan.value = side * 0.18;
+    out.connect(pan).connect(g.master); out.connect(g.wet);
+    setTimeout(() => { out.disconnect(); pan.disconnect(); }, 600);
+    const heel = 0.022, toe = 0.012, gap = (fast ? 0.055 : 0.075) + r() * 0.02;
+    this.shot(() => {
+      click(ctx, out, t, 700 + r() * 250, 0.9, 0.06, heel, r());
+      knock(ctx, out, t + 0.003, 260 + r() * 40, 180 + r() * 20, 0.09, heel * 0.6);
+      click(ctx, out, t + gap, 1500 + r() * 500, 1.1, 0.04, toe, r());
+    });
   }
 
   /** A burst of FASTRAND head seeks: each a 30-86 ms carriage move ending in a knock and a click. */
