@@ -10,6 +10,7 @@ import { build as buildRoom } from "./room/room";
 import { Lighting } from "./room/lighting";
 import { Dust } from "./room/dust";
 import { EXPOSURE, Post, markScreens } from "./post";
+import { RoomSound } from "./audio/roomsound";
 import type { CameraPose, LabEvent, LabHooks, Placed, Quality, Room } from "./types";
 
 const FLY_S = 1.0;
@@ -43,6 +44,7 @@ export class Lab {
   private lighting: Lighting;
   private post: Post | null = null;
   private dust: Dust | null = null;
+  private sound: RoomSound;
   private vectorTex: THREE.CanvasTexture;
   private quality: Quality = "high";
   private qForced: Quality | null = null;
@@ -88,6 +90,7 @@ export class Lab {
     this.room.object.updateMatrixWorld(true);
     if (this.room.air) { this.dust = new Dust({ box: this.room.air, count: 420, size: 0.006, opacity: 0.22 }); this.scene.add(this.dust.object); }
     this.home = shotOf(this.room.overview);
+    this.sound = new RoomSound(this.room, this.camera, hooks.state, () => this.shown);
 
     const q = new URLSearchParams(location.search).get("labq");
     let stored: string | null = null;
@@ -163,6 +166,7 @@ export class Lab {
   event(e: LabEvent): void {
     const s = this.hooks.state();
     for (const p of this.room.placed) p.equipment.event?.(e, s);
+    this.sound.event(e);
   }
 
   /** Where a placed equipment's screen (else its origin) is on the page, client px; for tests. */
@@ -175,10 +179,11 @@ export class Lab {
     return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };
   }
 
-  get info() { return { quality: this.quality, forced: this.qForced, mode: this.mode, ...this.stats, mismatch: this.mismatch }; }
+  get info() { return { quality: this.quality, forced: this.qForced, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info }; }
 
   dispose(): void {
     this.hide();
+    this.sound.dispose();
     this.ro.disconnect();
     window.removeEventListener("keydown", this.onKey);
     for (const p of this.room.placed) p.equipment.dispose?.();
