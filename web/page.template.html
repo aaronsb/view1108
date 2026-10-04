@@ -21,24 +21,73 @@
 <link rel="stylesheet" href="src/page.css">
 </head>
 <body>
-<header>
-  <h1>VIEW-1108</h1>
-  <p>A reconstruction of VIEW, the Manned Spacecraft Center program that drew Apollo window views on a UNIVAC 1108 (FORTRAN V, output photographed from a CRT onto microfilm: NASA TN D-6853, p. 3). We know of no surviving source code; the geometry here is our own FORTRAN and this page only films it.</p>
-</header>
-<div id="wrap"><canvas id="cv" tabindex="0" aria-label="VIEW-1108 plot"></canvas></div>
-<div id="status" role="status" aria-live="off"></div>
+<!-- Tab bar (web/src/tabs.js): the title, then the tabs; each tab picks its workspace and the control groups shown in the dock. -->
+<nav id="tabs" role="tablist" aria-label="Workspaces">
+  <h1 title="A reconstruction of VIEW, the Manned Spacecraft Center program that drew Apollo window views on a UNIVAC 1108 (FORTRAN V, output photographed from a CRT onto microfilm: NASA TN D-6853, p. 3). We know of no surviving source code; the geometry here is our own FORTRAN and this page only films it.">VIEW-1108</h1>
+  <button role="tab" data-tab="review" title="The film, the tour and the scenes">Review</button>
+  <button role="tab" data-tab="simulate" title="The mission clock and our trajectory engine">Simulate</button>
+  <button role="tab" data-tab="print" title="The recorder: film effects and the beam trace">Print</button>
+  <button role="tab" data-tab="fusion" title="Crew photographs over the vector frame (to come)">Fusion</button>
+  <button role="tab" data-tab="source" title="The kernel's FORTRAN">Source</button>
+  <span class="sp"></span>
+  <button id="blink" title="L: copy a link to this view">Link</button>
+</nav>
 <input id="linkbox" type="text" readonly aria-label="link to this view" style="display:none;width:100%;max-width:720px;margin:6px auto 0">
+<div id="main">
+<div id="ws">
+  <div id="wrap"><canvas id="cv" tabindex="0" aria-label="VIEW-1108 plot"></canvas></div>
+  <div id="status" role="status" aria-live="off"></div>
+  <section id="srcws" hidden>
+    <p>The kernel's code browser will live here.</p>
+    <div class="grp"><button id="bsrc">Fortran listing</button></div>
+  </section>
+</div>
+<div id="dock">
 <div id="ctl">
-  <!-- Window shades: each header shows or hides its group (web/src/shades.js). -->
-  <section class="shade" data-shade="mode"><button class="shade-h" type="button">Mode</button>
-  <div class="grp" id="modes">
-    <button id="mattract" class="on">Attract</button>
-    <button id="mtour">Tour</button>
-    <button id="mlive">Live</button>
-    <button id="mfree">Free-look</button>
-    <button id="mbeam" title="Trace each frame vector by vector on a fading phosphor (key T). Trace rates are estimates; see docs/univac-1108.md.">Beam</button>
+  <!-- Window shades: each header shows or hides its group (web/src/shades.js). data-tabs: the tabs that show it. -->
+  <section class="shade" data-shade="mode" data-tabs="review"><button class="shade-h" type="button">Mode</button>
+  <div class="grp">
+    <button data-mode="attract" class="on">Attract</button>
+    <button data-mode="tour">Tour</button>
+    <button data-mode="free">Free-look</button>
   </div></section>
-  <section class="shade" data-shade="look"><button class="shade-h" type="button">Look</button>
+  <section class="shade" data-shade="live" data-tabs="simulate"><button class="shade-h" type="button">Mission clock</button>
+  <div class="grp">
+    <button data-mode="live">Live</button>
+    <button data-mode="free">Free-look</button>
+  </div>
+  <div class="grp" id="jumps"><span class="lbl">Jump</span><button id="jtd">Docking 3:20:30</button><button id="jundock">Undocking 100:12:00</button><button id="jdesc">Descent 102:42:00</button></div></section>
+  <section class="shade" data-shade="beam" data-tabs="print"><button class="shade-h" type="button">Beam</button>
+  <div class="grp">
+    <button id="bbeam" title="T: trace each frame vector by vector on a fading phosphor. Trace rates are estimates; see docs/univac-1108.md.">Beam trace</button>
+  </div>
+  <div class="grp"><button id="bbslow" title="[">&laquo;</button><span id="bspd" class="lbl"></span><button id="bbfast" title="]">&raquo;</button></div></section>
+  <section class="shade" data-shade="film" data-tabs="print"><button class="shade-h" type="button">Film</button>
+  <div class="grp">
+    <button id="bjit" title="J">Film jitter</button>
+    <button id="bdust" title="D">Dust</button>
+    <button id="bfps" title="F">Film rate</button>
+    <button id="bblm" title="B">Bloom</button>
+  </div></section>
+  <section class="shade" data-shade="fusion" data-tabs="fusion"><button class="shade-h" type="button">Fusion</button>
+  <div class="grp note">Crew photographs over the vector frame, to come. The first case is AS08-14-2383, the Apollo 8 Earthrise (docs/vision.md).</div></section>
+  <section class="shade" data-shade="sim" data-tabs="simulate" id="simgrp" hidden><button class="shade-h" type="button">Simulation</button>
+  <div class="grp">
+    <span class="lbl">Source</span><button id="ssrc-replay" class="on" title="Replay the sourced trajectory">Replay</button><button id="ssrc-sim" title="Integrate our own trajectory">Simulate</button>
+    <button id="ssvu" class="on" title="Ground state vector updates (P27 uplink); see docs/modes.md">State vector updates on</button>
+  </div>
+  <div class="grp"><span id="simread" class="lbl" role="status"></span></div>
+  <div class="grp note">Modern addition: VIEW drew pre-flight predictions; this engine integrates our own trajectory.</div></section>
+  <section class="shade" data-shade="scene" data-tabs="review simulate print"><button class="shade-h" type="button">Scene</button>
+  <div class="grp" id="scenes"></div></section>
+  <section class="shade" data-shade="time" data-tabs="review simulate print"><button class="shade-h" type="button">Time</button>
+  <div class="grp">
+    <button id="bplay">Pause</button>
+    <button id="bslow" title="[">&laquo;</button><span id="spd" class="lbl"></span><button id="bfast" title="]">&raquo;</button>
+    <button id="breset" title="R">Reset view</button>
+  </div>
+  <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="19" value="0:00:00" aria-label="ground elapsed time h:mm:ss, or a UTC timestamp YYYY-MM-DD HH:MM:SS"><span id="utc" class="lbl"></span><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0" aria-label="time offset"></div></section>
+  <section class="shade" data-shade="look" data-tabs="review simulate print fusion"><button class="shade-h" type="button">Look</button>
   <div class="grp">
     <!-- Control pad (web/src/pad.js): the keyboard's look and time keys; the key letter is on each cap. -->
     <div id="pad" role="group" aria-label="Control pad">
@@ -58,45 +107,18 @@
   </div>
   <div class="grp" id="viewgrp" hidden><span class="lbl">View</span><button title="Out of the scene's window">Window</button><button title="From outside, orbiting the target: drag to go round it">External</button><button title="From the CM crew station">CM</button><button title="From the LM crew station">LM</button><button id="bcab" class="on" title="I: the cabin interior around the CM or LM station (a modern addition)" hidden>Cabin</button><button id="bwal" class="on" title="W: the cabin's walls hide the outside, seen only through the windows (a modern addition)" hidden>Walls</button></div>
   <div class="grp" id="targrp" hidden><span class="lbl">Target</span><button title="The scene's own">Default</button><button>Earth</button><button>Moon</button><button>Sun</button><button>CSM</button><button>LM</button></div></section>
-  <section class="shade" data-shade="scene"><button class="shade-h" type="button">Scene</button>
-  <div class="grp" id="scenes"></div></section>
-  <section class="shade" data-shade="time"><button class="shade-h" type="button">Time</button>
-  <div class="grp">
-    <button id="bplay">Pause</button>
-    <button id="bslow" title="[">&laquo;</button><span id="spd" class="lbl"></span><button id="bfast" title="]">&raquo;</button>
-    <button id="breset" title="R">Reset view</button>
-  </div>
-  <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="19" value="0:00:00" aria-label="ground elapsed time h:mm:ss, or a UTC timestamp YYYY-MM-DD HH:MM:SS"><span id="utc" class="lbl"></span><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0" aria-label="time offset"></div>
-  <div class="grp" id="jumps"><span class="lbl">Jump (Live)</span><button id="jtd">Docking 3:20:30</button><button id="jundock">Undocking 100:12:00</button><button id="jdesc">Descent 102:42:00</button></div></section>
-  <section class="shade" data-shade="display"><button class="shade-h" type="button">Display</button>
+  <section class="shade" data-shade="display" data-tabs="review simulate print fusion"><button class="shade-h" type="button">Display</button>
   <div class="grp">
     <button id="blab" class="on">Labels</button>
     <button id="bfrm" class="on">Frame</button>
     <button id="bhid" title="Show the LM and S-IVB wireframe edges hidden behind the vehicles as dashed lines (the film drops them; TN D-6853 describes hidden-line LM and S-IVB models)">LM hidden lines</button>
     <button id="bcat" title="C">Catalog</button>
   </div></section>
-  <section class="shade" data-shade="film"><button class="shade-h" type="button">Film</button>
-  <div class="grp">
-    <button id="bjit" title="J">Film jitter</button>
-    <button id="bdust" title="D">Dust</button>
-    <button id="bfps" title="F">Film rate</button>
-    <button id="bblm" title="B">Bloom</button>
-  </div></section>
-  <section class="shade" data-shade="sim" id="simgrp" hidden><button class="shade-h" type="button">Simulation</button>
-  <div class="grp">
-    <span class="lbl">Source</span><button id="ssrc-replay" class="on" title="Replay the sourced trajectory">Replay</button><button id="ssrc-sim" title="Integrate our own trajectory">Simulate</button>
-    <button id="ssvu" class="on" title="Ground state vector updates (P27 uplink); see docs/modes.md">State vector updates on</button>
-  </div>
-  <div class="grp"><span id="simread" class="lbl" role="status"></span></div>
-  <div class="grp simnote">Modern addition: VIEW drew pre-flight predictions; this engine integrates our own trajectory.</div></section>
-  <section class="shade" data-shade="output"><button class="shade-h" type="button">Listing and link</button>
-  <div class="grp">
-    <button id="bsrc">Fortran listing</button>
-    <button id="blink" title="L: copy a link to this view">Link</button>
-  </div></section>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-7: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace. L: copy link. B: bloom. C: star catalog. I: cabin. W: cabin walls. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
-<div id="about">G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-7: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. I: cabin. W: cabin walls. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
+<div id="about"><p>A reconstruction of VIEW, the Manned Spacecraft Center program that drew Apollo window views on a UNIVAC 1108 (FORTRAN V, output photographed from a CRT onto microfilm: NASA TN D-6853, p. 3). We know of no surviving source code; the geometry here is our own FORTRAN and this page only films it.</p>G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197.</div>
+</div>
+</div>
 <div id="err"></div>
 
 <div id="list"><h2><span>VIEW KERNEL - our reconstruction; we know of no surviving source code</span><span class="btns"><button id="blist">Light</button><button id="bclose">Close</button></span></h2><pre id="lst"></pre><div id="paper"></div></div>
@@ -123,6 +145,7 @@
 <script src="src/shades.js"></script>
 <script src="src/listing.js"></script>
 <script src="src/link.js"></script>
+<script src="src/tabs.js"></script>
 <script src="src/main.js"></script>
 </body>
 </html>

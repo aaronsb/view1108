@@ -33,6 +33,7 @@ function updateStatus() {
 // (time keeps running in real time because step() works from the elapsed time).
 let lastPresent = 0;
 function tick(now) {
+  if (!canvasTab()) { last = now; requestAnimationFrame(tick); return; }   // Source: no kernel frames, time holds
   if (effFps()) {
     if (now - lastPresent < 1000 / 16 - 2) { requestAnimationFrame(tick); return; }
     lastPresent = now - lastPresent > 125 ? now : lastPresent + 1000 / 16;

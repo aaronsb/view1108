@@ -9,12 +9,22 @@ const off = mk(), bl1 = mk(), bl2 = mk(), bl3 = mk(), am1 = mk(), am2 = mk(), am
 const HDR = 0.115, BOXF = 0.80, HGT = 1.10;
 const RM_NMI = 938.1;
 const craterKm = j => NAMES.CRATER_KM ? NAMES.CRATER_KM[j] : Infinity;   // crater diameter, if build/names.js carries them   // lunar radius 1737.4 km (IAU mean radius) in n. mi.
+// The canvas fills the workspace's plot area (#wrap): on a wide screen the layout gives #wrap its height; on a narrow
+// one the page scrolls, and the plot fits the window under the tab bar with the status line. ?bare keeps the old
+// window height less 190 px, which tools/film_sheet.py assumes.
+const WIDE = matchMedia("(min-width: 1000px)");
+let sized = "";   // the width and dpr the canvas was last sized for
 function resize() {
-  const wrapW = document.getElementById("wrap").clientWidth;
-  W = Math.floor(Math.max(280, Math.min(wrapW, (innerHeight - (STILL ? 0 : 190)) / HGT)));
-  Hh = Math.floor(W * HGT);
-  dpr = (DEBUG && +QP("dpr")) || window.devicePixelRatio || 1;
-  dpr = Math.max(1, Math.min(dpr, 1800 / W));   // cap the backing store at about 1800 device px wide: the film is soft anyway and bloom cost scales with pixels
+  const wrap = document.getElementById("wrap"), wrapW = wrap.clientWidth;
+  if (!wrapW) return;   // hidden: the Source tab
+  const availH = STILL ? innerHeight : BARE ? innerHeight - 190 : WIDE.matches ? wrap.clientHeight
+    : innerHeight - document.getElementById("tabs").offsetHeight - document.getElementById("status").offsetHeight - 16;
+  const w = Math.floor(Math.max(280, Math.min(wrapW, availH / HGT)));
+  let d = (DEBUG && +QP("dpr")) || window.devicePixelRatio || 1;
+  d = Math.max(1, Math.min(d, 1800 / w));   // cap the backing store at about 1800 device px wide: the film is soft anyway and bloom cost scales with pixels
+  if (sized === w + "@" + d) return;
+  sized = w + "@" + d;
+  W = w; Hh = Math.floor(W * HGT); dpr = d;
   cv.style.width = W + "px"; cv.style.height = Hh + "px";
   cv.width = off.width = Math.round(W * dpr); cv.height = off.height = Math.round(Hh * dpr);
   beamFrames = []; beamNextStart = 0;   // BEAM traces are in canvas px: retrace after a resize
