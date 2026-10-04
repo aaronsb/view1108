@@ -185,5 +185,5 @@ function draw(now) {
   }
 
   if (fadeA > 0) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, fadeA)})`; ctx.fillRect(0, 0, W, Hh); }
-  present(now, bloomOn); drawn = true;
+  present(now, bloomOn); fusionDraw(); drawn = true;
 }

@@ -27,7 +27,7 @@
   <button role="tab" data-tab="review" title="The film, the tour and the scenes">Review</button>
   <button role="tab" data-tab="simulate" title="The mission clock and our trajectory engine">Simulate</button>
   <button role="tab" data-tab="print" title="The recorder: film effects and the beam trace">Print</button>
-  <button role="tab" data-tab="fusion" title="Crew photographs over the vector frame (to come)">Fusion</button>
+  <button role="tab" data-tab="fusion" title="Crew photographs over the vector frame">Fusion</button>
   <button role="tab" data-tab="source" title="The kernel's FORTRAN">Source</button>
   <span class="sp"></span>
   <button id="bsound" title="M: machine-room sound (ours, synthesized)">Sound off</button>
@@ -71,8 +71,18 @@
     <button id="bblm" title="B">Bloom</button>
   </div>
   <div class="grp"><button id="bsvg" title="Download this frame as an SVG: the recorder's vectors, white on black">Print SVG</button><button id="bsvgp" title="The same, black on white paper">Paper SVG</button></div></section>
-  <section class="shade" data-shade="fusion" data-tabs="fusion"><button class="shade-h" type="button">Fusion</button>
-  <div class="grp note">Crew photographs over the vector frame, to come. The first case is AS08-14-2383, the Apollo 8 Earthrise (docs/vision.md).</div></section>
+  <!-- Fusion (web/src/fusion.js): a crew photograph over the plot at its moment (data/photos.tsv). -->
+  <section class="shade" data-shade="fusion" data-tabs="fusion" id="fusiongrp"><button class="shade-h" type="button">Fusion</button>
+  <div id="flist" role="list" aria-label="Photographs"></div>
+  <div id="fctl" hidden>
+    <div class="grp note" id="finfo"></div>
+    <div class="grp" id="fgetw" hidden><span class="lbl">g.e.t.</span><input id="fget" type="range" step="1" aria-label="g.e.t. within the photograph's bracket"></div>
+    <div class="grp"><button id="funpin" title="Hide the photograph while you look around">Unpin</button><button id="fret" title="Back to the photograph's view, with the photograph">Return</button></div>
+    <div class="grp"><span class="lbl">Opacity</span><input id="fop" type="range" min="0" max="100" step="1" aria-label="photograph opacity"></div>
+    <div class="grp" id="fblend"><span class="lbl">Blend</span><button data-blend="source-over">Normal</button><button data-blend="screen">Screen</button><button data-blend="difference">Difference</button></div>
+    <div class="grp" id="falign"><span class="lbl">X</span><input id="fax" type="number" step="0.01" aria-label="photo centre X, plot deg"><span class="lbl">Y</span><input id="fay" type="number" step="0.01" aria-label="photo centre Y, plot deg"><span class="lbl">Rot</span><input id="far" type="number" step="0.1" aria-label="photo rotation, deg counterclockwise"><span class="lbl">Scale %</span><input id="fas" type="number" step="0.1" aria-label="photo scale, percent of the lens's field"></div>
+    <div class="grp"><button id="fmove" title="Drag, arrows, Q/E, +/- and the wheel move, turn and scale the photograph (Shift: 10x); Esc ends">Move photo</button><button id="freset" title="Back to our fit">Reset alignment</button><button id="fcopy" title="Copy this photograph's view and alignment as JSON">Copy alignment</button></div>
+  </div></section>
   <section class="shade" data-shade="sim" data-tabs="simulate" id="simgrp" hidden><button class="shade-h" type="button">Simulation</button>
   <div class="grp">
     <span class="lbl">Source</span><button id="ssrc-replay" class="on" title="Replay the sourced trajectory">Replay</button><button id="ssrc-sim" title="Integrate our own trajectory">Simulate</button>
@@ -134,6 +144,7 @@
 
 <div id="list"><h2><span>VIEW KERNEL - our reconstruction; we know of no surviving source code</span><span class="btns"><button id="blist">Light</button><button id="bclose">Close</button></span></h2><pre id="lst"></pre><div id="paper"></div></div>
 <pre id="fsrc" hidden>__FORTRAN_SRC__</pre>
+<script type="application/json" id="photos">__PHOTOS_JSON__</script>
 <script>var __FALLBACK_JS__, __NAMES_JS__;</script>
 <script>__NAMES_JS__</script>
 <script>__FALLBACK_JS__</script>
@@ -160,6 +171,7 @@
 <script src="src/sound.js"></script>
 <script src="src/tabs.js"></script>
 <script src="src/timeline.js"></script>
+<script src="src/fusion.js"></script>
 <script src="src/main.js"></script>
 </body>
 </html>

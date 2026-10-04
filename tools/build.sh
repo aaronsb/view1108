@@ -87,6 +87,6 @@ OBJS="build/viewdata.o"; for e in $ELEMS; do OBJS="$OBJS build/$e.o"; done
 python3 tools/wrap_fallback.py build/view.wasm2js.mjs build/fallback.js
 
 # 4. Page (when the template is there), native driver, selftest.
-if [ -f web/page.template.html ]; then python3 tools/assemble.py; fi
+if [ -f web/page.template.html ]; then python3 tools/photo_pack.py; python3 tools/assemble.py; fi
 if command -v gfortran >/dev/null; then native; fi
 node tools/selftest.mjs
