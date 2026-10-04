@@ -16,11 +16,16 @@ const VIEW_LAB = {
   },
   /** Dispose of everything, the WebGL context included. */
   stop(): void { lab?.dispose(); lab = null; },
-  show(from?: string): void { lab?.show(from); },
+  /** Show the room; with a terminal name and the page element's rect, start where its screen covers that rect. */
+  show(from?: string, rect?: DOMRect | null, holdMs?: number): void { lab?.show(from, rect, holdMs); },
   hide(): void { lab?.hide(); },
   setTarget(name: string | null): boolean { return lab ? lab.setTarget(name) : false; },
   event(e: LabEvent): void { lab?.event(e); },
   get running(): boolean { return !!lab; },
+  /** Quality tier, draw calls and triangles of the last frame, the last handover's mismatch (px): for tests. */
+  info() { return lab?.info ?? null; },
+  /** Client px of a placed equipment's screen: for tests. */
+  project(name: string) { return lab?.project(name) ?? null; },
 };
 
 (window as unknown as { VIEW_LAB: typeof VIEW_LAB }).VIEW_LAB = VIEW_LAB;

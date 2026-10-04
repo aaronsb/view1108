@@ -30,22 +30,49 @@ function roomSync() {
   $("bspace").title = roomIn && !roomShown ? "Back to the machine room (Esc on a plot tab)" : "The workbench inside a machine room";
 }
 function roomPlace() { $("labhost").style.top = $("tabs").getBoundingClientRect().bottom + "px"; }
+// The handover: the lab's flight into a terminal ends where its screen covers the element that screen becomes on the
+// page (#cv, or the Source workspace), and the two crossfade over ROOM_FADE ms. Leaving, the lab starts at that pose
+// and fades in over the page before it flies out.
+const ROOM_FADE = 250;
+const roomScreenEl = opens => opens === "source" ? $("srcws") : cv;
+// Lay the page out for a terminal behind the room (hidden, so nothing shows) and give its screen element's rect.
+function roomScreenRect(opens) {
+  const t = opens === "source" ? "source" : roomCanvasTab;
+  if (tab !== t) setTab(t);
+  return roomScreenEl(opens).getBoundingClientRect();
+}
+let roomFadeT = 0;
+function roomFade(into, done) {
+  const h = $("labhost");
+  clearTimeout(roomFadeT);
+  h.style.transition = "none"; h.style.opacity = into ? "0" : "1"; h.classList.add("fading");
+  void h.offsetWidth;   // commit the start opacity before the transition
+  h.style.transition = `opacity ${ROOM_FADE}ms linear`; h.style.opacity = into ? "1" : "0";
+  roomFadeT = setTimeout(() => { h.classList.remove("fading"); h.style.transition = h.style.opacity = ""; done(); }, ROOM_FADE);
+}
+// Show the room; from a terminal ("vector", "glass") the lab starts square to its screen and fades in over the page.
 function roomShowLab(from) {
   if (canvasTab()) roomCanvasTab = tab;
-  roomShown = true; document.body.classList.add("room"); roomPlace();
-  LAB.show(from); roomSync();
+  roomShown = true; roomPlace();
+  if (!from) { document.body.classList.add("room"); LAB.show(); roomSync(); return; }
+  const rect = roomScreenEl(from === "glass" ? "source" : "workbench").getBoundingClientRect();
+  $("labhost").classList.add("fading"); $("labhost").style.opacity = "0";
+  LAB.show(from, rect, ROOM_FADE);
+  roomFade(true, () => document.body.classList.add("room"));
+  roomSync();
 }
 function roomArrive(opens) {
-  roomShown = false; LAB.hide(); document.body.classList.remove("room");
+  roomShown = false; document.body.classList.remove("room");
   setTab(opens === "source" ? "source" : roomCanvasTab);
   if (canvasTab()) cv.focus({ preventScroll: true });
+  roomFade(false, () => { if (!roomShown) LAB.hide(); });
   roomSync();
 }
 // Enter or leave the room to match the choice, the screen width and what the lab could do.
 function roomApply() {
   const want = roomAvail && WIDE.matches && roomWant === "room";
   if (want && !roomIn) {
-    if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive })) { roomAvail = false; roomSync(); return; }
+    if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive, screenRect: roomScreenRect })) { roomAvail = false; roomSync(); return; }
     roomIn = true; roomShowLab(null);
   } else if (!want && roomIn) {
     LAB.stop(); roomIn = roomShown = false; document.body.classList.remove("room"); resize();

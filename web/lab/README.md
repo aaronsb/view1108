@@ -33,14 +33,42 @@ is chosen.
 | `supported()` | a cheap guess that WebGL exists, without creating a context |
 | `start(host, hooks)` | build the renderer and the room into `host`; `false` when WebGL fails |
 | `stop()` | dispose of everything, the WebGL context included (Tiled) |
-| `show(from?)` | render the room; with a placed name, the camera starts at its zoom-in pose and flies out |
+| `show(from?, rect?, holdMs?)` | render the room; with a placed name the camera starts at that terminal (with `rect`, at the handover pose for it), holds `holdMs`, and flies out |
 | `hide()` | stop rendering (the page is shown) |
-| `setTarget(name)` | fly to a placed equipment's zoom-in pose (`null`: the overview); on arrival a terminal calls `hooks.arrive` |
+| `setTarget(name)` | fly to a placed equipment (`null`: the overview); a terminal ends at its handover pose and calls `hooks.arrive` |
 | `event(e)` | pass a page event to every placed equipment |
+| `info()`, `project(name)` | for tests: quality, draw calls and triangles of the last frame, the last handover's mismatch; a placed equipment's screen in client px |
 
 `hooks` (`LabHooks` in `src/types.ts`): `screens.vector` is the plot canvas `#cv`; `state()` returns the
-`LabState` below, read once per rendered frame; `arrive(opens)` hands over to the page, which shows the tab
-(`"workbench"`: the last plot tab, `"source"`: Source) and calls `hide()`.
+`LabState` below, read once per rendered frame; `screenRect(opens)` lays the page out for that tab behind the room
+and returns the client rect of the element the terminal's screen becomes; `arrive(opens)` hands over to the page,
+which shows the tab (`"workbench"`: the last plot tab, `"source"`: Source), fades the lab out and calls `hide()`.
+
+### Handover
+
+A flight into a terminal ends with the camera square to its screen, at the distance and offset where the picture's
+part of the screen (`anchors.screen`: a plane in the mesh's local XY facing +Z, `uvRect` the part in use) covers
+`screenRect(opens)` on the lab canvas: matched on height, or on width where that is the larger, centred. The vector
+screen carries `#cv` itself, so its edges land on the plot's own (within 0.1 px in the headless check); the page
+then crossfades over 250 ms (`ROOM_FADE` in `web/src/room.js`). Back out, the page measures the same rect, the lab
+starts at that pose under it, fades in, holds for the fade, then flies to the overview. Flights take 1 s (smoothstep,
+with a slight rise mid-way); bloom eases out toward a screen so the last frame shows the plot as the page draws it.
+
+### Rendering
+
+`src/lab.ts` owns the renderer, the camera (free look about the overview, flights, hover and picking) and the
+quality tier; `src/post.ts` the high tier's post chain; `src/room/lighting.ts` the lights, fog and environment.
+Screens are not tone mapped in either tier: in the high tier every `toneMapped: false` material writes alpha 0
+(`markScreens`) and the tone pass mixes ACES by alpha (progression's approach, MIT, same author).
+
+| Tier | |
+|---|---|
+| `high` | PCF soft shadows from one overhead light, a `RectAreaLight` per troffer row, a PMREM room environment, GTAO, ACES, subtle bloom; pixel ratio up to 2 |
+| `low` | hemisphere and one unshadowed overhead light, the environment, the renderer's ACES, no post; pixel ratio up to 1.25 |
+
+`?labq=low|high` forces one for a visit; the button at the room's lower right switches and remembers
+(`view1108.labq`). Otherwise a software rasteriser starts low, and a GPU starts high and drops to low when the
+median of its first frames is over 24 ms.
 
 `LabState`: `tab`, `mode`, `playing`, `get`, `scene`, `frameNo` (kernel frames drawn; the lab re-uploads the
 vector screen texture when it moves), and `sound` = `{ ctx, out, on }`, the page's `AudioContext` and master gain
@@ -81,10 +109,13 @@ The placeholders `vector-terminal.ts`, `glass-terminal.ts` and `desk.ts` follow 
 place. A screen that shows the plot uses `ctx.vectorScreen` as its map; the plot canvas is 1.10 times as tall as
 it is wide.
 
-**The room** is `src/room/room.ts`, exporting `build(ctx: BuildContext): Room` with `object` (walls, floor,
-lights of its own), `placed` (`{ name, equipment }` for each piece it placed, `equipment.object.userData.placed`
-set to the name for picking) and `overview` (the zoomed-out `CameraPose`). It places equipment by kind from the
-registry. The page addresses two names: `"vector"` (the terminal that opens the workbench) and `"glass"` (the one
-that opens Source); a room must place those. Phase B may split the room into more files under `src/room/`.
-
-`src/lab.ts` (renderer, camera flights, picking) and `src/main.ts` (the global) belong to neither phase.
+**The room** is `src/room/room.ts`, exporting `build(ctx: BuildContext): Room` with `object`, `placed`
+(`{ name, equipment }` for each piece it placed, `equipment.object.userData.placed` set to the name for picking),
+`overview` (the zoomed-out `CameraPose`), `labels` (hover text by name), `air` (the dust's box), `update` and
+`dispose`. The page addresses two names: `"vector"` (the 1558, which opens the workbench) and `"glass"` (the
+UNISCOPE 100, which opens Source). `src/room/shell.ts` builds the 8 m × 6 m × 2.75 m shell: one textured plane for
+the raised floor's 0.6 m tiles (`surfaces.ts`), an acoustic-tile ceiling, two instanced meshes for the 20 troffers,
+walls, a door and a wall clock. `room.ts` places by registry name, with options where a module takes them
+(`uniservo` `{ number, index }`, `cpu` `{ lampPanel }`), and casts and receives shadows on everything it places. A
+name the registry lacks becomes a grey stand-in box of the machine's size, so the room composes before every
+module exists; `"vector"` and `"glass"` fall back to the phase-A `vector-terminal` and `glass-terminal`.

@@ -25,8 +25,12 @@ export interface LabEvent {
 export interface LabHooks {
   screens: { vector: HTMLCanvasElement };   // #cv, the plot
   state(): LabState;
-  /** The camera reached a terminal: the page shows the tab it opens and asks the lab to hide. */
+  /** The camera reached a terminal: the page shows the tab it opens, fades the lab out and asks it to hide. */
   arrive(opens: Opens): void;
+  /** Lay the page out for `opens` behind the room, without showing it, and give the client rect of the element the
+   *  terminal's screen becomes (#cv for the workbench, the Source workspace for source). The lab ends its flight
+   *  where the screen covers that rect, so the crossfade lines up. */
+  screenRect?(opens: Opens): DOMRect | null;
 }
 
 /** A camera pose: where the eye is, what it looks at, its vertical field of view (deg). */
@@ -80,4 +84,13 @@ export interface Room {
   object: THREE.Object3D;
   placed: Placed[];
   overview: CameraPose;   // the zoomed-out pose
+  /** Hover labels by placed name, for the equipment that opens something. */
+  labels?: Record<string, string>;
+  /** Region the dust drifts in. */
+  air?: THREE.Box3;
+  update?(dt: number, state: LabState): void;
+  dispose?(): void;
 }
+
+/** Rendering tier: "high" (shadows, ambient occlusion, bloom) or "low" (direct render, no post). */
+export type Quality = "high" | "low";
