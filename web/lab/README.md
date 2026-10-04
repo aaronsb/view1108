@@ -71,8 +71,9 @@ Screens are not tone mapped in either tier: in the high tier every `toneMapped: 
 median of its first frames is over 24 ms.
 
 `LabState`: `tab`, `mode`, `playing`, `get`, `scene`, `frameNo` (kernel frames drawn; the lab re-uploads the
-vector screen texture when it moves), and `sound` = `{ ctx, out, on, bed }`, the page's `AudioContext`, master gain
-and switch for its ambience bed from `web/src/sound.js` (null until the viewer turns sound on).
+vector screen texture when it moves), and `sound` = `{ ctx, out, on, bed, whine }`, the page's `AudioContext`, master gain
+and switch for its ambience bed from `web/src/sound.js`, and the 1558's deflection whine from `web/src/whine.js`
+(null until the viewer turns sound on).
 
 ### Sound
 
@@ -81,7 +82,7 @@ once sound is on, turns the page's bed off while it lives (`sound.bed(false)`, b
 50 ms on its own timer, so it keeps going while the page is shown over the room: the listener follows the camera, the
 room ducks 8 dB when `hide()` has been called, the tape units' sound follows `anchors.motion` (`{ v, w0, w1 }`, tape
 speed in m/s and the reels' rad/s, set by `uniservo.ts`), and the ballasts follow `room.lightsOn` when the room
-has it. `src/audio/synth.ts` holds the noise buffers, waves, the room response and one-shot knocks and clicks; both
+has it, and `sound.whine` is placed at the 1558's screen. `src/audio/synth.ts` holds the noise buffers, waves, the room response and one-shot knocks and clicks; both
 take any `BaseAudioContext`, so `RoomSound` with `auto` false can be attached to an `OfflineAudioContext` and stepped
 by hand. `VIEW_LAB.info().sound` gives, for tests, the source and panner counts, the master's gain and RMS, and each
 source's inverse-law gain at the listener. Sources and levels: `docs/lab.md`, Sound.

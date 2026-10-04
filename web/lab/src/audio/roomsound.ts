@@ -22,6 +22,7 @@ const DUCK_DB = -8;            // the room under a terminal's page
 const WET = 0.35;              // send into the room response
 const MAX_SHOTS = 12;
 const MAINS = 60;              // Hz, US mains
+const WHINE_ROLLOFF = 4;       // the 1558's whine: -22 dB at the overview (4.1 m), -10 dB at 1.5 m
 
 // The drums (UP-4046 rev. 3): FH-432 7,200 rev/min (p. 8-5), FH-1782 1,800 rev/min (p. 8-6), FASTRAND II 880 rev/min
 // (p. 8-10), its 64 heads moved together in 30 to 86 ms (p. 8-8). The minimum 1108 system has three FH-432 drums (or
@@ -38,7 +39,7 @@ interface Tape { src: Src; eq: Equipment; motion: { v: number; w0: number; w1: n
 interface Graph {
   ctx: BaseAudioContext; dest: AudioNode; master: GainNode; wet: GainNode; analyser: AnalyserNode;
   srcs: Src[]; tapes: Tape[]; rows: { src: Src; hum: GainNode; buzz: GainNode }[]; fastrand: Src;
-  nodes: AudioScheduledSourceNode[]; lit: boolean; nextSeek: number;
+  nodes: AudioScheduledSourceNode[]; lit: boolean; nextSeek: number; whine: AudioNode | null;
 }
 
 export class RoomSound {
@@ -60,7 +61,7 @@ export class RoomSound {
     const s = this.state(), ctx = s.sound.ctx, out = s.sound.out;
     if (!ctx || !out || !s.sound.on) return;
     if (!this.g || this.g.ctx !== ctx) {
-      this.attach(ctx, out);
+      this.attach(ctx, out, s.sound.whine ?? null);
       this.bedOff = s.sound.bed ?? null; this.bedOff?.(false);
     }
     if (ctx.state !== "running") { this.last = 0; return; }
@@ -70,8 +71,8 @@ export class RoomSound {
     this.step(dt);
   };
 
-  /** Build the whole graph on ctx into dest. */
-  attach(ctx: BaseAudioContext, dest: AudioNode): void {
+  /** Build the whole graph on ctx into dest; `whine` is the 1558's deflection whine (web/src/whine.js), if any. */
+  attach(ctx: BaseAudioContext, dest: AudioNode, whine: AudioNode | null = null): void {
     this.detach();
     const N = noises(ctx), nodes: AudioScheduledSourceNode[] = [], srcs: Src[] = [];
     const master = ctx.createGain(); master.gain.value = 0;
@@ -93,14 +94,15 @@ export class RoomSound {
     };
     const filt = (type: BiquadFilterType, hz: number, q = 0.707) => { const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = hz; f.Q.value = q; return f; };
     const gain = (v: number) => { const n = ctx.createGain(); n.gain.value = v; return n; };
-    /** A source at pos; `rolloff` for the inverse distance law (refDistance 1 m), `through` a wall's low-pass. */
-    const source = (name: string, pos: THREE.Vector3, rolloff: number, level = 1, through = 0): Src => {
+    /** A source at pos; `rolloff` for the inverse distance law (refDistance 1 m), `through` a wall's low-pass, `send`
+     *  into the room response. */
+    const source = (name: string, pos: THREE.Vector3, rolloff: number, level = 1, through = 0, send = true): Src => {
       const input = gain(level), panner = ctx.createPanner();
       Object.assign(panner, { panningModel: "equalpower", distanceModel: "inverse", refDistance: 1, maxDistance: 20, rolloffFactor: rolloff });
       panner.positionX.value = pos.x; panner.positionY.value = pos.y; panner.positionZ.value = pos.z;
       let head: AudioNode = input;
       if (through) { const lp = filt("lowpass", through); input.connect(lp); head = lp; }
-      head.connect(panner).connect(master); head.connect(wet);
+      head.connect(panner).connect(master); if (send) head.connect(wet);
       const s = { name, input, panner, pos }; srcs.push(s); return s;
     };
     /** A bank of slow drifts, shared: a few very low oscillators that sources tap for amplitude wander. */
@@ -182,7 +184,16 @@ export class RoomSound {
       return { src: s, hum: humG, buzz };
     });
 
-    this.g = { ctx, dest, master, wet, analyser, srcs, tapes, rows, fastrand, nodes, lit, nextSeek: ctx.currentTime + 3 };
+    // The 1558's deflection whine (made by the page from each kernel frame; ours, deliberately faint): at its screen,
+    // with a steep distance law and no room response, so it is heard only within about 1.5 m of it.
+    const vec = this.room.placed.find(p => p.name === "vector")?.equipment;
+    if (whine && whine.context === ctx && vec) {
+      const m = vec.anchors.screen?.mesh ?? vec.object, pos = new THREE.Vector3();
+      m.updateWorldMatrix(true, false); m.getWorldPosition(pos);
+      whine.connect(source("whine-1558", pos, WHINE_ROLLOFF, 1, 0, false).input);
+    }
+
+    this.g = { ctx, dest, master, wet, analyser, srcs, tapes, rows, fastrand, nodes, lit, nextSeek: ctx.currentTime + 3, whine: whine && whine.context === ctx ? whine : null };
   }
 
   /** One step: the listener, the duck, the tape units, the lights and the FASTRAND's idle seeks. */
@@ -269,6 +280,7 @@ export class RoomSound {
     if (!g) return;
     for (const n of g.nodes) { try { n.stop(); } catch { /* already stopped */ } }
     g.master.disconnect();
+    g.whine?.disconnect();
     this.g = null;
   }
 
