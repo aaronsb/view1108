@@ -25,7 +25,7 @@ function airtUrl(g) {
 }
 let airt = null;   // the companion window's handle, from its button's click
 const airtOn = () => tlScenario() === "1";
-function airtSync() { if (airt && !airt.closed && airtOn()) airt.location = airtUrl(get); }
+function airtSync() { if (airt && !airt.closed && airtOn()) try { airt.location = airtUrl(get); } catch (e) { airt = null; } }   // refused: wait for the button
 
 // A jump to an event: what the GET box does, with the free-look scrubber re-centred on it.
 function tlJump(g) {
@@ -93,7 +93,7 @@ function tlTick() {
   const box = $("tllist"), top = best.offsetTop;   // the list is the offset parent (page.css)
   if (top < box.scrollTop || top + best.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = top - box.clientHeight / 3;
 }
-$("bairt").onclick = () => { airt = window.open(airtUrl(get), "airt"); };
+$("bairt").onclick = () => { airt = window.open(airtUrl(get), "airt"); };   // kept with its opener: re-pointing a named window needs it
 $("bairtre").onclick = airtSync;
 $("scrub").addEventListener("change", airtSync);   // a released scrub, not each step of the drag
 $("geti").addEventListener("change", airtSync);    // after controls.js's handler has set the time

@@ -33,7 +33,7 @@ A short clip believed to be VIEW film output (shared by NB, [@Noahbolanowski](ht
 
 ## Operating it
 
-The page is the console. It starts by replaying the film, then hands you the controls. A tab bar picks the workspace: **Review** (the film, the tour, the scenes), **Simulate** (the mission clock and our trajectory engine), **Print** (the beam trace and film effects), **Fusion** (crew photographs over the plot, to come) and **Source** (the kernel's FORTRAN). [docs/modes.md](docs/modes.md) lists every tab, mode, scene, toggle and link parameter, with example links to share.
+The page is the console. It starts by replaying the film, then hands you the controls. A tab bar picks the workspace: **Review** (the film, the tour, the scenes), **Simulate** (the mission clock and our trajectory engine), **Print** (the beam trace and film effects), **Fusion** (crew photographs over the plot at their moment) and **Source** (the kernel's FORTRAN). [docs/modes.md](docs/modes.md) lists every tab, mode, scene, toggle and link parameter, with example links to share.
 
 | Mode | Tab | What it does |
 |---|---|---|

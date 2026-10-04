@@ -7,7 +7,12 @@ listed but not embedded, since the page cannot show them in place yet. Needs Pil
 """
 import base64, io, json, pathlib, sys
 
-from PIL import Image
+try:
+    from PIL import Image
+except ImportError:
+    # Without Pillow the page builds without photographs (assemble.py takes an empty list).
+    print("photo_pack: Pillow not installed; Fusion's photographs left out", file=sys.stderr)
+    sys.exit(0)
 
 R = pathlib.Path(__file__).resolve().parent.parent
 LONG, QUALITY = 1024, 80

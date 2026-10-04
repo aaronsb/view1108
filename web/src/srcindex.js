@@ -40,7 +40,7 @@ const SX = (() => {
   const KW = new Set(`IF THEN ELSE ELSEIF END ENDIF DO CONTINUE GO TO GOTO RETURN CALL STOP PAUSE DATA PARAMETER COMMON
     INCLUDE DIMENSION EXTERNAL INTRINSIC IMPLICIT DOUBLE PRECISION INTEGER REAL LOGICAL CHARACTER COMPLEX FUNCTION
     SUBROUTINE ENTRY BLOCK SAVE EQUIVALENCE WRITE READ FORMAT PRINT`.split(/\s+/));
-  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   // One token pass over columns 7-72: strings, dot operators, identifiers, numbers.
   const TOK = /('(?:[^']|'')*'?)|(\.(?:EQ|NE|LT|LE|GT|GE|AND|OR|NOT|EQV|NEQV|TRUE|FALSE)\.)|([A-Za-z][A-Za-z0-9_]*)|(\d+(?:\.(?![A-Za-z]{2,4}\.)\d*)?(?:[DEde][+-]?\d+)?|\.\d+(?:[DEde][+-]?\d+)?)/g;
   function code(body, u) {

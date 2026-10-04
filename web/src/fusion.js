@@ -23,13 +23,14 @@ const FUSION_FITS = {
 const FUSION_KEY = "view1108.fusion";
 const fz = { align: {}, op: 0.5, blend: "source-over" };   // remembered: each photo's alignment, opacity, blend
 try { Object.assign(fz, JSON.parse(localStorage.getItem(FUSION_KEY) || "{}")); } catch (e) { /* storage unavailable */ }
+if (!fz.align || typeof fz.align !== "object") fz.align = {};
 const fzSave = () => { try { localStorage.setItem(FUSION_KEY, JSON.stringify(fz)); } catch (e) { /* ignore */ } };
 let fCur = null, fImg = null, fPinned = true, fMoving = false, fCam0 = [0, 0, 0];   // fCam0: the scene's default look
 const fFit = p => FUSION_FITS[p.frame] || { turn: 0, cam: [0, 0, 0], x: 0, y: 0, rot: 0, scale: 100, note: "Not fitted yet: align it by hand (Move photo), then Copy alignment." };
 // The viewer's alignment once they change it (remembered), else our fit.
 const fAlign = () => fz.align[fCur.frame] || (({ x, y, rot, scale }) => ({ x, y, rot, scale }))(fFit(fCur));
 const fEdit = () => fz.align[fCur.frame] || (fz.align[fCur.frame] = fAlign());
-const lensMm = p => parseFloat(p.lens_mm);   // NaN when unknown or unverified
+const lensMm = p => /unverified/i.test(p.lens_mm) ? NaN : parseFloat(p.lens_mm);   // NaN when unknown or unverified
 const lensFov = p => lensMm(p) > 0 ? 2 * Math.atan(GATE_MM / 2 / lensMm(p)) * 180 / Math.PI : null;
 const hasBracket = p => p.get === "" && p.get_lo !== "" && p.get_hi !== "";
 const photoGet = p => p.get !== "" ? +p.get : hasBracket(p) ? (+p.get_lo + +p.get_hi) / 2 : +p.get_lo;

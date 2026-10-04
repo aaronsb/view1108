@@ -13,7 +13,7 @@ B="${LF_BIN:+$LF_BIN/}"
 mkdir -p build
 
 python3 tools/gen_data.py
-python3 tools/gen_symbols.py
+python3 tools/gen_symbols.py || echo "gen_symbols failed; the page builds without the Source tab's symbols" >&2
 
 # The kernel's elements: every fixed-form file in src/ but the BLOCK DATA
 # (see the header of src/vdrive.f).  A new element needs no change here.
