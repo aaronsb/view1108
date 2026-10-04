@@ -60,7 +60,7 @@ export class Lighting {
     }
     // Warm accents by the CPU lamp panel and the operator console (the modules' lamps glow; this lets them colour
     // the floor and the cabinets near them).
-    for (const [x, y, z, i] of [[-2.45, 1.5, -0.05, 0.45], [-1.55, 1.1, -0.45, 0.35]]) {
+    for (const [x, y, z, i] of [[-3.0, 1.5, 0, 0.45], [-1.2, 1.1, -0.45, 0.35]]) {
       const p = new THREE.PointLight(WARM, i, 2.6, 2); p.position.set(x, y, z); add(p);
     }
     this.scene.traverse(o => { const m = (o as THREE.Mesh).material; if (m) (Array.isArray(m) ? m : [m]).forEach(x => { x.needsUpdate = true; }); });

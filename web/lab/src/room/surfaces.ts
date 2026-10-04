@@ -79,3 +79,12 @@ export function clockFace(aniso: number) {
   }
   return tex(c, true, aniso);
 }
+
+/** The EXIT sign's face: red letters on a dark ground, as lit from inside. */
+export function exitSign(aniso: number) {
+  const [c, g] = canvas(256, 108);
+  g.fillStyle = "#1a0605"; g.fillRect(0, 0, 256, 108);
+  g.fillStyle = "#ff3a22"; g.font = "bold 74px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("EXIT", 128, 58);
+  return tex(c, true, aniso);
+}

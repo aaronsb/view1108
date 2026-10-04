@@ -16,7 +16,7 @@
 // advance lamp lights for the pull-down (about 100 ms, S-C 4060 Description 9500209, Apr 1967, p. 20) and the frame
 // counter steps on. The other lamps hold steady.
 import * as THREE from "three";
-import type { BuildContext, Equipment, LabEvent, Opens } from "../types";
+import type { BuildContext, Equipment, LabEvent } from "../types";
 import { PAL, Parts, at, canvasTex, chrome, glowMat, grid, lampMat, lensGeo, own, paint, plastic, rng, roundRect, satinMetal, smoked, tileGeo } from "./kit";
 
 const IN = 0.0254;
@@ -144,9 +144,7 @@ export function build(ctx: BuildContext): Equipment {
 
   return {
     object,
-    // TODO(roomfix): add "print" to the Opens union in types.ts and map it in web/src/room.js arrive() to the Print tab;
-    // then drop this cast.
-    opens: "print" as unknown as Opens,
+    opens: "print",
     anchors: {
       screen: { mesh: port, uvRect: [0, 0, 1, 1] },
       camera: { position: new THREE.Vector3(PX - 0.12, PY + 0.02, ZF + 0.62), target: new THREE.Vector3(PX, 1.4, ZF), fov: 40 },

@@ -184,6 +184,28 @@ export class Lab {
     return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };
   }
 
+  /** The room from above (orthographic, the ceiling left out), `px` pixels per metre, as a PNG data URL: for tests. */
+  plan(px = 100): string {
+    const box = new THREE.Box3().setFromObject(this.room.object), s = box.getSize(new THREE.Vector3());
+    const cam = new THREE.OrthographicCamera(box.min.x, box.max.x, -box.min.z, -box.max.z, 0.1, 20);
+    cam.position.set(0, 10, 0); cam.up.set(0, 0, -1); cam.lookAt(0, 0, 0);
+    Object.assign(cam, { left: box.min.x, right: box.max.x, top: -box.min.z, bottom: -box.max.z });
+    cam.updateProjectionMatrix();
+    const hidden: THREE.Object3D[] = [], b = new THREE.Box3();
+    this.scene.traverse(o => { if ((o as THREE.Mesh).isMesh && o.visible && b.setFromObject(o).min.y > 2.3) { o.visible = false; hidden.push(o); } });
+    const size = this.renderer.getSize(new THREE.Vector2()), pr = this.renderer.getPixelRatio();
+    this.renderer.setPixelRatio(1); this.renderer.setSize(Math.round(s.x * px), Math.round(s.z * px), false);
+    this.renderer.render(this.scene, cam);
+    const url = this.renderer.domElement.toDataURL("image/png");
+    hidden.forEach(o => { o.visible = true; });
+    this.renderer.setPixelRatio(pr); this.renderer.setSize(size.x, size.y, false); this.post?.setSize(size.x, size.y);
+    if (this.shown) this.draw();
+    return url;
+  }
+
+  /** The floor plan: each piece's footprint and the door (for tests and the walk). */
+  get layout() { return { footprints: this.room.footprints ?? [], door: this.room.door ?? null }; }
+
   get info() { return { quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch }; }
 
   dispose(): void {

@@ -137,7 +137,7 @@ The registry (`EQUIPMENT`, with sizes in `FOOTPRINT`, W x H x D in metres; sourc
 | `reeltable` | | table with reels and a desk clock, 1.6 x 0.75 x 0.8 |
 | `desk` | | desk, 1.5 x 0.73 x 0.75; anchor `top` |
 | `chair` | | swivel chair, 0.6 x 0.88 x 0.6 |
-| `filmrecorder` | | S-C 4020 microfilm recorder (HYPOTHETICAL as MSC's), 2.24 x 1.88 x 0.94; its viewing port shows the plot dimmed; `beamFrame` steps its frame counter; opens `"print"` (proposed, not yet in `Opens`) |
+| `filmrecorder` | | S-C 4020 microfilm recorder (HYPOTHETICAL as MSC's), 2.24 x 1.88 x 0.94; its viewing port shows the plot dimmed; `beamFrame` steps its frame counter; opens `"print"` (the Print tab) |
 
 `vector-terminal` and `glass-terminal` are phase A's names for `vector` and `glass`. Every piece but the desk and the
 chair has `anchors.camera`, a close-up pose.
@@ -150,11 +150,14 @@ two rows under three-point lighting, with a stand-in plot. The flags are `?view=
 
 **The room** is `src/room/room.ts`, exporting `build(ctx: BuildContext): Room` with `object`, `placed`
 (`{ name, equipment }` for each piece it placed, `equipment.object.userData.placed` set to the name for picking),
-`overview` (the zoomed-out `CameraPose`), `labels` (hover text by name), `air` (the dust's box), `update` and
-`dispose`. The page addresses two names: `"vector"` (the 1558, which opens the workbench) and `"glass"` (the
-UNISCOPE 100, which opens Source). `src/room/shell.ts` builds the 8 m × 6 m × 2.75 m shell: one textured plane for
-the raised floor's 0.6 m tiles (`surfaces.ts`), an acoustic-tile ceiling, two instanced meshes for the 20 troffers,
-walls, a door and a wall clock. `room.ts` places by registry name, with options where a module takes them
-(`uniservo` `{ number, index }`, `cpu` `{ lampPanel }`), and casts and receives shadows on everything it places. A
-name the registry lacks becomes a grey stand-in box of the machine's size, so the room composes before every
-module exists; `"vector"` and `"glass"` fall back to the phase-A `vector-terminal` and `glass-terminal`.
+`footprints` (each floor-standing piece's own bounding box seen from above, placed and turned: what the plan's
+checks and walking use), `door`, `overview` (the zoomed-out `CameraPose`), `labels` (hover text by name), `air` (the
+dust's box), `update` and `dispose`. The page addresses three names: `"vector"` (the 1558, which opens the
+workbench), `"glass"` (the UNISCOPE 100, which opens Source) and `"filmrecorder"` (which opens Print).
+`src/room/shell.ts` builds the 9 m × 7 m × 2.75 m shell: one textured plane for the raised floor's 0.6 m tiles
+(`surfaces.ts`), an acoustic-tile ceiling, two instanced meshes for the 20 troffers, walls, a door in the south wall
+with an EXIT sign over it, and a wall clock. `room.ts` places by registry name, with options where a module takes
+them (`uniservo` `{ number, index }`, `cpu` `{ lampPanel }`), and casts and receives shadows on everything it
+places. Nothing stands in the door's swing, its aisle runs clear 2 m into the room, and every machine's front has at
+least 0.9 m clear (the UNISCOPE's desk, beside the 1558, only on its chair side). A name the registry lacks becomes a
+grey stand-in box of its `FOOTPRINT`, so the room composes before every module exists.

@@ -1,7 +1,7 @@
 // Room and Tiled: the workbench inside a 3D machine room (web/lab, inlined from build/lab.js as VIEW_LAB), or the
 // plain page. The lab is started only when Room is chosen: in Tiled there is no WebGL context and no extra frame loop.
-// In the room the vector terminal's screen is the plot (#cv) and the glass terminal opens Source; clicking one flies
-// the camera to it, and on arrival the page shows that tab. The Room button, or Esc on a plot tab or in Source (once
+// In the room the vector terminal's screen is the plot (#cv), the glass terminal opens Source and the microfilm recorder
+// opens Print; clicking one flies the camera to it, and on arrival the page shows that tab. The Room button, or Esc on a plot tab or in Source (once
 // Source has closed its own overlays), flies back out.
 "use strict";
 const LAB = typeof VIEW_LAB !== "undefined" ? VIEW_LAB : null;
@@ -12,7 +12,7 @@ try { const v = localStorage.getItem(ROOM_KEY); if (v === "room" || v === "tiled
 let roomWant = UP.get("space") === "room" || UP.get("space") === "tiled" ? UP.get("space") : roomPref;   // ?space= for this visit only
 let roomIn = false;      // the lab is running (Room, on a wide screen)
 let roomShown = false;   // the lab is on screen and the page hidden
-let roomCanvasTab = "review";   // the plot tab the vector terminal opens
+let roomCanvasTab = "review";   // the plot tab the vector terminal opens (Review, Simulate or Fusion)
 let roomState = null;
 
 function labState() {
@@ -36,10 +36,14 @@ function roomPlace() { $("labhost").style.top = $("tabs").getBoundingClientRect(
 // page (#cv, or the Source workspace), and the two crossfade over ROOM_FADE ms. Leaving, the lab starts at that pose
 // and fades in over the page before it flies out.
 const ROOM_FADE = 250;
+// What each terminal opens (its `opens`), the tab that is, and the terminal a tab belongs to.
+const ROOM_OPENS = { vector: "workbench", glass: "source", filmrecorder: "print" };
+const roomTabOf = opens => opens === "source" || opens === "print" ? opens : roomCanvasTab;
+const roomTermOf = t => t === "source" ? "glass" : t === "print" ? "filmrecorder" : "vector";
 const roomScreenEl = opens => opens === "source" ? $("srcws") : cv;
 // Lay the page out for a terminal behind the room (hidden, so nothing shows) and give its screen element's rect.
 function roomScreenRect(opens) {
-  const t = opens === "source" ? "source" : roomCanvasTab;
+  const t = roomTabOf(opens);
   if (tab !== t) setTab(t);
   return roomScreenEl(opens).getBoundingClientRect();
 }
@@ -69,10 +73,10 @@ function roomClip(el, from, to) {
 const roomUnclip = el => { el.style.transition = el.style.clipPath = ""; };
 // Show the room; from a terminal ("vector", "glass") the lab starts square to its screen and fades in over the page.
 function roomShowLab(from) {
-  if (canvasTab()) roomCanvasTab = tab;
+  if (canvasTab() && tab !== "print") roomCanvasTab = tab;
   roomShown = true; roomPlace();
   if (!from) { document.body.classList.add("room"); LAB.show(); roomSync(); return; }
-  const el = roomScreenEl(from === "glass" ? "source" : "workbench"), rect = el.getBoundingClientRect();
+  const el = roomScreenEl(ROOM_OPENS[from]), rect = el.getBoundingClientRect();
   $("labhost").classList.add("fading"); $("labhost").style.opacity = "0";
   LAB.show(from, rect, ROOM_FADE);
   const inset = roomInset(), fadeIn = () => roomFade(true, () => { roomUnclip(el); document.body.classList.add("room"); });
@@ -85,7 +89,7 @@ function roomShowLab(from) {
 }
 function roomArrive(opens) {
   roomShown = false; document.body.classList.remove("room");
-  setTab(opens === "source" ? "source" : roomCanvasTab);
+  setTab(roomTabOf(opens));
   if (canvasTab()) cv.focus({ preventScroll: true });
   const el = roomScreenEl(opens), inset = roomInset();
   if (inset) roomClip(el, inset, "inset(0px)");
@@ -105,7 +109,7 @@ function roomApply() {
 }
 function roomChoose(v) {
   roomWant = v; try { localStorage.setItem(ROOM_KEY, v); } catch (e) { /* ignore */ }
-  if (v === "room" && roomIn && !roomShown) roomShowLab(tab === "source" ? "glass" : "vector");
+  if (v === "room" && roomIn && !roomShown) roomShowLab(roomTermOf(tab));
   else roomApply();
 }
 $("bspace").onclick = () => roomChoose("room");
@@ -115,14 +119,14 @@ $("tabs").addEventListener("click", e => {
   const b = e.target.closest("button[data-tab]");
   if (!b || !roomShown) return;
   e.stopImmediatePropagation();
-  if (b.dataset.tab !== "source") roomCanvasTab = b.dataset.tab;
-  LAB.setTarget(b.dataset.tab === "source" ? "glass" : "vector");
+  const t = b.dataset.tab;
+  if (t !== "source" && t !== "print") roomCanvasTab = t;
+  LAB.setTarget(roomTermOf(t));
 }, true);
 window.addEventListener("keydown", e => {
   if (e.key !== "Escape" || e.defaultPrevented || !roomIn || roomShown || typingIn() || $("list").classList.contains("open")) return;
-  if (tab === "source") { e.preventDefault(); roomShowLab("glass"); return; }   // Source closed its own overlays first
-  if (!canvasTab() || fOn()) return;
-  e.preventDefault(); roomShowLab("vector");
+  if (tab !== "source" && fOn()) return;   // Source closed its own overlays first (srcview.js)
+  e.preventDefault(); roomShowLab(roomTermOf(tab));
 });
 WIDE.addEventListener("change", roomApply);
 window.addEventListener("resize", () => { if (roomShown) roomPlace(); });

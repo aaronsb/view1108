@@ -1,21 +1,23 @@
-// The room's shell: raised floor, walls, dropped ceiling with fluorescent troffers, a door and a wall clock.
+// The room's shell: raised floor, walls, dropped ceiling with fluorescent troffers, a door with an EXIT sign over it,
+// and a wall clock.
 // The look follows the MSC photograph of 15 July 1969 (docs/media/UNIVAC1108-NASA.png: white raised-floor tiles
-// about 60 cm, a dropped ceiling with long rows of troffers); the size, wall colour, door and clock are ours.
+// about 60 cm, a dropped ceiling with long rows of troffers); the size, wall colour, door, sign and clock are ours.
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { ceilingMap, clockFace, floorMaps } from "./surfaces";
+import { ceilingMap, clockFace, exitSign, floorMaps } from "./surfaces";
 
 /** Room size, metres: x across (west -, east +), z deep (north wall at -D/2), y up. */
-export const ROOM = { w: 8, d: 6, h: 2.75 };
+export const ROOM = { w: 9, d: 7, h: 2.75 };
 /** Raised-floor and ceiling tile, metres. */
 export const TILE = 0.6;
 /** Troffer rows: z of each row, the fixtures' x centres and their size (metres). */
 export const TROFFERS = {
-  rows: [-2.1, -0.7, 0.7, 2.1],
-  xs: [-3.0, -1.5, 0, 1.5, 3.0],
+  rows: [-2.45, -0.82, 0.82, 2.45],
+  xs: [-3.4, -1.7, 0, 1.7, 3.4],
   len: 1.22, wid: 0.3,
 };
-const DOOR = { z: 2.2, w: 0.92, h: 2.13 };   // on the west wall
+/** The door, on the south wall: the x of its centre, its width and height; it opens inward, hinged on its west side. */
+export const DOOR = { x: -0.6, w: 0.92, h: 2.13 };
 const CLOCK = { x: 0, y: 2.32, r: 0.16 };    // on the north wall, above the tape drives
 
 export interface Shell {
@@ -47,39 +49,50 @@ export function buildShell(aniso: number): Shell {
 
   // Walls in a pale institutional green-grey, with a dark vinyl base strip.
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xc3c7b6, roughness: 0.9 });
-  const doorHole = new THREE.Shape([new THREE.Vector2(-D / 2, 0), new THREE.Vector2(D / 2, 0), new THREE.Vector2(D / 2, H), new THREE.Vector2(-D / 2, H)]);
-  // The west wall's shape x runs along -z once turned to face the room.
-  const a = -DOOR.z - DOOR.w / 2, b = -DOOR.z + DOOR.w / 2;
-  doorHole.holes.push(new THREE.Path([new THREE.Vector2(a, 0.001), new THREE.Vector2(b, 0.001), new THREE.Vector2(b, DOOR.h), new THREE.Vector2(a, DOOR.h)]));
+  // The south wall's shape is drawn as seen from the room (x running west, since the plane is turned to face north).
+  const a = -DOOR.x - DOOR.w / 2, b = -DOOR.x + DOOR.w / 2;
+  const south = new THREE.Shape([new THREE.Vector2(-W / 2, 0), new THREE.Vector2(W / 2, 0), new THREE.Vector2(W / 2, H), new THREE.Vector2(-W / 2, H)]);
+  south.holes.push(new THREE.Path([new THREE.Vector2(a, 0.001), new THREE.Vector2(b, 0.001), new THREE.Vector2(b, DOOR.h), new THREE.Vector2(a, DOOR.h)]));
   mesh(mergeGeometries([
     new THREE.PlaneGeometry(W, H).translate(0, H / 2, -D / 2),                                  // north
-    new THREE.PlaneGeometry(W, H).rotateY(Math.PI).translate(0, H / 2, D / 2),                  // south
-    new THREE.ShapeGeometry(doorHole).rotateY(Math.PI / 2).translate(-W / 2, 0, 0),             // west, with the door
+    new THREE.ShapeGeometry(south).rotateY(Math.PI).translate(0, 0, D / 2),                    // south, with the door
+    new THREE.PlaneGeometry(D, H).rotateY(Math.PI / 2).translate(-W / 2, H / 2, 0),             // west
     new THREE.PlaneGeometry(D, H).rotateY(-Math.PI / 2).translate(W / 2, H / 2, 0),             // east
   ].map(g => g.toNonIndexed()))!, wallMat);
-  const base = 0.1, bt = 0.012;
+  const base = 0.1, bt = 0.012, dw = DOOR.x - DOOR.w / 2, de = DOOR.x + DOOR.w / 2;
   mesh(mergeGeometries([
-    box(W, base, bt, 0, base / 2, -D / 2 + bt / 2), box(W, base, bt, 0, base / 2, D / 2 - bt / 2),
-    box(bt, base, D / 2 + DOOR.z - DOOR.w / 2, -W / 2 + bt / 2, base / 2, (-D / 2 + DOOR.z - DOOR.w / 2) / 2),
-    box(bt, base, D / 2 - DOOR.z - DOOR.w / 2, -W / 2 + bt / 2, base / 2, (D / 2 + DOOR.z + DOOR.w / 2) / 2),
-    box(bt, base, D, W / 2 - bt / 2, base / 2, 0),
+    box(W, base, bt, 0, base / 2, -D / 2 + bt / 2),
+    box(dw + W / 2, base, bt, (dw - W / 2) / 2, base / 2, D / 2 - bt / 2), box(W / 2 - de, base, bt, (de + W / 2) / 2, base / 2, D / 2 - bt / 2),
+    box(bt, base, D, -W / 2 + bt / 2, base / 2, 0), box(bt, base, D, W / 2 - bt / 2, base / 2, 0),
   ])!, new THREE.MeshStandardMaterial({ color: 0x2c2b29, roughness: 0.6 }));
 
-  // Door: a painted steel leaf in a frame, with a kick plate and a lever (ours).
+  // Door: a painted steel leaf in a frame, with a kick plate and a lever on its latch (east) side (ours). Built in
+  // the door's frame (x along the wall, z out of it into the room), then turned onto the south wall.
+  const onWall = new THREE.Matrix4().makeRotationY(Math.PI).premultiply(new THREE.Matrix4().makeTranslation(DOOR.x, 0, D / 2));
+  const door = (list: THREE.BufferGeometry[]) => mergeGeometries(list)!.applyMatrix4(onWall);
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x8c9088, roughness: 0.5, metalness: 0.3 });
-  const fw = 0.05, x0 = -W / 2;
-  mesh(mergeGeometries([
-    box(0.03, DOOR.h + fw, fw, x0 + 0.015, (DOOR.h + fw) / 2, DOOR.z - DOOR.w / 2 - fw / 2),
-    box(0.03, DOOR.h + fw, fw, x0 + 0.015, (DOOR.h + fw) / 2, DOOR.z + DOOR.w / 2 + fw / 2),
-    box(0.03, fw, DOOR.w + 2 * fw, x0 + 0.015, DOOR.h + fw / 2, DOOR.z),
-  ])!, frameMat);
-  mesh(box(0.045, DOOR.h - 0.01, DOOR.w - 0.01, x0 - 0.01, DOOR.h / 2, DOOR.z), new THREE.MeshStandardMaterial({ color: 0x6f7a72, roughness: 0.55, metalness: 0.15 }));
+  const fw = 0.05, hw = DOOR.w / 2;
+  mesh(door([
+    box(fw, DOOR.h + fw, 0.03, -hw - fw / 2, (DOOR.h + fw) / 2, 0.015),
+    box(fw, DOOR.h + fw, 0.03, hw + fw / 2, (DOOR.h + fw) / 2, 0.015),
+    box(DOOR.w + 2 * fw, fw, 0.03, 0, DOOR.h + fw / 2, 0.015),
+  ]), frameMat);
+  mesh(door([box(DOOR.w - 0.01, DOOR.h - 0.01, 0.045, 0, DOOR.h / 2, -0.01)]), new THREE.MeshStandardMaterial({ color: 0x6f7a72, roughness: 0.55, metalness: 0.15 }));
   const steel = new THREE.MeshStandardMaterial({ color: 0xc8c8c4, roughness: 0.25, metalness: 0.9 });
-  mesh(mergeGeometries([
-    box(0.004, 0.25, DOOR.w - 0.08, x0 + 0.014, 0.14, DOOR.z),
-    box(0.05, 0.02, 0.02, x0 + 0.04, 1.02, DOOR.z - DOOR.w / 2 + 0.09),
-    box(0.02, 0.02, 0.13, x0 + 0.06, 1.02, DOOR.z - DOOR.w / 2 + 0.14),
-  ])!, steel);
+  // Turned onto the wall the door's -x is east: the latch side, where the lever goes.
+  mesh(door([
+    box(DOOR.w - 0.08, 0.25, 0.004, 0, 0.14, 0.014),
+    box(0.02, 0.02, 0.05, -hw + 0.09, 1.02, 0.04),
+    box(0.13, 0.02, 0.02, -hw + 0.14, 1.02, 0.06),
+  ]), steel);
+
+  // EXIT sign over the door (ours; red letters lit from inside, as US codes asked of the period's exit signs).
+  const exitTex = exitSign(aniso); texs.push(exitTex);
+  const sign = mesh(new THREE.BoxGeometry(0.36, 0.17, 0.07), new THREE.MeshStandardMaterial({ color: 0xe8e6de, roughness: 0.6 }));
+  sign.position.set(DOOR.x, DOOR.h + 0.2, D / 2 - 0.04);
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(0.33, 0.14), new THREE.MeshBasicMaterial({ map: exitTex, toneMapped: false }));
+  geos.push(face.geometry); mats.push(face.material);
+  face.position.set(0, 0, -0.036); face.rotation.y = Math.PI; sign.add(face);
 
   // Troffers: steel housings and glowing diffusers, instanced (two draw calls for all of them).
   const n = TROFFERS.rows.length * TROFFERS.xs.length, m4 = new THREE.Matrix4();
@@ -94,10 +107,10 @@ export function buildShell(aniso: number): Shell {
   for (const im of [housing, diffuser]) { geos.push(im.geometry); mats.push(im.material as THREE.Material); object.add(im); }
 
   // Wall clock (generic, ours): a face, a black rim and three hands that keep the viewer's time.
-  const face = clockFace(aniso); texs.push(face);
+  const dial = clockFace(aniso); texs.push(dial);
   const clock = new THREE.Group(); clock.position.set(CLOCK.x, CLOCK.y, -D / 2 + 0.03); object.add(clock);
   const add = (g: THREE.BufferGeometry, m: THREE.Material, parent: THREE.Object3D) => { geos.push(g); if (!mats.includes(m)) mats.push(m); const o = new THREE.Mesh(g, m); parent.add(o); return o; };
-  add(new THREE.CircleGeometry(CLOCK.r, 48), new THREE.MeshStandardMaterial({ map: face, roughness: 0.4 }), clock);
+  add(new THREE.CircleGeometry(CLOCK.r, 48), new THREE.MeshStandardMaterial({ map: dial, roughness: 0.4 }), clock);
   add(new THREE.TorusGeometry(CLOCK.r + 0.008, 0.012, 8, 48), new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.35, metalness: 0.4 }), clock);
   const black = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
   const hand = (len: number, wid: number, z: number, m: THREE.Material) => {

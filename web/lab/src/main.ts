@@ -26,6 +26,10 @@ const VIEW_LAB = {
   info() { return lab?.info ?? null; },
   /** Client px of a placed equipment's screen: for tests. */
   project(name: string) { return lab?.project(name) ?? null; },
+  /** The room from above, ceiling left out, `px` pixels per metre, as a PNG data URL: for tests. */
+  plan(px?: number) { return lab?.plan(px) ?? null; },
+  /** Footprints of the pieces on the floor and the door: for tests. */
+  layout() { return lab?.layout ?? null; },
 };
 
 (window as unknown as { VIEW_LAB: typeof VIEW_LAB }).VIEW_LAB = VIEW_LAB;

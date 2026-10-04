@@ -1,8 +1,8 @@
 // The lab's interfaces: the page <-> lab contract, and the contract between the room and its equipment.
 import type * as THREE from "three";
 
-/** What a terminal opens when the camera arrives at it: the plot tabs, or the Source tab. */
-export type Opens = "workbench" | "source";
+/** What a terminal opens when the camera arrives at it: the plot tabs, the Source tab, or the Print tab. */
+export type Opens = "workbench" | "source" | "print";
 
 /** The page's state, read by the lab once per rendered frame (web/src/room.js labState()). */
 export interface LabState {
@@ -79,11 +79,19 @@ export interface Placed {
   equipment: Equipment;
 }
 
+/** What a placed equipment covers on the floor: a rectangle centred at (x, z), half-sizes `hw` across its front and
+ *  `hd` deep, turned `turn` about the vertical (as the equipment is). Metres. */
+export interface Footprint { name: string; x: number; z: number; hw: number; hd: number; turn: number }
+
 /** What a room module's build() returns. */
 export interface Room {
   object: THREE.Object3D;
   placed: Placed[];
   overview: CameraPose;   // the zoomed-out pose
+  /** Every piece standing on the floor, for walking and the plan's checks. */
+  footprints?: Footprint[];
+  /** The door: its centre's x on the wall at z, its width. */
+  door?: { x: number; z: number; w: number };
   /** Hover labels by placed name, for the equipment that opens something. */
   labels?: Record<string, string>;
   /** Region the dust drifts in. */
