@@ -62,6 +62,7 @@ The `[ LINK ]` button (key `L`) copies a URL that reproduces the current view. Y
 | `labels`, `frame`, `hidden` | `0` or `1` (names, plot frame, hidden lines) | `labels=0` |
 | `bloom`, `jitter`, `dust`, `fps` | `0` or `1` (film effects; `fps=1` is the 16 fps film rate) | `bloom=1` |
 | `catalog` | `nav` (391 stars) or `full` | `catalog=full` |
+| `disp`, `hz` | `auto`, `film` or `scope` (the microfilm look or the 1558 vector console); `16` or `steady` (the scope's refresh) | `disp=scope&hz=steady` |
 | `listing` | `dark` or `light` (Fortran listing) | `listing=light` |
 | `space` | `room` or `tiled`: the 3D machine room around the workbench, or the plain page | `space=tiled` |
 | `bare`, `still=earthrise`, `film=N` | chrome hidden; frozen Earthrise; Attract at film second N (for screenshots) | `still=earthrise` |

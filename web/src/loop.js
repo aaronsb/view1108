@@ -26,17 +26,19 @@ let lastStatus = "", flashMsg = "", flashUntil = 0;
 const flash = m => { flashMsg = m; flashUntil = performance.now() + 1800; };
 function updateStatus() {
   const rate = mode === "beam" ? `${BEAM_SPEEDS[beamIdx].name} ${BEAM_SPEEDS[beamIdx].vps ? BEAM_SPEEDS[beamIdx].vps + " VEC/S" : "1/15 S FRAME"}` : mode === "live" ? LIVE_RATES[liveIdx] + "X" : mode === "free" ? (playing ? SPEEDS[speedIdx] + "X" : "HOLD") : "AUTO";
-  const t = (performance.now() < flashUntil ? flashMsg + "  " : "") + `${epoch ? (SCENE_MISSION[scene] || "OTHER MISSION") + "  " : ""}MODE ${mode}  G.E.T. ${getStr(get)}  UTC ${utcStr(get)}  ${mode === "beam" ? "FRAME " + beamFrameNo + "  " : ""}${rate}  BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  DUST ${effDust() ? "ON" : "OFF"}  STARS ${effCatalog().toUpperCase()}${effFps() ? "  16 FPS" : ""}`;
+  const t = (performance.now() < flashUntil ? flashMsg + "  " : "") + `${epoch ? (SCENE_MISSION[scene] || "OTHER MISSION") + "  " : ""}MODE ${mode}  G.E.T. ${getStr(get)}  UTC ${utcStr(get)}  ${mode === "beam" ? "FRAME " + beamFrameNo + "  " : ""}${rate}  ${isFilm() ? `BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  DUST ${effDust() ? "ON" : "OFF"}` : `SCOPE ${scopeHz() === "16" ? "16 HZ" : "STEADY"}`}  STARS ${effCatalog().toUpperCase()}${effFps() ? "  16 FPS" : ""}`;
   if (t !== lastStatus) { lastStatus = t; document.getElementById("status").textContent = t; }
 }
 // Film rate: with the toggle on, the kernel is stepped and a frame presented only every 1/16 s and held in between
 // (time keeps running in real time because step() works from the elapsed time). While the room is shown (room.js)
-// the plot is the vector terminal's screen: frames run at the film rate on every tab, Source included.
+// the plot is the vector terminal's screen: kernel frames run at the film rate on every tab, Source included, and on a
+// SCOPE at 16 Hz the latest is redrawn at the display's rate in between (beam.js scopeRender; the room's texture
+// follows each draw). Elsewhere a SCOPE has no film rate, so every tick is a kernel frame and a draw.
 let lastPresent = 0;
 function tick(now) {
   if (!canvasTab() && !roomShown) { last = now; requestAnimationFrame(tick); return; }   // Source: no kernel frames, time holds
   if (effFps() || roomShown) {
-    if (now - lastPresent < 1000 / 16 - 2) { requestAnimationFrame(tick); return; }
+    if (now - lastPresent < 1000 / 16 - 2) { if (drawn && scopeLive()) draw(now); requestAnimationFrame(tick); return; }
     lastPresent = now - lastPresent > 125 ? now : lastPresent + 1000 / 16;
   }
   step(now); requestAnimationFrame(tick);
