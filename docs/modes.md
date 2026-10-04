@@ -14,9 +14,11 @@ The tab bar across the top, after the title, picks the workspace and the control
 | **Simulate** | the plot | Mission clock (Live, Free-look, the jumps), Simulation, Scene, Time, Look, Display | starts Live |
 | **Print** | the plot | Beam (the trace and its speed), Film (with Print SVG and Paper SVG: the frame as an SVG file, white on black or black on white), Scene, Time, Look, Display | stops Attract or Tour for Free-look; film effects default on. Beam runs only here: leaving Print leaves Beam for Free-look |
 | **Fusion** | the plot | a note (crew photographs over the vector frame, to come), Look, Display | stops Attract or Tour for Free-look |
-| **Source** | its own: the Fortran listing button for now | none | keeps the mode; the plot stops drawing and time holds until you return. Keys do nothing here |
+| **Source** | its own: the kernel's code browser (below) | none | keeps the mode; the plot stops drawing and time holds until you return. The plot's keys do nothing here |
 
 **Timeline** (Review) lists the scene's scenario's events (its TIMELINE cards, from SP-4029's mission timelines): g.e.t., kind and name, filtered by kind or by Noteworthy, our own short list of milestones (lift-off, Earth orbit insertion, TLI, transposition docking, LOI, undocking, powered descent, landing, lunar lift-off, docking, TEI, entry, splashdown). Clicking an event sets the time as the g.e.t. box does and re-centres the Free-look scrubber on it; the scene stays, so its camera may not suit every moment. The event at or before the current time is highlighted, and the shown events within the scrubber's span are marked under it. For Apollo 11, **Companion** opens [Apollo in Real Time](https://apolloinrealtime.org/11/) (Ben Feist) at the current g.e.t. in a window of its own; each discrete jump (an event, a scene, a released scrub, a Live jump, the g.e.t. box) re-points it, and **Resync** does so on demand. It plays in real time on its own; its pause and rate are independent. Each event's ↗ opens that moment in the same window.
+
+**The code browser** (Source) has three panes: a tree (the files grouped by kind as in CLAUDE.md's element table, each file's units, under each unit an outline of its DO loops, block IFs, GO TOs, CALLs, RETURNs and labels; then the COMMON blocks and PARAMETERs, with a filter), the listing (fixed-form colouring, RESTOMOD fences as a shaded band with their reason on hover, a rule after column 72, folds on DO and IF, the open unit's lines lit), and an inspector (the unit's signature, doc comment, declarations, COMMON and PARAMETERs used, a callers-and-callees graph, calls, called-by and fences; or a COMMON block's, PARAMETER's or variable's card). In the listing a routine's name goes to its definition, a COMMON member or PARAMETER opens its card, a local or argument marks its uses in the unit, and a label after GO TO or DO goes to that label. On a narrow screen the tree is a drawer (Files) and the inspector follows the listing. Keys: `Ctrl+P` or `/` go to a unit, block, member, PARAMETER, file or `file:line` by fuzzy match; `Alt+Left` and `Alt+Right` go back and forward; `Esc` closes. The symbols and outline come from `tools/gen_symbols.py`.
 
 ## Modes
 
@@ -73,7 +75,7 @@ Is the film's leg-less LM shot (film seconds 20.5 to 26) this view? We think not
 | Film jitter | J | Frame-to-frame registration wobble of the film | on in Attract, Tour and the Print tab |
 | Dust | D | Specks and occasional scratches | on in Attract, Tour and the Print tab |
 | Film rate | F | Presents frames at a steady 16 fps | on in Attract, Tour and the Print tab; off in Beam |
-| Listing | button (Source tab) | The FORTRAN listing, dark terminal or LIGHT greenbar paper | dark |
+| Print listing | button (Source tab) | The FORTRAN as a period compile listing, dark terminal or LIGHT greenbar paper | dark |
 
 ## Keys
 
@@ -161,6 +163,7 @@ Each control group in the dock has a header: `[-]` shows the group is open, `[+]
 | `src` | `replay`, `sim` (Simulation; only when the kernel has the engine) | `?src=sim` |
 | `svu` | `0`/`1`: state vector updates in simulation (default 1) | `?src=sim&svu=0` |
 | `listing` | `dark`, `light` | `?listing=light` |
+| `code` | with `tab=source`: a unit, `/BLOCK/`, a PARAMETER or COMMON member, a file, or `file:line`. `src=` with any value but `replay` or `sim` reads the same | `?tab=source&code=PROJ`, `?tab=source&code=pen.f:120` |
 | `still` | `earthrise` (frozen Earthrise, controls hidden, for screenshots) | `?still=earthrise` |
 | `bare` | present to hide the controls | `?bare&film=8` |
 

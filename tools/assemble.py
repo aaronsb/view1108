@@ -5,7 +5,8 @@ Page modules: each <link rel="stylesheet" href="src/X.css"> becomes an inline <s
 <script src="src/X.js"></script> tags becomes one inline script whose modules share a strict-mode closure,
 joined in tag order. Placeholders: __WASM_B64__ (build/view.opt.wasm), __FALLBACK_JS__ (build/fallback.js),
 __NAMES_JS__ (build/names.js), __FORTRAN_SRC__ (the kernel listing:
-every src/*.f but the generated viewdata.f, the driver vdrive.f (or view.f) first, each element preceded by
+every src/*.f but the generated viewdata.f, the driver vdrive.f (or view.f) first, then the INCLUDE files
+viewdims.inc and viewcom.inc, each element preceded by
 a line of a form feed and its path, HTML-escaped),
 __FONT_3270_B64__ (web/fonts/3270-Regular.subset.woff2).
 The kernel's symbol table (build/symbols.json, tools/gen_symbols.py) follows the listing's </pre> as
@@ -26,6 +27,7 @@ if missing:
     sys.exit("assemble.py: missing inputs (run tools/build.sh first):\n" + "\n".join(missing))
 
 KSRC = sorted((f for f in (R / "src").glob("*.f") if f.name != "viewdata.f"), key=lambda f: (f.name not in ("vdrive.f", "view.f"), f.name))
+KSRC += [R / "src" / n for n in ("viewdims.inc", "viewcom.inc") if (R / "src" / n).is_file()]
 if not KSRC:
     sys.exit("assemble.py: no kernel sources src/*.f")
 t = INPUTS["template"].read_text()

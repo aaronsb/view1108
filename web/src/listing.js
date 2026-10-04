@@ -6,11 +6,11 @@ const fieldata = t => t.toUpperCase().replace(/"/g, "'").replace(/[^A-Z0-9 @\[\]
 // Text before the first such line (all of it on the dev page) is one element with no name.
 const ELEMENTS = $("fsrc").textContent.split(/^\f/m).map((p, i) => {
   const nl = p.indexOf("\n"), file = i ? p.slice(0, nl) : "";
-  return { file, name: file.replace(/^.*\//, "").replace(/\.f$/, "").toUpperCase(), src: i ? p.slice(nl + 1) : p };
+  return { file, name: file.replace(/^.*\//, "").replace(/\.f$/, "").toUpperCase(), src: i ? p.slice(nl + 1) : p, inc: file.endsWith(".inc") };
 }).filter(e => e.file || e.src);
 // DARK: each element under a banner naming it, as a compile listing heads each element.
 const RULE = "=".repeat(72);
-$("lst").textContent = ELEMENTS.map(e => e.file ? `${RULE}\n ELEMENT ${e.name}   (${e.file})\n${RULE}\n${e.src}` : e.src).join("\n");
+$("lst").textContent = ELEMENTS.map(e => e.file ? `${RULE}\n ${e.inc ? "INCLUDE" : "ELEMENT"} ${e.name}   (${e.file})\n${RULE}\n${e.src}` : e.src).join("\n");
 // LIGHT: each element starts a new sheet and numbers its own lines; the sheet header names the element.
 function buildPaper() {
   const paper = $("paper"); if (paper.dataset.built) return; paper.dataset.built = "1";
@@ -21,7 +21,7 @@ function buildPaper() {
     if (lines.length && lines[lines.length - 1] === "") lines.pop();
     for (let first = 0; first < lines.length; first += PER) {
       const el = document.createElement("div"), pre = document.createElement("pre"); el.className = "pg";
-      let txt = "VIEW-1108 KERNEL LISTING (OUR RECONSTRUCTION)   " + (e.name ? "ELEMENT " + fieldata(e.name) + "   " : "") + "PAGE " + (++pg) + "\n\n";
+      let txt = "VIEW-1108 KERNEL LISTING (OUR RECONSTRUCTION)   " + (e.name ? (e.inc ? "INCLUDE " : "ELEMENT ") + fieldata(e.name) + "   " : "") + "PAGE " + (++pg) + "\n\n";
       for (let i = first; i < Math.min(lines.length, first + PER); i++) txt += String(i + 1).padStart(5, " ") + "  " + fieldata(lines[i]) + "\n";
       pre.textContent = txt; el.appendChild(pre); paper.appendChild(el);
     }

@@ -19,6 +19,7 @@ function linkURL() {
   if (effFps() !== (dAuto && mode !== "beam")) add("fps", +effFps());
   if (effCatalog() === "full") add("catalog", "full");
   if (simAvail && simOn) { add("src", "sim"); add("svu", +simSvu); }
+  if (tab === "source" && srcLinkParam()) add("code", srcLinkParam());
   return location.origin === "null" ? location.href.split("?")[0] + "?" + q.join("&") : location.origin + location.pathname + "?" + q.join("&");
 }
 function copyLink() {

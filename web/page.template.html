@@ -38,10 +38,8 @@
 <div id="ws">
   <div id="wrap"><canvas id="cv" tabindex="0" aria-label="VIEW-1108 plot"></canvas></div>
   <div id="status" role="status" aria-live="off"></div>
-  <section id="srcws" hidden>
-    <p>The kernel's code browser will live here.</p>
-    <div class="grp"><button id="bsrc">Fortran listing</button></div>
-  </section>
+  <!-- The kernel's code browser (web/src/srcindex.js, srcview.js), built on first entry. -->
+  <section id="srcws" hidden aria-label="Kernel source"><button id="bsrc">Print listing</button></section>
 </div>
 <div id="dock">
 <div id="ctl">
@@ -159,6 +157,8 @@
 <script src="src/link.js"></script>
 <script src="src/sound.js"></script>
 <script src="src/tabs.js"></script>
+<script src="src/srcindex.js"></script>
+<script src="src/srcview.js"></script>
 <script src="src/timeline.js"></script>
 <script src="src/main.js"></script>
 </body>

@@ -11,9 +11,7 @@ h1 { font:400 20px var(--term); letter-spacing:.12em; margin:0 14px 0 0; cursor:
 #tabs { display:flex; flex-wrap:wrap; gap:2px 6px; align-items:center; border-bottom:1px solid var(--line); margin-bottom:8px; padding-top:2px; }
 #tabs .sp { flex:1; }
 #wrap { width:100%; display:flex; justify-content:center; align-items:flex-start; }
-/* Source: its own workspace in place of the plot. */
-#srcws { padding:16px 8px; border:1px solid var(--line); min-height:50vh; font-size:14px; color:var(--dim); }
-#srcws p { margin:0 0 12px; }
+/* Source: its own workspace in place of the plot (the browser's styles are the block at the end). */
 body[data-tab=source] #wrap, body[data-tab=source] #status, body[data-tab=source] #dock { display:none; }
 .shade.offtab { display:none; }
 /* Wide screens: the page fits the window, the plot fills the workspace and the dock is a scrolling column beside it. */
@@ -22,7 +20,7 @@ body[data-tab=source] #wrap, body[data-tab=source] #status, body[data-tab=source
   body:not(.still) #main { flex:1; min-height:0; display:flex; gap:16px; }
   body:not(.still) #ws { flex:1; min-width:0; display:flex; flex-direction:column; }
   body:not(.still) #wrap { flex:1; min-height:0; overflow:hidden; }
-  body:not(.still) #srcws { flex:1; overflow:auto; }
+  body:not(.still) #srcws { flex:1; min-height:0; }
   body:not(.still) #status { flex:none; height:calc(2.5em + 10px); line-height:1.25; overflow:hidden; }   /* a fixed height, so the plot keeps its size as the line changes */
   #dock { flex:none; width:360px; overflow-y:auto; padding-right:4px; }
   #dock #ctl { flex-direction:column; flex-wrap:nowrap; align-items:stretch; margin-top:0; }
@@ -113,3 +111,127 @@ input[type=text] { background:#000; color:var(--fg); border:0; border-bottom:1px
 body.still #tabs, body.still #ctl, body.still #hint, body.still #about, body.still #err, body.still #status { display:none; }
 body.still { padding:0; }
 #err { color:#ff9a9a; font-size:14px; text-align:center; margin-top:8px; }
+
+/* ==== Source browser (srcindex.js, srcview.js): tree | listing | inspector. Plain controls, not 3270 fields; the
+   page's palette, with a few code colours of its own. ==== */
+#srcws { --sx-pane:#020805; --sx-cu:#071a0d; --sx-k:#f2fff5; --sx-cm:#5f8f6b; --sx-s:#efc68a; --sx-nm:#b4cfbd; --sx-lab:#ffb38a;
+  --sx-unit:#7fd3ff; --sx-mem:#e3e68c; --sx-par:#d4b0ff; --sx-rm:rgba(239,198,138,.075); --sx-hl:rgba(168,245,184,.25);
+  display:grid; grid-template-columns:250px minmax(0,1fr) 340px; grid-template-rows:auto minmax(0,1fr); position:relative;
+  border:1px solid var(--line); font:13px/1.4 var(--hd); color:var(--fg); background:#000; }
+#srcws[hidden] { display:none; }
+#srcws button { min-height:28px; padding:2px 10px; border:1px solid var(--line); border-radius:3px; font:13px var(--hd); letter-spacing:0; text-transform:none; color:var(--fg); background:#000; }
+#srcws button::before, #srcws button::after { content:none; }
+#srcws button:hover:not(:disabled) { border-color:var(--dim); background:#06140a; }
+#srcws a { color:inherit; cursor:pointer; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:2px; }
+#srcws a:hover { color:var(--sx-k); text-decoration-color:var(--dim); }
+#srcws small { color:var(--dim); font-size:11px; }
+#srcws kbd { font:11px var(--term); color:var(--dim); border:1px solid var(--line); border-radius:3px; padding:0 4px; }
+#srcws input[type=search] { width:100%; background:#000; color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:5px 8px; font:13px var(--hd); }
+#sxbar { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:6px 8px; border-bottom:1px solid var(--line); }
+#sxbar .sp { flex:1; }
+#sxcrumb { font-size:13px; color:var(--dim); margin-left:6px; }
+#sxcrumb a { color:var(--fg); }
+#sxfiles { display:none; }
+#sxtree, #sxlist, #sxinsp { min-height:0; overflow:auto; }
+/* Tree */
+#sxtree { border-right:1px solid var(--line); background:var(--sx-pane); padding:6px 0 12px; }
+#sxfilter { margin:0 8px 6px; width:calc(100% - 16px) !important; }
+#sxtl summary, #sxtl .sx-leaf { display:flex; align-items:baseline; gap:6px; padding:1px 8px; cursor:pointer; white-space:nowrap; font-family:var(--term); font-size:13px; }
+#sxtl summary small, #sxtl .sx-leaf small { margin-left:auto; overflow:hidden; text-overflow:ellipsis; }
+#sxtl summary:hover, #sxtl .sx-leaf:hover { background:#06140a; }
+#sxtl .on { background:#0d2a17; color:var(--sx-k); box-shadow:inset 2px 0 var(--fg); }
+#sxtl details.sx-tg > summary { font:500 12px var(--hd); letter-spacing:.06em; text-transform:uppercase; color:var(--dim); padding-top:6px; }
+#sxtl details.sx-tf { padding-left:10px; }
+#sxtl .sx-tu, #sxtl .sx-tc { padding-left:12px; }
+#sxtl .sx-tc .sx-leaf, #sxtl .sx-tg > .sx-leaf { padding-left:26px; }
+.sx-b { display:inline-block; width:15px; height:15px; line-height:15px; text-align:center; font:600 10px var(--hd); font-style:normal; color:#000; background:var(--dim); border-radius:3px; flex:none; }
+.sx-ot { padding:1px 0 4px; }
+.sx-on { padding:0 6px 0 calc(28px + var(--d) * 12px); font:12px/1.5 var(--term); color:var(--dim); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sx-on:hover { background:#06140a; color:var(--fg); }
+.sx-on b { font-weight:400; color:var(--sx-k); }
+.sx-on .sx-ol, .sx-lab { color:var(--sx-lab); }
+.sx-oc { color:var(--dim); font-size:11px; }
+.sx-fh2 { padding:8px 8px 2px; font:500 12px var(--hd); letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }
+.sx-none { padding:8px; color:var(--dim); }
+/* Listing: line number, gutter (folds, GO TO), then the card image with a rule after column 72. */
+#sxlist { position:relative; font:14px/20px var(--term); }
+#sxlines { min-width:max-content; padding:4px 0 40vh; }
+.sx-l { display:flex; white-space:pre; }
+.sx-n { flex:none; width:4.4em; padding-right:8px; text-align:right; color:#33573e; user-select:none; cursor:pointer; }
+.sx-n:hover { color:var(--fg); }
+.sx-g { flex:none; width:16px; text-align:center; color:var(--dim); user-select:none; cursor:pointer; font-family:var(--hd); font-size:12px; }
+.sx-g:empty { cursor:default; }
+.sx-c { flex:none; min-width:80ch; padding:0 24px 0 4px; background-image:linear-gradient(to right, transparent calc(72ch + 4px), var(--line) calc(72ch + 4px), var(--line) calc(72ch + 5px), transparent calc(72ch + 5px)); }
+#sxlines.has-cu .sx-l:not(.sx-cu) .sx-c { opacity:.6; }
+.sx-l.sx-cu { background:var(--sx-cu); }
+.sx-l.sx-cu .sx-n { color:var(--dim); }
+.sx-l.sx-rm .sx-c { background-color:var(--sx-rm); }
+.sx-l.sx-rm .sx-g { box-shadow:inset -2px 0 var(--sx-s); }
+.sx-l.sx-fh { display:none; }
+.sx-l.sx-fd::after { content:"\22EF  " attr(data-n) " lines"; align-self:center; margin-left:-16px; padding:0 6px; font:11px var(--hd); color:var(--dim); border:1px solid var(--line); border-radius:3px; }
+.sx-l.sx-tgt { animation:sxflash 1.6s ease-out; }
+@keyframes sxflash { from { background-color:rgba(168,245,184,.3); } }
+.sx-cm { color:var(--sx-cm); }
+.sx-lb, .sx-ct, .sx-gl { color:var(--sx-lab); }
+.sx-gl { cursor:pointer; text-decoration:underline dotted; }
+.sx-sq { color:#2f4a37; }
+.sx-k { color:var(--sx-k); }
+.sx-s { color:var(--sx-s); }
+.sx-nm { color:var(--sx-nm); }
+.sx-o { color:var(--dim); }
+.sx-id { cursor:pointer; border-radius:2px; }
+.sx-id:hover { background:#0d2a17; }
+.sx-id.sx-unit { color:var(--sx-unit); }
+.sx-id.sx-member { color:var(--sx-mem); }
+.sx-id.sx-param { color:var(--sx-par); }
+.sx-id.sx-intr { color:var(--dim); cursor:default; }
+.sx-id.sx-hl { background:var(--sx-hl); box-shadow:0 0 0 1px rgba(168,245,184,.45); }
+/* Inspector */
+#sxinsp { border-left:1px solid var(--line); background:var(--sx-pane); padding:4px 12px 24px; }
+.sx-card { padding:8px 0 12px; border-bottom:1px solid var(--line); }
+.sx-card h3 { margin:0 0 6px; font:500 16px var(--term); color:var(--sx-k); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; }
+.sx-card h3 small { font:12px var(--hd); }
+.sx-card h4 { margin:12px 0 4px; font:500 11px var(--hd); letter-spacing:.08em; text-transform:uppercase; color:var(--dim); }
+.sx-sig { margin:4px 0; padding:6px 8px; font:13px/1.4 var(--term); white-space:pre-wrap; word-break:break-word; border:1px solid var(--line); border-radius:3px; background:#000; }
+.sx-args { font:12px/1.6 var(--term); }
+.sx-doc { margin:8px 0; white-space:pre-wrap; color:#cfe9d6; font-size:13px; }
+.sx-chips { display:flex; flex-wrap:wrap; gap:2px 10px; font:13px var(--term); }
+.sx-dim { color:var(--dim); }
+.sx-tab { border-collapse:collapse; width:100%; font:12px var(--term); }
+.sx-tab th { text-align:left; font:500 11px var(--hd); color:var(--dim); border-bottom:1px solid var(--line); }
+.sx-tab td { padding:1px 6px 1px 0; vertical-align:top; }
+.sx-tab tr.on td { background:#0d2a17; }
+.sx-cmrow { font:12px/1.6 var(--term); }
+.sx-cmrow a:first-child { color:var(--sx-mem); }
+.sx-rmrow { margin:4px 0; font-size:12px; padding-left:8px; border-left:2px solid var(--sx-s); }
+.sx-sym { margin:6px 0; padding:6px 8px; border:1px solid var(--line); border-radius:3px; font:13px var(--term); }
+.sx-graph { display:block; max-width:100%; height:auto; font:11px var(--term); }
+.sx-graph path { fill:none; stroke:var(--line); stroke-width:1.2; }
+.sx-gn { cursor:pointer; }
+.sx-gn rect { fill:#000; stroke:var(--dim); }
+.sx-gn text { fill:var(--fg); }
+.sx-gn:hover rect { fill:#0d2a17; }
+.sx-gc rect { fill:#0d2a17; stroke:var(--fg); }
+.sx-gc { cursor:default; }
+.sx-gx text { fill:var(--dim); }
+.sx-gm { fill:var(--dim); }
+/* Quick-open and the hover tip */
+#sxqo { position:absolute; z-index:30; top:44px; left:50%; transform:translateX(-50%); width:min(560px, calc(100% - 24px)); padding:8px; background:#000; border:1px solid var(--dim); border-radius:4px; box-shadow:0 8px 32px rgba(0,0,0,.8); }
+#sxqo[hidden] { display:none; }
+#sxql { max-height:50vh; overflow:auto; margin-top:6px; }
+.sx-qr { display:flex; gap:10px; align-items:baseline; padding:3px 8px; cursor:pointer; border-radius:3px; }
+.sx-qr b { font:400 14px var(--term); color:var(--sx-k); }
+.sx-qr.on, .sx-qr:hover { background:#0d2a17; }
+#sxtip { position:fixed; z-index:40; max-width:min(460px, 92vw); padding:4px 8px; font:12px/1.4 var(--term); white-space:pre-wrap; color:var(--sx-k); background:#071a0d; border:1px solid var(--dim); border-radius:3px; pointer-events:none; }
+#sxtip[hidden] { display:none; }
+/* Narrow: the tree is a drawer; the inspector follows the listing. */
+@media (max-width:999px) {
+  #srcws { grid-template-columns:minmax(0,1fr); grid-template-rows:auto 65vh auto; }
+  #sxfiles { display:inline-block; }
+  #sxtree { position:fixed; z-index:25; top:0; bottom:0; left:0; width:min(320px, 86vw); border-right:1px solid var(--dim); transform:translateX(-102%); transition:transform .15s; }
+  #sxtree.open { transform:none; box-shadow:8px 0 32px rgba(0,0,0,.8); }
+  #sxinsp { border-left:0; border-top:1px solid var(--line); overflow:visible; }
+  #sxcrumb { flex-basis:100%; margin-left:0; }
+  #sxlist { font-size:13px; }
+}
+/* ==== end Source browser ==== */

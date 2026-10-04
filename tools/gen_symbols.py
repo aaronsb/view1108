@@ -5,7 +5,8 @@ For the page's source browser.  Per file: path, kind (Driver, Dispatcher, Core, 
 list in the header of src/vdrive.f; Include for the .inc files), line count, leading comment block, units.  Per program unit (SUBROUTINE, FUNCTION, BLOCK DATA, ENTRY): name, kind, file, lines,
 args, declared variables (type, dims, arg or COMMON), COMMON blocks used (a block counts when the unit
 references one of its members; `includes` says whether viewcom.inc brings them all in), PARAMETERs and intrinsics referenced, calls (CALL and references to kernel
-functions), called-by, RESTOMOD fences, and the comment block above the header (else just below it) as doc.
+functions), called-by, RESTOMOD fences, the comment block above the header (else just below it) as doc, and a statement outline
+(DO loops, block IFs, GO TOs, CALLs, RETURN/STOP, labels; see outline()).
 Globals: COMMON blocks with members and the units that reference each; PARAMETERs with values.
 viewdata.f (generated, large) gets its unit list and the COMMON blocks it initialises only.
 
@@ -382,7 +383,104 @@ def analyse(u, lines, comments, stmts, cblocks, params, funcs):
     u["functions_declared"] = sorted(n for n, d in decl.items() if n in funcs and not d["dims"])
     u["restomod"] = fences(lines, stmts, u["start"], u["end"])
     u["doc"] = doc_above(lines, u["start"]) or doc_below(comments, stmts, u["hdr_last"])
+    u["outline"] = outline(u["stmts"])
     return used
+
+
+def close_paren(s, i):
+    """Index of the ')' matching the '(' at s[i], or -1."""
+    depth = 0
+    for j in range(i, len(s)):
+        if s[j] == "(":
+            depth += 1
+        elif s[j] == ")":
+            depth -= 1
+            if depth == 0:
+                return j
+    return -1
+
+
+def outline(stmts):
+    """A unit's statement outline, in line order: DO loops (k do: label, var, line, end), block IFs (k if: line,
+    end, else: the ELSE IF / ELSE lines), GO TOs (k goto: to, the target labels; computed GO TO and arithmetic IF
+    give several, with `on` the index expression), CALLs (k call: name), RETURN and STOP, and labelled statements
+    (k label: label, stmt, the statement's first word).  `depth` is the DO/IF nesting; `cond` marks a statement
+    under a logical IF; `t` is a short text for DO and IF.
+    Limits: line-oriented like the rest of this file.  Labels are matched within the unit only; a DO ends at the
+    statement carrying its label (shared terminals close every loop on them); assigned GO TO, ENTRY and
+    alternate returns are not followed; a GO TO list continued onto further lines is read from the joined
+    statement, so its `line` is the statement's first."""
+    out, stack = [], []
+
+    def short(t):
+        t = re.sub(r"\s+", " ", t).strip()
+        return t if len(t) <= 44 else t[:43] + "…"
+
+    def simple(up, s, cond):
+        d = len(stack)
+        m = re.match(r"^GO\s*TO\s*\((.*?)\)\s*,?\s*(.*)$", up)
+        if m:
+            out.append({"k": "goto", "line": s["first"], "to": [x.strip() for x in m.group(1).split(",") if x.strip()],
+                        "on": m.group(2).strip(), "depth": d, **({"cond": True} if cond else {})})
+            return
+        m = re.match(r"^GO\s*TO\s*(\d+)$", up)
+        if m:
+            out.append({"k": "goto", "line": s["first"], "to": [m.group(1)], "depth": d, **({"cond": True} if cond else {})})
+            return
+        m = re.match(r"^CALL\s+([A-Z]\w*)", up)
+        if m:
+            out.append({"k": "call", "line": s["first"], "name": m.group(1), "depth": d, **({"cond": True} if cond else {})})
+            return
+        if re.match(r"^(RETURN|STOP)\b", up):
+            out.append({"k": up.split()[0].lower(), "line": s["first"], "depth": d, **({"cond": True} if cond else {})})
+
+    for s in stmts:
+        up = s["up"].strip()
+        d = len(stack)
+        if s["label"]:
+            out.append({"k": "label", "line": s["first"], "label": s["label"],
+                        "stmt": (re.match(r"[A-Z]+", up) or [""])[0], "depth": d})
+        m_if = re.match(r"^IF\s*\(", up)
+        if re.match(r"^ELSE\s*IF\s*\(", up) or re.match(r"^ELSE$", up):
+            top = next((n for n in reversed(stack) if n["k"] == "if"), None)
+            if top:
+                top["else"].append(s["first"])
+        elif re.match(r"^END\s*IF$", up):
+            while stack and stack[-1]["k"] != "if":
+                stack.pop()
+            if stack:
+                stack.pop()["end"] = s["last"]
+        elif re.match(r"^END\s*DO$", up):
+            if stack and stack[-1]["k"] == "do":
+                stack.pop()["end"] = s["last"]
+        elif m_if:
+            j = close_paren(up, up.index("("))
+            rest = up[j + 1:].strip() if j > 0 else ""
+            if rest == "THEN":
+                n = {"k": "if", "line": s["first"], "end": s["last"], "else": [], "t": short(up[:j + 1]), "depth": d}
+                out.append(n)
+                stack.append(n)
+            elif re.match(r"^\d+\s*,\s*\d+\s*,\s*\d+$", rest):
+                out.append({"k": "goto", "line": s["first"], "to": [x.strip() for x in rest.split(",")],
+                            "on": up[up.index("(") + 1:j].strip(), "arith": True, "depth": d})
+            else:
+                simple(rest, s, True)
+        else:
+            m = re.match(r"^DO\s*(\d+)\s*,?\s*([A-Z]\w*)\s*=(.*,.*)$", up) or re.match(r"^DO\s+()([A-Z]\w*)\s*=(.*,.*)$", up)
+            if m:
+                n = {"k": "do", "line": s["first"], "end": s["last"], "label": m.group(1), "var": m.group(2),
+                     "t": short(f"{m.group(2)} = {m.group(3)}"), "depth": d}
+                out.append(n)
+                stack.append(n)
+            else:
+                simple(up, s, False)
+        if s["label"]:
+            while stack and stack[-1]["k"] == "do" and stack[-1]["label"] == s["label"]:
+                stack.pop()["end"] = s["last"]
+    for n in out:
+        if n["k"] == "if" and not n["else"]:
+            del n["else"]
+    return out
 
 
 def main():

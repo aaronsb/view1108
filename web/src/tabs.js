@@ -25,6 +25,7 @@ function showTab() {
   document.querySelectorAll("#tabs [data-tab]").forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
   document.querySelectorAll("#ctl .shade").forEach(s => s.classList.toggle("offtab", !s.dataset.tabs.split(" ").includes(tab)));
   $("srcws").hidden = tab !== "source";
+  if (tab === "source") srcShow();
 }
 document.querySelectorAll("#tabs [data-tab]").forEach(b => { b.onclick = () => setTab(b.dataset.tab); });
 const toggleBeam = () => { if (tab !== "print") setTab("print"); startMode(mode === "beam" ? "free" : "beam"); };
