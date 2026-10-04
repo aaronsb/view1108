@@ -124,6 +124,6 @@ window.addEventListener("keydown", e => {
   if (sndOn && (!sndCtx || sndCtx.state !== "running")) sndStart();
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   soundKey(e.repeat);
-  if ((e.key === "m" || e.key === "M") && canvasTab() && !$("list").classList.contains("open")) { toggleSound(); e.preventDefault(); e.stopImmediatePropagation(); }   // not a look key: Attract keeps playing
+  if ((e.key === "m" || e.key === "M") && canvasTab() && !typingIn() && !$("list").classList.contains("open")) { toggleSound(); e.preventDefault(); e.stopImmediatePropagation(); }   // not a look key: Attract keeps playing
 }, { capture: true });
 document.addEventListener("visibilitychange", () => { if (!sndCtx || !sndOn) return; if (document.hidden) sndCtx.suspend(); else sndStart(); });

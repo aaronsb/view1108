@@ -82,10 +82,12 @@ const ACT = {
 };
 const KEY_ACT = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down", q: "rollL", Q: "rollL", e: "rollR", E: "rollR",
   "+": "zoomIn", "=": "zoomIn", "-": "zoomOut", "_": "zoomOut", " ": "pause", "[": "slower", "]": "faster", r: "reset", R: "reset" };
+// A key typed into a text or number field (the g.e.t. box, Fusion's alignment) is that field's, not a command.
+const typingIn = () => { const a = document.activeElement; return !!a && (a.tagName === "TEXTAREA" || a.tagName === "SELECT" || (a.tagName === "INPUT" && !["range", "button", "checkbox", "radio"].includes(a.type))); };
 window.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if ($("list").classList.contains("open")) { if (e.key === "Escape") $("list").classList.remove("open"); return; }
-  if (!canvasTab()) return;
+  if (!canvasTab() || typingIn()) return;
   const k = e.key;
   if (k === "j" || k === "J") { toggle("jitter"); e.preventDefault(); return; }
   if (k === "d" || k === "D") { toggle("dust"); e.preventDefault(); return; }
