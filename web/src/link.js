@@ -5,6 +5,7 @@ function linkURL() {
   const q = [], add = (k, v) => q.push(k + "=" + encodeURIComponent(v)), rnd = v => +v.toFixed(3);
   add("mode", mode);
   if (tab !== TAB_OF[mode]) add("tab", tab);
+  if (tab === "fusion" && fCur) add("photo", fCur.frame);
   if (mode !== "attract" && mode !== "tour") {
     if (mode !== "live" || livePin) add("scene", scene);
     add("get", getStr(get)); add("fov", rnd(fov)); add("yaw", rnd(yaw)); add("pitch", rnd(pitch)); add("roll", rnd(roll));

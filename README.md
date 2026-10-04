@@ -102,7 +102,7 @@ Probably, with changes: the fenced items above rewritten in FORTRAN V terms, and
 
 ## Build
 
-Needs LFortran 0.66, LLVM/clang 23 and binaryen 121 (conda-forge), plus gfortran, node and python3.
+Needs LFortran 0.66, LLVM/clang 23 and binaryen 121 (conda-forge), plus gfortran, node and python3 (with Pillow, for the Fusion photographs).
 
 ```
 micromamba create -p ~/lf -c conda-forge lfortran=0.66.0 llvm-tools=23.1.2 lld=23.1.2 clang=23.1.2 binaryen=121
