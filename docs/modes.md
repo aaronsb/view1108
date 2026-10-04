@@ -6,7 +6,7 @@ Base URL: https://aaronsb.github.io/view1108/
 
 ## Tabs
 
-The tab bar across the top, after the title, picks the workspace and the control groups in the dock (below the plot on a narrow screen, beside it on a screen 1000 px wide or more). Link, at the right end of the bar, copies a link to the current view.
+The tab bar across the top, after the title, picks the workspace and the control groups in the dock (below the plot on a narrow screen, beside it on a screen 1000 px wide or more). Link, at the right end of the bar, copies a link to the current view. Sound, beside it (key `M`), plays a synthesized machine room of our own invention: air handling and a cooling fan, a frame-advance clunk per Beam frame, a tape whir when the engine runs, and key clicks. It is off by default and remembered.
 
 | Tab | Workspace | Dock | On entering |
 |---|---|---|---|

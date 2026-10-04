@@ -31,6 +31,7 @@ function beamCommit(list, now) {
   const tEnd = t0 + cost[n] / vps * 1000;
   beamFrames.push({ sg, dsh, tOn, n, tEnd, tau: cfg.tau * 1000 });
   beamNextStart = tEnd;
+  soundFrame(tEnd);
 }
 const lowerBound = (arr, n, v) => { let lo = 0, hi = n; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] < v) lo = m + 1; else hi = m; } return lo; };
 // Draw every traced segment with an intensity that has decayed exp(-age/tau), in a few intensity buckets so each
