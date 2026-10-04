@@ -22,6 +22,7 @@ function linkURL() {
   if (simAvail && simOn) { add("src", "sim"); add("svu", +simSvu); }
   if (roomAvail && roomWant === "tiled") add("space", "tiled");   // Room is the default where it can run (room.js)
   if (tab === "source" && srcLinkParam()) add("code", srcLinkParam());
+  if (tab === "source" && srcThemeParam()) add("theme", srcThemeParam());
   return location.origin === "null" ? location.href.split("?")[0] + "?" + q.join("&") : location.origin + location.pathname + "?" + q.join("&");
 }
 function copyLink() {
