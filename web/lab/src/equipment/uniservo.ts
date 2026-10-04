@@ -126,6 +126,8 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
   // State: tape position p (0 all on the file reel, at left), speed v (m/s, + forward), the queue of moves.
   let p = 0.15 + r() * 0.7, v = 0, idle = 4 + r() * 20, runs = 0;
   const queue: Move[] = [];
+  /** Read-only for the room's sound: tape speed (m/s, + forward) and the two reels' angular speeds (rad/s). */
+  const motion = { v: 0, w0: 0, w1: 0 };
   const lampState: boolean[] = [true, false, r() < 0.5, false, false, false];
   const col = new THREE.Color();
   const setLamps = () => { lampState.forEach((on, i) => lamps.setColorAt(i, col.set(on ? LAMP_ON[i] : OFF))); lamps.instanceColor!.needsUpdate = true; };
@@ -142,7 +144,7 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
 
   return {
     object,
-    anchors: { camera: poseFrom(new THREE.Vector3(0, 1.3, 0.37), [0.25, 0.1, 1], 1.5, 40) },
+    anchors: { camera: poseFrom(new THREE.Vector3(0, 1.3, 0.37), [0.25, 0.1, 1], 1.5, 40), motion },
     update(dt) {
       if (!queue.length && (idle -= dt) < 0) {
         idle = 8 + r() * 25;   // an occasional short shuttle
@@ -161,6 +163,7 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
         reels[1].group.rotation.z -= v / r1 * dt;
         sizePacks();
       }
+      motion.v = v; motion.w0 = v / radius(1 - p); motion.w1 = v / radius(p);
       const busy = Math.abs(v) > 0.05, rew = v < -SPEED * 1.2 || goal < -SPEED * 1.2;
       if (busy !== lampState[3] || rew !== lampState[4] || (queue.length > 0) !== lampState[1] || (was === 0) !== (v === 0)) {
         lampState[1] = queue.length > 0; lampState[3] = busy; lampState[4] = rew; setLamps();

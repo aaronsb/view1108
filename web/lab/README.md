@@ -82,8 +82,21 @@ lamp grids one instanced mesh per geometry and material, copied from the hidden 
 machines keep animating and the picking keeps hitting. Equipment that opens a tab is not batched.
 
 `LabState`: `tab`, `mode`, `playing`, `get`, `scene`, `frameNo` (kernel frames drawn; the lab re-uploads the
-vector screen texture when it moves), and `sound` = `{ ctx, out, on }`, the page's `AudioContext` and master gain
-from `web/src/sound.js` (null until the viewer turns sound on) for positional or ambient audio.
+vector screen texture when it moves), and `sound` = `{ ctx, out, on, bed, whine }`, the page's `AudioContext`, master gain
+and switch for its ambience bed from `web/src/sound.js`, and the 1558's deflection whine from `web/src/whine.js`
+(null until the viewer turns sound on).
+
+### Sound
+
+`src/audio/roomsound.ts` (`RoomSound`, made by `Lab`) builds the room's soundscape on `sound.ctx` into `sound.out`
+once sound is on, turns the page's bed off while it lives (`sound.bed(false)`, back on at `stop()`), and steps every
+50 ms on its own timer, so it keeps going while the page is shown over the room: the listener follows the camera, the
+room ducks 8 dB when `hide()` has been called, the tape units' sound follows `anchors.motion` (`{ v, w0, w1 }`, tape
+speed in m/s and the reels' rad/s, set by `uniservo.ts`), and the ballasts follow `room.lightsOn` when the room
+has it, and `sound.whine`'s two outputs are placed at the 1558's screen and at the film recorder. `src/audio/synth.ts` holds the noise buffers, waves, the room response and one-shot knocks and clicks; both
+take any `BaseAudioContext`, so `RoomSound` with `auto` false can be attached to an `OfflineAudioContext` and stepped
+by hand. `VIEW_LAB.info().sound` gives, for tests, the source and panner counts, the master's gain and RMS, and each
+source's inverse-law gain at the listener. Sources and levels: `docs/lab.md`, Sound.
 
 `LabEvent` (`event()`): `{ type: "beamFrame", at }` when a Beam trace frame ends (`at` its `performance.now()`
 time, as `soundFrame` gets it) and `{ type: "tape", at }` when the engine runs (`sim_run`).

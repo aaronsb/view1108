@@ -4,7 +4,7 @@
 "use strict";
 // One AudioContext and one master gain for the page, created on the first gesture that needs them; other modules may
 // connect to sndOut once sndStart() has run.
-let sndCtx = null, sndOut = null, sndOn = false, sndNoiseBuf = null;
+let sndCtx = null, sndOut = null, sndOn = false, sndNoiseBuf = null, sndBedG = null, sndBedOn = true;
 try { sndOn = localStorage.getItem("view1108.sound") === "1"; } catch (e) { /* storage unavailable */ }
 const SND_OK = !!(window.AudioContext || window.webkitAudioContext);
 const sndLive = () => sndOn && sndCtx && sndCtx.state === "running";
@@ -41,12 +41,14 @@ function sndBed(ctx, dest) {
   const hg = ctx.createGain(); hg.gain.value = 0.05;
   hs.connect(bp).connect(hg).connect(dest); hs.start();
 }
+// The bed on or off: the machine room (web/lab) plays its own soundscape instead while it runs.
+function soundBed(on) { sndBedOn = on; if (sndBedG) sndBedG.gain.setTargetAtTime(on ? 0.5 : 0, sndCtx.currentTime, 0.3); }
 function sndStart() {
   if (!SND_OK) return;
   if (!sndCtx) {
     sndCtx = new (window.AudioContext || window.webkitAudioContext)();
     sndOut = sndCtx.createGain(); sndOut.gain.value = 0; sndOut.connect(sndCtx.destination);
-    const bed = sndCtx.createGain(); bed.gain.value = 0.5; bed.connect(sndOut); sndBed(sndCtx, bed);
+    const bed = sndBedG = sndCtx.createGain(); bed.gain.value = sndBedOn ? 0.5 : 0; bed.connect(sndOut); sndBed(sndCtx, bed);
   }
   if (!document.hidden) sndCtx.resume();
   sndOut.gain.setTargetAtTime(sndOn ? 0.6 : 0, sndCtx.currentTime, 0.15);
@@ -111,7 +113,7 @@ function toggleSound() {
   try { localStorage.setItem("view1108.sound", sndOn ? "1" : "0"); } catch (e) { /* ignore */ }
   syncSound();
   if (sndOn) sndStart();
-  else if (sndCtx) { sndOut.gain.setTargetAtTime(0, sndCtx.currentTime, 0.05); setTimeout(() => { if (!sndOn) sndCtx.suspend(); }, 300); }
+  else if (sndCtx) { sndOut.gain.setTargetAtTime(0, sndCtx.currentTime, 0.015); setTimeout(() => { if (!sndOn) sndCtx.suspend(); }, 300); }
 }
 $("bsound").onclick = toggleSound;
 if (!SND_OK) { $("bsound").disabled = true; $("bsound").title = "This browser has no Web Audio"; }
@@ -124,6 +126,6 @@ window.addEventListener("keydown", e => {
   if (sndOn && (!sndCtx || sndCtx.state !== "running")) sndStart();
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   soundKey(e.repeat);
-  if ((e.key === "m" || e.key === "M") && canvasTab() && !typingIn() && !$("list").classList.contains("open")) { toggleSound(); e.preventDefault(); e.stopImmediatePropagation(); }   // not a look key: Attract keeps playing
+  if ((e.key === "m" || e.key === "M") && !typingIn() && !$("list").classList.contains("open")) { toggleSound(); e.preventDefault(); e.stopImmediatePropagation(); }   // not a look key: Attract keeps playing
 }, { capture: true });
 document.addEventListener("visibilitychange", () => { if (!sndCtx || !sndOn) return; if (document.hidden) sndCtx.suspend(); else sndStart(); });
