@@ -101,7 +101,7 @@ function draw(now) {
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, Hh);
-  const flick = 0.93 + 0.07 * Math.random();
+  const scope = !isFilm(), live = scopeLive(), flick = scope ? 1 : 0.93 + 0.07 * Math.random();   // SCOPE: no film exposure flicker
   const fs = Math.max(9, Math.min(15, W * 0.024));
 
   // header
@@ -119,7 +119,8 @@ function draw(now) {
   ctx.beginPath(); ctx.rect(framed ? b.x - 2 : 0, b.y - 2, b.s + 4, b.s + 4); ctx.clip();
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   // vectors: solid and dashed batched into paths
-  const beam = mode === "beam", rec = beam && beamNew ? new BeamRec() : null;
+  // Beam and the SCOPE refresh pass record the strokes in drawing order (beam.js BeamRec) and draw them themselves.
+  const beam = mode === "beam", rec = (beam && beamNew) || live ? new BeamRec() : null, own = beam || live;
   const solid = rec ? rec.sub(0) : new Path2D(), dash = rec ? rec.sub(1) : new Path2D();
   for (let i = 0; i < nv * 5; i += 5) {
     const p = V[i + 4] === 2 ? dash : solid;
@@ -153,20 +154,21 @@ function draw(now) {
   const lw = bloomOn ? Math.max(1, 0.0009 * cv.width) / dpr : Math.max(1, W / 420); hairline = lw;   // hairline: 0.09% of canvas width, at least 1 device px
   for (const [w, a] of bloomOn ? [[lw, 1 * flick]] : [[lw * 3.2, 0.10 * flick], [lw, 0.95 * flick]]) {
     ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = w;
-    if (beam) break;
+    if (own) break;
     ctx.setLineDash([]); ctx.stroke(solid);
     ctx.setLineDash([lw * 5, lw * 4]); ctx.stroke(dash);
   }
   // stars: the same stroke as every other line; BLOOM (one whole-frame blur) turns the asterisks into round soft dots
   ctx.setLineDash([]); ctx.lineCap = "round";
-  ctx.strokeStyle = `rgba(255,255,255,${0.98 * flick})`; ctx.lineWidth = lw; if (!beam) ctx.stroke(starP);
+  ctx.strokeStyle = `rgba(255,255,255,${0.98 * flick})`; ctx.lineWidth = lw; if (!own) ctx.stroke(starP);
   ctx.restore();
   // recorder text, unclipped, same strokes and glow as the vectors
   for (const [w, a] of bloomOn ? [[lw, 1 * flick]] : [[lw * 3.2, 0.10 * flick], [lw, 0.95 * flick]]) {
-    ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = w; ctx.setLineDash([]); ctx.lineCap = "round"; if (!beam) ctx.stroke(textP);
+    ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = w; ctx.setLineDash([]); ctx.lineCap = "round"; if (!own) ctx.stroke(textP);
   }
-  if (rec) beamCommit(rec.segs, now);
+  if (beam && rec) beamCommit(rec.segs, now);
   if (beam) beamRender(now, lw, flick);
+  if (live) scopeRender(rec.segs, now, lw);
 
   // axis captions (page lettering; tick numbers and names come from the kernel text records)
   if (framed) {

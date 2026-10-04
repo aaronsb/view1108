@@ -8,7 +8,7 @@ __NAMES_JS__ (build/names.js), __FORTRAN_SRC__ (the kernel listing:
 every src/*.f but the generated viewdata.f, the driver vdrive.f (or view.f) first, then the INCLUDE files
 viewdims.inc and viewcom.inc, each element preceded by
 a line of a form feed and its path, HTML-escaped),
-__FONT_3270_B64__ (web/fonts/3270-Regular.subset.woff2),
+__FONT_3270_B64__ (web/fonts/3270-Regular.subset.woff2), __FONT_JBM_B64__ (web/fonts/JetBrainsMono-Regular.subset.woff2),
 __PHOTOS_JSON__ (build/photos.json from tools/photo_pack.py, the Fusion tab's photographs; [] when absent),
 __LAB_JS__ (build/lab.js, the machine room bundled from web/lab; empty when absent, and the page has no Room).
 The kernel's symbol table (build/symbols.json, tools/gen_symbols.py) follows the listing's </pre> as
@@ -23,6 +23,7 @@ INPUTS = {
     "fallback": R / "build/fallback.js",
     "names": R / "build/names.js",
     "font": R / "web/fonts/3270-Regular.subset.woff2",
+    "fontjbm": R / "web/fonts/JetBrainsMono-Regular.subset.woff2",
 }
 missing = [f"  {k}: {p.relative_to(R)}" for k, p in INPUTS.items() if not p.is_file()]
 if missing:
@@ -67,6 +68,7 @@ subs = {
     "__FALLBACK_JS__": INPUTS["fallback"].read_text().replace("</script", "<\\/script"),
     "__NAMES_JS__": INPUTS["names"].read_text().replace("</script", "<\\/script"),
     "__FONT_3270_B64__": base64.b64encode(INPUTS["font"].read_bytes()).decode(),
+    "__FONT_JBM_B64__": base64.b64encode(INPUTS["fontjbm"].read_bytes()).decode(),
     "__WASM_B64__": base64.b64encode(INPUTS["wasm"].read_bytes()).decode(),
 }
 LAB = R / "build/lab.js"

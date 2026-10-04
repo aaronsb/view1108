@@ -29,6 +29,7 @@ function roomSync() {
   $("bspace").hidden = $("btiled").hidden = !vis;
   $("bspace").classList.toggle("on", roomIn); $("btiled").classList.toggle("on", !roomIn);
   $("bspace").title = roomIn && !roomShown ? "Back to the machine room (Esc on a plot tab)" : "The workbench inside a machine room";
+  syncUI();   // the screen (prefs.js effDisp) follows the room
 }
 function roomPlace() { $("labhost").style.top = $("tabs").getBoundingClientRect().bottom + "px"; }
 // The handover: the lab's flight into a terminal ends where its screen covers the element that screen becomes on the
