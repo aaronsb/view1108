@@ -72,6 +72,18 @@ button.on { color:#000; background:var(--fg); }
 button:disabled { opacity:.35; cursor:default; }
 button:focus-visible, input:focus-visible { outline:2px solid var(--fg); outline-offset:1px; }
 input[type=range] { accent-color:var(--fg); width:220px; max-width:60vw; }
+/* Timeline (timeline.js): chapter marks under the scrubber, and a compact scrolling event list. */
+#scrubw { position:relative; display:inline-block; padding-bottom:6px; }
+#tlmarks { position:absolute; left:0; right:0; bottom:0; height:6px; }
+#tlmarks i { position:absolute; width:5px; height:6px; margin-left:-2px; border:0 solid transparent; border-width:0 2px; background:var(--dim); background-clip:content-box; cursor:pointer; }
+#tlmarks i:hover { background-color:var(--fg); }
+#tlkinds button { min-height:24px; font-size:12px; padding:2px 0; }
+#tllist { position:relative; max-height:14em; width:100%; overflow-y:auto; font-size:12px; border:1px solid var(--line); }
+.tlrow { display:grid; grid-template-columns:5.6em 5.4em 1fr auto; gap:6px; padding:1px 4px; cursor:pointer; color:var(--dim); }
+.tlrow:hover { color:var(--fg); }
+.tlrow.cur { color:#000; background:var(--fg); }
+.tlrow a { color:inherit; text-decoration:none; padding:0 2px; }
+#tlairt[hidden] { display:none; }
 .lbl { color:var(--dim); text-transform:uppercase; }
 #hint { margin:12px auto 0; max-width:720px; font-size:14px; color:var(--dim); text-align:center; line-height:1.4; }
 #list { position:fixed; inset:0; background:rgba(0,0,0,.97); display:none; flex-direction:column; padding:12px 16px; z-index:10; }
