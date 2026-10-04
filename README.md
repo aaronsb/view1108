@@ -43,7 +43,7 @@ The page is the console. It starts by replaying the film, then hands you the con
 | **Live** | Simulate | The Apollo 11 mission clock at 1× (or 10×, 60×). The scene follows the mission phase from the g.e.t. you type or scrub to. |
 | **Beam** | Print | Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades. Speeds run from an estimated 1108-plus-recorder pace down to a slow trace you can watch, up to a persistence-of-vision blur. The recorder rates are our estimates (see [docs/univac-1108.md](docs/univac-1108.md)). |
 
-Keys (in every tab but Source): arrows look, Q/E roll, +/- field of view, space pause, `[` `]` speed, R reset, 1–9 scenes, `T` beam (opens Print), `L` copy link. The Source tab's "Fortran listing" button shows the kernel source the page is running.
+Keys (in every tab but Source): arrows look, Q/E roll, +/- field of view, space pause, `[` `]` speed, R reset, 1–9 scenes, `T` beam (opens Print), `L` copy link, `M` sound. The Source tab's "Fortran listing" button shows the kernel source the page is running.
 
 ## Link parameters
 
