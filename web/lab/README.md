@@ -60,7 +60,7 @@ camera looks toward -Z.
 **Equipment** is one module per kind, `src/equipment/<kind>.ts`, exporting
 
 ```ts
-export function build(ctx: BuildContext): Equipment
+export function build(ctx: BuildContext, options?): Equipment
 ```
 
 and registered by kind in `src/equipment/index.ts`. `BuildContext` gives `vectorScreen` (the plot as a
@@ -77,9 +77,36 @@ and registered by kind in `src/equipment/index.ts`. `BuildContext` gives `vector
 | `event(e, state)` | page events (a tape drive reacting to `tape`, a recorder to `beamFrame`) |
 | `dispose()` | free what `build` made (geometry, materials, textures) |
 
-The placeholders `vector-terminal.ts`, `glass-terminal.ts` and `desk.ts` follow this; phase C replaces them in
-place. A screen that shows the plot uses `ctx.vectorScreen` as its map; the plot canvas is 1.10 times as tall as
-it is wide.
+A screen that shows the plot uses `ctx.vectorScreen` as its map; the plot canvas is 1.10 times as tall as it is wide.
+Shared materials, surface maps and part geometries come from `src/equipment/kit.ts`, made once and shared by every
+piece. An equipment's `dispose()` frees only what it made for itself. Lamps and screens are unlit and
+`toneMapped: false`.
+
+The registry (`EQUIPMENT`, with sizes in `FOOTPRINT`, W x H x D in metres; sources and confidence in
+`docs/lab.md`):
+
+| Name | Options | |
+|---|---|---|
+| `vector` | | UNIVAC 1558 graphic console, 0.9 x 1.5 x 1.25; its screen is the plot; opens the workbench |
+| `glass` | | UNISCOPE 100, 0.46 x 0.33 x 0.69, standing on a desk top; shows the kernel source; opens Source |
+| `uniservo` | `number` (head plate, 60, 61, ...), `index` (top strip) | UNISERVO VIII-C tape unit, 0.75 x 1.8 x 0.75 |
+| `cpu` | `lampPanel` | 1108 cabinet, 0.8 x 1.9 x 0.8; with the lamp panel, the processor's maintenance panel |
+| `console4009` | | 1108 Display Console with Day Clock, CRT and PAGEWRITER, 2.8 x 1.25 x 0.95 |
+| `controller1557` | | 1557 display controller, 1.2 x 1.6 x 0.6 |
+| `printer` | | line printer with fanfold paper, 1.4 x 1.2 x 0.8 |
+| `cardreader` | | card reader, 1.0 x 1.1 x 0.7 |
+| `reeltable` | | table with reels and a desk clock, 1.6 x 0.75 x 0.8 |
+| `desk` | | desk, 1.5 x 0.73 x 0.75; anchor `top` |
+| `chair` | | swivel chair, 0.6 x 0.88 x 0.6 |
+
+`vector-terminal` and `glass-terminal` are phase A's names for `vector` and `glass`. Every piece but the desk and the
+chair has `anchors.camera`, a close-up pose.
+
+**Gallery** (development only, not in the page): `npm --prefix web/lab run gallery` bundles `src/gallery.ts` into
+`build/lab-gallery.js`. Serve the repository root over HTTP and open `web/lab/gallery.html`. It shows every piece in
+two rows under three-point lighting, with a stand-in plot. The flags are `?view=<name>` (that piece's close-up; add
+`&q` for a three-quarter view), `&play` (a running page clock) and `&tape` (a `tape` event at load).
+`window.__gallery.budget` gives one frame's draw calls and triangles, without shadows.
 
 **The room** is `src/room/room.ts`, exporting `build(ctx: BuildContext): Room` with `object` (walls, floor,
 lights of its own), `placed` (`{ name, equipment }` for each piece it placed, `equipment.object.userData.placed`

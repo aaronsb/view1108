@@ -6,7 +6,8 @@
   "license": "MIT",
   "scripts": {
     "build": "esbuild src/main.ts --bundle --minify --format=iife --target=es2020 --legal-comments=eof --outfile=../../build/lab.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "gallery": "esbuild src/gallery.ts --bundle --format=iife --target=es2020 --sourcemap --outfile=../../build/lab-gallery.js"
   },
   "dependencies": {
     "three": "0.186.1"

@@ -1,0 +1,159 @@
+// A UNISERVO VIII-C magnetic tape unit (UP-4046 rev. 3 sec. 8.4.2: 120 in/s, rewind 240 in/s, 2400 ft reels). The
+// look is from the 1108 II brochure (p. 7, colour) and the MSC photograph of 15 July 1969: a light frame, two reels
+// side by side behind glass in the upper third, a number and indicator strip on top, an orange head plate under the
+// reels carrying the unit's number (60, 61, ... at MSC), a plain lower door. Size 0.75 x 1.8 x 0.75 m is read off the
+// photographs (inferred); the vacuum columns are behind the lower door (inferred) and not modelled.
+//
+// Motion: an idle unit is mostly still, with an occasional short shuttle; a `tape` event (the engine ran) sets some
+// units running bursts of reads, sometimes ending in a rewind. The reels turn at the tape speed over the pack radius,
+// so the emptier reel spins faster; the packs trade radius as tape moves, at 12 times the real rate so a burst shows.
+import * as THREE from "three";
+import type { BuildContext, Equipment, LabEvent } from "../types";
+import { PAL, Parts, at, canvasTex, grid, lampMat, lensGeo, own, paint, rng, satinMetal, sharedGeo, smoked, chrome, plastic, poseFrom } from "./kit";
+
+export interface UniservoOptions { number?: number; index?: number }
+
+const IPS = 0.0254;
+const SPEED = 120 * IPS, REWIND = 240 * IPS;    // m/s
+const LENGTH = 2400 * 0.3048;                    // m of tape on a full reel
+const FLANGE = 10.5 / 2 * IPS;                   // a 10.5 in reel (inferred from the 2400 ft length)
+const HUB = 0.057;                               // hub radius, ours
+// Full pack radius from the tape's area: 2400 ft of 1.5 mil tape (thickness inferred).
+const FULL = Math.sqrt(HUB * HUB + LENGTH * 1.5e-3 * IPS / Math.PI);
+const COMPRESS = 12;                             // pack radius change, times real
+const ACCEL = 9;                                 // m/s^2 at the reels (ours; the columns hide the real start)
+
+/** The reel's front flange: three windows, so turning shows. */
+const flangeTex = () => sharedTex ??= canvasTex(256, 256, (g, w) => {
+  const c = w / 2;
+  g.fillStyle = "#fff"; g.beginPath(); g.arc(c, c, c - 1, 0, Math.PI * 2); g.fill();
+  g.globalCompositeOperation = "destination-out";
+  for (let k = 0; k < 3; k++) {
+    const a = k * Math.PI * 2 / 3;
+    g.beginPath(); g.arc(c, c, c * 0.9, a + 0.25, a + 1.75); g.arc(c, c, c * 0.5, a + 1.75, a + 0.25, true); g.closePath(); g.fill();
+  }
+  g.beginPath(); g.arc(c, c, c * 0.12, 0, Math.PI * 2); g.fill();
+});
+let sharedTex: THREE.CanvasTexture | undefined;
+let flangeMat: THREE.MeshStandardMaterial | undefined;
+const reelFront = () => flangeMat ??= new THREE.MeshStandardMaterial({ color: 0xb8c0c6, metalness: 0.3, roughness: 0.35, alphaMap: flangeTex(), alphaTest: 0.5, side: THREE.DoubleSide });
+const discGeo = () => sharedGeo("reelDisc", () => new THREE.CylinderGeometry(FLANGE, FLANGE, 0.0015, 48).rotateX(Math.PI / 2));
+const backGeo = () => sharedGeo("reelBack", () => {
+  const P = new Parts(), m = satinMetal();
+  P.cyl(FLANGE, FLANGE, 0.0015, m, 0, 0, -0.0075, 48, true).cyl(HUB, HUB, 0.016, m, 0, 0, 0, 32, true);
+  const g = new THREE.Group(); const [mesh] = P.bake(g); return mesh.geometry;
+});
+const packGeo = () => sharedGeo("reelPack", () => new THREE.CylinderGeometry(1, 1, 0.0127, 48).rotateX(Math.PI / 2));
+
+interface Reel { group: THREE.Group; pack: THREE.Mesh }
+function reel(): Reel {
+  const group = new THREE.Group();
+  group.add(new THREE.Mesh(backGeo(), satinMetal()));
+  const pack = new THREE.Mesh(packGeo(), plastic(PAL.tape, 0.5));
+  const front = new THREE.Mesh(discGeo(), reelFront()); front.position.z = 0.0075;
+  group.add(pack, front);
+  return { group, pack };
+}
+
+/** Number plate: black digits on white (the head plate's label) or white on black (the top strip). */
+function numberTex(n: string, light: boolean): THREE.CanvasTexture {
+  return canvasTex(128, 64, (g, w, h) => {
+    g.fillStyle = light ? "#f2efe6" : "#151617"; g.fillRect(0, 0, w, h);
+    g.fillStyle = light ? "#141414" : "#eeeeea"; g.font = "bold 44px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(n, w / 2, h / 2 + 2);
+  });
+}
+
+// Indicator lamps on the top strip, left to right (meanings ours, HYPOTHETICAL): ready, select, write enable,
+// busy, rewind, fault.
+const OFF = 0x2a2a26, LAMP_ON = [0x6cf08a, 0xf4f1e6, 0xff6a3c, 0xffb040, 0xf4f1e6, 0xff3020];
+
+interface Move { v: number; t: number }
+
+export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment {
+  const num = opts.number ?? 60, idx = opts.index ?? num - 59;
+  const r = rng(num * 977 + 13);
+  const object = new THREE.Group(), mine: { dispose(): void }[] = [];
+  const P = new Parts(), grey = paint(PAL.cabinet), dark = paint(PAL.charcoal, 0.9);
+
+  P.box(0.7, 0.06, 0.7, paint(PAL.dark, 0.9), 0, 0.03, -0.015);
+  P.box(0.75, 1.71, 0.72, grey, 0, 0.06 + 0.855, -0.015);
+  P.rbox(0.76, 0.03, 0.75, 0.008, paint(0xd4d6d2), 0, 1.785, -0.015);
+  P.box(0.72, 0.09, 0.012, dark, 0, 1.71, 0.35);                     // number and indicator strip
+  P.box(0.72, 0.52, 0.012, dark, 0, 1.37, 0.35);                     // reel-window surround
+  for (const [w, h, x, y] of [[0.72, 0.02, 0, 1.62], [0.72, 0.02, 0, 1.12], [0.02, 0.52, -0.35, 1.37], [0.02, 0.52, 0.35, 1.37]])
+    P.box(w, h, 0.03, grey, x, y, 0.37);                              // the window frame
+  P.box(0.58, 0.13, 0.014, paint(PAL.orange, 0.8), 0, 1.035, 0.352);  // head plate
+  P.box(0.12, 0.05, 0.03, dark, 0, 1.065, 0.37);                      // head cover
+  for (const x of [-0.17, 0.17]) P.cyl(0.018, 0.018, 0.03, satinMetal(0x2b2d30), x, 1.06, 0.37, 20, true);
+  P.box(0.7, 0.9, 0.01, grey, 0, 0.52, 0.35);                         // lower door
+  for (const y of [0.075, 0.965]) P.box(0.7, 0.006, 0.012, paint(PAL.dark), 0, y, 0.35);
+  P.box(0.012, 0.16, 0.02, chrome(), 0.3, 0.6, 0.365);                // door handle
+  P.bake(object).forEach(m => mine.push(m.geometry));
+
+  const glass = new THREE.Mesh(sharedGeo("uniGlass", () => new THREE.PlaneGeometry(0.68, 0.48)), smoked(0.18, 0x30383c));
+  glass.position.set(0, 1.37, 0.383); glass.renderOrder = 1; object.add(glass);
+
+  const plateTop = own(new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.05), new THREE.MeshStandardMaterial({ map: numberTex(String(idx), false), roughness: 0.5 })), mine);
+  plateTop.position.set(-0.3, 1.71, 0.3565); object.add(plateTop);
+  const plateHead = own(new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.045), new THREE.MeshStandardMaterial({ map: numberTex(String(num), true), roughness: 0.5 })), mine);
+  plateHead.position.set(0, 1.005, 0.3595); object.add(plateHead);
+  for (const m of [plateTop, plateHead]) mine.push((m.material as THREE.MeshStandardMaterial).map!);
+
+  const lamps = grid(lensGeo(), lampMat(), LAMP_ON.length, 1, c => at(-0.08 + c * 0.05, 1.71, 0.356, 0, 0, 0, 0.014), () => OFF);
+  object.add(lamps); mine.push(lamps);
+
+  const reels = [reel(), reel()];
+  reels.forEach((q, i) => { q.group.position.set(i ? 0.17 : -0.17, 1.37, 0.366); q.group.rotation.z = r() * 6; object.add(q.group); });
+
+  // State: tape position p (0 all on the file reel, at left), speed v (m/s, + forward), the queue of moves.
+  let p = 0.15 + r() * 0.7, v = 0, idle = 4 + r() * 20, runs = 0;
+  const queue: Move[] = [];
+  const lampState: boolean[] = [true, false, r() < 0.5, false, false, false];
+  const col = new THREE.Color();
+  const setLamps = () => { lampState.forEach((on, i) => lamps.setColorAt(i, col.set(on ? LAMP_ON[i] : OFF))); lamps.instanceColor!.needsUpdate = true; };
+  setLamps();
+  const radius = (q: number) => Math.sqrt(HUB * HUB + Math.max(0, Math.min(1, q)) * (FULL * FULL - HUB * HUB));
+  const sizePacks = () => { reels[0].pack.scale.set(radius(1 - p), radius(1 - p), 1); reels[1].pack.scale.set(radius(p), radius(p), 1); };
+  sizePacks();
+
+  const run = () => {
+    const n = 4 + Math.floor(r() * 6), dir = p > 0.85 ? -1 : 1;
+    for (let k = 0; k < n; k++) queue.push({ v: dir * SPEED, t: 0.25 + r() * 0.8 }, { v: 0, t: 0.1 + r() * 0.35 });
+    if (r() < 0.4) queue.push({ v: -REWIND, t: 1 + r() * 1.5 }, { v: 0, t: 0.3 });
+  };
+
+  return {
+    object,
+    anchors: { camera: poseFrom(new THREE.Vector3(0, 1.3, 0.37), [0.25, 0.1, 1], 1.5, 40) },
+    update(dt) {
+      if (!queue.length && (idle -= dt) < 0) {
+        idle = 8 + r() * 25;   // an occasional short shuttle
+        const d = r() < 0.5 ? 1 : -1;
+        queue.push({ v: d * SPEED, t: 0.2 + r() * 0.5 }, { v: 0, t: 0.15 }, { v: -d * SPEED, t: 0.1 + r() * 0.3 }, { v: 0, t: 0.1 });
+      }
+      const goal = queue.length ? queue[0].v : 0;
+      if (queue.length && (queue[0].t -= dt) < 0) queue.shift();
+      const was = v;
+      v += Math.max(-ACCEL * dt, Math.min(ACCEL * dt, goal - v));
+      if (v > 0 && p >= 1 || v < 0 && p <= 0) { v = 0; queue.length = 0; }
+      if (v !== 0) {
+        p = Math.max(0, Math.min(1, p + v * dt / LENGTH * COMPRESS));
+        const r0 = radius(1 - p), r1 = radius(p);
+        reels[0].group.rotation.z -= v / r0 * dt;
+        reels[1].group.rotation.z -= v / r1 * dt;
+        sizePacks();
+      }
+      const busy = Math.abs(v) > 0.05, rew = v < -SPEED * 1.2 || goal < -SPEED * 1.2;
+      if (busy !== lampState[3] || rew !== lampState[4] || (queue.length > 0) !== lampState[1] || (was === 0) !== (v === 0)) {
+        lampState[1] = queue.length > 0; lampState[3] = busy; lampState[4] = rew; setLamps();
+      }
+    },
+    event(e: LabEvent) {
+      if (e.type !== "tape") return;
+      runs++;
+      if ((num + runs) % 3 !== 0) { queue.length = 0; run(); }   // about two in three units take part
+    },
+    dispose() { mine.forEach(d => d.dispose()); },
+  };
+}
