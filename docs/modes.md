@@ -10,11 +10,13 @@ The tab bar across the top, after the title, picks the workspace and the control
 
 | Tab | Workspace | Dock | On entering |
 |---|---|---|---|
-| **Review** | the plot | Mode (Attract, Tour, Free-look), Scene, Time, Look, Display | keeps Attract, Tour or Free-look; from any other mode, starts Tour. The page opens here, in Attract |
+| **Review** | the plot | Mode (Attract, Tour, Free-look), Scene, Time, Timeline, Look, Display | keeps Attract, Tour or Free-look; from any other mode, starts Tour. The page opens here, in Attract |
 | **Simulate** | the plot | Mission clock (Live, Free-look, the jumps), Simulation, Scene, Time, Look, Display | starts Live |
 | **Print** | the plot | Beam (the trace and its speed), Film, Scene, Time, Look, Display | stops Attract or Tour for Free-look; film effects default on. Beam runs only here: leaving Print leaves Beam for Free-look |
 | **Fusion** | the plot | a note (crew photographs over the vector frame, to come), Look, Display | stops Attract or Tour for Free-look |
 | **Source** | its own: the Fortran listing button for now | none | keeps the mode; the plot stops drawing and time holds until you return. Keys do nothing here |
+
+**Timeline** (Review) lists the scene's scenario's events (its TIMELINE cards, from SP-4029's mission timelines): g.e.t., kind and name, filtered by kind or by Noteworthy, our own short list of milestones (lift-off, Earth orbit insertion, TLI, transposition docking, LOI, undocking, powered descent, landing, lunar lift-off, docking, TEI, entry, splashdown). Clicking an event sets the time as the g.e.t. box does and re-centres the Free-look scrubber on it; the scene stays, so its camera may not suit every moment. The event at or before the current time is highlighted, and the shown events within the scrubber's span are marked under it. For Apollo 11, **Companion** opens [Apollo in Real Time](https://apolloinrealtime.org/11/) (Ben Feist) at the current g.e.t. in a window of its own; each discrete jump (an event, a scene, a released scrub, a Live jump, the g.e.t. box) re-points it, and **Resync** does so on demand. It plays in real time on its own; its pause and rate are independent. Each event's ↗ opens that moment in the same window.
 
 ## Modes
 
