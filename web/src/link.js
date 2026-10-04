@@ -13,11 +13,15 @@ function linkURL() {
     if (FEAT.lablv) { if (labLv !== 3) add("lab", labLv); } else if (!labLv) add("labels", 0);
     if (FEAT.view && viewMode) add("view", VIEWS[viewMode]); if (FEAT.target && targetId) add("target", TARGETS[targetId]); if (FEAT.cabin && !cabin) add("cabin", 0); if (FEAT.walls && !walls) add("walls", 0); if (!frame) add("frame", 0); if (hidden) add("hidden", 1);
   }
+  if (dispChoice() !== "auto") add("disp", dispChoice());
+  if (scopeHz() !== "16") add("hz", scopeHz());
   const dAuto = filmAuto();   // effects whose default is on in the film-like modes and the Print tab
-  if (effJit() !== dAuto) add("jitter", +effJit());
-  if (effDust() !== dAuto) add("dust", +effDust());
-  if (effBloom()) add("bloom", 1);
-  if (effFps() !== (dAuto && mode !== "beam")) add("fps", +effFps());
+  if (isFilm()) {
+    if (effJit() !== dAuto) add("jitter", +effJit());
+    if (effDust() !== dAuto) add("dust", +effDust());
+    if (effBloom()) add("bloom", 1);
+    if (effFps() !== (dAuto && mode !== "beam")) add("fps", +effFps());
+  }
   if (effCatalog() === "full") add("catalog", "full");
   if (simAvail && simOn) { add("src", "sim"); add("svu", +simSvu); }
   if (roomAvail && roomWant === "tiled") add("space", "tiled");   // Room is the default where it can run (room.js)
