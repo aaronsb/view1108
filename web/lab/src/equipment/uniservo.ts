@@ -9,7 +9,7 @@
 // so the emptier reel spins faster; the packs trade radius as tape moves, at 12 times the real rate so a burst shows.
 import * as THREE from "three";
 import type { BuildContext, Equipment, LabEvent } from "../types";
-import { PAL, Parts, at, canvasTex, grid, lampMat, lensGeo, own, paint, rng, satinMetal, sharedGeo, smoked, chrome, plastic, poseFrom } from "./kit";
+import { PAL, Parts, at, canvasTex, fontTex, grid, plateText, lampMat, lensGeo, own, paint, rng, satinMetal, sharedGeo, smoked, chrome, plastic, poseFrom } from "./kit";
 
 export interface UniservoOptions { number?: number; index?: number }
 
@@ -55,12 +55,12 @@ function reel(): Reel {
   return { group, pack };
 }
 
-/** Number plate: black digits on white (the head plate's label) or white on black (the top strip). */
+/** Number plate, in the nameplate face: black digits on white (the head plate's label) or white on black (the top strip). */
 function numberTex(n: string, light: boolean): THREE.CanvasTexture {
-  return canvasTex(128, 64, (g, w, h) => {
+  return fontTex(128, 64, (g, w, h) => {
     g.fillStyle = light ? "#f2efe6" : "#151617"; g.fillRect(0, 0, w, h);
-    g.fillStyle = light ? "#141414" : "#eeeeea"; g.font = "bold 44px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText(n, w / 2, h / 2 + 2);
+    g.fillStyle = light ? "#141414" : "#eeeeea";
+    plateText(g, n, w / 2, h / 2 + 2, n.length > 2 ? 26 : 34, 0.06, "center");
   });
 }
 

@@ -139,6 +139,8 @@ body.still { padding:0; }
    fields. Every colour and font below is a variable on #srcws, so a theme (srctheme.js sets data-sxtheme) is a set of
    them. PHOSPHOR, the default, is the page's own palette with a few code colours. ==== */
 @font-face { font-family:"JetBrains Mono VIEW"; src:url("data:font/woff2;base64,__FONT_JBM_B64__") format("woff2"); font-display:swap; }
+/* The machine room's nameplates (web/lab kit.ts PLATE_FONT); not used by the page's own UI. */
+@font-face { font-family:"Michroma VIEW"; src:url("data:font/woff2;base64,__FONT_MICH_B64__") format("woff2"); font-display:swap; }
 #srcws {
   --sx-bg:#000; --sx-pane:#020805; --sx-fg:var(--fg); --sx-dim:var(--dim); --sx-line:var(--line); --sx-rule:var(--line);
   --sx-hover:#06140a; --sx-sel:#0d2a17; --sx-cu:#071a0d; --sx-out:.6; --sx-hi:#f2fff5; --sx-doc:#cfe9d6;
