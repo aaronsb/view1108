@@ -33,13 +33,21 @@ const SEEK_MS: [number, number] = [30, 86];
 
 const TAPE_SPEED = 120 * 0.0254;   // m/s (UP-4046 sec. 8.4.2)
 
+// The microfilm recorder, all ours (no source names MSC's recorder or describes its sound): a film-transport motor
+// (1,800 rev/min, a 4-pole synchronous motor on 60 Hz, with a 12-tooth gear) that spins up and down over about a
+// second, its own small plot-tape transport reading a block before each frame, and per frame a shutter tick, the
+// claw's pull-down clatter and the transport's stop.
+const REC_MOTOR_HZ = 1800 / 60, REC_GEAR_TEETH = 12, REC_SELF_S: [number, number] = [1.2, 1.8], REC_MIN_S = 0.35;
+type Whine = { scope: AudioNode; recorder: AudioNode };
+interface Recorder { src: Src; motor: OscillatorNode; gear: OscillatorNode; motorG: GainNode; reels: [OscillatorNode, OscillatorNode]; reelG: GainNode; active: boolean; last: number; next: number }
+
 /** A positioned source: its input (the dry level) feeds the panner and a send to the room response. */
 interface Src { name: string; input: GainNode; panner: PannerNode; pos: THREE.Vector3 }
 interface Tape { src: Src; eq: Equipment; motion: { v: number; w0: number; w1: number }; motor: [OscillatorNode, OscillatorNode]; motorG: GainNode; air: BiquadFilterNode; airG: GainNode; hiss: GainNode; moving: boolean; lastShot: number }
 interface Graph {
   ctx: BaseAudioContext; dest: AudioNode; master: GainNode; wet: GainNode; analyser: AnalyserNode;
   srcs: Src[]; tapes: Tape[]; rows: { src: Src; hum: GainNode; buzz: GainNode }[]; fastrand: Src;
-  nodes: AudioScheduledSourceNode[]; lit: boolean; nextSeek: number; whine: AudioNode | null;
+  rec: Recorder | null; nodes: AudioScheduledSourceNode[]; lit: boolean; nextSeek: number; whine: Whine | null;
 }
 
 export class RoomSound {
@@ -71,8 +79,8 @@ export class RoomSound {
     this.step(dt);
   };
 
-  /** Build the whole graph on ctx into dest; `whine` is the 1558's deflection whine (web/src/whine.js), if any. */
-  attach(ctx: BaseAudioContext, dest: AudioNode, whine: AudioNode | null = null): void {
+  /** Build the whole graph on ctx into dest; `whine` is the deflection whine's outputs (web/src/whine.js), if any. */
+  attach(ctx: BaseAudioContext, dest: AudioNode, whine: Whine | null = null): void {
     this.detach();
     const N = noises(ctx), nodes: AudioScheduledSourceNode[] = [], srcs: Src[] = [];
     const master = ctx.createGain(); master.gain.value = 0;
@@ -131,7 +139,7 @@ export class RoomSound {
     // faint mains hum (60 Hz and its harmonics, 120 Hz strongest) from one shared generator.
     const blade = wave(ctx, [1, 0.35, 0.12, 0.05]);
     const hum = osc(wave(ctx, [0.6, 1, 0.3, 0.25, 0.1, 0.08]), MAINS), humBus = gain(1); hum.connect(humBus);
-    const cabinets = this.room.placed.filter(p => /^(cpu|controller1557)-/.test(p.name));
+    const cabinets = this.room.placed.filter(p => /^(cpu|controller1557|filmrecorder)(-|$)/.test(p.name));
     cabinets.forEach((p, k) => {
       const pos = this.at(p.equipment, 1.5), s = source(p.name, pos, 1.0, 1.0);
       const rpm = 3420 + this.r() * 60, t = osc(blade, rpm / 60 * 5), tg = gain(0.035); t.connect(tg).connect(s.input);
@@ -187,13 +195,32 @@ export class RoomSound {
     // The 1558's deflection whine (made by the page from each kernel frame; ours, deliberately faint): at its screen,
     // with a steep distance law and no room response, so it is heard only within about 1.5 m of it.
     const vec = this.room.placed.find(p => p.name === "vector")?.equipment;
-    if (whine && whine.context === ctx && vec) {
+    const wh = whine && whine.scope.context === ctx ? whine : null;
+    if (wh && vec) {
       const m = vec.anchors.screen?.mesh ?? vec.object, pos = new THREE.Vector3();
       m.updateWorldMatrix(true, false); m.getWorldPosition(pos);
-      whine.connect(source("whine-1558", pos, WHINE_ROLLOFF, 1, 0, false).input);
+      wh.scope.connect(source("whine-1558", pos, WHINE_ROLLOFF, 1, 0, false).input);
     }
 
-    this.g = { ctx, dest, master, wet, analyser, srcs, tapes, rows, fastrand, nodes, lit, nextSeek: ctx.currentTime + 3, whine: whine && whine.context === ctx ? whine : null };
+    // The microfilm recorder, when the room has one. Idle, only its cabinet fan (with the cabinets above); running,
+    // the parts below. Its CRT's whine comes gated from the page (whine.recorder).
+    let rec: Recorder | null = null;
+    const fr = this.room.placed.find(p => /^filmrecorder(-|$)/.test(p.name));
+    if (fr) {
+      const s = source(fr.name + "-transport", this.at(fr.equipment, 1.0), 1.0, 1);
+      const motor = osc(wave(ctx, [0.3, 0.6, 0.5, 0.3, 0.15]), REC_MOTOR_HZ * 0.05), gear = osc(wave(ctx, [1, 0.3, 0.1]), REC_MOTOR_HZ * REC_GEAR_TEETH * 0.05);
+      const flutter = osc("sine", 5.3), fm = gain(0.12), fg = gain(0.12 * REC_GEAR_TEETH);
+      flutter.connect(fm).connect(motor.frequency); flutter.connect(fg).connect(gear.frequency);
+      const motorG = gain(0), gg = gain(0.25), mlp = filt("lowpass", 900);
+      motor.connect(motorG); gear.connect(gg).connect(motorG); motorG.connect(mlp).connect(s.input);
+      const reelG = gain(0), rlp = filt("lowpass", 1000, 1.1);
+      const reels: [OscillatorNode, OscillatorNode] = [osc("sawtooth", 60), osc("sawtooth", 60)];
+      reels.forEach(o => o.connect(rlp)); rlp.connect(reelG).connect(s.input);
+      if (wh) wh.recorder.connect(source(fr.name + "-crt", this.at(fr.equipment, 1.2), WHINE_ROLLOFF, 1, 0, false).input);
+      rec = { src: s, motor, gear, motorG, reels, reelG, active: false, last: 0, next: 0 };
+    }
+
+    this.g = { ctx, dest, master, wet, analyser, srcs, tapes, rows, fastrand, rec, nodes, lit, nextSeek: ctx.currentTime + 3, whine: wh };
   }
 
   /** One step: the listener, the duck, the tape units, the lights and the FASTRAND's idle seeks. */
@@ -247,11 +274,44 @@ export class RoomSound {
       });
     }
 
+    const rec = g.rec;
+    if (rec) {
+      const s = this.state(), on = s.tab === "print" || s.mode === "beam";
+      if (on !== rec.active) {   // spin up or down over about a second
+        rec.active = on;
+        set(rec.motor.frequency, REC_MOTOR_HZ * (on ? 1 : 0.05), on ? 0.3 : 0.4); set(rec.gear.frequency, REC_MOTOR_HZ * REC_GEAR_TEETH * (on ? 1 : 0.05), on ? 0.3 : 0.4);
+        set(rec.motorG.gain, on ? 0.15 : 0, on ? 0.25 : 0.35);
+        rec.next = t + REC_SELF_S[0];
+      }
+      // Without Beam's frames (the Print tab), the recorder exposes a frame now and then (ours).
+      if (on && s.mode !== "beam" && t >= rec.next) { this.recFrame(t + 0.45); rec.next = t + REC_SELF_S[0] + this.r() * (REC_SELF_S[1] - REC_SELF_S[0]); }
+    }
+
     if (t >= g.nextSeek) { this.seeks(1 + Math.floor(this.r() * 3)); g.nextSeek = t + 4 + this.r() * 11; }   // the executive's traffic, ours
   }
 
-  /** Page events: an engine run sets the FASTRAND seeking (the tape units take it from their own models). */
-  event(e: LabEvent): void { if (e.type === "tape") this.seeks(6 + Math.floor(this.r() * 9)); }
+  /** Page events: an engine run sets the FASTRAND seeking (the tape units take it from their own models); a Beam frame
+   *  is a frame on the recorder's film. */
+  event(e: LabEvent): void {
+    if (e.type === "tape") this.seeks(6 + Math.floor(this.r() * 9));
+    if (e.type === "beamFrame" && this.g?.rec?.active) this.recFrame(this.g.ctx.currentTime + Math.max(0.3, (e.at - performance.now()) / 1000));
+  }
+
+  /** One recorded frame ending at audio time t: the plot tape reads a block before it, then the shutter ticks and the
+   *  claw pulls the film down and the transport stops. At most one every REC_MIN_S; timings vary a little (ours). */
+  private recFrame(t: number): void {
+    const g = this.g, rec = g?.rec;
+    if (!g || !rec || t - rec.last < REC_MIN_S) return;
+    rec.last = t;
+    const ctx = g.ctx, r = this.r, at = rec.src.input;
+    const read = 0.12 + r() * 0.15, tb = Math.max(ctx.currentTime, t - read - 0.08);
+    rec.reels.forEach((o, i) => { o.frequency.setTargetAtTime(110 + i * 17 + r() * 20, tb, 0.03); });
+    rec.reelG.gain.setTargetAtTime(0.02, tb, 0.03); rec.reelG.gain.setTargetAtTime(0, tb + read, 0.03);
+    this.shot(() => knock(ctx, at, tb, 75, 45, 0.05, 0.06));
+    this.shot(() => click(ctx, at, t, 4200 + r() * 600, 3, 0.008, 0.12, r()));                     // shutter
+    for (let k = 0; k < 3; k++) this.shot(() => click(ctx, at, t + 0.03 + k * (0.011 + r() * 0.006), 1300 + r() * 1200, 2.5, 0.012, 0.1, r()));   // claw
+    this.shot(() => knock(ctx, at, t + 0.085 + r() * 0.02, 95, 50, 0.06, 0.18));                    // transport stop
+  }
 
   /** For tests: what is built, the master's RMS (dBFS) and each source's gain at the listener (inverse law). */
   get info() {
@@ -280,7 +340,7 @@ export class RoomSound {
     if (!g) return;
     for (const n of g.nodes) { try { n.stop(); } catch { /* already stopped */ } }
     g.master.disconnect();
-    g.whine?.disconnect();
+    g.whine?.scope.disconnect(); g.whine?.recorder.disconnect();
     this.g = null;
   }
 

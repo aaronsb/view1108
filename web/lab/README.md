@@ -82,7 +82,7 @@ once sound is on, turns the page's bed off while it lives (`sound.bed(false)`, b
 50 ms on its own timer, so it keeps going while the page is shown over the room: the listener follows the camera, the
 room ducks 8 dB when `hide()` has been called, the tape units' sound follows `anchors.motion` (`{ v, w0, w1 }`, tape
 speed in m/s and the reels' rad/s, set by `uniservo.ts`), and the ballasts follow `room.lightsOn` when the room
-has it, and `sound.whine` is placed at the 1558's screen. `src/audio/synth.ts` holds the noise buffers, waves, the room response and one-shot knocks and clicks; both
+has it, and `sound.whine`'s two outputs are placed at the 1558's screen and at the film recorder. `src/audio/synth.ts` holds the noise buffers, waves, the room response and one-shot knocks and clicks; both
 take any `BaseAudioContext`, so `RoomSound` with `auto` false can be attached to an `OfflineAudioContext` and stepped
 by hand. `VIEW_LAB.info().sound` gives, for tests, the source and panner counts, the master's gain and RMS, and each
 source's inverse-law gain at the listener. Sources and levels: `docs/lab.md`, Sound.
