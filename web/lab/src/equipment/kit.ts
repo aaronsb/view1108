@@ -208,7 +208,8 @@ export class Parts {
     return this.add(g, mat, at(0, 0, z0 + bevel));
   }
 
-  /** Merge into meshes under `into`; the collector is spent. */
+  /** Merge into meshes under `into`, which must not move once placed (the meshes are marked static); the collector
+   *  is spent. */
   bake(into: THREE.Object3D): THREE.Mesh[] {
     const out: THREE.Mesh[] = [];
     for (const [mat, list] of this.by) {
@@ -216,6 +217,7 @@ export class Parts {
       list.forEach(x => x.dispose());
       this.made.push(g);
       const mesh = new THREE.Mesh(g, mat);
+      mesh.userData.static = true;   // never moved after placement: the room may merge it (room/batch.ts)
       into.add(mesh); out.push(mesh);
     }
     this.by.clear();
@@ -263,11 +265,11 @@ export function grid(geo: THREE.BufferGeometry, mat: THREE.Material, cols: numbe
 }
 
 /** A small round lamp lens facing +Z, 1 unit across (scale it with the instance matrix). */
-export const lensGeo = () => sharedGeo("lens", () => new THREE.CylinderGeometry(0.5, 0.5, 0.4, 12).rotateX(Math.PI / 2).translate(0, 0, 0.2));
+export const lensGeo = () => sharedGeo("lens", () => new THREE.CylinderGeometry(0.5, 0.5, 0.4, 8).rotateX(Math.PI / 2).translate(0, 0, 0.2));
 /** A square lamp tile facing +Z, 1 unit across. */
 export const tileGeo = () => sharedGeo("tile", () => new THREE.BoxGeometry(1, 1, 0.3).translate(0, 0, 0.15));
 /** A keycap: a rounded slab 1 unit square, its base on z = 0 (lay it on a tray with the instance matrix). */
-export const keyGeo = () => sharedGeo("key", () => new RoundedBoxGeometry(1, 1, 0.55, 2, 0.12).translate(0, 0, 0.275));
+export const keyGeo = () => sharedGeo("key", () => new RoundedBoxGeometry(1, 1, 0.55, 1, 0.12).translate(0, 0, 0.275));
 
 /** A canvas-backed texture the caller owns. */
 export function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D, w: number, h: number) => void, aniso = 4): THREE.CanvasTexture {

@@ -9,7 +9,7 @@
 // so the emptier reel spins faster; the packs trade radius as tape moves, at 12 times the real rate so a burst shows.
 import * as THREE from "three";
 import type { BuildContext, Equipment, LabEvent } from "../types";
-import { PAL, Parts, at, canvasTex, grid, lampMat, lensGeo, own, paint, rng, satinMetal, sharedGeo, smoked, chrome, plastic, poseFrom } from "./kit";
+import { PAL, Parts, at, canvasTex, grid, lampMat, lensGeo, paint, rng, satinMetal, sharedGeo, smoked, chrome, plastic, poseFrom } from "./kit";
 
 export interface UniservoOptions { number?: number; index?: number }
 
@@ -37,13 +37,13 @@ const flangeTex = () => sharedTex ??= canvasTex(256, 256, (g, w) => {
 let sharedTex: THREE.CanvasTexture | undefined;
 let flangeMat: THREE.MeshStandardMaterial | undefined;
 const reelFront = () => flangeMat ??= new THREE.MeshStandardMaterial({ color: 0xb8c0c6, metalness: 0.3, roughness: 0.35, alphaMap: flangeTex(), alphaTest: 0.5, side: THREE.DoubleSide });
-const discGeo = () => sharedGeo("reelDisc", () => new THREE.CylinderGeometry(FLANGE, FLANGE, 0.0015, 48).rotateX(Math.PI / 2));
+const discGeo = () => sharedGeo("reelDisc", () => new THREE.CylinderGeometry(FLANGE, FLANGE, 0.0015, 32).rotateX(Math.PI / 2));
 const backGeo = () => sharedGeo("reelBack", () => {
   const P = new Parts(), m = satinMetal();
-  P.cyl(FLANGE, FLANGE, 0.0015, m, 0, 0, -0.0075, 48, true).cyl(HUB, HUB, 0.016, m, 0, 0, 0, 32, true);
+  P.cyl(FLANGE, FLANGE, 0.0015, m, 0, 0, -0.0075, 32, true).cyl(HUB, HUB, 0.016, m, 0, 0, 0, 16, true);
   const g = new THREE.Group(); const [mesh] = P.bake(g); return mesh.geometry;
 });
-const packGeo = () => sharedGeo("reelPack", () => new THREE.CylinderGeometry(1, 1, 0.0127, 48).rotateX(Math.PI / 2));
+const packGeo = () => sharedGeo("reelPack", () => new THREE.CylinderGeometry(1, 1, 0.0127, 32).rotateX(Math.PI / 2));
 
 interface Reel { group: THREE.Group; pack: THREE.Mesh }
 function reel(): Reel {
@@ -55,13 +55,30 @@ function reel(): Reel {
   return { group, pack };
 }
 
-/** Number plate: black digits on white (the head plate's label) or white on black (the top strip). */
-function numberTex(n: string, light: boolean): THREE.CanvasTexture {
-  return canvasTex(128, 64, (g, w, h) => {
-    g.fillStyle = light ? "#f2efe6" : "#151617"; g.fillRect(0, 0, w, h);
+/** Number plates: black digits on white (the head plate's label) or white on black (the top strip), drawn as
+ *  128 x 64 cells of one atlas shared by every unit, so the room draws all the plates at once. */
+const CELLS = 8;
+let atlas: { tex: THREE.CanvasTexture; mat: THREE.MeshStandardMaterial; slots: Map<string, number> } | undefined;
+function numberPlate(n: string, light: boolean, w: number, h: number): THREE.Mesh {
+  atlas ??= (() => {
+    const tex = canvasTex(128 * CELLS, 64 * CELLS, () => {});
+    return { tex, mat: new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 }), slots: new Map() };
+  })();
+  const key = `${n}|${light}`;
+  let k = atlas.slots.get(key);
+  if (k === undefined) {
+    atlas.slots.set(key, k = atlas.slots.size % (CELLS * CELLS));
+    const g = (atlas.tex.image as HTMLCanvasElement).getContext("2d")!, x = (k % CELLS) * 128, y = Math.floor(k / CELLS) * 64;
+    g.fillStyle = light ? "#f2efe6" : "#151617"; g.fillRect(x, y, 128, 64);
     g.fillStyle = light ? "#141414" : "#eeeeea"; g.font = "bold 44px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText(n, w / 2, h / 2 + 2);
-  });
+    g.fillText(n, x + 64, y + 34);
+    atlas.tex.needsUpdate = true;
+  }
+  const geo = new THREE.PlaneGeometry(w, h), uv = geo.attributes.uv, u0 = (k % CELLS) / CELLS, v0 = 1 - (Math.floor(k / CELLS) + 1) / CELLS;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + uv.getX(i) / CELLS, v0 + uv.getY(i) / CELLS);
+  const m = new THREE.Mesh(geo, atlas.mat);
+  m.userData.static = true;   // the room merges the plates (room/batch.ts)
+  return m;
 }
 
 // Indicator lamps on the top strip, left to right (meanings ours, HYPOTHETICAL): ready, select, write enable,
@@ -94,11 +111,11 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
   const glass = new THREE.Mesh(sharedGeo("uniGlass", () => new THREE.PlaneGeometry(0.68, 0.48)), smoked(0.18, 0x30383c));
   glass.position.set(0, 1.37, 0.383); glass.renderOrder = 1; object.add(glass);
 
-  const plateTop = own(new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.05), new THREE.MeshStandardMaterial({ map: numberTex(String(idx), false), roughness: 0.5 })), mine);
+  const plateTop = numberPlate(String(idx), false, 0.07, 0.05);
   plateTop.position.set(-0.3, 1.71, 0.3565); object.add(plateTop);
-  const plateHead = own(new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.045), new THREE.MeshStandardMaterial({ map: numberTex(String(num), true), roughness: 0.5 })), mine);
+  const plateHead = numberPlate(String(num), true, 0.09, 0.045);
   plateHead.position.set(0, 1.005, 0.3595); object.add(plateHead);
-  for (const m of [plateTop, plateHead]) mine.push((m.material as THREE.MeshStandardMaterial).map!);
+  mine.push(plateTop.geometry, plateHead.geometry);
 
   const lamps = grid(lensGeo(), lampMat(), LAMP_ON.length, 1, c => at(-0.08 + c * 0.05, 1.71, 0.356, 0, 0, 0, 0.014), () => OFF);
   object.add(lamps); mine.push(lamps);

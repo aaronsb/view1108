@@ -15,6 +15,7 @@ import * as THREE from "three";
 import { EQUIPMENT } from "../equipment";
 import type { BuildContext, Equipment, Placed, Room } from "../types";
 import { ROOM, buildShell } from "./shell";
+import { batch } from "./batch";
 
 /** Sizes in metres, W x H x D, for the stand-ins (the modules model the real things). */
 const SIZE: Record<string, [number, number, number]> = {
@@ -84,6 +85,8 @@ export function build(ctx: BuildContext): Room {
   place("controller1557", [3.25, 0, -nW + 0.38], S);
   place("printer", [ROOM.w / 2 - 0.5, 0, 1.6], W);
   place("cardreader", [-2.4, 0, 2.45], E);
+  const batches = batch(object, placed);
+  object.add(batches.object);
 
   return {
     object,
@@ -91,7 +94,7 @@ export function build(ctx: BuildContext): Room {
     overview: { position: new THREE.Vector3(1.9, 1.62, 2.7), target: new THREE.Vector3(0.15, 1.0, -1.5), fov: 55 },
     labels: { vector: "UNIVAC 1558 — workbench", glass: "UNISCOPE 100 — source" },
     air: new THREE.Box3(new THREE.Vector3(-3.5, 0.3, -2.4), new THREE.Vector3(3.5, 2.5, 2.6)),
-    update() { shell.update(); },
-    dispose() { shell.dispose(); STANDIN.dispose(); },
+    update() { shell.update(); batches.update(); },
+    dispose() { shell.dispose(); batches.dispose(); STANDIN.dispose(); },
   };
 }

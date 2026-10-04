@@ -32,6 +32,9 @@ export class Lighting {
     const r = this.renderer, add = (l: THREE.Object3D) => { this.group.add(l); return l; };
     r.shadowMap.enabled = q === "high";
     r.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Static: the light and nearly everything that casts stand still, so the map is drawn once (here and when the
+    // lab is shown) instead of every frame; the reels' and clock hands' own shadows are too small to miss.
+    r.shadowMap.autoUpdate = false;
     r.shadowMap.needsUpdate = true;
     this.scene.environmentIntensity = q === "high" ? 0.22 : 0.35;
     add(new THREE.HemisphereLight(0xf4f6ff, 0x8d8a80, q === "high" ? 0.55 : 1.25));

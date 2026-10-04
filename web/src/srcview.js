@@ -405,5 +405,8 @@ window.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && (e.key === "p" || e.key === "P")) { e.preventDefault(); sxQuickOpen(); }
   else if (e.key === "/" && !typing) { e.preventDefault(); sxQuickOpen(); }
   else if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); sxHist(e.key === "ArrowLeft" ? -1 : 1); }
-  else if (e.key === "Escape") { $("sxqo").hidden = true; $("sxtip").hidden = true; $("sxtree").classList.remove("open"); }
+  else if (e.key === "Escape") {   // closes Source's overlays; with none open it is left to the room (room.js)
+    if (!$("sxqo").hidden || !$("sxtip").hidden || $("sxtree").classList.contains("open")) e.preventDefault();
+    $("sxqo").hidden = true; $("sxtip").hidden = true; $("sxtree").classList.remove("open");
+  }
 });

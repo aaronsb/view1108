@@ -1,7 +1,8 @@
 // Room and Tiled: the workbench inside a 3D machine room (web/lab, inlined from build/lab.js as VIEW_LAB), or the
 // plain page. The lab is started only when Room is chosen: in Tiled there is no WebGL context and no extra frame loop.
 // In the room the vector terminal's screen is the plot (#cv) and the glass terminal opens Source; clicking one flies
-// the camera to it, and on arrival the page shows that tab. The Room button, or Esc on a plot tab, flies back out.
+// the camera to it, and on arrival the page shows that tab. The Room button, or Esc on a plot tab or in Source (once
+// Source has closed its own overlays), flies back out.
 "use strict";
 const LAB = typeof VIEW_LAB !== "undefined" ? VIEW_LAB : null;
 const ROOM_KEY = "view1108.space";
@@ -95,7 +96,9 @@ $("tabs").addEventListener("click", e => {
   LAB.setTarget(b.dataset.tab === "source" ? "glass" : "vector");
 }, true);
 window.addEventListener("keydown", e => {
-  if (e.key !== "Escape" || !roomIn || roomShown || !canvasTab() || typingIn() || $("list").classList.contains("open") || fOn()) return;
+  if (e.key !== "Escape" || e.defaultPrevented || !roomIn || roomShown || typingIn() || $("list").classList.contains("open")) return;
+  if (tab === "source") { e.preventDefault(); roomShowLab("glass"); return; }   // Source closed its own overlays first
+  if (!canvasTab() || fOn()) return;
   e.preventDefault(); roomShowLab("vector");
 });
 WIDE.addEventListener("change", roomApply);

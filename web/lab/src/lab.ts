@@ -18,9 +18,13 @@ const YAW_MAX = 60, PITCH_MAX = 20; // free look about the overview, deg
 const DOLLY_IN = 2.2, DOLLY_OUT = 0.4;
 const PARALLAX = { x: 0.06, y: 0.035 };
 const CLICK_PX = 5;
-// Auto quality: the median frame time over the first frames shown (after `skip`; `frames` of them, or as many as
-// fit in `budget` ms on a slow machine) above `ms` drops to low. A software rasteriser starts low.
+// Auto quality. A software rasteriser starts low; a GPU starts high and is checked twice each time the room is shown:
+// the probe, the median frame time over the first frames (after `skip`; `frames` of them, or as many as fit in
+// `budget` ms) above `ms`, then the watch, the mean over the next `span` ms of frames above `ms`. Either drops to
+// low for good (the indicator says "slow"). ?labprobe=<ms> starts high on any renderer and makes every frame take
+// <ms> to the checks: the test hook for the decision path.
 const PROBE = { skip: 4, frames: 24, budget: 1500, ms: 24 };
+const WATCH = { span: 2000, ms: 22 };
 const QKEY = "view1108.labq";
 const ease = (t: number) => t * t * (3 - 2 * t);
 const D2R = Math.PI / 180;
@@ -47,6 +51,9 @@ export class Lab {
   private quality: Quality = "high";
   private qForced: Quality | null = null;
   private probe: number[] | null = null;
+  private watch: { n: number; sum: number } | null = null;
+  private slow = false;            // an auto check found this machine too slow for high
+  private fakeMs: number | null = null;
   private home: Shot;
   private mode: Mode = "free";
   private flight: Flight | null = null;
@@ -89,13 +96,14 @@ export class Lab {
     if (this.room.air) { this.dust = new Dust({ box: this.room.air, count: 420, size: 0.006, opacity: 0.22 }); this.scene.add(this.dust.object); }
     this.home = shotOf(this.room.overview);
 
-    const q = new URLSearchParams(location.search).get("labq");
+    const qs = new URLSearchParams(location.search), q = qs.get("labq"), fake = parseFloat(qs.get("labprobe") ?? "");
+    if (fake > 0) this.fakeMs = fake;
     let stored: string | null = null;
     try { stored = localStorage.getItem(QKEY); } catch { /* storage unavailable */ }
     this.qForced = q === "low" || q === "high" ? q : stored === "low" || stored === "high" ? stored : null;
     const gl = this.renderer.getContext(), dbg = gl.getExtension("WEBGL_debug_renderer_info");
     const soft = /swiftshader|llvmpipe|software/i.test(String(gl.getParameter(dbg ? dbg.UNMASKED_RENDERER_WEBGL : gl.RENDERER)));
-    this.quality = this.qForced ?? (soft ? "low" : "high");
+    this.quality = this.qForced ?? (soft && this.fakeMs === null ? "low" : "high");
     this.lighting = new Lighting(this.renderer, this.scene, this.quality);
 
     this.labelEl = document.createElement("div");
@@ -125,13 +133,14 @@ export class Lab {
     this.shown = true;
     this.resize();
     this.flight = null; this.clearHover();
+    this.renderer.shadowMap.needsUpdate = true;   // the static shadow map (lighting.ts)
     const s = from ? (rect && this.matchShot(from, rect)) || this.anchorShot(from) : null;
     if (s) {
       this.setShot(s); this.mode = "hold";
       this.fly(this.home, holdMs);
     } else { this.resetLook(); this.setShot(this.home); this.mode = "free"; }
     this.draw();
-    this.probe = this.qForced ? null : [];
+    this.probe = this.qForced || this.slow || this.quality === "low" ? null : []; this.watch = null;
     if (!this.raf) { this.last = 0; this.raf = requestAnimationFrame(this.tick); }
   }
 
@@ -175,7 +184,7 @@ export class Lab {
     return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };
   }
 
-  get info() { return { quality: this.quality, forced: this.qForced, mode: this.mode, ...this.stats, mismatch: this.mismatch }; }
+  get info() { return { quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch }; }
 
   dispose(): void {
     this.hide();
@@ -200,7 +209,7 @@ export class Lab {
   private tick = (now: number) => {
     this.raf = requestAnimationFrame(this.tick);
     const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0;
-    if (this.probe && this.last) this.sample(now - this.last);
+    if ((this.probe || this.watch) && this.last) this.sample(now - this.last);
     this.last = now;
     const s = this.hooks.state();
     if (s.frameNo !== this.frameNo) { this.frameNo = s.frameNo; this.vectorTex.needsUpdate = true; }
@@ -226,17 +235,31 @@ export class Lab {
   // ---- quality ----
 
   private sample(ms: number): void {
-    const p = this.probe!;
-    p.push(ms);
-    const s = p.slice(PROBE.skip);
-    if (s.length < PROBE.frames && s.reduce((a, b) => a + b, 0) < PROBE.budget) return;
-    const m = s.sort((a, b) => a - b)[s.length >> 1];
-    this.probe = null;
-    if (m > PROBE.ms && this.quality === "high") this.setQuality("low", false);
+    ms = this.fakeMs ?? ms;
+    const p = this.probe, w = this.watch;
+    if (p) {
+      p.push(ms);
+      const s = p.slice(PROBE.skip);
+      if (s.length < PROBE.frames && s.reduce((a, b) => a + b, 0) < PROBE.budget) return;
+      this.probe = null;
+      if (s.sort((a, b) => a - b)[s.length >> 1] > PROBE.ms) this.tooSlow();
+      else this.watch = { n: 0, sum: 0 };
+    } else if (w) {
+      w.n++; w.sum += ms;
+      if (w.sum < WATCH.span) return;
+      this.watch = null;
+      if (w.sum / w.n > WATCH.ms) this.tooSlow();
+    }
+  }
+
+  private tooSlow(): void {
+    if (this.quality !== "high" || this.qForced) return;
+    this.slow = true;
+    this.setQuality("low", false);
   }
 
   private setQuality(q: Quality, remember: boolean): void {
-    if (remember) { this.qForced = q; this.probe = null; try { localStorage.setItem(QKEY, q); } catch { /* ignore */ } }
+    if (remember) { this.qForced = q; this.probe = this.watch = null; try { localStorage.setItem(QKEY, q); } catch { /* ignore */ } }
     if (q === this.quality) { this.applyQuality(); return; }
     this.quality = q;
     this.lighting.set(q);
@@ -252,8 +275,9 @@ export class Lab {
     this.post?.dispose(); this.post = null;
     r.setSize(this.size.w, this.size.h, false);
     if (high) this.post = new Post(r, this.scene, this.camera);
-    this.qualEl.textContent = `${high ? "HIGH" : "LOW"}${this.qForced ? "" : " (auto)"}`;
-    this.qualEl.title = "Rendering quality: click to switch (remembered; ?labq=low|high for one visit)";
+    this.qualEl.textContent = `${high ? "HIGH" : "LOW"}${this.qForced ? "" : this.slow ? " (auto: slow)" : " (auto)"}`;
+    this.qualEl.title = (this.slow && !this.qForced ? "Switched to low: frames took too long at high. " : "") +
+      "Rendering quality: click to switch (remembered; ?labq=low|high for one visit)";
   }
 
   // ---- camera ----

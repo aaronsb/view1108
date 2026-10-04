@@ -63,12 +63,20 @@ Screens are not tone mapped in either tier: in the high tier every `toneMapped: 
 
 | Tier | |
 |---|---|
-| `high` | PCF soft shadows from one overhead light, a `RectAreaLight` per troffer row, a PMREM room environment, GTAO, ACES, subtle bloom; pixel ratio up to 2 |
+| `high` | PCF soft shadows from one overhead light (a static map, drawn when the room is shown), a `RectAreaLight` per troffer row, a PMREM room environment, GTAO, ACES, subtle bloom; pixel ratio up to 2 |
 | `low` | hemisphere and one unshadowed overhead light, the environment, the renderer's ACES, no post; pixel ratio up to 1.25 |
 
 `?labq=low|high` forces one for a visit; the button at the room's lower right switches and remembers
-(`view1108.labq`). Otherwise a software rasteriser starts low, and a GPU starts high and drops to low when the
-median of its first frames is over 24 ms.
+(`view1108.labq`). Otherwise a software rasteriser starts low, and a GPU starts high and drops to low for good when
+the median of its first frames is over 24 ms or, after that, the mean over the next 2 s is over 22 ms; the button
+then reads `LOW (auto: slow)`. `?labprobe=<ms>` starts high on any renderer and feeds `<ms>` per frame to both
+checks (40 drops at the first, 23 at the second, 10 stays high); `info()` gives `slow` and `checking`.
+
+Budget at the overview (1600 × 900): high about 230 draw calls and 140k triangles, low about 105 and 70k
+(`info()`). The room keeps it there with `src/room/batch.ts`, run after placement: each kind of machine's baked parts
+merge into one mesh per material, repeated loose parts (reels, glass) become instanced meshes and the machines'
+lamp grids one instanced mesh per geometry and material, copied from the hidden originals each frame, which the
+machines keep animating and the picking keeps hitting. Equipment that opens a tab is not batched.
 
 `LabState`: `tab`, `mode`, `playing`, `get`, `scene`, `frameNo` (kernel frames drawn; the lab re-uploads the
 vector screen texture when it moves), and `sound` = `{ ctx, out, on }`, the page's `AudioContext` and master gain
