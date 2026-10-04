@@ -15,6 +15,11 @@ plan of MSC's 1108 room survives in our sources.
 | UP-7789 | UNIVAC Advanced Graphic System Type 1557/1558, General Description (1970): <https://fourmilab.ch/documents/univac/manuals/pdf/Peripherals/UP-7789_Advanced_Graphic_System_Type_1557_1558_General_Description_1970.pdf> |
 | Brochure | UNIVAC 1108 II brochure, Computer History Museum 102646105: <https://www.computerhistory.org/brochures/doc-4372956ec8276/> |
 | MSC photo | "UNIVAC 1108 at NASA Manned Spacecraft Center", Sperry Rand, 15 July 1969: `docs/media/UNIVAC1108-NASA.png` |
+| 4020 brochure | S-C 4020 Computer Recorder, Stromberg-Carlson, Apr 1965: <https://bitsavers.org/pdf/strombergDatagraphix/brochures/S-C_4020_Computer_Recorder_Brochure_Apr1965.pdf> |
+| 4020 manual | S-C 4020 Computer Recorder Information Manual, Aug 1964: <https://bitsavers.org/pdf/strombergDatagraphix/SC_4020/S-C_4020_Computer_Recorder_Information_Manual_Aug1964.pdf> |
+| 4060 description | S-C 4060 Stored Program Recording System, Description and Specifications 9500209, rev. Apr 1967: <https://bitsavers.org/pdf/strombergDatagraphix/SC_4060/9500209_S-C_4060_Stored_Program_Recording_System_Description_Apr1967.pdf> |
+| IN 66-FM-79 | W. R. Pruett, MSC Internal Note 66-FM-79, Aug 1966 (NTRS 19700025047): <https://ntrs.nasa.gov/citations/19700025047> |
+| HEPCAT | TRW Systems for MSC, Users Manual for Computer Program HEPCAT, June 1970 (NTRS 19700027062): <https://ntrs.nasa.gov/citations/19700027062> |
 
 The manuals and the brochure are © Sperry Rand. We studied them but do not keep them in the repository.
 
@@ -40,6 +45,7 @@ Sizes are W x H x D in metres.
 | `reeltable` | Table with stacked reels, a reel rack and a desk clock | MSC photo | 1.6 x 0.75 x 0.8 (inferred) | Fair |
 | `desk` | White slab on chrome T-legs | Brochure p. 7 | 1.5 x 0.73 x 0.75 (ours) | Fair |
 | `chair` | Chrome swivel chair on casters | Brochure p. 7 | 0.6 x 0.88 x 0.6 (ours) | Fair |
+| `filmrecorder` | S-C 4020 Computer Recorder: the microfilm recorder, HYPOTHETICAL as to MSC's model (below) | 4020 brochure pp. 1, 4; 4020 manual Fig. 1 (p. 1), Fig. 5 (p. 7), p. 25 | 2.24 x 1.88 x 0.94 (basic unit 66 x 37 x 74 in plus the 22 in tape adapter, brochure p. 4) | Fair on look; the model at MSC is our choice |
 
 ## What moves
 
@@ -67,5 +73,26 @@ Sizes are W x H x D in metres.
 - **Desk clock.** It shows Houston time for the replay's moment: Central time, with daylight time from the last Sunday
   in April to the last Sunday in October (Uniform Time Act of 1966).
 
-Not modelled: drums (FH-432/1782, FASTRAND; we cannot identify them in the MSC photo), a keypunch, and the microfilm
-recorder (no source names MSC's).
+- **Microfilm recorder.** A finished beam frame exposes a frame: the shutter lamp and a lamp at the camera's lens flash,
+  the advance lamp lights for the pull-down (about 100 ms, 4060 description p. 20) and the frame counter steps on.
+  The viewing port shows the plot, dimmed. The other lamps hold steady.
+
+## The microfilm recorder
+
+TN D-6853 (printed p. 3) says VIEW's frames were "produced by a camera that photographs an image constructed on the
+surface of a cathode-ray tube" and names no recorder. We chose the Stromberg-Carlson S-C 4020 because MSC had one:
+IN 66-FM-79 (printed p. 2) says its figures "were plotted by an SC 4020 microfilm plotter" from IBM 7094 plot tapes,
+and HEPCAT (printed pp. 40, 45), a program TRW wrote for MSC in 1970 that runs "on the UNIVAC 1108 using the EXEC II
+system", writes "4020 plots" and microfilm tapes. The 4020 had a UNIVAC 1107 software package (4020 manual p. 26) and a
+tape adapter for UNIVAC tape units (F-53-5, p. 25). That HEPCAT's 1108 was MSC's own is our reading, and no source we
+found ties VIEW to the 4020. The 4020's successor, the S-C 4060 (1967), is the other candidate; we found no tie of it, of
+the Information International FR-80 or of other recorders to MSC. Confidence that the frames came from a 4020:
+moderate.
+
+Sourced: the row of tall flat-doored cabinets with split doors and recessed handles, two small lamp panels at eye
+height, the badge (4020 brochure p. 1 photograph); the sizes; the CHARACTRON tube standing upright with the 35 mm
+camera and its supply and take-up magazines above it (4020 manual Fig. 5). HYPOTHETICAL: the window onto the camera,
+the viewing port, the frame counter, the panel layouts and lamp meanings, the colours.
+
+Not modelled: drums (FH-432/1782, FASTRAND; we cannot identify them in the MSC photo), a keypunch, and the 4020's tape
+transport and hard-copy camera.

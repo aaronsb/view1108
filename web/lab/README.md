@@ -126,6 +126,7 @@ The registry (`EQUIPMENT`, with sizes in `FOOTPRINT`, W x H x D in metres; sourc
 | `reeltable` | | table with reels and a desk clock, 1.6 x 0.75 x 0.8 |
 | `desk` | | desk, 1.5 x 0.73 x 0.75; anchor `top` |
 | `chair` | | swivel chair, 0.6 x 0.88 x 0.6 |
+| `filmrecorder` | | S-C 4020 microfilm recorder (HYPOTHETICAL as MSC's), 2.24 x 1.88 x 0.94; its viewing port shows the plot dimmed; `beamFrame` steps its frame counter; opens `"print"` (proposed, not yet in `Opens`) |
 
 `vector-terminal` and `glass-terminal` are phase A's names for `vector` and `glass`. Every piece but the desk and the
 chair has `anchors.camera`, a close-up pose.
