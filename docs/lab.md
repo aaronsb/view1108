@@ -60,7 +60,12 @@ the left, the typewriter block, TRANSMIT and RETURN, the 35 function keys in col
 three knobs and a lamp on the strip behind); Figure 1-1 (p. 1, three-quarter view) gives the hood sweeping back with
 a sloped top, its sides curving under the shelf, and the pedestal set back with three light panels a side. The depth
 split between head, shelf and pedestal, and the function-key legends the figure does not show legibly, are ours. The
-keys are plain white with printed legends, as the figures show (no backlight).
+keys are plain, with printed legends and no backlight; every typewriter, cursor and control legend is read off
+Figure 2-9 (p. 15, that part of the keyboard close up), shifted characters above unshifted ones: the slashed Ø in the
+letter row and the plain 0 in the digit row, SOM ▽, the stacked ERASE TO END OF DISPL and the like, the arrow on the
+space bar. The shift key at the left of the Z row and the three dark keys beside TRANSMIT carry none. Three glyphs
+are our closest reading: □ over >, △ over @, and the ≠ under \. Drawn in a plain sans (Helvetica or Arial), as on
+the UNISCOPE 100, from one atlas shared with it (`kit.ts` keyLegends): one more draw call.
 
 ## What moves
 

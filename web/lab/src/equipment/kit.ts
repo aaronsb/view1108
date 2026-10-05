@@ -280,6 +280,53 @@ export function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext
   return t;
 }
 
+/** A key's printed legend: text (lines split on "\n"), ink, the printed area w x d in metres, and a matrix placing
+ *  that area centred in its XY plane, the text's top along +Y, facing +Z. */
+export interface Legend { t: string; ink: string; w: number; d: number; m: THREE.Matrix4 }
+const LEGEND_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+
+/** Every legend of a keyboard as one mesh: the texts drawn on one canvas atlas (cells packed on shelves), a quad per
+ *  key. Its geometry, material and texture are pushed to `mine`. */
+export function keyLegends(keys: Legend[], aniso: number, mine: { dispose(): void }[]): THREE.Mesh {
+  keys = keys.filter(k => k.t);
+  const AW = 2048, AH = 1024, CH = 88;
+  const cells: [number, number, number, number][] = [];
+  let x = 0, y = 0;
+  for (const k of keys) {
+    const cw = Math.min(AW, Math.ceil(CH * k.w / k.d));
+    if (x + cw > AW) { x = 0; y += CH; }
+    cells.push([x, y, cw, CH]); x += cw + 2;
+  }
+  const tex = canvasTex(AW, AH, g => {
+    keys.forEach((k, i) => {
+      const [cx, cy, cw, ch] = cells[i], lines = k.t.split("\n");
+      const single = lines.length === 1 && [...lines[0]].length <= 2;
+      let fs = single ? ch * 0.44 : lines.length === 1 ? ch * 0.3 : lines.length === 2 && lines.every(l => [...l].length <= 2) ? ch * 0.34 : ch * 0.82 / lines.length * 0.9;
+      g.font = `600 ${fs}px ${LEGEND_FONT}`;
+      const wid = Math.max(...lines.map(l => g.measureText(l).width));
+      if (wid > cw * 0.86) { fs *= cw * 0.86 / wid; g.font = `600 ${fs}px ${LEGEND_FONT}`; }
+      g.fillStyle = k.ink; g.textAlign = "center"; g.textBaseline = "middle";
+      lines.forEach((l, j) => g.fillText(l, cx + cw / 2, cy + ch / 2 + (j - (lines.length - 1) / 2) * fs * 1.08));
+    });
+  }, aniso);
+  const pos: number[] = [], nor: number[] = [], uvs: number[] = [], idx: number[] = [];
+  const v = new THREE.Vector3(), n = new THREE.Vector3(), nm = new THREE.Matrix3();
+  keys.forEach((k, i) => {
+    const [cx, cy, cw, ch] = cells[i], u0 = cx / AW, u1 = (cx + cw) / AW, v0 = 1 - (cy + ch) / AH, v1 = 1 - cy / AH, b = pos.length / 3;
+    nm.getNormalMatrix(k.m); n.set(0, 0, 1).applyMatrix3(nm).normalize();
+    for (const [qx, qy, uu, vv] of [[-1, 1, u0, v1], [1, 1, u1, v1], [1, -1, u1, v0], [-1, -1, u0, v0]]) {
+      v.set(qx * k.w / 2, qy * k.d / 2, 0).applyMatrix4(k.m); pos.push(v.x, v.y, v.z); nor.push(n.x, n.y, n.z); uvs.push(uu, vv);
+    }
+    idx.push(b, b + 3, b + 2, b, b + 2, b + 1);
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2)); geo.setIndex(idx);
+  const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2 });
+  mine.push(geo, mat, tex);
+  return new THREE.Mesh(geo, mat);
+}
+
 /** A flat plate (badge, number plate, label) facing +Z with its own texture; returns the mesh (caller disposes). */
 export function plate(tex: THREE.Texture, w: number, h: number, emissive = false): THREE.Mesh {
   const m = emissive ? new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }) : new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5, metalness: 0.1 });

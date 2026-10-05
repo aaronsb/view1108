@@ -6,16 +6,16 @@
 //   to the shelf), the bezel (0.40 x 0.41 m, centred, its centre 0.33 m below the top), the light pen and its cord at
 //   the upper right, the shelf (0.78 m wide) and the keyboard's span and place on it (0.62 m, centred).
 // - Figure 2-7 (p. 14), the keyboard alone: every key group's position, read in its pixels and scaled to the 0.62 m
-//   of Figure 2-5 (so the key pitch comes out at 17 mm, a little under a typewriter's 19).
+//   of Figure 2-5 (so the key pitch comes out at 21 mm, a little over a typewriter's 19).
 // - Figure 1-1 (p. 1), three-quarter view: the light hood sweeping back from the face with a sloped top, its sides
 //   curving under the shelf, the pedestal set back under the head with three light panels a side, the black plinth.
 // The depth split (head 0.98 m, shelf 0.24 m, pedestal 0.65 m) is our reading of Figure 1-1's perspective.
-// Key colours follow Figure 2-5 (mid-grey letters, white groups at both ends, white function keys); the function-key
-// legends are Figure 2-7's where legible and ours elsewhere (the overlays are per application, p. 16). The power
-// lamp is HYPOTHETICAL (which fitting on the strip is power is not stated).
+// Key colours follow Figure 2-5 (letters a shade greyer than the white groups at both ends and the function keys);
+// the typewriter and control keys' legends are Figure 2-9's (p. 15); the function keys' are Figure 2-7's where
+// legible and ours elsewhere (the overlays are per application, p. 16). The power lamp is HYPOTHETICAL (which fitting on the strip is power is not stated).
 import * as THREE from "three";
 import type { BuildContext, Equipment } from "../types";
-import { Parts, at, fitDist, fontTex, glowMat, grid, lensGeo, sharedGeo, own, paint, plastic, plateText, roundRect, rubber, satinMetal, tubeGlass, viewPose } from "./kit";
+import { Parts, at, fitDist, fontTex, glowMat, grid, keyLegends, lensGeo, sharedGeo, own, paint, plastic, plateText, roundRect, rubber, satinMetal, tubeGlass, viewPose } from "./kit";
 
 const FOV = 40;
 // The plot canvas is 1.10 times as tall as it is wide (web/src/render.js HGT).
@@ -110,24 +110,35 @@ export function build(ctx: BuildContext): Equipment {
   for (const px of [930, 970, 1005]) P.add(new THREE.CylinderGeometry(0.0065, 0.0075, 0.012, 16), satinMetal(), onKb(px, 443, 0.02));
   P.bake(object).forEach(m => mine.push(m.geometry));
 
-  // Keys, one instanced mesh: [px, py, width, depth (in keys), colour].
-  const GREY = 0x6a6b68, WHITE = 0xe8e6de, DARK = 0x262728;
-  const keys: [number, number, number, number, number][] = [];
-  for (const [px, py] of [[165, 492], [213, 492], [165, 532], [213, 532], [165, 565], [180, 600], [140, 622], [212, 622], [180, 644]]) keys.push([px, py, 1, 1, WHITE]);
-  keys.push([275, 492, 1.3, 1, GREY]);
-  for (const px of [325, 378, 430, 488, 543]) keys.push([px, 492, 1, 1, GREY]);
-  for (const px of [600, 650]) keys.push([px, 492, 1.3, 1, DARK]);
-  keys.push([712, 482, 1.3, 1.1, DARK], [712, 565, 1, 1, DARK], [712, 630, 1.3, 1.2, WHITE]);   // TRANSMIT, a blank, RETURN
-  ([[528, 272, 1.4, 318, 11], [562, 278, 1.6, 324, 11], [597, 287, 1.6, 336, 10], [630, 282, 1.6, 347, 10]] as const).forEach(([py, lx, lw, x0, n]) => {
-    keys.push([lx, py, lw, 1, WHITE]);
-    for (let c = 0; c < n; c++) keys.push([x0 + c * 32.6, py, 1, 1, GREY]);
-  });
-  keys.push([500, 663, 11, 0.7, WHITE]);                                                               // the space bar
+  // Keys, one instanced mesh: [px, py, width, depth (in keys), colour, legend]. Legends as Figure 2-9 (p. 15, the
+  // typewriter, cursor and control keys close up) prints them; the rows' key centres are measured on Figure 2-7.
+  const GREY = 0xc4c3bc, WHITE = 0xe8e6de, DARK = 0x262728;
+  const keys: [number, number, number, number, number, string][] = [];
+  ([[165, 492, "ERASE\nTO END\nOF DISPL"], [213, 492, "ERASE\nTO END\nOF LINE"], [165, 532, "IN DISPL\nDELETE\nIN LINE"],
+    [213, 532, "IN DISPL\nINSERT\nIN LINE"], [165, 565, "CURSOR\nTO\nHOME"], [180, 600, "↑"], [140, 622, "←"], [212, 622, "→"], [180, 644, "↓"]] as const)
+    .forEach(([px, py, t]) => keys.push([px, py, 1, 1, WHITE, t]));
+  keys.push([278, 492, 1.3, 1, GREY, "SOM ▽"]);
+  ["'\n<", "□\n>", "{\n[", "}\n]", "△\n@"].forEach((t, i) => keys.push([[332, 386, 438, 493, 546][i], 492, 1, 1, GREY, t]));
+  for (const px of [600, 650]) keys.push([px, 492, 1.3, 1, DARK, ""]);
+  keys.push([712, 482, 1.3, 1.1, DARK, "TRANSMIT"], [712, 565, 1, 1, DARK, ""], [714, 630, 1.3, 1.2, WHITE, "RETURN"]);
+  const rows: [number, number, number, string, number, number, string[]][] = [
+    [528, 269, 1.4, "TAB", 310, 35.0, ["!\n1", "\"\n2", "#\n3", "$\n4", "%\n5", "&\n6", "'\n7", "(\n8", ")\n9", "0", "=\n—"]],
+    [562, 277, 1.6, "⟵", 325, 35.3, [..."QWERTYUIØP", "*\n:"]],
+    [597, 286, 1.6, "CHAR\nERASE", 330, 35.8, [..."ASDFGHJKL;", "\\\n≠"]],
+    [630, 293, 1.6, "", 344, 36.4, [..."ZXCVBNM,.", "?\n/"]]];
+  for (const [py, lx, lw, lt, x0, pitch, row] of rows) {
+    keys.push([lx, py, lw, 1, WHITE, lt]);
+    row.forEach((t, c) => keys.push([x0 + c * pitch, py, 1, 1, GREY, t]));
+  }
+  keys.push([500, 663, 11, 0.7, WHITE, "→"]);                                                         // the space bar
   const FX = [770, 818, 880, 925, 970, 1030, 1075], FY = [490, 524, 558, 592, 628];
-  for (const py of FY) for (const px of FX) keys.push([px, py, 1, 1, WHITE]);
+  for (const py of FY) for (const px of FX) keys.push([px, py, 1, 1, WHITE, ""]);
   const keyMesh = grid(capGeo(), plastic(0xffffff, 0.5), keys.length, 1,
     i => onKb(keys[i][0], keys[i][1], 0.008).multiply(at(0, 0, 0, flat, 0, 0, KS * keys[i][2], KS * keys[i][3], 0.008)), i => keys[i][4]);
   object.add(keyMesh); mine.push(keyMesh);
+  // Their legends, one mesh on the caps' tops (0.85 of the base across): dark ink, light on the dark keys.
+  object.add(keyLegends(keys.map(([px, py, w, d, c, t]) => ({ t, ink: c === DARK ? "#e8e6de" : "#1a1a19",
+    w: KS * w * 0.82, d: KS * d * 0.82, m: onKb(px, py, 0.0162).multiply(at(0, 0, 0, flat)) })), ctx.maxAnisotropy, mine));
 
   // Legends printed on the 35 function keys (Figure 2-7's Greek letters and digits; the rest ours).
   const L = ["α β 1 2 3 = ≠", "γ δ 4 5 6 < >", "ε λ 7 8 9 + −", "π σ × ÷ 0 ↑ ↓", "χ Ω • ° / ← →"].map(r => r.split(" "));
