@@ -131,10 +131,12 @@ C     scenario, zero padded (none if the first is 0).
       DOUBLE PRECISION SNPLA(NSN), SNPLO(NSN)
       INTEGER LGSN(NLEG), LGTYP(NLEG), LGN(NLEG), LGGC(NLEG)
       INTEGER EVSN(NEVT), EVKND(NEVT), SNPGC(NSN), PADCH(8*NSN)
+C     LGVEH(K): the vehicle leg K carries, 1 the CSM, 2 the LM.
+      INTEGER LGVEH(NLEG)
       COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT,
      &               SNPLA, SNPLO
       COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND,
-     &                SNPGC, PADCH
+     &                SNPGC, PADCH, LGVEH
 C
 C     /CMEEUS/ the Moon's periodic terms, Meeus tables 47.A and 47.B
 C     (BLOCK DATA from data/meeus47.txt; layout in src/viewdata.f).
@@ -209,11 +211,11 @@ C
 C     /CSN/ the current scenario (SNSET): id ISN, epoch TJD0
 C     (Julian date of its range zero; g.e.t. counts from it), and the
 C     elements of its legs, LGEL(1..11, K):
-C       CONIC  1-3 perigee unit P, 4-6 Q, 7 eccentricity, 8 semi-major
-C              axis (km), 9 perigee time (s);
+C       CONIC, LCONIC  1-3 perigee unit P, 4-6 Q, 7 eccentricity,
+C              8 semi-major axis (km), 9 perigee time (s);
 C       CIRC, LUNAR  1-3 position unit at 9, 4-6 direction of motion
-C              there, 9 time (s), 10 radius (km), 11 mean motion
-C              (rad/s).
+C              there, 9 time (s), 10 radius (km) at 9, 11 mean motion
+C              (rad/s); LUNAR 7 the radius's rate (km/s).
       DOUBLE PRECISION TJD0, LGEL(11,NLEG)
       COMMON /CSN/ TJD0, LGEL
       INTEGER ISN

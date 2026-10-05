@@ -40,14 +40,14 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 
 | Kind | File | Contents |
 |---|---|---|
-| Driver | `vdrive.f` | `VINIT`, `VFRAME`, scene cameras (`SCNCAM`, `LOOK`), table setup, per-scene model placement (`SCNMOD`, scene 7's pose and attitude) |
+| Driver | `vdrive.f` | `VINIT`, `VFRAME`, scene cameras (`SCNCAM`, `LOOK`), table setup, per-scene model placement (`SCNMOD`, scene 7's pose and attitude; `VEHPL`, the LM at its state near the camera) |
 | Dispatcher | `vlayer.f` | `LAYERS`: each scene's layer list and a computed `GO TO` over layer ids |
 | Core | `ephem.f` | time, Sun, Moon, Moon orientation |
-| Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon), events (`EVGET`), the LM descent, the Earthrise search |
+| Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon, `LEGRV` one leg), events (`EVGET`), the LM's state rules (`LMSTAT`), the LM descent, the Earthrise search |
 | Core | `sim.f` | the engine: flies the CSM from the scenario's START through its score (BURN cards), with state vector updates at its REF rows (optional), and writes the tape (`SIMRUN`) |
 | Core | `tape.f` | the tape: time-tagged states, 4 vehicle channels, event marks; cubic Hermite reads (`TPGET`) |
 | Core | `vview.f` | camera pointing: the target and the external view (`VIEWPT`), applied after the scene's camera and models |
-| Core | `vsrc.f` | the state source: the one entry point (`VSTATE`) scenes use for the CSM's state, from the replay or the tape |
+| Core | `vsrc.f` | the state source: the one entry point (`VSTATE(GET, IVEH, IBODY, R, V, IOK)`) scenes use for the CSM's state (replay or tape) and the LM's (`LMSTAT`; `IOK` 0 none, 1 its own, 2 docked) |
 | Core | `pen.f` | projection (`PROJ`), clipping (`EMIT0`, `SEG0`, `MSEG0`), visibility (`PEN`, `ISVIS`), labels, circles, shading, vehicle-fixed overlay lines |
 | Core | `vmask.f` | the window mask (in_flags bit 5): the pen's entry points `EMIT`, `SEG`, `MSEG` cut the outside to the cabin's windows (`WMSET`, `WMCUT`, `WMIN`) |
 | Core | `vtext.f` | text records for the character generator |
@@ -217,11 +217,12 @@ Outputs (written by the kernel):
   level's 25 km cut). Sun, Earth, Moon use id 0.
 - `hdr(24)` real(8): 1 GET s, 2 FOV deg, 3 range to reference body centre n.mi.,
   4 altitude stat. mi., 5 inertial speed ft/s, 6 reference body (1 Earth, 2 Moon), 7 scene,
-  8 window code (1 CSM window, 2 LM front window), 9 range to the LM ft (scene 4: 300; scene 7:
-  CSM to LM docking ring, 100 down to 0 at docking), 10 LM altitude ft (scene 5: the footpads above the
+  8 window code (1 CSM window, 2 LM front window), 9 range from the CSM to the LM ft, wherever
+  both have a state (`VSTATE`; 0 docked, 300 from undocking to the separation burn; scene 7:
+  CSM to LM docking ring, 100 down to 0 at docking; the page letters it under 10 n mi), 10 LM altitude ft (scene 5: the footpads above the
   surface, 0 from touchdown on; the camera is the commander's eye above them), 11, 12 plot
   X, Y (deg) of the reference body's centre (Earth in scenes 2 and 3, Moon in 1 and 5, the LM in
-  4, the LM docking target in 7) in the current projection, given even when off
+  4 where it is placed, the LM docking target in 7) in the current projection, given even when off
   frame, 13 its angular radius projected as a plot radius, ρ(radius) in plot deg, 14 1 if it
   is in front of the camera else 0, 15 half-width of the plot box in plot deg (ρ(fov/2); the
   frame spans ±hdr(15) on both axes), 16 the scenario's epoch offset from Apollo 11 range
@@ -231,9 +232,10 @@ Outputs (written by the kernel):
   replay, 1 sim with state vector updates, 2 sim without), 18, 19 the last engine run's position (km)
   and velocity (ft/s) error at the reference row nearest the frame's GET, 20 that row's GET
   (s; 18-20 are 0 before any run), 21 the vehicles in this frame's world, a bitmask: 1 the
-  CSM, 2 the LM, 4 the S-IVB, each set if it is placed as a model or known by its state for a
-  marker (the CSM in scenes 5 and 6, the LM in its modelled descent); the vehicle the camera
-  rides in a window or station view is not counted. Set at every label level. 22 the crew
+  CSM, 2 the LM, 4 the S-IVB, each set if it is placed as a model or known by its state
+  (`VSTATE`; the LM docked too); the vehicle the camera rides (`IRIDE` in `vview.f`: the CSM in
+  the window views of scenes 1-4, 7, 9 and the CM station, the LM in scene 5 and the LM station,
+  none in scenes 6, 8 and external views) is not counted. Set at every label level. 22 the crew
   stations the scene offers, a bitmask: 1 the CM station (not scenes 5 and 6), 2 the LM station
   (where an LM is placed, in the LM station itself, and scene 5), 4 always (a kernel without
   hdr(22) leaves 0); the page enables its CM and LM buttons from it. 23-24 spare.
@@ -302,7 +304,9 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
    through `t20.png`)
 3. **Earth limb** — low Earth orbit, limb arc and stars.
 4. **LM rendezvous** — LM wireframe seen from the CSM, turning in place (the post-undocking
-   inspection pirouette). (`t22.png`, `t25.png`)
+   inspection pirouette). (`t22.png`, `t25.png`) The LM sits at its state (`LMSTAT`: 300 ft
+   along the orbit normal from undocking to the separation burn, ours), so later in the scene
+   it drifts away on its own leg, and it is not drawn where it has no state of its own.
 5. **LM descent** — LM front window with the LPD scale, horizon rising through the window
    during pitch-over, flattened craters. (`t28.png`, `t31.png`, `t35.png`)
 6. **Moon view** — a modern addition (the inspiration is a present-day VIEW-style plot, not a
@@ -364,12 +368,20 @@ its projected half-width (to the right of the whole model when it is seen within
 on), trying the other side when the text would leave the frame or meet a name already placed,
 else dropped. The CSM gets CM and SM labels beside its two modules, on one side, or a single
 CSM label when those two would touch. A placed model spanning less than 0.2% of the field
-(about one plot pixel), and a vehicle known only by its state (the CSM in scenes 5 and 6 from
-`VSTATE`; the LM in its modelled descent, the last 600 s before touchdown, from `LMDESC`,
-where the camera does not ride it), gets the small boxed X of scene 6's landing site at its
+(about one plot pixel), and a vehicle known only by its state (`VSTATE`: not placed, not
+ridden by the camera, `IRIDE`), gets the small boxed X of scene 6's landing site at its
 centre and its name at the first free corner of the box, hidden behind the Earth or Moon. The
-LM has no state of its own outside the descent (the legs and the tape carry the CSM only), so
-it is not marked from undocking to the descent or after touchdown. The launch pad (the
+LM is not marked while docked (the CSM stands for both) nor where it has no state.
+The LM's state (`LMSTAT` in `traj.f`, keyed to the scenario's events; ours where marked):
+docked (the CSM's) before UNDOCK and from LMDOK to JETT; from UNDOCK to LMSEP 300 ft from the
+CSM along the orbit normal (ours); its VEH=LM legs (and gaps of 60 s or less between them, the
+burns; ours); LMDESC from 600 s before TOUCH to TOUCH; the landing site from TOUCH to LIFT; from
+TPF to LMDOK the CSM plus the LM's offset from it at TPF, closing linearly to nothing (ours);
+none during the powered descent before LMDESC, the powered ascent, after JETT, or in a scenario
+without an UNDOCK event (Apollo 8). Its own legs come from the replay only (the tape carries the
+CSM). Within 5 km of the camera (ours), before touchdown and not ridden, `VEHPL` places the
+gear-down LM model (`KLMD`) at its state, +X up the local vertical and +Z along its motion
+(ours); after LIFT it is a marker only (no ascent-stage model yet). The launch pad (the
 scenario's PAD card, LC-39A for Apollo 11: SP-4029 printed p. 103, geocentric 28.4470 N,
 -80.6041 E, made geodetic to sit on the coastlines' footing) is the same boxed X on the
 Earth, turned with it like the coastlines, hidden on the far side, drawn once the Earth's disc
@@ -396,7 +408,12 @@ each card with its source. A mission can have more than one scenario (Apollo 11 
 Apollo 8 as flown, id 2; a pre-flight nominal one could follow), each with its own id. A leg is a simple model fixed
 by sourced states: `CIRC` (Earth circular orbit through a state), `CONIC` (Earth-centred Kepler
 conic from a state, no lunar gravity), `LUNAR` (circle about the Moon through two states, its
-plane and mean motion from them). The Apollo 11 as-flown scenario uses the Mission Report's Table 7-II and
+plane and mean motion from them; with `ALTB=` its radius moves steadily from the first state's
+altitude to the second's), `LCONIC` (Moon-centred conic from a state whose horizontal direction
+lies in the CSM's lunar leg's plane, or from the same vehicle's previous leg plus an impulse,
+`DV= P= R= N=`). `VEH=CSM|LM` names the vehicle a leg carries (default CSM); the Apollo 11
+scenario has six LM legs from separation to TPF (MR Table 7-II p. 7-9 rows, SP-4029 p. 104
+burns). The Apollo 11 as-flown scenario uses the Mission Report's Table 7-II and
 7-VII states and SP-4029's ascent table; the Apollo 8 one the Apollo 8 Mission Report's
 (MSC-PA-R-69-1) Table 5-II and 5-V states, SP-4029's ascent table and the SVS 4129 position
 at the Earthrise photograph; see the scenarios' comments and `src/traj.f`. `VINIT` maps each

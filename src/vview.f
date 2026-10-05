@@ -130,8 +130,8 @@ C     TGTPOS: target IT's geocentric position TG (km) and the external
 C     view's distance DIST (km).  IOK = 0 if the scene has no such
 C     target, or it is the camera itself in a window view.  Vehicles:
 C     the placed models (the CSM, KCSM; the LM, KLMD or KLMS), else
-C     the CSM from the state source (VSTATE) where the camera is not
-C     the CSM (scenes 5, 6).
+C     the vehicle's state (VSTATE) where it has one and the camera
+C     does not ride it (IRIDE).
 C-----------------------------------------------------------------------
       SUBROUTINE TGTPOS(GET, IT, PM, CG, TG, DIST, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -140,7 +140,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION GET, PM(3), CG(3), TG(3), DIST, R(3), V(3)
       DOUBLE PRECISION D
-      INTEGER IT, IOK, I, KL
+      INTEGER IT, IOK, I, KL, IRIDE
       IOK = 1
       DIST = 0.0D0
       DO 5 I = 1, 3
@@ -166,8 +166,8 @@ C         The placed CSM: aim at the top of its tunnel.
           DO 30 I = 1, 3
             TG(I) = CG(I) + MDP(I,KCSM) + 3.2D-3 * MDAT(I,1,KCSM)
    30     CONTINUE
-        ELSE IF (ISCN .EQ. 5 .OR. ISCN .EQ. 6) THEN
-          CALL VSTATE(GET, 1, R, V)
+        ELSE IF (IRIDE() .NE. 1) THEN
+          CALL VSTATE(GET, 1, 1, R, V, IOK)
           DO 35 I = 1, 3
             TG(I) = R(I)
    35     CONTINUE
@@ -179,12 +179,17 @@ C         The placed CSM: aim at the top of its tunnel.
         KL = 0
         IF (MDON(KLMD) .EQ. 1) KL = KLMD
         IF (MDON(KLMS) .EQ. 1) KL = KLMS
-        IF (KL .EQ. 0) THEN
-          IOK = 0
-        ELSE
+        IF (KL .NE. 0) THEN
           DO 50 I = 1, 3
             TG(I) = CG(I) + MDP(I,KL)
    50     CONTINUE
+        ELSE IF (IRIDE() .NE. 2) THEN
+          CALL VSTATE(GET, 2, 1, R, V, IOK)
+          DO 55 I = 1, 3
+            TG(I) = R(I)
+   55     CONTINUE
+        ELSE
+          IOK = 0
         END IF
       END IF
 C     RESTOMOD END
@@ -195,6 +200,23 @@ C     A window view cannot aim at its own camera.
         D = D + (TG(I) - CG(I))**2
    60 CONTINUE
       IF (D .LT. 1.0D-10) IOK = 0
+      RETURN
+      END
+C
+C     IRIDE: the vehicle the camera rides this frame (after VIEWPT has
+C     set IVUSE): 1 the CSM (the window views of scenes 1, 2, 3, 4, 7
+C     and 9, and the CM station in any scene), 2 the LM (scene 5, the
+C     LM station), 0 none (scenes 6 and 8, and the external views).
+      INTEGER FUNCTION IRIDE()
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      IRIDE = 1
+      IF (ISCN .EQ. 5) IRIDE = 2
+      IF (ISCN .EQ. 6 .OR. ISCN .EQ. 8 .OR. IVUSE .EQ. 1) IRIDE = 0
+      IF (IVUSE .EQ. 2) IRIDE = 1
+      IF (IVUSE .EQ. 3) IRIDE = 2
       RETURN
       END
 C

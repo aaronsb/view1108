@@ -9,7 +9,8 @@
 ! prints the mean to stderr.  With VIEW_SIM=n, runs the engine first
 ! (sim_run flags n: bit 0 correction on); add 8 to FLAGS to draw from
 ! the tape.  VIEW_VIEW, VIEW_TARGET and VIEW_LABLV set in_view,
-! in_target and in_lablv (default 0).
+! in_target and in_lablv (default 0).  With VIEW_HDR set, prints
+! hdr(1..24) to stderr.
 program viewsvg
   implicit none
   integer, parameter :: MAXV = 60000, MAXS = 4000, MAXL = 200
@@ -72,6 +73,13 @@ program viewsvg
 
   call vsetin(envint('VIEW_VIEW'), envint('VIEW_TARGET'), envint('VIEW_LABLV'))
   call vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, lb, nl, hd, tb, nt, tc, nch)
+
+  call get_environment_variable('VIEW_HDR', tv)
+  if (len_trim(tv) > 0) then
+    do k = 1, 24
+      write (0, '(a,i0,a,es24.15)') 'hdr(', k, ') = ', hd(k)
+    end do
+  end if
 
   call get_environment_variable('VIEW_TIME', tv)
   if (len_trim(tv) > 0) then
