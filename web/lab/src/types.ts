@@ -78,6 +78,8 @@ export interface Equipment {
   /** Something on a shelf at a close-up (equipment/pullable.ts): a click pulls it out (and puts the last one back);
    *  true when it was already out and opens, so the lab opens it under its placed name. */
   pull?(): boolean;
+  /** It is out and opens: E or Enter at the close-up opens it. */
+  pulled?(): boolean;
   /** The close-up's line when it depends on the piece's state (a shelf: what is pulled out); else the lab's own. */
   hint?(): string;
   /** The camera is flying to this piece (true) or the room is shown again (false): a binder slides out and back. */

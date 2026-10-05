@@ -159,6 +159,7 @@ button.librow.on .libm { color:var(--fg); }
 }
 @media (min-width:1000px) { .liblinks { display:none; } }
 #about { margin:10px auto 0; max-width:720px; font-size:14px; color:var(--dim); text-align:center; line-height:1.4; }
+#about a { color:var(--fg); }
 input[type=text] { background:#000; color:var(--fg); border:0; border-bottom:1px solid var(--dim); padding:4px 6px; font:16px var(--term); }
 body.still #tabs, body.still #ctl, body.still #hint, body.still #about, body.still #err, body.still #status { display:none; }
 body.still { padding:0; }
