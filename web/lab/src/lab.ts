@@ -271,11 +271,12 @@ export class Lab {
     const a = this.at;
     if (!a || this.mode !== "hold") return;
     binder ??= this.room.placed.find(q => q.equipment.pulled?.())?.name;   // E or Enter: what is pulled out, if anything
-    const go = () => this.hooks.arrive(a.opens, binder ?? a.name);
+    const laid = this.laid;   // still the lab's to undo until the page takes it over at the end of the handover
+    const go = () => { this.laid = null; this.hooks.arrive(a.opens, binder ?? a.name); };
     let s: Shot | null = null;
     if (binder) for (const q of this.room.placed) q.equipment.select?.(q.name === binder);
     else { const rect = this.hooks.screenRect?.(a.opens) ?? null; s = rect && this.matchShot(a.name, rect); }
-    this.drop(false); this.clearHover();
+    this.drop(false); this.clearHover(); this.laid = laid;
     if (s && (s.position.distanceTo(this.camera.position) > 1e-3 || s.quaternion.angleTo(this.camera.quaternion) > 1e-3)) this.fly(s, 0, false, go, OPEN_S);
     else { if (s) { this.setShot(s); this.draw(); } go(); }
   }
