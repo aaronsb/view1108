@@ -557,8 +557,10 @@ C       UNDOCK to LMSEP: 300 ft from the CSM along the orbit normal,
 C         the pirouette's distance (scene 4; ours);
 C       LMSEP to LMSEP + 300 s: its first leg plus its offset from that
 C         leg at LMSEP, dying away linearly, so the LM leaves the 300 ft
-C         point without a jump (ours: the drift, about 1 ft/s, is of the
-C         order of the separation burn's 1.4 ft/s, MR Table 7-V p. 7-11);
+C         point without a jump (ours).  The range then opens at about
+C         16 ft/s, 21 ft/s once on the leg (measured): faster than the
+C         separation burn's 1.4 ft/s (MR Table 7-V p. 7-11), the leg
+C         sinking toward the DOI row from separation on (ours);
 C       TOUCH - 600 s to TOUCH: the modelled descent (LMDESC);
 C       TOUCH to LIFT: landed at the site;
 C       TPF to LMDOK: the CSM plus the LM's offset from it at TPF on
