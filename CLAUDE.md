@@ -414,9 +414,11 @@ APS slingshot burn are left out. While a vehicle burns, its placed model (`KCSPL
 `KSIV`) gets 8 exhaust lines out of its engine's exit rim along the model's -X, opening 10°
 each side, three model lengths long, hidden by placed solids like a free line (`LMSEG`); the
 SPS exit is CSMBLD's nozzle, the others ours. No burn attitude is modelled: the exhaust leaves
--X of the model as the scene places it. The text record (`IBRTX`, lettered by `TXALL`) is for
-the vehicle the camera rides (`IRIDE`; the S-IVB's while the CSM rides on it, before SEP) and
-only at `in_lablv` 1-3, so `in_lablv` 0 frames are unchanged. Of the scenes' defaults only
+-X of the model as the scene places it, so an external view starting behind the CSM looks up its
+exhaust. The text record (`IBRTX`, lettered by `TXALL`) is for the vehicle the camera rides
+(`IRIDE`; the S-IVB's while the CSM rides on it, before SEP; none for the LM station while the
+docked CSM fires). Exhaust and text are drawn only at `in_lablv` 1-3, so `in_lablv` 0 frames
+are unchanged. Of the scenes' defaults only
 scene 5's (102:42:00, the powered descent) falls in a burn: "DPS BURN" at `in_lablv` 1-3.
 
 Drawing conventions from TN D-6853 (Hyle & Lunde 1972): night sides are straight parallel

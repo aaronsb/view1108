@@ -23,10 +23,13 @@ C       Text: in a window or station view from the burning vehicle
 C         (IRIDE), "SPS BURN", "DPS BURN", "APS BURN" or "S-IVB BURN"
 C         (the S-IVB's while the CSM rides on it, before the SEP
 C         event), lettered in the frame's top left corner by TXALL
-C         with a label level set (in_lablv 1-3), so in_lablv 0 keeps
-C         the picture it had.
+C         with a label level set (in_lablv 1-3).
+C       Both only with a label level set, so in_lablv 0 keeps the
+C       picture it had, as with the other cues of the levels.
 C     No burn attitude is modelled: the exhaust leaves -X of the model
-C     as the scene places it.
+C     as the scene places it, so an external view that starts behind
+C     the CSM looks up its exhaust (a starburst).  Not lettered: the
+C     LM station while the docked CSM fires.
 C=======================================================================
       SUBROUTINE DBURN(GET, VB, NV, SB, NS, LB, NL)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -60,6 +63,7 @@ C     aft end, 61.3 ft (SIVBMD), radius 1.0 m, ours.
       RE0(4) = 1.0D0
       PL(4) = 3.0D0 * (58.3D0 + 3.0D0) * FT
       IBRTX = 0
+      IF (ILABL .LT. 1) RETURN
       DO 50 K = 1, NBR
         IF (BRSN(K) .NE. ISN) GO TO 50
         IF (GET .LT. BRT1(K) .OR. GET .GE. BRT2(K)) GO TO 50

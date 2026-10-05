@@ -67,8 +67,8 @@ const TL_SCENES = {
     [362392.9, 4],          // LMPIRO's LM 300 ft out (traj.f LMSTAT), to the LMSEP event 100:39:52.9 (SP p. 104)
     [365774, 1, 0, 5, 20],  // the CSM's window aimed at the LM on its first leg, to DOI ignition 101:36:14.0 (MR Table 7-II); 20 deg ours
     [365804, 4, 3, 0, 100], // DOI, to its cutoff 101:36:44.00 (SP p. 107): from the LM (the LM station, LMPIRO's attitude) the Moon
-                            // below a horizon near the middle at 100 deg, as figure 6.2.1-2 (PDF p. 128, printed 110), which is
-                            // the docking window's view; ours tilts with the pirouette
+                            // below a horizon near the middle at 100 deg, as figure 6.2.1-2 (PDF p. 128, printed 110) shows from
+                            // the docking window; ours is the front window, and tilts with the pirouette
     [369339.9, 6],          // the descent orbit: CSM and LM marks on the disc, to LMDESC's last 600 s before the TOUCH event
     [447720.79, 5],         // the descent, then the landed LM (LMDESC holds TAU at 0), to the LIFT event 124:22:00.79 (SP p. 104)
     [448155.7, 1],          // the powered ascent (no LM state), to LM orbit insertion 124:29:15.7 (MR Table 7-II)
