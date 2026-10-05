@@ -5,6 +5,7 @@
 const VIEWS = ["window", "external", "cm", "lm"];          // in_view: 0 WINDOW, 1 EXTERNAL, 2 CM station, 3 LM station
 const TARGETS = ["default", "earth", "moon", "sun", "csm", "lm"];   // in_target: 0 the scene's own
 const LAB_LEVELS = ["off", "primary", "secondary", "all"];  // in_lablv
+const STATION_FOV = 100;
 const FEAT = { view: false, target: false, lablv: false, cabin: false, walls: false, scene8: false, scene9: false };
 const SCENE_MISSION = { 9: "APOLLO 8" };   // named in the status line when the scene's scenario is not Apollo 11
 let viewMode = 0, targetId = 0, cabin = true;   // cabin: the CM or LM interior in a station view (in_flags bit 4)
@@ -26,11 +27,13 @@ function featSyncUI() {
   if (FEAT.cabin) { const b = $("bcab"); b.classList.toggle("on", cabin); b.disabled = viewMode !== 2 && viewMode !== 3; }
   if (FEAT.walls) { const b = $("bwal"); b.classList.toggle("on", walls); b.disabled = $("bcab").disabled || !cabin; }
 }
-// hdr(21): the vehicles the scene has (1 CM/CSM, 2 LM, 4 S-IVB); the CM and LM station views need theirs.
-let vehMask = -1;
+// hdr(22): the crew stations the scene offers (1 CM, 2 LM). A kernel without it leaves 0 there: then hdr(21), the
+// vehicles in the scene's world (1 CSM, 2 LM), which leaves out the one the camera rides.
+let stMask = -1;
 function featTick() {
   if (!FEAT.view) return;
-  const m = new Float64Array(buf(), K.hdr.value, 24)[20] | 0; if (m === vehMask) return; vehMask = m;
+  const h = new Float64Array(buf(), K.hdr.value, 24), m = (h[21] | 0) || (h[20] | 0);
+  if (m === stMask) return; stMask = m;
   const b = document.querySelectorAll("#viewgrp button"); b[2].disabled = !(m & 1); b[3].disabled = !(m & 2);
 }
 // After boot, before the first scene. The scene 8 probe: a kernel without it falls back to scene 1 (hdr(7) = 1).
@@ -56,7 +59,11 @@ function featInit() {
   }
   $("viewgrp").hidden = !FEAT.view; $("targrp").hidden = !FEAT.target; $("bcab").hidden = !FEAT.cabin; $("bwal").hidden = !FEAT.walls;
   $("bcab").onclick = toggleCabin; $("bwal").onclick = toggleWalls;
-  document.querySelectorAll("#viewgrp button:not(#bcab):not(#bwal)").forEach((b, i) => { b.onclick = () => { leaveAttract(); viewMode = i; syncUI(); }; });
+  // Into a crew station, at least the 100 deg field of the report's CSM window plots (MSC IN 69-FM-197, PDF pp. 53,
+  // 263): a scene's own field (8 deg in Earthrise) shows none of the cabin, and with its walls none of the outside.
+  document.querySelectorAll("#viewgrp button:not(#bcab):not(#bwal)").forEach((b, i) => { b.onclick = () => {
+    leaveAttract(); if (i >= 2 && viewMode < 2) fov = clampFov(Math.max(fov, STATION_FOV)); viewMode = i; syncUI();
+  }; });
   document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); targetId = i; syncUI(); }; });
 }
 // ?view=window|external|cm|lm and ?target=default|earth|moon|sun|csm|lm (or their numbers).

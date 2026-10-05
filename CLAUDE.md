@@ -233,7 +233,9 @@ Outputs (written by the kernel):
   (s; 18-20 are 0 before any run), 21 the vehicles in this frame's world, a bitmask: 1 the
   CSM, 2 the LM, 4 the S-IVB, each set if it is placed as a model or known by its state for a
   marker (the CSM in scenes 5 and 6, the LM in its modelled descent); the vehicle the camera
-  rides in a window or station view is not counted. Set at every label level. 22-24 spare.
+  rides in a window or station view is not counted. Set at every label level. 22 the crew
+  stations the scene offers, a bitmask: 1 the CM station (not scenes 5 and 6), 2 the LM station
+  (where an LM is placed, and scene 5); the page enables its CM and LM buttons from it. 23-24 spare.
   The page letters the report-style header from these.
 - `tbuf(4, MAXT)` real(8), `ntxt` int32, `tchr(MAXTC)` int32, `nchr` int32: text records for the
   recorder's character generator, decided by the kernel. Record k is `x, y, height, start`: plot
