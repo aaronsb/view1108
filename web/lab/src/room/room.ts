@@ -4,7 +4,7 @@
 // reels, a card reader and printers, but no floor plan survives; this arrangement puts the same kinds of machine
 // in a 9 m by 7 m room so that one standing view from the south-east takes in the terminals and the tapes:
 // UNISERVO drives along the north wall, the 1108's cabinets along the west wall (the lamp-panel cabinet at the
-// centre), the 4009 operator console facing the tapes, the reel table at the centre, and in the east half a desk
+// centre, the power cabinet at the south end), the 4009 operator console facing the tapes, the reel table at the centre, and in the east half a desk
 // with the UNISCOPE 100 beside the 1558 graphic console, turned toward the viewer, with its 1557 controller behind
 // them. Along the east wall the microfilm recorder, downstream of the computer as the film was, then the printer;
 // the card reader in the south-west corner; behind the UNISCOPE's desk, against the east wall between the 1557 and the
@@ -63,7 +63,8 @@ export function build(ctx: BuildContext): Room {
 
   const nW = ROOM.d / 2, wW = ROOM.w / 2;
   for (let i = 0; i < 7; i++) place("uniservo", [-2.7 + i * 0.82, 0, -nW + 0.45], S, undefined, { number: 60 + i, index: i + 1 });
-  for (let i = 0; i < 5; i++) place("cpu", [-wW + 0.48, 0, -1.64 + i * 0.82], E, undefined, { lampPanel: i === 2 });
+  for (let i = 0; i < 4; i++) place("cpu", [-wW + 0.48, 0, -1.64 + i * 0.82], E, undefined, { lampPanel: i === 2 });
+  place("powercab", [-wW + 0.48, 0, -1.64 + 4 * 0.82], E, "power");
   place("console4009", [-1.2, 0, -1.0], N);
   place("chair", [-1.2, 0, -0.3], N);
   place("reeltable", [0.75, 0, 1.2], 0.08);
@@ -134,7 +135,7 @@ export function build(ctx: BuildContext): Room {
     door: { x: DOOR.x, z: nW, w: DOOR.w },
     overview: { position: new THREE.Vector3(2.4, 1.62, 3.15), target: new THREE.Vector3(0.1, 1.0, -1.6), fov: 55 },
     labels: { vector: "UNIVAC 1558 — workbench", glass: "UNISCOPE 100 — source", filmrecorder: "Microfilm recorder (S-C 4020, hypothetical) — print",
-      printer: "Line printer — listing", switch: "Lights", door: "Exit — github.com/aaronsb/view1108", library: "Reference library",
+      printer: "Line printer — listing", switch: "Lights", power: "Power distribution — three-phase, 60 Hz (hypothetical)", door: "Exit — github.com/aaronsb/view1108", library: "Reference library",
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
       ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },
     lightsOn: true,

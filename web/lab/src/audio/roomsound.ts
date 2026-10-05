@@ -140,16 +140,17 @@ export class RoomSound {
 
     // Cabinet fans and transformers, ours: each cabinet's fan a blade-pass tone (shaft 3,420-3,480 rev/min, a 2-pole
     // induction motor's 60 Hz less slip; 5 blades, 285-290 Hz, so neighbours beat) over band-limited noise, and a
-    // faint mains hum (60 Hz and its harmonics, 120 Hz strongest) from one shared generator.
+    // faint mains hum (60 Hz and its harmonics, 120 Hz strongest) from one shared generator, louder at the power
+    // cabinet, whose transformers hum.
     const blade = wave(ctx, [1, 0.35, 0.12, 0.05]);
     const hum = osc(wave(ctx, [0.6, 1, 0.3, 0.25, 0.1, 0.08]), MAINS), humBus = gain(1); hum.connect(humBus);
-    const cabinets = this.room.placed.filter(p => /^(cpu|controller1557|filmrecorder)(-|$)/.test(p.name));
+    const cabinets = this.room.placed.filter(p => /^(cpu|power|controller1557|filmrecorder)(-|$)/.test(p.name));
     cabinets.forEach((p, k) => {
       const pos = this.at(p.equipment, 1.5), s = source(p.name, pos, 1.0, 1.0);
       const rpm = 3420 + this.r() * 60, t = osc(blade, rpm / 60 * 5), tg = gain(0.035); t.connect(tg).connect(s.input);
       wander(t.frequency, 0.4, k);
       const n = noise(N.pink, 1.2), bp = filt("bandpass", 1100 + this.r() * 400, 0.5), ng = gain(0.22); n.connect(bp).connect(ng).connect(s.input);
-      const hp = filt("lowpass", 800); const hg = gain(0.05); humBus.connect(hp).connect(hg).connect(s.input);
+      const hp = filt("lowpass", 800); const hg = gain(p.name === "power" ? 0.13 : 0.05); humBus.connect(hp).connect(hg).connect(s.input);
     });
 
     // Drums behind the west wall (heard through it: low-passed). FH-432: three drums at 120 Hz (slip, ours, detunes
