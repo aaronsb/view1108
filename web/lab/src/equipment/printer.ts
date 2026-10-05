@@ -87,7 +87,7 @@ export function build(_ctx: BuildContext): Equipment {
   let sheets = 60, fed = 0, last = -1e9, blink = 0;
   const feed = (lines: number) => {
     const d = LINE * lines;
-    tex.offset.y -= d / PAGE;
+    tex.offset.y += d / PAGE;   // the strip's v falls from the slot to the stacker, so a rising offset carries the print away from the slot
     if ((fed += d) >= PAGE) { fed -= PAGE; if (++sheets > 600) sheets = 60; sizeStack(); }
     lamps.setColorAt(PRINT, col.set(0xffb040)); lamps.instanceColor!.needsUpdate = true; blink = 0.15;
   };
