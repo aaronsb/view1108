@@ -12,6 +12,8 @@ plan of MSC's 1108 room survives in our sources.
 | UP-4046 | UNIVAC 1108 Multi-Processor System, System Description, rev. 3: <https://fourmilab.ch/documents/univac/manuals/pdf/1108/UP-4046_1108mpSysDescr.pdf> |
 | UP-7604 | UNIVAC 1108 Display Console, Component Description (1968): <https://fourmilab.ch/documents/univac/manuals/pdf/1108/UP-7604_1108_Display_Console_Component_Description_1968.pdf> |
 | UP-7701 | UNISCOPE 100 Display Terminal, General Description, rev. 2 (1973): <https://fourmilab.ch/documents/univac/manuals/pdf/Uniscope/UP-7701r2_Uniscope_100_Display_Terminal_General_Description_1973.pdf> |
+| UP-7619 | UNISCOPE 300 Visual Communication Terminal, General Description (1968): <https://fourmilab.ch/documents/univac/manuals/pdf/Uniscope/UP-7619_Uniscope_300_General_Description_1968.pdf> |
+| Console photo | A UNIVAC machine room with the 1108 Display Console in the foreground; file name "UnivacII.jpg", provenance unknown, held locally as a reference only |
 | UNISCOPE photo | "Sperry-rand-univac-uniscope-100-0a.jpg", Adamantios, 2008, CC BY-SA 3.0 (<https://creativecommons.org/licenses/by-sa/3.0>): <https://commons.wikimedia.org/wiki/File:Sperry-rand-univac-uniscope-100-0a.jpg> |
 | UP-7789 | UNIVAC Advanced Graphic System Type 1557/1558, General Description (1970): <https://fourmilab.ch/documents/univac/manuals/pdf/Peripherals/UP-7789_Advanced_Graphic_System_Type_1557_1558_General_Description_1970.pdf> |
 | Brochure | UNIVAC 1108 II brochure, Computer History Museum 102646105: <https://www.computerhistory.org/brochures/doc-4372956ec8276/> |
@@ -41,7 +43,7 @@ Sizes are W x H x D in metres.
 | `glass` | UNISCOPE 100 Display Terminal, showing the kernel source | UP-7701 Fig. 1-1 and p. 1 (10 x 5 in viewing area, 16 x 64 or 12 x 80, green on dark), size p. 30; UNISCOPE photo (below) | 0.46 x 0.33 x 0.69 | Good. Delivered from 1970, a year after the film (an anachronism we keep for Source) |
 | `uniservo` | UNISERVO VIII-C tape unit | UP-4046 sec. 8.4.2 (120 in/s, 240 in/s rewind, 2400 ft reels); brochure p. 7; MSC photo (numbers 60, 61, ...) | 0.75 x 1.8 x 0.75 (inferred) | Good on look; vacuum columns not shown |
 | `cpu` | 1108 cabinet; `{lampPanel: true}` is the processor's maintenance panel | Brochure p. 3 (colour) | 0.8 x 1.9 x 0.8 (inferred) | Good on look; the lamp count is ours |
-| `console4009` | 1108 Display Console: indicator panel with Day Clock, CRT and keyboard, PAGEWRITER on a pedestal | UP-7604 Fig. 2-1 (p. 2-1), Table 2-1 (p. 2-2), secs. 2.3.2 to 2.3.4 (pp. 2-5, 2-6); UP-4046 Fig. 1-1; brochure pp. 6, 7 | 2.8 x 1.25 x 0.95 (ours) | Fair: parts sourced, layout and sizes ours |
+| `console4009` | 1108 Display Console, type 4009: indicator panel with Day Clock, display unit with CRT and keyboard, PAGEWRITER on a pedestal (below) | UP-7604 Figs. 2-1, 2-3, 2-4, 4-1, Tables 2-1, 2-3, secs. 2.1 to 2.3.4; UP-7619 App. A and cover; console photo; UP-4046 Fig. 1-1; brochure pp. 6, 7 | 2.8 x 1.25 x 0.95 (2.8 x 1.13 x 0.9 drawn; desk and panel sizes ours) | Fair: parts and display unit sourced, layout ours |
 | `controller1557` | UNIVAC 1557 Display Controller | UP-7789 p. 27 (48 x 24 x 64 in, read as W x D x H) | 1.2 x 1.6 x 0.6 | Size sourced, look HYPOTHETICAL (no figure) |
 | `printer` | High-speed printer, 132 columns, 1200 lines/min, fanfold greenbar paper | UP-4046 sec. 8.5 (model not stated); MSC photo | 1.4 x 1.2 x 0.8 (inferred) | Fair; the paper path and stacker are ours |
 | `cardreader` | Card reader | MSC photo (foreground) | 1.0 x 1.1 x 0.7 (inferred) | Low: model unidentified |
@@ -75,11 +77,16 @@ keys are plain white with printed legends, as the figures show (no backlight).
 - **UNISCOPE 100.** 64 x 16 green characters in the IBM 3270 face when the page has it. The screen shows the Source
   tab's marked line or current unit, or VFRAME from `vdrive.f` in the embedded listing, and is redrawn only when that
   text changes. The cursor blinks.
-- **4009 console.** The Day Clock shows hours, minutes and hundredths of a minute (UP-7604 sec. 2.3.3). It runs on
-  the replay's UTC: Apollo 11's range zero, 1969-07-16 13:32:00 UTC, plus the g.e.t. In scene 9 the clock is offset
-  by hdr(16), -17,887,260 s, to Apollo 8's epoch. At the touchdown g.e.t. 102:45:40 it reads 20:17:66, that is
-  20:17:40 UTC. Its neon-orange digits are HYPOTHETICAL. The CRT's operator messages and the PAGEWRITER's log are
-  ours.
+- **4009 console.** The Day Clock shows hours, minutes and hundredths of a minute (UP-7604 sec. 2.3.3), written
+  HH:MM.hh as in UP-4046 Fig. 1-1. It runs on the replay's UTC: Apollo 11's range zero, 1969-07-16 13:32:00 UTC, plus
+  the g.e.t. In scene 9 the clock is offset by hdr(16), -17,887,260 s, to Apollo 8's epoch. At the touchdown g.e.t.
+  102:45:40 it reads 20:17.66, that is 20:17:40 UTC. Its orange digits are HYPOTHETICAL. The CRT shows a console log
+  (ours): the run's tape assignments and mounts and its two `@XQT` steps in the style of the sample run in
+  `docs/batch-pipeline.md`, a line per 16 frames, the run's state, and a blinking prompt; the PAGEWRITER's sheet
+  carries the same log, as UP-7604 sec. 2.3.2 says it logs the CRT's traffic. The lamps follow Fig. 4-1's sections:
+  the Program Address Counter changes about 14 times a second while the page plays or after a `tape` event and once
+  a second otherwise, GUARD mode is lit, and SELECT STOPS 0 and RELEASE STOPS 0 light on hold. UP-7604 says the
+  address counter's indicators are disabled while a program runs, so a running counter is ours.
 - **Printer.** A finished beam frame advances the paper four lines, at most twice a second, and a lamp blinks. The
   stack grows by one sheet every 11 in.
 - **Desk clock.** It shows Houston time for the replay's moment: Central time, with daylight time from the last Sunday
@@ -88,6 +95,42 @@ keys are plain white with printed legends, as the figures show (no backlight).
 - **Microfilm recorder.** A finished beam frame exposes a frame: the shutter lamp and a lamp at the camera's lens flash,
   the advance lamp lights for the pull-down (about 100 ms, 4060 description p. 20) and the frame counter steps on.
   The viewing port shows the plot, dimmed. The other lamps hold steady.
+
+## The 4009 console
+
+The console is the UNIVAC 1108 Display Console, type 4009 (4009-99 at 60 Hz, UP-7604 Table 2-3), not a UNISCOPE 100:
+its parts, from UP-7604 sec. 2.1, are a four-bank keyboard, a CRT of 16 lines of 64 characters in a 10 x 5 in viewing
+area (Table 2-1), a PAGEWRITER printing 80-character lines at 25 characters a second on a pedestal cabinet (sec.
+2.3.2), a Day Clock and the Operator's Control and Indicator Panel (sec. 2.3.4). The CRT format is the UNISCOPE 100's
+too (UP-7701 p. 1), and it is the UNISCOPE 300's: UP-7619, dated 1968 and so before the Apollo views of 1968-69, gives a 10 x 5 in screen,
+64 characters by 16 lines and a .150 x .113 in character (sec. 3, p. 3-1; App. A), the same character size as UP-7604
+Table 2-1.
+
+What comes from where:
+
+- **Layout** (UP-7604 Fig. 2-1): a long desk top, the indicator panel standing at the back of its left part, the display
+  unit in a notch at the right with its keyboard shelf proud of the desk's front, a short wing beyond. The console photo
+  shows the same desk from the front left, with the display unit set further back; we follow the figure.
+- **Desk**: white top and the orange band under its front (brochure p. 7); dark legs, a slab at the left end and T-legs
+  on long feet at the main top's right end and the wing's (console photo). The modesty panel, the cradle under the
+  display unit and the sizes are ours.
+- **Indicator panel**: light grey housing, dark face, UNIVAC 1108 on a header strip, three rows of switch-indicators
+  over the Day Clock and a row of system switches (Fig. 2-1, console photo); the sections, their counts and names from
+  Fig. 4-1 and pp. 4-2 to 4-4. Its 8 degree lean and size are ours.
+- **Display unit**: the shape of Fig. 2-3 (a deep light shell with its top falling to the back, a face leaning back,
+  a recessed keyboard deck in a light rim with a lip) and the size of the UNISCOPE 300, 25 x 17 x 24 in (UP-7619 App.
+  A). From the UNISCOPE 300 cover: the housing narrowing toward its top, the dark face, the screen at the left, the
+  slatted grille at the right, the small UNIVAC plate under the screen and the brushed strip across the top. That the
+  4009's display unit is a UNISCOPE 300 is our reading of the console photo and the shared screen; Fig. 2-1 shows a
+  light strip at the top of the face too small to read, and lettering it "U N I S C O P E  3 0 0" follows that
+  reading (HYPOTHETICAL). The keyboard is the 4009's, not the 300's: four banks of 47 keys and the space bar, a row of
+  8 interrupt keys and 2 function keys (UP-7604 sec. 2.3.1; the text's "7 keys" is read as 47, which with the space
+  bar gives four banks of about 12), with a red key and two lamps at the deck's back left (Fig. 2-1).
+- **PAGEWRITER** (Fig. 2-4): a low wedge with the platen under its top and a control strip on its sloping front, on a
+  light grey pedestal with a white top. The pedestal's place at the desk's left end is ours.
+- **Back** (seen from the overview; no source shows it): the modesty panel with a cable cut-out at its foot and the
+  cables dropping through the floor, louvres on the panel housing, the display unit and the pedestal, a UNIVAC 4009
+  badge on the panel housing and a type plate "1108 DISPLAY CONSOLE TYPE 4009-99" on the modesty panel. All ours.
 
 ## The UNISCOPE 100
 
