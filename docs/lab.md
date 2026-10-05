@@ -50,7 +50,7 @@ Sizes are W x H x D in metres.
 | `reeltable` | Table with stacked reels, a reel rack and a desk clock | MSC photo | 1.6 x 0.75 x 0.8 (inferred) | Fair |
 | `desk` | White slab on chrome T-legs | Brochure p. 7 | 1.5 x 0.73 x 0.75 (ours) | Fair |
 | `chair` | Chrome swivel chair on casters | Brochure p. 7 | 0.6 x 0.88 x 0.6 (ours) | Fair |
-| `bookcase` | Steel bookcase with one ring binder per document of the reference library, upright between L-shaped bookends; the lower shelf holds three unlabelled binders lying flat | none: ours | 1.0 x 1.1 x 0.36 (ours) | HYPOTHETICAL throughout (below) |
+| `bookcase` | Steel bookcase with one ring binder per document of the reference library, upright between L-shaped bookends, then a telephone directory, two paperbacks and an index card, for looks; the lower shelf holds three unlabelled binders lying flat | none: ours | 1.0 x 1.1 x 0.36 (ours) | HYPOTHETICAL throughout (below) |
 | `filmrecorder` | S-C 4020 Computer Recorder: the microfilm recorder, HYPOTHETICAL as to MSC's model (below) | 4020 brochure pp. 1, 4; 4020 manual Fig. 1 (p. 1), Fig. 5 (p. 7), p. 25 | 2.24 x 1.88 x 0.94 (basic unit 66 x 37 x 74 in plus the 22 in tape adapter, brochure p. 4) | Fair on look; the model at MSC is our choice |
 
 **The 1558's shape.** UP-7789's photographs, scaled by the 35 in width: Figure 2-5 (p. 11, square on) gives the face's
@@ -182,6 +182,25 @@ nameplate face, and the colours are ours too: grey and blue vinyl for the UNIVAC
 Stromberg-Carlson ones, buff for the NASA reports. The bookends are olive enamel. A binder is picked on its own (its
 title on hover); asked for, it slides 7 cm out of the row while the camera flies to its spine, and back when the room
 returns.
+
+After the binders, for looks only (named on hover; a click opens nothing), stand things someone left there while waiting
+for a batch run (the idea and the choice of things are ours):
+
+- A Houston telephone directory for 1969, 6.5 cm thick. Southwestern Bell Telephone Company was the Bell System's
+  company for Texas from 1917 (Wikipedia, "Southwestern Bell", <https://en.wikipedia.org/wiki/Southwestern_Bell>);
+  that it published Houston's directory in 1969 is our assumption, as we found no catalogue record or image of that
+  book. Its spine (HOUSTON, TELEPHONE DIRECTORY, 1969, SOUTHWESTERN BELL, and a plain bell outline that copies no
+  logo) is ours.
+- Two mass-market paperbacks in print by then: Arthur C. Clarke, *2001: A Space Odyssey* (Signet, New York, 1968, 221
+  pp.; Open Library OL26627441M, <https://openlibrary.org/books/OL26627441M>), and Robert A. Heinlein, *The Moon Is a
+  Harsh Mistress* (Berkley Medallion, September 1968, 302 pp.; Open Library OL26835764M,
+  <https://openlibrary.org/books/OL26835764M>). Their spine colours and lettering are ours.
+- A 6 x 4 in ruled index card in blue ballpoint, leaning on the back panel: places to eat. The list is the user's, from
+  their own notes. The U-Joint is checked: "Fort Terry's The Universal Joint" in Webster, a barbecue place in a
+  wartime Ellington barracks moved there in 1965, sold in 1980 and reopened as the Outpost Tavern (collectSPACE,
+  9 Dec 2009, <https://www.collectspace.com/news/news-120209a.html>). The Singing Wheel (Webster), the Flintlock and
+  the Monterrey House are unverified: we found no source for them in 1969. The handwriting is a system script font
+  with each line nudged and turned a little.
 
 ## Sound
 

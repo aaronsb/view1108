@@ -72,6 +72,8 @@ export interface Equipment {
   opens?: Opens;
   /** Something done in place when clicked or used on foot (E), instead of opening a tab: the light switch. */
   use?(): void;
+  /** For looks only (the props on the bookcase): named on hover, and a click on it does nothing. */
+  inert?: boolean;
   /** The camera is flying to this piece (true) or the room is shown again (false): a binder slides out and back. */
   select?(on: boolean): void;
   update?(dt: number, state: LabState): void;
@@ -108,7 +110,7 @@ export interface Room {
   footprints?: Footprint[];
   /** The door: its centre's x on the wall at z, its width. */
   door?: { x: number; z: number; w: number };
-  /** Hover labels by placed name, for the equipment that opens something. */
+  /** Hover labels by placed name, for the equipment that opens something and the inert props. */
   labels?: Record<string, string>;
   /** Region the dust drifts in. */
   air?: THREE.Box3;

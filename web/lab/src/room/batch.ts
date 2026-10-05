@@ -8,7 +8,8 @@
 //   3. instanced grids that share geometry and material (the lamp strips of every tape unit, the CPU lamps) become
 //      one InstancedMesh, matrices and colours copied when a source changes.
 // The originals stay in the scene graph, hidden: their modules keep animating them and the lab's picking still
-// hits them; the batches are not pickable. Equipment that opens a tab is left alone (hover lifts its materials).
+// hits them; the batches are not pickable. Equipment that opens a tab, and the inert props, are left alone (hover lifts
+// their materials).
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Placed } from "../types";
@@ -34,7 +35,7 @@ export function batch(root: THREE.Object3D, placed: Placed[]): Batches {
   const made: THREE.BufferGeometry[] = [];
 
   for (const p of placed) {
-    if (p.equipment.opens) continue;
+    if (p.equipment.opens || p.equipment.inert) continue;
     const kind = p.name.replace(/-\d+$/, "");
     p.equipment.object.traverse(o => {
       const m = o as THREE.Mesh;

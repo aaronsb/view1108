@@ -3,10 +3,12 @@
 // No source shows a bookcase or binders in MSC's machine room; the bookcase, the binders, their colours (grey and blue
 // for the UNIVAC manuals, black and oxblood for Stromberg-Carlson's, buff for the NASA reports) and the bookends are
 // ours. Each binder is its own pickable piece (`anchors.binders`, placed by the room as "binder:<id>"); the bookcase
-// and every binder open "library", and a binder asked for slides out a little (select).
+// and every binder open "library", and a binder asked for slides out a little (select). After the binders, for looks
+// only (`anchors.props`, placed as "prop:<id>", inert: named on hover, nothing on a click): a 1969 Houston telephone
+// directory, two paperbacks, and an index card of places to eat leaning on the back panel (docs/lab.md).
 import * as THREE from "three";
 import type { BuildContext, Equipment } from "../types";
-import { Parts, fontTex, nameplate, paint, plastic, plateText } from "./kit";
+import { Parts, canvasTex, fontTex, nameplate, paint, plastic, plateText } from "./kit";
 import LIBRARY from "../../../library/library.json";
 
 export interface LibraryDoc { id: string; num: string; spine: string; title: string; year: number; publisher: string; pages: number; colour: string; file: string; source: string }
@@ -67,13 +69,107 @@ function binder(doc: LibraryDoc, aniso: number): Binder {
   };
 }
 
+/** A prop: one of the shelf's things for looks, picked as "prop:<id>", named `label` on hover. */
+export interface Prop extends Equipment { id: string; label: string; dispose(): void }
+
+type Draw = (g: CanvasRenderingContext2D, w: number, h: number) => void;
+
+/** A book standing on the shelf, its spine at local z = 0 facing +z: a block of `cover` with a lettered spine face. */
+function book(id: string, label: string, t: number, h: number, d: number, cover: THREE.Material, spine: Draw, aniso: number): Prop {
+  const object = new THREE.Group();
+  const block = new THREE.BoxGeometry(t, h, d).translate(0, h / 2, -d / 2);
+  object.add(new THREE.Mesh(block, cover));
+  const tex = canvasTex(Math.max(32, Math.round(2400 * t)), Math.round(2400 * h), spine, aniso);   // 2.4 px per mm
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.75 });
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(t, h).translate(0, h / 2, 0.0003), mat);
+  object.add(face);
+  return { object, id, label, anchors: {}, inert: true, dispose() { block.dispose(); face.geometry.dispose(); mat.dispose(); tex.dispose(); } };
+}
+
+/** Lettering along a spine, read top to bottom (ours): `body` letters across a canvas turned a quarter turn, its
+ *  origin at the centre, `len` along the spine and `wid` across it. */
+function along(g: CanvasRenderingContext2D, w: number, h: number, body: (len: number, wid: number) => void): void {
+  g.save(); g.translate(w / 2, h / 2); g.rotate(Math.PI / 2); body(h, w); g.restore();
+}
+/** Fill `s` centred at (x, y), shrunk to at most `max` wide. */
+function fitText(g: CanvasRenderingContext2D, s: string, x: number, y: number, px: number, max: number, face: string): void {
+  g.font = `${px}px ${face}`;
+  const k = Math.min(1, max / Math.max(1, g.measureText(s).width));
+  g.font = `${px * k}px ${face}`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(s, x, y);
+}
+const SERIF = 'Georgia, "Times New Roman", serif', SANS = 'Helvetica, Arial, sans-serif';
+
+/** The Houston telephone directory for 1969, 6.5 cm thick, 11 x 9 in; its wording, colours and bell are ours. */
+const directory = (aniso: number) => book("directory", "Telephone directory, 1969", 0.065, 0.28, 0.225, plastic(0xe9e1c6, 0.85), (g, w, h) => {
+  const ink = "#1f3f6e";
+  g.fillStyle = "#ece4c8"; g.fillRect(0, 0, w, h);
+  g.fillStyle = ink; g.fillRect(0, h * 0.05, w, h * 0.01); g.fillRect(0, h * 0.94, w, h * 0.01);
+  // A plain bell outline (drawn simply, no logo artwork): a dome flaring to its lip, and the clapper.
+  const cx = w / 2, cy = h * 0.12, r = w * 0.25;
+  g.strokeStyle = ink; g.lineWidth = w * 0.035;
+  g.beginPath(); g.moveTo(cx - r, cy + r * 0.75);
+  g.quadraticCurveTo(cx - r * 0.7, cy + r * 0.2, cx - r * 0.6, cy - r * 0.35);
+  g.quadraticCurveTo(cx, cy - r * 1.3, cx + r * 0.6, cy - r * 0.35);
+  g.quadraticCurveTo(cx + r * 0.7, cy + r * 0.2, cx + r, cy + r * 0.75); g.closePath(); g.stroke();
+  g.fillStyle = ink; g.beginPath(); g.arc(cx, cy + r * 0.95, r * 0.17, 0, 2 * Math.PI); g.fill();
+  g.fillStyle = "#1a1a1a";
+  along(g, w, h, (len, wid) => {
+    fitText(g, "HOUSTON", -len * 0.1, -wid * 0.13, wid * 0.42, len * 0.4, `bold ${SANS}`);
+    fitText(g, "TELEPHONE DIRECTORY", -len * 0.1, wid * 0.23, wid * 0.2, len * 0.42, SANS);
+    fitText(g, "1969", len * 0.27, 0, wid * 0.4, len * 0.2, `bold ${SANS}`);
+  });
+  g.fillStyle = ink;
+  fitText(g, "SOUTHWESTERN", w / 2, h * 0.872, w * 0.13, w * 0.86, `bold ${SANS}`);
+  fitText(g, "BELL", w / 2, h * 0.905, w * 0.18, w * 0.86, `bold ${SANS}`);
+}, aniso);
+
+/** A mass-market paperback, 4 1/4 x 7 in: title and author along the spine, the imprint across its foot. */
+const paperback = (id: string, label: string, t: number, bg: number, fg: string, title: string, author: string, imprint: string, aniso: number) =>
+  book(id, label, t, 0.178, 0.108, plastic(bg, 0.5), (g, w, h) => {
+    g.fillStyle = `#${bg.toString(16).padStart(6, "0")}`; g.fillRect(0, 0, w, h); g.fillStyle = fg;
+    along(g, w, h, (len, wid) => {
+      fitText(g, title, -len * 0.1, 0, wid * 0.52, len * 0.6, `bold ${SERIF}`);
+      fitText(g, author, len * 0.32, 0, wid * 0.44, len * 0.24, SERIF);
+    });
+    fitText(g, imprint, w / 2, h * 0.96, w * 0.22, w * 0.86, `bold ${SANS}`);
+  }, aniso);
+
+/** The index card, 6 x 4 in, ruled, in blue ballpoint: the user's list, from their notes (docs/lab.md). */
+const HAND = '"Comic Neue", "Segoe Print", "Bradley Hand", "Chalkboard", cursive';
+const EATS = ["Places to eat \u2014", "The Singing Wheel (Webster)", "U-Joint \u2014 Fort Terry's", "     Universal Joint (BBQ)", "The Flintlock (steaks)", "Monterrey House (Mexican)"];
+const CARD_W = 0.152, CARD_H = 0.102;
+function card(aniso: number): Prop {
+  const object = new THREE.Group(), W = 1024, H = Math.round(W * CARD_H / CARD_W);
+  const tex = canvasTex(W, H, (g, w, h) => {
+    g.fillStyle = "#f7f4ea"; g.fillRect(0, 0, w, h);
+    const head = h * 0.17, step = (h - head) / 5.6;   // the red head rule, then blue rules a line apart
+    g.lineWidth = 2; g.strokeStyle = "#c0392b"; g.beginPath(); g.moveTo(0, head); g.lineTo(w, head); g.stroke();
+    g.lineWidth = 1.5; g.strokeStyle = "#8fb3d9";
+    for (let i = 1; i <= 5; i++) { g.beginPath(); g.moveTo(0, head + i * step); g.lineTo(w, head + i * step); g.stroke(); }
+    // Each line a little off: its left inset and turn (rad), so it reads as a hand, not a printer (ours).
+    const jit = [[0.03, -0.015], [0.06, 0.008], [0.045, -0.006], [0.05, 0.004], [0.065, 0.012], [0.05, -0.005]];
+    g.fillStyle = "#1d3a8f"; g.textBaseline = "alphabetic"; g.textAlign = "left";
+    EATS.forEach((s, i) => {
+      const px = (i === 0 ? 0.8 : 0.66) * step;
+      g.font = `${px}px ${HAND}`;
+      const k = Math.min(1, w * (0.97 - jit[i][0]) / g.measureText(s).width);
+      g.save(); g.translate(w * jit[i][0], head + i * step - step * 0.16); g.rotate(jit[i][1]);
+      g.font = `${px * k}px ${HAND}`; g.fillText(s, 0, 0); g.restore();
+    });
+  }, aniso);
+  const geo = new THREE.PlaneGeometry(CARD_W, CARD_H).translate(0, CARD_H / 2, 0);
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, side: THREE.DoubleSide });
+  object.add(new THREE.Mesh(geo, mat));
+  return { object, id: "eats", label: "Places to eat", anchors: {}, inert: true, dispose() { geo.dispose(); mat.dispose(); tex.dispose(); } };
+}
+
 /** An L-shaped steel bookend: an upright plate and a foot that slides under the row (toward `side`, -1 or +1). */
 function bookend(P: Parts, x: number, side: number, mat: THREE.Material): void {
   P.box(0.004, 0.17, 0.13, mat, x, SHELF + 0.085, FRONT - 0.075);
   P.box(0.11, 0.003, 0.13, mat, x + side * 0.055, SHELF + 0.0015, FRONT - 0.075);
 }
 
-export function build(ctx: BuildContext): Equipment & { anchors: { binders: Binder[] } } {
+export function build(ctx: BuildContext): Equipment & { anchors: { binders: Binder[]; props: Prop[] } } {
   const object = new THREE.Group(), mine: { dispose(): void }[] = [];
   const steel = paint(0x8a8d86, 0.9), dark = paint(0x2e3134, 0.9), olive = paint(0x5c6049, 0.7);
   const P = new Parts();
@@ -97,7 +193,26 @@ export function build(ctx: BuildContext): Equipment & { anchors: { binders: Bind
     object.add(b.object); binders.push(b);
     x += widths[i] + 0.0015;
   });
-  bookend(P, x + 0.002, -1, olive);
+  // The props after the binders, their spines a little behind the binders' line: the directory, then the paperbacks.
+  const props: Prop[] = [];
+  const stand = (p: Prop, t: number) => {
+    p.object.position.set(x + 0.004 + t / 2, SHELF, FRONT - 0.012);
+    object.add(p.object); props.push(p);
+    x += t + 0.004;
+  };
+  const aniso = ctx.maxAnisotropy;
+  stand(directory(aniso), 0.065);
+  stand(paperback("clarke", "Arthur C. Clarke, 2001: A Space Odyssey (Signet, 1968)", 0.017, 0x161616, "#ece5d0",
+    "2001: A SPACE ODYSSEY", "ARTHUR C. CLARKE", "SIGNET", aniso), 0.017);
+  stand(paperback("heinlein", "Robert A. Heinlein, The Moon Is a Harsh Mistress (Berkley Medallion, 1968)", 0.021, 0x9b2a1c, "#f2e3b8",
+    "THE MOON IS A HARSH MISTRESS", "HEINLEIN", "BERKLEY", aniso), 0.021);
+  bookend(P, x + 0.004, -1, olive);
+  // The index card stands beyond the bookend, leaning on the back panel, its top 18 deg back.
+  const note = card(aniso), lean = 18 * Math.PI / 180;
+  note.object.position.set(0.3, SHELF, -D / 2 + 0.006 + CARD_H * Math.sin(lean));
+  note.object.rotation.set(-lean, -0.08, 0, "YXZ");
+  object.add(note.object); props.push(note);
+  mine.push(...props);
   mine.push(...P.bake(object).map(m => m.geometry));
 
   // A label on the top's front edge (ours); it is also the bookcase's screen anchor, what the walk's zone faces.
@@ -111,6 +226,7 @@ export function build(ctx: BuildContext): Equipment & { anchors: { binders: Bind
       screen: { mesh: label, uvRect: [0, 0, 1, 1] },
       camera: { position: new THREE.Vector3(-0.1, SHELF + 0.62, FRONT + 0.78), target, fov: 40 },
       binders,
+      props,
     },
     opens: "library",
     dispose() { mine.forEach(d => d.dispose()); },

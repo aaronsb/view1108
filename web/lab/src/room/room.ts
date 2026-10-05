@@ -19,7 +19,7 @@ import { EQUIPMENT, FOOTPRINT } from "../equipment";
 import type { BuildContext, Equipment, Footprint, Glow, Placed, Room } from "../types";
 import { DOOR, ROOM, buildShell } from "./shell";
 import { batch } from "./batch";
-import type { Binder } from "../equipment/bookcase";
+import type { Binder, Prop } from "../equipment/bookcase";
 
 /** A builder with the options some modules take (a tape drive's number, the CPU cabinet with the lamp panel). */
 type Builder = (ctx: BuildContext, opts?: Record<string, unknown>) => Equipment;
@@ -84,6 +84,8 @@ export function build(ctx: BuildContext): Room {
   const library = place("bookcase", [wW - 0.19, 0, -2.2], W, "library");
   const binders = library.anchors.binders as Binder[];
   for (const b of binders) { b.object.userData.placed = `binder:${b.doc.id}`; placed.push({ name: b.object.userData.placed, equipment: b }); }
+  const props = library.anchors.props as Prop[];   // for looks: named on hover, inert
+  for (const p of props) { p.object.userData.placed = `prop:${p.id}`; placed.push({ name: p.object.userData.placed, equipment: p }); }
 
   // The light switch (ours): a period toggle plate on the door's latch side; Lab gives it its `use`.
   const sw = lightSwitch();
@@ -133,7 +135,8 @@ export function build(ctx: BuildContext): Room {
     overview: { position: new THREE.Vector3(2.4, 1.62, 3.15), target: new THREE.Vector3(0.1, 1.0, -1.6), fov: 55 },
     labels: { vector: "UNIVAC 1558 — workbench", glass: "UNISCOPE 100 — source", filmrecorder: "Microfilm recorder (S-C 4020, hypothetical) — print",
       printer: "Line printer — listing", switch: "Lights", door: "Exit — github.com/aaronsb/view1108", library: "Reference library",
-      ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])) },
+      ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
+      ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },
     lightsOn: true,
     setLights(on) { room.lightsOn = on; sw.set(on); },
     tubes: level => shell.tubes(level),

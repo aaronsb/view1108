@@ -609,6 +609,7 @@ export class Lab {
     if (this.at) {   // a click anywhere at a close-up opens it; at the bookcase a binder clicked picks its document
       if (Math.hypot(e.clientX - g.x, e.clientY - g.y) >= CLICK_PX) return;
       const p = this.at.opens === "library" ? this.hit(e.clientX, e.clientY) : null;
+      if (p?.equipment.inert) return;   // a prop on the shelf: nothing to open
       this.open(p?.name.startsWith("binder:") ? p.name : undefined);
       return;
     }
@@ -713,7 +714,7 @@ export class Lab {
       while (o && o.userData.placed === undefined) o = o.parent;
       if (!o) continue;   // the shell
       const p = this.room.placed.find(q => q.name === o!.userData.placed);
-      return p && (p.equipment.opens || p.equipment.use) ? p : null;
+      return p && (p.equipment.opens || p.equipment.use || p.equipment.inert) ? p : null;
     }
     return null;
   }
@@ -722,7 +723,7 @@ export class Lab {
   private pick(x: number, y: number): void {
     if (this.mode !== "free" && !this.at) return;
     let p = this.hit(x, y);
-    if (this.at && !(this.at.opens === "library" && p?.name.startsWith("binder:"))) p = null;   // at a close-up only binders
+    if (this.at && !(this.at.opens === "library" && (p?.name.startsWith("binder:") || p?.equipment.inert))) p = null;   // at a close-up only binders and props
     this.renderer.domElement.style.cursor = p || this.at ? "pointer" : "";
     if (p !== this.hover) { this.clearHover(); if (p) this.lift(p, true); this.hover = p; }
     const label = p && this.room.labels?.[p.name];
@@ -737,6 +738,7 @@ export class Lab {
   /** Use a machine: flip it in place (the switch), follow its link (the door; out of pointer lock first, so the new
    *  tab is not opened under a captured mouse), or fly into it. */
   private use(p: Placed): true {
+    if (p.equipment.inert) return true;   // a prop: named on hover, nothing to do
     if (p.equipment.anchors.href) this.unlock();
     if (p.equipment.use) p.equipment.use(); else this.setTarget(p.name);
     return true;
