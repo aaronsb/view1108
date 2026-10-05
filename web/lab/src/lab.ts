@@ -7,14 +7,16 @@
 // Enter uses it. Esc (taken by the browser) only releases the lock. A click on a machine while unlocked uses it as
 // before, so the room still works point-and-click; touch, pen, and a browser that refuses the lock drag to look.
 //
-// Arrival: a flight into a terminal (a click, E, or the walk's dwell) ends at its close-up and stays in the room, live,
-// with a line on how to go on; a click there (anywhere: the machine fills the view, so any click means it; at the
-// bookcase a binder picks its document), E or Enter opens it, and Esc, the Room button or a walking key steps back.
+// Arrival: a flight into a terminal (a click, E, or the walk's dwell) ends at its arrival pose (a console's
+// anchors.view, its screen and keyboard as its operator sees them; else the handover pose below) and stays in the
+// room, live, with a line on how to go on; a click there (anywhere: the machine fills the view, so any click means it;
+// at the bookcase a binder picks its document), E or Enter opens it, and Esc, the Room button or a walking key steps
+// back.
 //
-// Handover: a flight into a terminal that opens a tab ends where the terminal's screen covers, on the lab canvas,
-// the rect the page's element will occupy (hooks.screenRect: #cv for the workbench, the Source workspace for
-// source), with the camera square to the screen. The page then crossfades from the lab to itself. Back out, the
-// lab starts at that pose under the page, fades in, holds, then flies back to stand in front of the terminal.
+// Handover: opening a terminal that opens a tab eases (OPEN_S) to where its screen covers, on the lab canvas, the
+// rect the page's element will occupy (hooks.screenRect: #cv for the workbench, the Source workspace for source),
+// with the camera square to the screen. The page then crossfades from the lab to itself. Back out, the lab starts at
+// that pose under the page, fades in, holds, then flies back to stand in front of the terminal.
 import * as THREE from "three";
 import { build as buildRoom } from "./room/room";
 import { Lighting } from "./room/lighting";
@@ -27,6 +29,7 @@ import { Walk, type Terminal } from "./walk";
 import type { CameraPose, LabEvent, LabHooks, Opens, Placed, Quality, Room } from "./types";
 
 const FLY_S = 1.0;
+const OPEN_S = 0.5;                 // the ease from a console's arrival pose to its handover pose, s
 const ARC_M = 0.12;                 // the flight's rise at its middle, metres per 2 m flown (at most one unit)
 const CLICK_PX = 5;
 const LOOK_DEG = 0.12;              // turn per mouse count while the pointer is locked, deg
@@ -52,7 +55,7 @@ const D2R = Math.PI / 180;
 
 /** A camera state: position, orientation, vertical field of view (deg), and how much bloom it wants (0..1). */
 interface Shot { position: THREE.Vector3; quaternion: THREE.Quaternion; fov: number; glow: number }
-interface Flight { from: Shot; to: Shot; t0: number; delay: number; free: boolean; done?: () => void }
+interface Flight { from: Shot; to: Shot; t0: number; delay: number; dur: number; free: boolean; done?: () => void }
 type Mode = "free" | "flight" | "hold";
 
 function shotOf(p: CameraPose, glow = 1): Shot {
@@ -220,8 +223,8 @@ export class Lab {
     this.raf = 0;
   }
 
-  /** Fly to a placed equipment (null: the overview). A terminal that opens a tab ends at the handover pose and holds
-   *  there until it is opened (open(); with `open`, at once: a tab picked on the page). */
+  /** Fly to a placed equipment (null: the overview). A terminal ends at its arrival pose and holds there until it is
+   *  opened (open()); with `open` (a tab picked on the page) it flies straight to the handover pose and opens. */
   setTarget(name: string | null, open = false): boolean {
     this.clearHover();
     if (open && this.at?.name === name) { this.open(); return true; }
@@ -230,7 +233,7 @@ export class Lab {
     if (!p) return false;
     const opens = p.equipment.opens;
     const rect = opens ? this.hooks.screenRect?.(opens) ?? null : null;
-    const s = (rect && this.matchShot(name, rect)) || this.anchorShot(name);
+    const s = (!open && this.anchorShot(name, "view")) || (rect && this.matchShot(name, rect)) || this.anchorShot(name);
     if (!s) return false;
     this.drop(true);
     this.unlock();
@@ -255,18 +258,18 @@ export class Lab {
     return true;
   }
 
-  /** At a terminal's close-up: hand over to the page (a binder's name: that document, from the bookcase). The pose is
-   *  matched again first, in case the page moved since the flight. */
+  /** At a terminal's close-up: hand over to the page (a binder's name: that document, from the bookcase). The
+   *  handover pose is matched now, in case the page moved since the flight, and eased to from the arrival pose. */
   private open(binder?: string): void {
     const a = this.at;
     if (!a || this.mode !== "hold") return;
+    const go = () => this.hooks.arrive(a.opens, binder ?? a.name);
+    let s: Shot | null = null;
     if (binder) for (const q of this.room.placed) q.equipment.select?.(q.name === binder);
-    else {
-      const rect = this.hooks.screenRect?.(a.opens) ?? null, s = rect && this.matchShot(a.name, rect);
-      if (s) { this.setShot(s); this.draw(); }
-    }
+    else { const rect = this.hooks.screenRect?.(a.opens) ?? null; s = rect && this.matchShot(a.name, rect); }
     this.drop(false); this.clearHover();
-    this.hooks.arrive(a.opens, binder ?? a.name);
+    if (s && (s.position.distanceTo(this.camera.position) > 1e-3 || s.quaternion.angleTo(this.camera.quaternion) > 1e-3)) this.fly(s, 0, false, go, OPEN_S);
+    else { if (s) { this.setShot(s); this.draw(); } go(); }
   }
 
   /** No longer at a close-up; `leave`: tell the page, which undoes what screenRect laid out for it. */
@@ -470,15 +473,15 @@ export class Lab {
     return { position: this.camera.position.clone(), quaternion: this.camera.quaternion.clone(), fov: this.camera.fov, glow: this.glow };
   }
 
-  /** Fly to `to`; `free`: land walking there, else hold (at a terminal). */
-  private fly(to: Shot, delay = 0, free = false, done?: () => void): void {
+  /** Fly to `to` over `dur` s; `free`: land walking there, else hold (at a terminal). */
+  private fly(to: Shot, delay = 0, free = false, done?: () => void, dur = FLY_S): void {
     this.mode = "flight";
-    this.flight = { from: this.current(), to, t0: performance.now(), delay, free, done };
+    this.flight = { from: this.current(), to, t0: performance.now(), delay, dur, free, done };
   }
 
   /** One step of the flight (wall clock: a slow GPU skips, never drags). Returns the arrival action when it lands. */
   private stepFlight(now: number): (() => void) | undefined {
-    const f = this.flight!, t = Math.min(1, Math.max(0, (now - f.t0 - f.delay) / 1000 / FLY_S)), k = ease(t);
+    const f = this.flight!, t = Math.min(1, Math.max(0, (now - f.t0 - f.delay) / 1000 / f.dur)), k = ease(t);
     const d = f.from.position.distanceTo(f.to.position);
     this.camera.position.lerpVectors(f.from.position, f.to.position, k);
     this.camera.position.y += Math.sin(Math.PI * k) * ARC_M * Math.min(1, d / 2);
@@ -522,9 +525,10 @@ export class Lab {
     this.labelEl.style.display = "block"; this.labelEl.dataset.hint = t.name;
   }
 
-  /** A placed equipment's own zoom-in pose (anchors.camera) in room coordinates. */
-  private anchorShot(name: string): Shot | null {
-    const p = this.room.placed.find(q => q.name === name), c = p?.equipment.anchors.camera;
+  /** A placed equipment's own pose (anchors.camera, the zoom-in; or anchors.view, a console's arrival) in room
+   *  coordinates. */
+  private anchorShot(name: string, which: "camera" | "view" = "camera"): Shot | null {
+    const p = this.room.placed.find(q => q.name === name), c = p?.equipment.anchors[which];
     if (!p || !c) return null;
     const m = p.equipment.object.matrixWorld;
     return shotOf({ position: c.position.clone().applyMatrix4(m), target: c.target.clone().applyMatrix4(m), fov: c.fov }, 0);

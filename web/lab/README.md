@@ -35,7 +35,7 @@ is chosen.
 | `stop()` | dispose of everything, the WebGL context included (Tiled) |
 | `show(from?, rect?, holdMs?)` | render the room; with a placed name the camera starts at that terminal (with `rect`, at the handover pose for it), holds `holdMs`, and flies out |
 | `hide()` | stop rendering (the page is shown) |
-| `setTarget(name, open?)` | fly to a placed equipment (`null`: the overview); a terminal ends at its handover pose and holds there until a click, `E` or Enter calls `hooks.arrive` (with `open`, on arrival) |
+| `setTarget(name, open?)` | fly to a placed equipment (`null`: the overview); a terminal ends at its arrival pose and holds there until a click, `E` or Enter eases to its handover pose and calls `hooks.arrive` (with `open`, straight to the handover pose and on arrival) |
 | `back()` | at a terminal's close-up, step back out in front of it, as Esc or a walking key does there (calls `hooks.leave`); `false` when not at one |
 | `event(e)` | pass a page event to every placed equipment |
 | `info()`, `project(name)` | for tests: quality, draw calls and triangles of the last frame, the last handover's mismatch, the walk (`x`, `z`, `yaw`, `pitch`, `near`), `locked` (pointer lock) and `hover`; a placed equipment's screen in client px |
@@ -51,8 +51,10 @@ fades the lab out and calls `hide()`; `leave(opens)` undoes what `screenRect` la
 
 ### Handover
 
-A flight into a terminal ends with the camera square to its screen, at the distance and offset where the picture's
-part of the screen (`anchors.screen`: a plane in the mesh's local XY facing +Z, `uvRect` the part in use) covers
+A flight into a terminal ends at its arrival pose: for the 1558 and the UNISCOPE `anchors.view`, the screen and the
+keyboard together from a little above and in front (`viewPose` in `kit.ts` fits their bounds), else the handover pose.
+Opening it eases over 0.5 s to the handover pose: the camera square to its screen, at the distance and offset where
+the picture's part of the screen (`anchors.screen`: a plane in the mesh's local XY facing +Z, `uvRect` the part in use) covers
 `screenRect(opens)` on the lab canvas: matched on height, centred. The vector screen carries `#cv` itself, so its
 edges land on the plot's own (within 0.1 px in the headless check); the page then crossfades over 250 ms
 (`ROOM_FADE` in `web/src/room.js`). Where the element is wider than the screen (the Source workspace on a wide window
@@ -146,8 +148,9 @@ and registered by kind in `src/equipment/index.ts`. `BuildContext` gives `vector
 | `object` | the model, in its own frame: origin on the floor (or the surface it stands on) under its centre, front toward +Z |
 | `anchors.screen` | `{ mesh, uvRect }`: the face that carries a picture and the part of its UV square in use |
 | `anchors.camera` | `{ position, target, fov }` in the equipment's frame: the zoom-in pose, framing the screen |
+| `anchors.view` | a console's arrival pose, where it has one: its screen and keyboard as its operator sees them |
 | `anchors.*` | anything else a room needs, e.g. the desk's `top` (a `Vector3`: where things stand on it) |
-| `opens` | `"workbench"`, `"source"`, `"print"`, `"listing"` or `"library"`: clicking the equipment flies to `anchors.camera` (or the handover pose), then the page opens that |
+| `opens` | `"workbench"`, `"source"`, `"print"`, `"listing"` or `"library"`: clicking the equipment flies to `anchors.view`, the handover pose or `anchors.camera`, then a click there opens that |
 | `select(on)` | called with true on the piece a flight is going to, false on every piece when the room is shown (a binder slides out and back) |
 | `update(dt, state)` | per rendered frame (blinking lamps, spinning reels) |
 | `event(e, state)` | page events (a tape drive reacting to `tape`, a recorder to `beamFrame`) |

@@ -15,7 +15,7 @@
 // lamp is HYPOTHETICAL (which fitting on the strip is power is not stated).
 import * as THREE from "three";
 import type { BuildContext, Equipment } from "../types";
-import { Parts, at, fitDist, fontTex, glowMat, grid, lensGeo, sharedGeo, own, paint, plastic, plateText, roundRect, rubber, satinMetal, tubeGlass } from "./kit";
+import { Parts, at, fitDist, fontTex, glowMat, grid, lensGeo, sharedGeo, own, paint, plastic, plateText, roundRect, rubber, satinMetal, tubeGlass, viewPose } from "./kit";
 
 const FOV = 40;
 // The plot canvas is 1.10 times as tall as it is wide (web/src/render.js HGT).
@@ -165,12 +165,14 @@ export function build(ctx: BuildContext): Equipment {
   object.add(own(new THREE.Mesh(dome, new THREE.MeshPhysicalMaterial({ color: 0x0a0c0c, roughness: 0.06, metalness: 0, transparent: true, opacity: 0.08, depthWrite: false, clearcoat: 1, clearcoatRoughness: 0.03 })), mine));
 
   const target = new THREE.Vector3(SX, SY, SZ);
+  object.updateMatrixWorld(true);
   return {
     object,
     opens: "workbench",
     anchors: {
       screen: { mesh: screen, uvRect: [0, 0, 1, 1] },
       camera: { position: new THREE.Vector3(SX, SY, SZ + fitDist(SH, FOV)), target, fov: FOV },
+      view: viewPose([new THREE.Box3().setFromObject(screen), new THREE.Box3().setFromObject(keyMesh)], FOV),
     },
     dispose() { mine.forEach(d => d.dispose()); },
   };
