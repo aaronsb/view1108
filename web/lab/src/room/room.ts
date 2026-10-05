@@ -91,20 +91,31 @@ export function build(ctx: BuildContext): Room {
   sw.object.userData.placed = "switch"; object.add(sw.object);
   placed.push({ name: "switch", equipment: sw });
 
-  // What stays lit with the troffers off, as dim lights: the screens, the tape units' lamp row, the EXIT sign.
+  // What glows, as dim soft lights: with the troffers off the screens, the tape units' lamp row and the EXIT sign;
+  // always the lamp panels (the CPU's and the console's). Each is a face the size of what glows: a screen's own face
+  // made half as large again, as a CRT's light spreads off its glass and bezel (ours).
   object.updateMatrixWorld(true);
   const glows: Glow[] = [];
   const glow = (name: string, color: number, intensity: number, distance: number) => {
     const m = placed.find(p => p.name === name)?.equipment.anchors.screen?.mesh;
     if (!m) return;
-    const n = new THREE.Vector3(0, 0, 1).transformDirection(m.matrixWorld);
-    glows.push({ pos: new THREE.Vector3().setFromMatrixPosition(m.matrixWorld).addScaledVector(n, 0.3), color, intensity, distance });
+    const b = (m.geometry.computeBoundingBox(), m.geometry.boundingBox!), s = new THREE.Vector3().setFromMatrixScale(m.matrixWorld);
+    const normal = new THREE.Vector3(0, 0, 1).transformDirection(m.matrixWorld);
+    glows.push({ pos: b.getCenter(new THREE.Vector3()).applyMatrix4(m.matrixWorld), color, intensity, distance,
+      face: { normal, w: 1.5 * (b.max.x - b.min.x) * s.x, h: 1.5 * (b.max.y - b.min.y) * s.y } });
   };
-  glow("vector", 0xcfe2ff, 0.9, 3.2);
-  glow("glass", 0x7dff9a, 0.45, 2.4);
-  glow("filmrecorder", 0xbcd4ff, 0.25, 2);
-  glows.push({ pos: new THREE.Vector3(-0.24, 1.75, -nW + 1.0), color: 0xffe6c0, intensity: 0.3, distance: 4.5 });
-  glows.push({ pos: shell.exit.clone(), color: 0xff2a1a, intensity: 0.35, distance: 2.5 });
+  glow("vector", 0xcfe2ff, 0.7, 4);
+  glow("glass", 0x7dff9a, 0.35, 3);
+  glow("filmrecorder", 0xbcd4ff, 0.2, 3);
+  for (const p of placed) {
+    const L = p.equipment.anchors.lamps, mw = p.equipment.object.matrixWorld;
+    if (L) glows.push({ pos: L.center.clone().applyMatrix4(mw), color: 0xffb36a, intensity: 0.3, distance: 3, always: true,
+      face: { normal: L.normal.clone().transformDirection(mw), w: L.w, h: L.h } });
+  }
+  // The tape units' lamps along the row's top strip (uniservo.ts: 1.71 m up, 0.356 m out), facing into the room.
+  glows.push({ pos: new THREE.Vector3(-0.24, 1.71, -nW + 0.45 + 0.356), color: 0xffe6c0, intensity: 0.25, distance: 5,
+    face: { normal: new THREE.Vector3(0, 0, 1), w: 5.6, h: 0.1 } });
+  glows.push({ pos: shell.exit.clone(), color: 0xff2a1a, intensity: 0.4, distance: 3, face: { normal: new THREE.Vector3(0, 0, -1), w: 0.36, h: 0.17 } });
 
   const batches = batch(object, placed);
   object.add(batches.object);

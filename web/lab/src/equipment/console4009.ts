@@ -154,6 +154,7 @@ export function build(ctx: BuildContext): Equipment {
       screen: { mesh: crt, uvRect: [0, 0, 1, 1] },
       camera: { position: new THREE.Vector3(CRT.x, CRT.y + 0.02, CRT.z + fitDist(CRT.h * 2.2, 40)), target: new THREE.Vector3(CRT.x, CRT.y, CRT.z), fov: 40 },
       overview: { position: new THREE.Vector3(-0.2, 1.7, 2.4), target: new THREE.Vector3(0, 0.9, 0), fov: 40 },
+      lamps: { center: new THREE.Vector3(icx, 0.955, 0.02), normal: new THREE.Vector3(0, Math.sin(tilt), Math.cos(tilt)), w: iw, h: Math.hypot(0.45, 0.12) },
     },
     update(dt, s) {
       drawClock(s); drawCrt(s);

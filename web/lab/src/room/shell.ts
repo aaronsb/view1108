@@ -94,7 +94,7 @@ export function buildShell(aniso: number): Shell {
   const exitTex = exitSign(aniso); texs.push(exitTex);
   const sign = mesh(new THREE.BoxGeometry(0.36, 0.17, 0.07), new THREE.MeshStandardMaterial({ color: 0xe8e6de, roughness: 0.6 }));
   sign.position.set(DOOR.x, DOOR.h + 0.2, D / 2 - 0.04);
-  const exit = sign.position.clone().setZ(D / 2 - 0.12);
+  const exit = sign.position.clone().setZ(D / 2 - 0.076);
   const face = new THREE.Mesh(new THREE.PlaneGeometry(0.33, 0.14), new THREE.MeshBasicMaterial({ map: exitTex, toneMapped: false }));
   geos.push(face.geometry); mats.push(face.material);
   face.position.set(0, 0, -0.036); face.rotation.y = Math.PI; sign.add(face);
