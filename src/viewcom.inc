@@ -132,7 +132,8 @@ C     scenario, zero padded (none if the first is 0).
       DOUBLE PRECISION SNPLA(NSN), SNPLO(NSN)
       INTEGER LGSN(NLEG), LGTYP(NLEG), LGN(NLEG), LGGC(NLEG)
       INTEGER EVSN(NEVT), EVKND(NEVT), SNPGC(NSN), PADCH(8*NSN)
-C     LGVEH(K): the vehicle leg K carries, 1 the CSM, 2 the LM.
+C     LGVEH(K): the vehicle leg K carries, 1 the CSM, 2 the LM, 3 the
+C     S-IVB.
       INTEGER LGVEH(NLEG)
       COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT,
      &               SNPLA, SNPLO
@@ -236,8 +237,8 @@ C              (rad/s); LUNAR 7 the radius's rate (km/s).
 C
 C     /CVIEW/ the view inputs of this frame (VSETIN): IVIEW 0 window,
 C     1 external, 2 CM station, 3 LM station; ITARG camera target 0
-C     scene default, 1 Earth, 2 Moon, 3 Sun, 4 CSM, 5 LM; ILABL label
-C     level 0-3 (0: in_flags bit 0 decides).
+C     scene default, 1 Earth, 2 Moon, 3 Sun, 4 CSM, 5 LM, 6 S-IVB;
+C     ILABL label level 0-3 (0: in_flags bit 0 decides).
 C     IVUSE the view this frame actually uses (VIEWPT).  ILEV the
 C     label level this frame applies (VFRAME): 0 none, 1 primary, 2
 C     secondary, 3 all; with ILABL 0 it is 3 if in_flags bit 0 is

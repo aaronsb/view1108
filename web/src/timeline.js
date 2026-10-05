@@ -61,6 +61,11 @@ const TL_SCENES = {
     [11723, 3, 1, 1, 20],   // TLI coast to the CSM's separation from the S-IVB, 3:15:23 (TIMELINE row, SP p. 106)
     [12243.1, 7],           // S7POSE: 100 ft until APPR, closing to the DOCK event, 3:24:03.1 (MR Table 7-II p. 7-9)
     [15423, 7, 1, 5, 40],   // docked, seen from outside (S7POSE puts the CSM on the LM's axis) to the stack's ejection, 4:17:03 (TIMELINE row, SP p. 106); 40 deg ours
+    [16801.72, 3, 0, 6, 40],// ejected: the CSM's window aimed at the S-IVB, which backs away down the stack's axis at the ejection springs'
+                            // 1 ft/s (traj.f SIVST; Apollo 11 press kit, printed p. 30), to the evasive manoeuvre's ignition, 4:40:01.72
+                            // (TIMELINE row, SP p. 106); 40 deg ours
+    [17467.7, 3, 0, 6, 10], // the evasive manoeuvre (the BURN card's 19.7 ft/s, MR Table 7-III p. 7-10) opens the range to about 4 km by
+                            // the S-IVB's slingshot venting, 4:51:07.70 (SLING event, SP p. 106), after which it has no state; 10 deg ours
     [272990.37, 8],         // the docked stack (S8POSE) on the translunar conics to LOI ignition, 75:49:50.37 (TIMELINE row; LUNAR FROM 75:49:50.4)
     [273347.9, 8, 2, 0, 100], // LOI, to its cutoff 75:55:47.90 (SP p. 106): from the CM station of the docked stack the LM fills the
                             // middle of a 100 deg field, as figure 6.1-1 (PDF pp. 113-115, printed 95-97); the figure's Moon limb
