@@ -67,7 +67,7 @@ const TL_SCENES = {
          // Apollo 11's transearth coast (figure 7.3.2-1, "constant field of view (earth)", printed p. 207).
     [694.98, 9, 1, 1, 20],  // before the CIRC leg, FROM 0:11:34.98 (SP p. 45 ascent table)
     [10565.5, 9, 0, 0, 70], // the CIRC leg (to 2:50:37.79, then stretched) to TLI, 2:56:05.5 (EVENT TLI, MR8 Table 5-II p. 5-7): the horizon view at scene 3's 70 deg (VINIT)
-    [14400, 9, 1, 1, 20],   // the TLI conic while the Earth's disc overfills the window's 50 deg field, to about 4:00 (our run)
+    [12420, 9, 1, 1, 20],   // the TLI conic while the Earth's disc overfills the window's 50 deg field: 50 deg across at about 8150 nmi, 3:27 (our run)
     [248900.4, 9, 0, 1, 50],// the translunar conics to LOI ignition, 69:08:20.4 (the first LUNAR leg's FROM; EVENT LOI1, MR8 Table 3-I p. 3-3)
     [321556.6, 9],          // lunar orbit to TEI ignition, 89:19:16.6 (the last LUNAR leg's TO; EVENT TEI, MR8 Table 3-I p. 3-3)
     [528372.8, 9, 0, 1, 50],// the transearth conics to entry interface, 146:46:12.8 (EVENT EI, MR8 Table 3-I p. 3-4)
@@ -171,10 +171,12 @@ function tlTick() {
 }
 $("bairt").onclick = () => { airtRealTime(); airt = window.open(airtUrl(get), "airt"); };   // kept with its opener: re-pointing a named window needs it
 $("bairtre").onclick = () => { airtRealTime(); airtSync(); };
-$("bfollow").onclick = () => { follow = false; };
-$("scrub").addEventListener("input", () => { follow = false; });
+// A view, target or time the user picks ends Following and forgets the view and target the last jump put.
+function tlManual() { follow = false; tlPut = null; }
+$("bfollow").onclick = tlManual;
+$("scrub").addEventListener("input", tlManual);
 $("scrub").addEventListener("change", airtSync);   // a released scrub, not each step of the drag
-$("geti").addEventListener("change", () => { follow = false; airtSync(); });    // after controls.js's handler has set the time
+$("geti").addEventListener("change", () => { tlManual(); airtSync(); });    // after controls.js's handler has set the time
 for (const id in JUMPS) $(id).addEventListener("click", airtSync);
 tlChips(); tlList();
 setInterval(tlTick, 200);
