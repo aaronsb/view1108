@@ -15,7 +15,8 @@
 // front left: the desk's dark legs (a slab at the left end, T-legs on long feet) and the panel housing's light sides.
 // The display unit has the UNISCOPE 300's shape and screen (UP-7619, 1968: 10 x 5 in, 64 x 16, the same character
 // size as UP-7604's; 25 x 17 x 24 in, App. A); its cover gives the trapezoidal housing, the dark face with the
-// nameplate strip, the slatted grille and the UNIVAC plate. Its keyboard is the 4009's (UP-7604 sec. 2.3.1).
+// nameplate strip, the slatted grille and the UNIVAC plate. Its keyboard is the UNISCOPE 100's (keyboard.ts), our
+// choice; UP-7604's four-bank keyboard (sec. 2.3.1) is not reproduced.
 //
 // Sizes other than the screen's and the display unit's are ours, scaled from the figures. The back (panels, louvres,
 // the cable cut-out, the plates) is not shown anywhere and is ours.
@@ -26,7 +27,8 @@
 // patterns are ours.
 import * as THREE from "three";
 import type { BuildContext, Equipment, LabState } from "../types";
-import { PAL, Parts, at, badgeTex, canvasTex, fitDist, fontTex, grid, keyGeo, lampMat, laminate, nameplate, own, paint, plastic, plateText, rng, tileGeo, tubeGlass } from "./kit";
+import { PAL, Parts, at, badgeTex, canvasTex, fitDist, fontTex, grid, lampMat, laminate, nameplate, own, paint, plastic, plateText, rng, tileGeo, tubeGlass } from "./kit";
+import { UNISCOPE_KEYBOARD, uniscopeKeyboard } from "./keyboard";
 
 const A11_RANGE_ZERO = Date.UTC(1969, 6, 16, 13, 32, 0);   // ms
 const A8_OFFSET = -17887260;                                // s, scene 9's epoch from Apollo 11's (CLAUDE.md, hdr(16))
@@ -38,11 +40,12 @@ const DESK = { x0: -0.82, x1: 1.40, z0: -0.45, z1: 0.36, top: 0.75, t: 0.05, not
 /** The display unit, 25 x 17 x 24 in (UNISCOPE 300, UP-7619 App. A): x span, back, bottom and top, the face (top and
  *  bottom, z and y), the keyboard deck (back and front), the lip's front, and how much narrower the top is than the
  *  bottom (the cover's trapezoid). */
-const DU = { x0: 0.31, x1: 0.945, back: -0.2, bottom: 0.66, top: 1.09, faceTop: [0.035, 1.06], faceBot: [0.085, 0.83], deckBack: [0.11, 0.80], deckFront: [0.33, 0.775], lip: 0.41, taper: 0.1 };
+const DU = { x0: 0.31, x1: 0.945, back: -0.2, bottom: 0.66, top: 1.09, faceTop: [0.035, 1.06], faceBot: [0.085, 0.83], deckBack: [0.11, 0.765], deckFront: [0.33, 0.745], lip: 0.41, taper: 0.1 };
 /** The picture: 10 x 5 in (UP-7604 Table 2-1, UP-7619 sec. 3), centred `u` across the face and `v` up it. */
 const CRT = { w: 0.254, h: 0.127, u: -0.09, v: 0.112 };
-/** The keyboard: four banks (47 keys, the space bar), 8 interrupt keys and 2 function keys (UP-7604 sec. 2.3.1). */
-const KEYS = { banks: [11, 12, 12, 12], pitch: 0.019, cap: 0.0155, interrupt: 8 };
+/** The keyboard on the deck (in the deck's frame): its back edge `back` behind the deck's middle, sunk `sink` into
+ *  the deck's top; the operator's chair `seat` in front of its front edge (all ours). */
+const KB_AT = { back: -0.075, sink: 0.001, seat: 0.6 };
 /** The Operator's Control and Indicator Panel: centre x, width, the face's bottom (z, y), height up its lean, back. */
 const PANEL = { x: -0.27, w: 0.94, z: -0.12, y: 0.755, h: 0.36, lean: 8 * Math.PI / 180, back: -0.43 };
 /** The PAGEWRITER's pedestal (x span, depth, height) and the machine on it (depth, height). */
@@ -190,9 +193,9 @@ export function build(ctx: BuildContext): Equipment {
   P.add(new THREE.BoxGeometry(0.42, 0.06, 0.006), char, pwf(0, 0.04, 0.002));
   for (let i = 0; i < 4; i++) { btnM.push(pwf(0.06 + i * 0.035, 0.04, 0.005, 0.022, 0.016, 0.02)); btnC.push([0xe8e6de, 0xb8382a, 0xe8e6de, 0xc8642a][i]); }
   lampM.push(pwf(-0.16, 0.04, 0.005, 0.01, 0.01, 0.01));
-  // The display unit's two lamps at the deck's back left (Fig. 2-1).
-  const kb = (x: number, z: number, sx: number, sz = KEYS.cap, h = 0.011) => KB.clone().multiply(at(x, 0.004, z, -Math.PI / 2, 0, 0, sx, sz, h / 0.55));
+  // The display unit's two lamps and the red key at the deck's back left (Fig. 2-1), behind the keyboard.
   lampM.push(KB.clone().multiply(at(-0.2, 0.006, -0.1, -Math.PI / 2, 0, 0, 0.012, 0.012, 0.01)), KB.clone().multiply(at(-0.175, 0.006, -0.1, -Math.PI / 2, 0, 0, 0.012, 0.012, 0.01)));
+  btnM.push(KB.clone().multiply(at(-0.145, 0.004, -0.1, -Math.PI / 2, 0, 0, 0.0155, 0.0155, 0.014 / 0.3))); btnC.push(0xb8382a);
   // The display unit narrows toward its top (the UNISCOPE 300 cover): its parts are pulled in toward its centre line
   // in proportion to height, after merging (normals keep their untapered directions, a few degrees off).
   const taper = (y: number) => 1 - DU.taper * Math.max(0, y - DU.bottom) / (DU.top - DU.bottom);
@@ -216,15 +219,9 @@ export function build(ctx: BuildContext): Equipment {
   const btns = grid(tileGeo(), plastic(0xffffff, 0.4), btnM.length, 1, c => btnM[c], c => btnC[c]);
   object.add(btns); mine.push(btns);
 
-  const kp: THREE.Matrix4[] = [], kc: number[] = [];
-  const key = (m: THREE.Matrix4, c: number) => { kp.push(m); kc.push(c); };
-  for (let i = 0; i < KEYS.interrupt; i++) key(kb(-0.085 + i * 0.024, -0.098, KEYS.cap * 1.1), 0xb4b8b8);
-  KEYS.banks.forEach((n, r) => { for (let c = 0; c < n; c++) key(kb(-0.115 + (3 - r) * 0.006 + c * KEYS.pitch + (n === 11 ? KEYS.pitch / 2 : 0), -0.068 + r * KEYS.pitch, KEYS.cap), 0xe8e6de); });
-  key(kb(-0.005, 0.014, KEYS.cap * 6.5), 0xe8e6de);
-  key(kb(0.13, -0.03, KEYS.cap * 1.6), 0xe8e6de); key(kb(0.13, -0.008, KEYS.cap * 1.6), 0xe8e6de);
-  key(kb(-0.2, -0.06, KEYS.cap, KEYS.cap, 0.014), 0xb8382a);
-  const keys = grid(keyGeo(), plastic(0xffffff, 0.5), kp.length, 1, i => kp[i], i => kc[i]);
-  object.add(keys); mine.push(keys);
+  // The keyboard, on the deck's top (4 mm above KB) and sunk a millimetre into it.
+  object.add(uniscopeKeyboard(KB.clone().multiply(at(0, 0.004 - KB_AT.sink, KB_AT.back)), ctx.maxAnisotropy, mine).group);
+  const kbFront = new THREE.Vector3(0, 0, KB_AT.back + UNISCOPE_KEYBOARD.d).applyMatrix4(KB);
 
   // ---- plates ----
   // The display unit's plates after the UNISCOPE 300 cover: a UNIVAC plate under the screen's left and a brushed strip
@@ -333,6 +330,9 @@ export function build(ctx: BuildContext): Equipment {
         position: crt.position.clone().add(new THREE.Vector3(0, fs, fc).multiplyScalar(fitDist(CRT.h * 2.2, 40))),
         target: crt.position.clone(), fov: 40,
       },
+      // Where the operator's chair stands (floor point) and its yaw (a chair faces its +z at 0): centred on the keyboard,
+      // KB_AT.seat in front of its front edge, facing the display unit.
+      seat: { position: new THREE.Vector3(kbFront.x, 0, kbFront.z + KB_AT.seat), yaw: Math.PI },
       overview: { position: new THREE.Vector3(-0.2, 1.7, 2.4), target: new THREE.Vector3(0, 0.9, 0), fov: 40 },
       // The indicator panel's face, for its glow: leaned back by PANEL.lean about its foot.
       lamps: { center: new THREE.Vector3(PANEL.x, PANEL.y + PANEL.h / 2 * Math.cos(PANEL.lean), PANEL.z - PANEL.h / 2 * Math.sin(PANEL.lean) + 0.007), normal: new THREE.Vector3(0, Math.sin(PANEL.lean), Math.cos(PANEL.lean)), w: PANEL.w, h: PANEL.h },
