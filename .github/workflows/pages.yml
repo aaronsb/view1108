@@ -29,12 +29,14 @@ jobs:
             lld=23.1.2
             clang=23.1.2
             binaryen=121
+            pillow
           cache-environment: true
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Pillow for the Fusion photographs (tools/photo_pack.py)
-        run: sudo apt-get install -y python3-pil
+      # Pillow for the Fusion photographs (tools/photo_pack.py), in the environment above and for the system python3.
+      - name: Pillow for the system Python
+        run: sudo apt-get update && sudo apt-get install -y python3-pil
       - name: Build (FORTRAN -> wasm -> page) and self-test
         shell: bash -el {0}
         run: LF_BIN="$MAMBA_ROOT_PREFIX/envs/lf/bin" ./tools/build.sh
