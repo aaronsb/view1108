@@ -63,13 +63,13 @@ function featInit() {
   // Into a crew station, at least the 100 deg field of the report's CSM window plots (MSC IN 69-FM-197, PDF pp. 53,
   // 263): a scene's own field (8 deg in Earthrise) shows none of the cabin, and with its walls none of the outside.
   document.querySelectorAll("#viewgrp button:not(#bcab):not(#bwal)").forEach((b, i) => { b.onclick = () => {
-    leaveAttract();
+    leaveAttract(); tlManual();
     if (i >= 2 && viewMode < 2) { stFov = [fov, clampFov(Math.max(fov, STATION_FOV))]; fov = stFov[1]; }
     else if (i < 2 && viewMode >= 2 && stFov && fov === stFov[1]) fov = stFov[0];   // back out, unless zoomed since
     if (i < 2) stFov = null;
     viewMode = i; syncUI();
   }; });
-  document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); targetId = i; syncUI(); }; });
+  document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); tlManual(); targetId = i; syncUI(); }; });
 }
 // ?view=window|external|cm|lm and ?target=default|earth|moon|sun|csm|lm (or their numbers).
 function featParams() {

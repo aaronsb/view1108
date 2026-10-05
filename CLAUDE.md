@@ -321,7 +321,9 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
    Hidden-line LM and S-IVB solids hide stars and the Earth. TN D-6853 printed p. 12 lists
    vehicle outlines of the CSM, LM and S-IVB at apparent size and hidden-line models of the LM
    and S-IVB; the contents and OCR of MSC IN 69-FM-197 list no transposition-and-docking views,
-   so this scene has no answer key. We do not think the film's leg-less LM shot (`t22.png`,
+   so this scene has no answer key. In the external view (`in_view` 1) the CSM itself is
+   placed on the LM's axis, its CM base 10 ft 7 in plus the range behind the LM's tunnel top
+   (as the docked stack, `lvehic.f` STKPL), instead of the outline around the camera. We do not think the film's leg-less LM shot (`t22.png`,
    `t25.png`) is this view; see the note under Scenes in `docs/modes.md`.
 8. **Docked stack in translunar coast** — a modern addition (VIEW drew vehicles as seen from a
    vehicle, TN D-6853 p. 12, not from outside both). Default GET 11:28:19, half an hour into
@@ -351,6 +353,10 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
    against 3.332° (0.12°, what a far-side horizon 1.4 km above the mean radius, 620 km away,
    would take up, or 2.4 s of time); the terminator 0.393 R from the centre, lit fraction
    0.696, night side toward -107.1°, against 0.35-0.39 R, about 0.70 and -107.6°.
+   Away from lunar orbit (no LUNAR leg's span holds the GET: `traj.f` LUNIN) the camera is
+   scene 3's instead, forward and 8° above the Earth's horizon on the Earth legs, and the
+   default target is the Earth (`vview.f` TGTDEF); our choice, since no Apollo 8 view
+   survives.
 
 Vehicle labels and markers (`src/lvlab.f`, `src/learth.f` DPAD), all ours, drawn only at
 `in_lablv` 1 and up. Each placed model gets its name beside it, off its projected X axis by

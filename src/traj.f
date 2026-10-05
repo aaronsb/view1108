@@ -166,6 +166,27 @@ C     RESTOMOD END
       RETURN
       END
 C
+C     LUNIN: 1 if a LUNAR leg of the current scenario holds GET in its
+C     span, else 0 (between the lunar legs, or before or after them,
+C     LEGAT still gives the nearest circle; a scene that rides the
+C     CSM only in lunar orbit asks this first).  It follows the legs
+C     even when the tape is the state source: the engine's impulsive
+C     LOI and TEI sit at mid-burn, so for a minute or two at each edge
+C     the tape's CSM and this test disagree (ours, accepted).
+      INTEGER FUNCTION LUNIN(GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET
+      INTEGER K, LEGAT
+      LUNIN = 0
+      K = LEGAT(GET, 2)
+      IF (K .EQ. 0) RETURN
+      IF (GET .GE. LGP(1,K) .AND. GET .LE. LGP(2,K)) LUNIN = 1
+      RETURN
+      END
+C
 C-----------------------------------------------------------------------
 C     STATEV: the state in card fields P (the layout of LGP), geocentric
 C     EQ km and km/s.  Latitude
