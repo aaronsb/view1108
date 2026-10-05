@@ -13,19 +13,26 @@ export interface CpuOptions { lampPanel?: boolean }
 
 const COLS = 36, ROWS = 12;
 
-export function build(_ctx: BuildContext, opts: CpuOptions = {}): Equipment {
-  const object = new THREE.Group(), mine: { dispose(): void }[] = [];
-  const P = new Parts(), warm = paint(PAL.warm), dark = paint(PAL.charcoal, 0.9);
+/** The cabinet itself, 0.8 x 1.9 x 0.8: plinth, body, top, the dark reveals at its sides and a pair of doors from
+ *  0.1 m up to `doorTop` with their handles at `handleY`. Above the doors the front is left for a panel. The power
+ *  cabinet (powercab.ts) is built on it too. */
+export function cabinet(P: Parts, doorTop: number, handleY: number): void {
+  const warm = paint(PAL.warm), dark = paint(PAL.charcoal, 0.9);
   P.box(0.78, 0.08, 0.76, paint(PAL.dark, 0.9), 0, 0.04, 0);
   P.box(0.8, 1.8, 0.8, warm, 0, 0.98, 0);
   P.rbox(0.8, 0.025, 0.8, 0.006, paint(0xd8d5cc), 0, 1.89, 0);
   for (const x of [-0.39, 0.39]) P.box(0.02, 1.8, 0.012, dark, x, 0.98, 0.401);   // the dark reveals between cabinets
-  const doorTop = opts.lampPanel ? 1.0 : 1.86;
   for (const x of [-0.19, 0.19]) {
     P.box(0.37, doorTop - 0.1, 0.012, warm, x, (doorTop + 0.1) / 2, 0.406);
-    P.box(0.012, 0.18, 0.02, chrome(), x + (x < 0 ? 0.15 : -0.15), opts.lampPanel ? 0.6 : 1.0, 0.418);
+    P.box(0.012, 0.18, 0.02, chrome(), x + (x < 0 ? 0.15 : -0.15), handleY, 0.418);
   }
   P.box(0.006, doorTop - 0.1, 0.014, paint(PAL.dark), 0, (doorTop + 0.1) / 2, 0.407);
+}
+
+export function build(_ctx: BuildContext, opts: CpuOptions = {}): Equipment {
+  const object = new THREE.Group(), mine: { dispose(): void }[] = [];
+  const P = new Parts(), dark = paint(PAL.charcoal, 0.9);
+  cabinet(P, opts.lampPanel ? 1.0 : 1.86, opts.lampPanel ? 0.6 : 1.0);
 
   let lamps: THREE.InstancedMesh | null = null;
   if (opts.lampPanel) {

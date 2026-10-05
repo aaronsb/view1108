@@ -6,6 +6,7 @@ import { build as vector } from "./vector-terminal";
 import { build as glass } from "./glass-terminal";
 import { build as uniservo } from "./uniservo";
 import { build as cpu } from "./cpu";
+import { build as powercab } from "./powercab";
 import { build as console4009 } from "./console4009";
 import { build as controller1557 } from "./controller1557";
 import { build as printer } from "./printer";
@@ -21,7 +22,7 @@ export interface EquipmentOptions { number?: number; index?: number; lampPanel?:
 export type EquipmentFactory = (ctx: BuildContext, opts?: EquipmentOptions) => Equipment;
 
 export const EQUIPMENT: Record<string, EquipmentFactory> = {
-  vector, glass, uniservo, cpu, console4009, controller1557, printer, cardreader, reeltable, desk, chair, filmrecorder, bookcase,
+  vector, glass, uniservo, cpu, powercab, console4009, controller1557, printer, cardreader, reeltable, desk, chair, filmrecorder, bookcase,
   // phase A's names, until the room uses the ones above
   "vector-terminal": vector, "glass-terminal": glass,
 };
@@ -31,6 +32,7 @@ export const FOOTPRINT: Record<string, [number, number, number]> = {
   glass: [0.46, 0.33, 0.69],
   uniservo: [0.75, 1.8, 0.75],
   cpu: [0.8, 1.9, 0.8],
+  powercab: [0.8, 1.9, 0.8],
   console4009: [2.8, 1.25, 0.95],
   controller1557: [1.2, 1.6, 0.6],
   printer: [1.4, 1.2, 0.8],

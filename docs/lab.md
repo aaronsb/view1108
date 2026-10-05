@@ -43,6 +43,7 @@ Sizes are W x H x D in metres.
 | `glass` | UNISCOPE 100 Display Terminal, showing the kernel source | UP-7701 Fig. 1-1 and p. 1 (10 x 5 in viewing area, 16 x 64 or 12 x 80, green on dark), size p. 30; UNISCOPE photo (below) | 0.46 x 0.33 x 0.69 | Good. Delivered from 1970, a year after the film (an anachronism we keep for Source) |
 | `uniservo` | UNISERVO VIII-C tape unit | UP-4046 sec. 8.4.2 (120 in/s, 240 in/s rewind, 2400 ft reels); brochure p. 7; MSC photo (numbers 60, 61, ...) | 0.75 x 1.8 x 0.75 (inferred) | Good on look; vacuum columns not shown |
 | `cpu` | 1108 cabinet; `{lampPanel: true}` is the processor's maintenance panel | Brochure p. 3 (colour) | 0.8 x 1.9 x 0.8 (inferred) | Good on look; the lamp count is ours |
+| `powercab` | Power distribution cabinet at the south end of the 1108 row: meters, lamps, breakers (below) | none for the panel; the cabinet is `cpu`'s | 0.8 x 1.9 x 0.8 | HYPOTHETICAL |
 | `console4009` | 1108 Display Console, type 4009: indicator panel with Day Clock, display unit with CRT and keyboard, PAGEWRITER on a pedestal (below) | UP-7604 Figs. 2-1, 2-3, 2-4, 4-1, Tables 2-1, 2-3, secs. 2.1 to 2.3.4; UP-7619 App. A and cover; console photo; UP-4046 Fig. 1-1; brochure pp. 6, 7 | 2.8 x 1.25 x 0.95 (2.8 x 1.13 x 0.9 drawn; desk and panel sizes ours) | Fair: parts and display unit sourced, layout ours |
 | `controller1557` | UNIVAC 1557 Display Controller | UP-7789 p. 27 (48 x 24 x 64 in, read as W x D x H) | 1.2 x 1.6 x 0.6 | Size sourced, look HYPOTHETICAL (no figure) |
 | `printer` | High-speed printer, 132 columns, 1200 lines/min, fanfold greenbar paper | UP-4046 sec. 8.5 (model not stated); MSC photo | 1.4 x 1.2 x 0.8 (inferred) | Fair; the paper path and stacker are ours |
@@ -173,6 +174,27 @@ the viewing port, the frame counter, the panel layouts and lamp meanings, the co
 Not modelled: drums (FH-432/1782, FASTRAND; we cannot identify them in the MSC photo; they are heard, see Sound), a
 keypunch, and the 4020's tape transport and hard-copy camera.
 
+## The power cabinet
+
+The south end of the 1108 row is a power distribution cabinet, HYPOTHETICAL. What our sources say about the 1108's power is little: each storage bank has "an adjacent cabinet"
+holding "dc power supplies for operation of the bank and the associated MMA" (UP-4046 sec. 3.4), and the processor
+has a Power Loss Interrupt (Table 4-7, address 210 octal). Neither UP-4046 nor anything we found on bitsavers gives
+the 1108's input voltage, phases or frequency, or says whether it ran from a motor-generator set; 400 Hz sets fed
+other machines of the period (the UNIVAC 1218 military computer "required both 115VAC, one-phase, 60 Hz and 115VAC,
+three-phase, 400 Hz power", <https://en.wikipedia.org/wiki/UNIVAC_418>), but we found nothing that says so of the 1108, so the
+cabinet shows a 60-cycle feed only. Ours, all of it: 208 V three-phase four-wire 60 cycles (US building power), the
+legends, the readings (about 78, 84 and 71 A, half scale; the voltmeter near 208 V on whichever pair its selector
+names; the frequency at 60), the elapsed-hours count, the branch names. "Cycles" rather than "hertz" is the US usage
+of the time on our reading.
+
+The panel: three round ammeters (phase A, B, C), a line-to-line voltmeter with a selector (A-B, B-C, C-A, OFF), a
+frequency meter, an elapsed-hours counter, a control-power key switch, a guarded emergency-off button, a status row
+lit (POWER ON and MAIN BKR CLOSED white, PHASE A to C green) and an alarm row dark (OVER TEMP, OVER CURRENT, PHASE
+LOSS, GROUND FAULT, UNDER VOLTAGE), and the main and eight branch breakers, all on. The faces and legends are one
+canvas texture; the needles are springs (a 0.65 s period, underdamped) toward readings that wander slowly and rise
+about 10 A and flicker while the page plays or draws, more while the tape units run. Using it (E, or a click) turns
+the voltmeter's selector to the next pair.
+
 ## The reference library
 
 No source shows where MSC kept its manuals; the bookcase, its place (against the east wall behind the UNISCOPE's
@@ -217,7 +239,7 @@ shown the room ducks 8 dB and its tape units keep turning, so an engine run is s
 | Source | Where | What it is | Sourced | Ours |
 |---|---|---|---|---|
 | Air handling | 3 ceiling diffusers, 2 perforated floor tiles | pink noise low-passed to a rumble (most of it under 120 Hz) and band-passed to a hiss (450 to 1000 Hz); slow drift | the raised floor and dropped ceiling (MSC photo) | everything else |
-| Cabinet fans | each 1108 cabinet, the 1557 and the film recorder | a blade-pass tone over band-limited noise, and a faint mains hum (60 Hz and harmonics, 120 Hz strongest) | US mains, 60 Hz | 3,420 to 3,480 rev/min, 5 blades (285 to 290 Hz, so neighbours beat); levels |
+| Cabinet fans | each 1108 cabinet (the power cabinet's hum louder, 8 dB, for its transformers), the 1557 and the film recorder | a blade-pass tone over band-limited noise, and a faint mains hum (60 Hz and harmonics, 120 Hz strongest) | US mains, 60 Hz | 3,420 to 3,480 rev/min, 5 blades (285 to 290 Hz, so neighbours beat); levels |
 | FH-432 drums | behind the west wall | three drums at 120 Hz and harmonics, windage from the flying heads | 7,200 rev/min (UP-4046 p. 8-5); three FH-432 (or one FH-1782, 1,800 rev/min, p. 8-6) in the minimum system (p. 5-3) | that MSC had these, their place, the slight detune, the windage |
 | FASTRAND II | behind the west wall | a rumble modulated at 14.7 Hz, low harmonics, head seeks (a knock and a click) | 880 rev/min (p. 8-10); 64 heads moved together in 30 to 86 ms (p. 8-8); one FASTRAND in the minimum system (p. 5-3) | the sound of a seek; seeks every 4 to 15 s, and a burst on each engine run |
 | Tape units | each UNISERVO | at rest a faint vacuum blower; moving, two reel-motor whines pitched at the reels' speed, the vacuum columns' air and the tape's hiss; a knock at start and stop | speeds (UP-4046 sec. 8.4.2); the reels' motion from the unit's model | 24 commutator bars (so the whine is 90 to 200 Hz reading, twice that on rewind); levels |
