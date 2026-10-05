@@ -19,7 +19,7 @@ let roomState = null;
 function labState() {
   const s = roomState || (roomState = { sound: {} });
   s.tab = tab; s.mode = mode; s.playing = playing; s.get = get; s.scene = scene; s.frameNo = drawNo;
-  s.sound.ctx = sndCtx; s.sound.out = sndOut; s.sound.on = sndOn; s.sound.bed = soundBed; s.sound.whine = whineNode();
+  s.sound.ctx = sndCtx; s.sound.out = sndOut; s.sound.on = sndOn; s.sound.bed = soundBed; s.sound.whine = whineNode(); s.sound.printer = printerRoute;
   return s;
 }
 // Discrete events for the room's equipment (beam frames, engine runs).

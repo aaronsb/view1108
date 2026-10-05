@@ -56,18 +56,18 @@ function sndStart() {
 
 // ---- event sounds ----
 // A filtered noise burst at time t (audio clock).
-function sndBurst(t, freq, q, dur, gain) {
+function sndBurst(t, freq, q, dur, gain, dest = sndOut) {
   const s = sndCtx.createBufferSource(); s.buffer = sndNoise(sndCtx); s.playbackRate.value = 4;
   const f = sndCtx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq; f.Q.value = q;
   const g = sndCtx.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  s.connect(f).connect(g).connect(sndOut); s.start(t, Math.random() * 3, dur + 0.02);
+  s.connect(f).connect(g).connect(dest); s.start(t, Math.random() * 3, dur + 0.02);
 }
 // A tone from f0 to f1 over dur, with an attack a and a decay to zero.
-function sndTone(t, type, f0, f1, dur, gain, a = 0.003) {
+function sndTone(t, type, f0, f1, dur, gain, a = 0.003, dest = sndOut) {
   const o = sndCtx.createOscillator(), g = sndCtx.createGain(); o.type = type;
   o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(sndOut); o.start(t); o.stop(t + dur + 0.02);
+  o.connect(g).connect(dest); o.start(t); o.stop(t + dur + 0.02);
 }
 // Frame advance: the claw's thump and the shutter's two ticks. at: performance.now() time of the frame's end.
 // At most one every 0.4 s, so the fast beam speeds (a frame in 1/15 s) never buzz.
@@ -112,7 +112,14 @@ function soundKey(repeat) {
 // hammer burst per line (the hammers fire as the drum's rows come round, all within the drum's turn, so a line is a
 // short dense rasp), the ratchet on each line feed, a thunk and a rush of paper at each form feed, and the drum's
 // motor humming while it prints. No source describes the 1108 printer's sound.
-let sndPrRun = null, sndPrBufs = null, sndPrLast = 0;
+let sndPrRun = null, sndPrBufs = null, sndPrLast = 0, sndPrBus = null, sndPrTo = null;
+// Every printer sound goes through one bus: to the page's output, or, while the room runs, to a source at the 3D
+// printer (web/lab/src/audio/roomsound.ts) so it falls off with distance like the room's other machines.
+function sndPrOut() {
+  if (!sndPrBus || sndPrBus.context !== sndCtx) { sndPrBus = sndCtx.createGain(); sndPrBus.connect(sndPrTo && sndPrTo.context === sndCtx ? sndPrTo : sndOut); }
+  return sndPrBus;
+}
+function printerRoute(node) { sndPrTo = node; if (sndPrBus) { sndPrBus.disconnect(); sndPrBus.connect(node && node.context === sndCtx ? node : sndOut); } }
 function sndPrBuffers() {
   if (sndPrBufs && sndPrBufs.sr === sndCtx.sampleRate) return sndPrBufs;
   const sr = sndCtx.sampleRate, mk = (dur, fill) => { const b = sndCtx.createBuffer(1, Math.round(sr * dur), sr); fill(b.getChannelData(0), sr); return b; };
@@ -131,7 +138,7 @@ function sndPrBuffers() {
 function sndPrPlay(buf, t, freq, q, gain) {
   const s = sndCtx.createBufferSource(), f = sndCtx.createBiquadFilter(), g = sndCtx.createGain();
   s.buffer = buf; f.type = "bandpass"; f.frequency.value = freq; f.Q.value = q; g.gain.value = gain;
-  s.connect(f).connect(g).connect(sndOut); s.start(t);
+  s.connect(f).connect(g).connect(sndPrOut()); s.start(t);
 }
 // The drum motor while printing: a low sawtooth hum and the drum's whir, faded in and out.
 function soundPrintRun(on) {
@@ -141,7 +148,7 @@ function soundPrintRun(on) {
     o.type = "sawtooth"; o.frequency.value = 58; lp.type = "lowpass"; lp.frequency.value = 240;
     w.buffer = sndNoise(sndCtx); w.loop = true; w.playbackRate.value = 2.5; bp.type = "bandpass"; bp.frequency.value = 900; bp.Q.value = 0.9;
     const wg = sndCtx.createGain(); wg.gain.value = 0.6;
-    o.connect(lp).connect(g); w.connect(bp).connect(wg).connect(g); g.gain.value = 0; g.connect(sndOut); o.start(); w.start();
+    o.connect(lp).connect(g); w.connect(bp).connect(wg).connect(g); g.gain.value = 0; g.connect(sndPrOut()); o.start(); w.start();
     sndPrRun = { g, stop: () => { o.stop(); w.stop(); } };
   }
   if (!sndPrRun) return;
@@ -162,8 +169,8 @@ function soundPrintLine(t) {
 function soundPrintFeed() {
   if (!sndLive()) return;
   const t = sndCtx.currentTime, B = sndPrBuffers();
-  sndTone(t, "sine", 85, 40, 0.14, 0.3);
-  sndBurst(t, 700, 0.5, 0.28, 0.12);
+  sndTone(t, "sine", 85, 40, 0.14, 0.3, 0.003, sndPrOut());
+  sndBurst(t, 700, 0.5, 0.28, 0.12, sndPrOut());
   for (let k = 0; k < 6; k++) sndPrPlay(B.ratchet, t + 0.02 + k * 0.03, 1300, 0.7, 0.2);
 }
 

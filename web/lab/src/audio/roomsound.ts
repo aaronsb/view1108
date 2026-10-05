@@ -47,7 +47,7 @@ interface Tape { src: Src; eq: Equipment; motion: { v: number; w0: number; w1: n
 interface Graph {
   ctx: BaseAudioContext; dest: AudioNode; master: GainNode; wet: GainNode; analyser: AnalyserNode;
   srcs: Src[]; tapes: Tape[]; rows: { src: Src; hum: GainNode; buzz: GainNode }[]; fastrand: Src;
-  rec: Recorder | null; nodes: AudioScheduledSourceNode[]; lit: boolean; nextSeek: number; whine: Whine | null;
+  rec: Recorder | null; nodes: AudioScheduledSourceNode[]; lit: boolean; nextSeek: number; whine: Whine | null; printerIn: AudioNode | null;
 }
 
 export class RoomSound {
@@ -57,6 +57,7 @@ export class RoomSound {
   private shots = 0;
   private r = rng(1108);
   private bedOff: ((on: boolean) => void) | null = null;
+  private printerRoute: ((node: AudioNode | null) => void) | null = null;
   private v = new THREE.Vector3();
   private foot = 1;
   private steps = 0;              // footsteps played, for tests
@@ -73,6 +74,7 @@ export class RoomSound {
     if (!this.g || this.g.ctx !== ctx) {
       this.attach(ctx, out, s.sound.whine ?? null);
       this.bedOff = s.sound.bed ?? null; this.bedOff?.(false);
+      this.printerRoute = s.sound.printer ?? null; this.printerRoute?.(this.g!.printerIn);
     }
     if (ctx.state !== "running") { this.last = 0; return; }
     const now = performance.now(), dt = this.last ? Math.min(0.25, (now - this.last) / 1000) : STEP_S;
@@ -222,7 +224,12 @@ export class RoomSound {
       rec = { src: s, motor, gear, motorG, reels, reelG, active: false, last: 0, next: 0 };
     }
 
-    this.g = { ctx, dest, master, wet, analyser, srcs, tapes, rows, fastrand, rec, nodes, lit, nextSeek: ctx.currentTime + 3, whine: wh };
+    // The line printer: the page makes its sounds (web/src/sound.js, printing the listing); while the room runs they
+    // come from here, at the printer, with the room's distance law and response.
+    const pr = this.room.placed.find(p => /^printer(-|$)/.test(p.name));
+    const printerIn = pr ? source(pr.name + "-print", this.at(pr.equipment, 1.1), 1.0, 1).input : null;
+
+    this.g = { ctx, dest, master, wet, analyser, srcs, tapes, rows, fastrand, rec, nodes, lit, nextSeek: ctx.currentTime + 3, whine: wh, printerIn };
   }
 
   /** One step: the listener, the duck, the tape units, the lights and the FASTRAND's idle seeks. */
@@ -335,6 +342,7 @@ export class RoomSound {
     clearInterval(this.timer); this.timer = 0;
     this.detach();
     this.bedOff?.(true); this.bedOff = null;
+    this.printerRoute?.(null); this.printerRoute = null;
   }
 
   private detach(): void {
