@@ -44,7 +44,7 @@ C              (ft/s), 14 P, 15 R, 16 N, 17 ALTB (n mi; LUNAR, the
 C              altitude at TB).  TABLE (one leg per pair of rows):
 C              3-9 row A, 10-12 row B's T LAT LON, 13-15 its V FPA
 C              HDG, 17 its ALT; LGN 1 A's, 2 B's velocity Earth
-C              fixed.  Vehicle LGVEH: 1 CSM, 2 LM.
+C              fixed.  Vehicle LGVEH: 1 CSM, 2 LM, 3 S-IVB.
 C              Event J of scenario EVSN(J), kind EVKND, g.e.t. EVT (s).
       DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)
       DOUBLE PRECISION SNSAZ(NSN)
@@ -9150,40 +9150,50 @@ C     EVENT 15
 C       CMSEP: MR Table 7-II p. 7-9, command module/service module
 C       separation; SP p. 109 has 194:49:12.70
 C     EVENT 16
+C       EJECT: MR Table 7-II p. 7-9, spacecraft/S-IVB separation
+C       (ejection); SP p. 106 has CSM/LM ejected from S-IVB
+C       004:17:03.00
+C     EVENT 17
+C       SLING: SP p. 106, S-IVB lunar slingshot maneuver-LH2 tank CVS
+C       opened 004:51:07.70, the first of the slingshot's timeline rows
+C       after the manoeuvre to its attitude (MR p. 15-1: liquid
+C       hydrogen venting was one of the slingshot's three means)
+C     EVENT 18
 C       TLI: MR8 Table 5-II p. 5-7, translunar injection (cutoff
 C       2:55:55.5 plus 10 s)
-C     EVENT 17
-C       SEP: MR8 Table 3-I p. 3-3, spacecraft/S-IVB separation
-C     EVENT 18
-C       LOI1: MR8 Table 3-I p. 3-3, lunar orbit insertion ignition
 C     EVENT 19
+C       SEP: MR8 Table 3-I p. 3-3, spacecraft/S-IVB separation
+C     EVENT 20
+C       LOI1: MR8 Table 3-I p. 3-3, lunar orbit insertion ignition
+C     EVENT 21
 C       LOI2: MR8 Table 3-I p. 3-3, lunar orbit circularization
 C       ignition
-C     EVENT 20
+C     EVENT 22
 C       PHOTO: SVS 4129: AS08-14-2383, the Earthrise photograph, at
 C       16:39:39.7 UT on 24 December 1968, which is 75:48:39.7 after
 C       range zero
-C     EVENT 21
-C       TEI: MR8 Table 3-I p. 3-3, transearth injection ignition
-C     EVENT 22
-C       CMSEP: SP p. 50, CM/SM separation
 C     EVENT 23
+C       TEI: MR8 Table 3-I p. 3-3, transearth injection ignition
+C     EVENT 24
+C       CMSEP: SP p. 50, CM/SM separation
+C     EVENT 25
 C       EI: MR8 Table 3-I p. 3-4, entry interface (400 000 feet)
-      DATA (EVT(IBD),IBD=1,23) /
+      DATA (EVT(IBD),IBD=1,25) /
      1 11360.0D0,11824.6D0,12030.0D0,12243.1D0,
      1 360720.0D0,369939.9D0,702185.7D0,39499.0D0,
      1 362392.9D0,369185.0D0,447720.8D0,459969.8D0,
-     1 460980.0D0,468571.2D0,701352.7D0,10565.5D0,
-     1 12059.3D0,248900.4D0,264907.0D0,272919.7D0,
-     1 321556.6D0,527328.0D0,528372.8D0/
-      DATA (EVSN(IBD),IBD=1,23) /
+     1 460980.0D0,468571.2D0,701352.7D0,15419.1D0,
+     1 17467.7D0,10565.5D0,12059.3D0,248900.4D0,
+     1 264907.0D0,272919.7D0,321556.6D0,527328.0D0,
+     1 528372.8D0/
+      DATA (EVSN(IBD),IBD=1,25) /
      1 1,1,1,1,1,1,1,1,1,1,
-     1 1,1,1,1,1,2,2,2,2,2,
-     1 2,2,2/
-      DATA (EVKND(IBD),IBD=1,23) /
+     1 1,1,1,1,1,1,1,2,2,2,
+     1 2,2,2,2,2/
+      DATA (EVKND(IBD),IBD=1,25) /
      1 1,2,3,4,5,6,7,8,14,15,
-     1 16,17,18,19,20,9,2,10,11,12,
-     1 13,20,7/
+     1 16,17,18,19,20,21,22,9,2,10,
+     1 11,12,13,20,7/
 C     START 1
 C       START: MR Table 7-II p. 7-9, translunar injection
       DATA STP(1,1) / 10213.200D0 /

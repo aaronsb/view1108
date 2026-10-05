@@ -24,7 +24,9 @@
 *   PAD      NAME= LAT= LON= (launch pad, deg; LATTYPE=GC geocentric, GD
 *            geodetic), NAME at most 7 characters, lettered beside its mark
 *   LEG      TYPE=CIRC|CONIC|LUNAR|LCONIC|TABLE  FROM= TO=  (g.e.t. span
-*            it covers)  VEH=CSM|LM  (the vehicle on it; default CSM)
+*            it covers)  VEH=CSM|LM|SIVB  (the vehicle on it; default CSM;
+*            an S-IVB leg gives the S-IVB a state where traj.f SIVST's
+*            rules give it none: this scenario has none)
 *     CIRC   Earth circular orbit through a state: T= LAT= LON= HDG=, orbit
 *            altitude ALT= (n mi).  LATTYPE=GC geocentric, GD geodetic.
 *     CONIC  Earth-centred conic from a state: T= LAT= LON= ALT= V= (ft/s)
@@ -164,6 +166,18 @@ EVENT KIND=TPF T=127:46:09.8 SRC="SP p. 104, LM terminal phase finalize ignition
 EVENT KIND=LMDOK T=128:03:00.0 SRC="SP p. 104, CSM/LM docked 128:03:00.00; MR Table 7-II p. 7-9"
 EVENT KIND=JETT T=130:09:31.2 SRC="SP p. 104, LM ascent stage jettisoned 130:09:31.20; MR Table 7-II p. 7-9"
 EVENT KIND=CMSEP T=194:49:12.7 SRC="MR Table 7-II p. 7-9, command module/service module separation; SP p. 109 has 194:49:12.70"
+*
+* The S-IVB (traj.f SIVST): with the CSM to SEP, scene 7's geometry to the
+* spacecraft's ejection, then the CSM's state less the separation the CSM
+* made: the ejection springs' "about one fps" (Apollo 11 press kit, printed
+* p. 30) and the evasive manoeuvre (the BURN card at 4:40:03.25 below), to
+* the first event of the slingshot, after which we have no state for it:
+* MR p. 15-1 gives the slingshot's means (a liquid oxygen dump, an
+* auxiliary propulsion system firing and liquid hydrogen venting) and its
+* closest approach, "1825 miles above the lunar surface" at 78:42:00, but
+* no velocity change.
+EVENT KIND=EJECT T=4:16:59.1 SRC="MR Table 7-II p. 7-9, spacecraft/S-IVB separation (ejection); SP p. 106 has CSM/LM ejected from S-IVB 004:17:03.00"
+EVENT KIND=SLING T=4:51:07.7 SRC="SP p. 106, S-IVB lunar slingshot maneuver-LH2 tank CVS opened 004:51:07.70, the first of the slingshot's timeline rows after the manoeuvre to its attitude (MR p. 15-1: liquid hydrogen venting was one of the slingshot's three means)"
 *
 * ---------------------------------------------------------------------
 * TIMELINE: the mission's sequence of events as SP-4029 prints it (printed pp. 105-110, "Apollo 11 Timeline"),

@@ -26,9 +26,10 @@ C              lift-off to S-IVB cutoff and the entry from entry
 C              interface to splashdown.  Before its first row and
 C              after its last a table holds that row's place on the
 C              turning Earth (the pad, the splash point).
-C     Each leg carries one vehicle, the CSM or the LM.  For the CSM a
-C     g.e.t. outside every leg takes the nearest leg; the LM has a
-C     state only where LMSTAT's rules give it one.
+C     Each leg carries one vehicle, the CSM, the LM or the S-IVB.  For
+C     the CSM a g.e.t. outside every leg takes the nearest leg; the LM
+C     and the S-IVB have a state only where LMSTAT's and SIVST's rules
+C     give them one.
 C       LM descent: P64 approach from 7200 ft altitude and 25600 ft
 C         range at GET 102:41:30 down to the site at touchdown.
 C
@@ -244,7 +245,8 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     LEGAT: the current scenario's leg of vehicle IVEH (1 CSM, 2 LM)
+C     LEGAT: the current scenario's leg of vehicle IVEH (1 CSM, 2 LM,
+C     3 S-IVB)
 C     about the Earth (ICLS = 1: CIRC, CONIC or TABLE) or the Moon
 C     (ICLS = 2: LUNAR or LCONIC) whose span holds GET, else the one
 C     whose span ends nearest it; 0 if there is none.
@@ -671,7 +673,7 @@ C       otherwise on a VEH=LM leg whose span holds GET, or across a
 C         gap of 60 s or less between two of them (a burn; ours);
 C       else none: the powered descent before LMDESC, the powered
 C         ascent, after JETT, and a scenario without an UNDOCK event.
-C     The CSM's state comes from the state source (CSMSL, VSTATE:
+C     The CSM's state comes from the state source (CSMSL, CSMST:
 C     replay or tape); the LM's own legs from the replay only.
 C-----------------------------------------------------------------------
       SUBROUTINE LMSTAT(GET, R, V, IOK)
@@ -791,6 +793,103 @@ C     Moon's turning (the IAU rate MOONRT uses, 13.17635815 deg/day).
         V(I) = W * V(I)
    58 CONTINUE
       IOK = 1
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     SIVST: the S-IVB at GET, geocentric EQ km and km/s: the centre of
+C     the stage with its IU (half SIVBMD's 61.3 ft below the IU's top,
+C     on its axis).  IOK = 0 where we have no state for it, 1 its own,
+C     2 with the CSM (the CSM's state before separation; the stack's
+C     place, docked).  The rules, in the scenario's events (ours where
+C     marked):
+C       before SEP: with the CSM, which it carries (IOK 2);
+C       SEP to EJECT: the CSM plus scene 7's geometry (vdrive.f S7SIV
+C         at S7RF's range, as S7POSE places it), IOK 1 to DOCK and 2
+C         from it;
+C       EJECT to SLING: the CSM plus its offset from the CSM at EJECT,
+C         less the separation the CSM made from then on: the ejection
+C         springs' "about one fps velocity to the spacecraft" (Apollo
+C         11 press kit, printed p. 30) along the stack's axis, and each
+C         of the scenario's BURN cards about the Earth in the span (the
+C         evasive manoeuvre), an impulse at its time in the CSM leg's
+C         frame there (IMPULS).  Straight lines (ours: the half hour's
+C         gravity gradient, 25,000 km and more from the Earth's
+C         centre, bends them by a few percent);
+C       otherwise on a VEH=SIVB leg whose span holds GET, else none:
+C         after SEP in a scenario without an EJECT event (Apollo 8,
+C         see its scenario), and from SLING on (the slingshot: no
+C         velocity change we hold).
+C     The CSM's state is the state source's (CSMST: replay or tape).
+C     The offsets are relative, so the range between the two is the
+C     same from either; the replay's CSM leg has no evasive burn, so
+C     there both are off their own paths by the burn's drift (ours).
+C     ISRCU is left as it was (S7ATT and CSMST set it).
+C-----------------------------------------------------------------------
+      SUBROUTINE SIVST(GET, R, V, IOK)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, R(3), V(3)
+      INTEGER IOK
+      DOUBLE PRECISION TS, TE, TG, TD, T, P(3), DV(3), RB(3), VB(3)
+      DOUBLE PRECISION VEJ, EVGET, S7RF
+      INTEGER I, K, J, LEGAT
+      J = ISRCU
+      IOK = 0
+      TS = EVGET(KESEP)
+      TE = EVGET(KEEJC)
+      TG = EVGET(KESLG)
+      TD = EVGET(KEDOK)
+      IF (TS .GE. 0.0D0 .AND. GET .LT. TS) GO TO 10
+      IF (TE .LT. 0.0D0) GO TO 80
+      IF (TG .GE. 0.0D0 .AND. GET .GE. TG) GO TO 80
+      CALL S7ATT
+      IF (GET .GE. TE) GO TO 30
+C     Separated, docking, docked: scene 7's geometry.
+      CALL S7SIV(S7RF(GET), P)
+      CALL CSMST(GET, 1, R, V)
+      DO 5 I = 1, 3
+        R(I) = R(I) + P(I)
+    5 CONTINUE
+      IOK = 1
+      IF (TD .GE. 0.0D0 .AND. GET .GE. TD) IOK = 2
+      GO TO 90
+C     Before the separation: with the CSM.
+   10 CALL CSMST(GET, 1, R, V)
+      IOK = 2
+      GO TO 90
+C     Ejected: the offset at EJECT, the springs' drift (1 ft/s, the
+C     S-IVB down the stack's -X), then the CSM's burns taken back.
+   30 CALL S7SIV(S7RF(TE), P)
+      VEJ = 0.3048D-3
+      T = GET - TE
+      CALL CSMST(GET, 1, R, V)
+      DO 35 I = 1, 3
+        R(I) = R(I) + P(I) - VEJ * T * S7AT(I,1)
+        V(I) = V(I) - VEJ * S7AT(I,1)
+   35 CONTINUE
+      DO 50 K = 1, NBN
+        IF (BNSN(K) .NE. ISN .OR. BNBOD(K) .NE. 1) GO TO 50
+        IF (BNT(K) .LE. TE .OR. BNT(K) .GT. GET) GO TO 50
+        CALL ERTORB(BNT(K), RB, VB)
+        CALL SETV(DV, 0.0D0, 0.0D0, 0.0D0)
+        CALL IMPULS(RB, VB, BNDV(K), BNP(K), BNR(K), BNN(K), DV)
+        DO 45 I = 1, 3
+          R(I) = R(I) - (GET - BNT(K)) * DV(I)
+          V(I) = V(I) - DV(I)
+   45   CONTINUE
+   50 CONTINUE
+      IOK = 1
+      GO TO 90
+C     A VEH=SIVB leg (none in our scenarios).
+   80 K = LEGAT(GET, 1, 3)
+      IF (K .EQ. 0) GO TO 90
+      IF (GET .LT. LGP(1,K) .OR. GET .GT. LGP(2,K)) GO TO 90
+      CALL LEGRV(K, GET, R, V)
+      IOK = 1
+   90 ISRCU = J
       RETURN
       END
 C

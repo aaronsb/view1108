@@ -85,6 +85,15 @@ ROW T=147:00:42 LAT=8.125 LON=-165.020 ALT=0 V=31 FPA=-90 HDG=0 VEL=EF SRC="MR8 
 * Events.
 EVENT KIND=TLI T=2:56:05.5 SRC="MR8 Table 5-II p. 5-7, translunar injection (cutoff 2:55:55.5 plus 10 s)"
 EVENT KIND=SEP T=3:20:59.3 SRC="MR8 Table 3-I p. 3-3, spacecraft/S-IVB separation"
+* No EJECT event (no LM, no docking), so the S-IVB has no state after SEP
+* (traj.f SIVST).  The CSM kept station with it, then made two RCS
+* separation manoeuvres, 1.1 ft/s at 3:40:01 and 7.7 ft/s at 4:45:01 (MR8
+* p. 5-2), both radially outward (Apollo 8 Flight Journal, commentary at
+* 003:40 and Borman at 004:45:54); the crew's ranges, "between 500 to
+* 1,000 feet" at 003:58:48, "about 1,000 feet" at 004:50:45 and "about
+* 3,000 feet" at 004:55:46 (same), do not follow from those two burns on
+* straight lines (we tried: 1,240, 7,300 and 10,000 ft from SEP), and the
+* range at SEP is not given.
 EVENT KIND=LOI1 T=69:08:20.4 SRC="MR8 Table 3-I p. 3-3, lunar orbit insertion ignition"
 EVENT KIND=LOI2 T=73:35:07 SRC="MR8 Table 3-I p. 3-3, lunar orbit circularization ignition"
 EVENT KIND=PHOTO T=75:48:39.7 SRC="SVS 4129: AS08-14-2383, the Earthrise photograph, at 16:39:39.7 UT on 24 December 1968, which is 75:48:39.7 after range zero"

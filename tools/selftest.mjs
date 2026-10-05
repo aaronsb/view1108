@@ -63,11 +63,11 @@ for (const scene of SCENES) {
   if (!same || a.nvec === 0) ok = false;
 }
 // Views and camera targets (in_view, in_target): every scene external, and window views aimed at the
-// Earth, the Moon and the Sun; wasm and the fallback must agree.
+// Earth, the Moon, the Sun and the S-IVB; wasm and the fallback must agree.
 if (W.in_view) {
   let same = true, n = 0;
   for (const scene of SCENES)
-    for (const [v, t] of [[1, 0], [1, 4], [0, 1], [0, 2], [0, 3], [2, 0], [3, 0], [2, 1]]) {
+    for (const [v, t] of [[1, 0], [1, 4], [0, 1], [0, 2], [0, 3], [2, 0], [3, 0], [2, 1], [0, 6], [1, 6]]) {
       const a = run(W, scene, 3, v, t), b = run(F, scene, 3, v, t); n++;
       if (!(a.nvec === b.nvec && a.nstar === b.nstar && maxdiff(a.hdr, b.hdr) === 0 &&
             maxdiff(a.vbuf, b.vbuf) === 0)) same = false;

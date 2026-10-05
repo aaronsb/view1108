@@ -20,9 +20,10 @@ C       External view (in_view 1): the camera sits D from the target
 C         and looks at it; yaw and pitch carry it around the target
 C         (starting from the side the scene's own camera is on), roll
 C         turns the picture, the field of view zooms.  D is ours: 60 m
-C         for the CSM or the docked stack, 40 m for the LM, 60,000 km
-C         for the Earth, 36,737 km (35,000 km up, as scene 6) for the
-C         Moon.  The Sun is a target only for the window view.
+C         for the CSM, the docked stack or the S-IVB, 40 m for the
+C         LM, 60,000 km for the Earth, 36,737 km (35,000 km up, as
+C         scene 6) for the Moon.  The Sun is a target only for the
+C         window view.
 C     Scene 6 keeps its own Moon-centred camera and ignores both.
 C=======================================================================
 C
@@ -129,9 +130,10 @@ C-----------------------------------------------------------------------
 C     TGTPOS: target IT's geocentric position TG (km) and the external
 C     view's distance DIST (km).  IOK = 0 if the scene has no such
 C     target, or it is the camera itself in a window view.  Vehicles:
-C     the placed models (the CSM, KCSPL; the LM, KLMPL), else
+C     the placed models (the CSM, KCSPL; the LM, KLMPL; the S-IVB), else
 C     the vehicle's state (VSTATE) where it has one and the camera
-C     does not ride it (IRIDE).
+C     does not ride it (IRIDE; the S-IVB with the CSM before the
+C     separation is the CSM's state, so not a target from it).
 C-----------------------------------------------------------------------
       SUBROUTINE TGTPOS(GET, IT, PM, CG, TG, DIST, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -139,7 +141,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION GET, PM(3), CG(3), TG(3), DIST, R(3), V(3)
-      DOUBLE PRECISION D
+      DOUBLE PRECISION D, C(3), W(3)
       INTEGER IT, IOK, I, KL, IRIDE, KC, KCSPL, KLMPL
       IOK = 1
       DIST = 0.0D0
@@ -175,7 +177,7 @@ C         The placed CSM (or CM): aim at the top of its tunnel.
         ELSE
           IOK = 0
         END IF
-      ELSE
+      ELSE IF (IT .EQ. 5) THEN
         DIST = 0.040D0
         KL = KLMPL()
         IF (KL .NE. 0) THEN
@@ -189,6 +191,27 @@ C         The placed CSM (or CM): aim at the top of its tunnel.
    55     CONTINUE
         ELSE
           IOK = 0
+        END IF
+      ELSE
+        DIST = 0.060D0
+        IF (MDON(KSIV) .EQ. 1) THEN
+C         The placed S-IVB: aim at its centre, the point of its state
+C         (SIVST), half its 61.3 ft below the IU's top (SIVBMD).
+          CALL SETV(C, (-0.5D0 * (58.3D0 + 3.0D0) * 0.3048D0
+     &      - MDBO(1,KSIV)) * 1.0D-3, -MDBO(2,KSIV) * 1.0D-3,
+     &      -MDBO(3,KSIV) * 1.0D-3)
+          CALL MXV(MDAT(1,1,KSIV), C, W)
+          DO 70 I = 1, 3
+            TG(I) = CG(I) + MDP(I,KSIV) + W(I)
+   70     CONTINUE
+        ELSE
+          CALL VSTATE(GET, 3, 1, R, V, IOK)
+C         Only while it flies on its own: with the CSM before SEP or
+C         docked to it, there is no separate S-IVB to aim at.
+          IF (IOK .NE. 1) IOK = 0
+          DO 75 I = 1, 3
+            TG(I) = R(I)
+   75     CONTINUE
         END IF
       END IF
 C     RESTOMOD END

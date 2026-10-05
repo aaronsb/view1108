@@ -30,7 +30,10 @@ C         has a state; the CSM's is CM from CM/SM separation on.  The
 C         LM has one only where LMSTAT's rules (traj.f)
 C         give it one; docked to the CSM it is not marked (the CSM's
 C         mark or model stands for both), nor in the Moon view (scene
-C         6) while landed (the landing site's box stands for it).
+C         6) while landed (the landing site's box stands for it).  The
+C         S-IVB has one only where SIVST's rules (traj.f) give it one
+C         of its own: from the separation to the docking, and from the
+C         spacecraft's ejection to the slingshot.
 C       A label that would leave the frame or meet a name already
 C         lettered (the other layers' labels, VLSEED, or a vehicle's)
 C         tries the other side of its vehicle, then is dropped.
@@ -121,38 +124,53 @@ C     X (DMOON6) stands for it there.
       IF (TS .GE. 0.0D0 .AND. GET .GE. TS) ID = 1
       CALL VLMARK(VB, NV, LB, NL, P, ID, NCH(ID), 1, H, XA, XB, YA, YB,
      &            NP, XM, YM, NM)
-   60 IF (KLMPL() .NE. 0) RETURN
-      IF (IRIDE() .EQ. 2) RETURN
+   60 IF (KLMPL() .NE. 0) GO TO 70
+      IF (IRIDE() .EQ. 2) GO TO 70
       TL = EVGET(KELFT)
       IF (ISCN .EQ. 6 .AND. LUT0 .GT. 0.0D0 .AND. GET .GE. LUT0
-     &    .AND. (TL .LT. 0.0D0 .OR. GET .LT. TL)) RETURN
+     &    .AND. (TL .LT. 0.0D0 .OR. GET .LT. TL)) GO TO 70
       CALL VSTATE(GET, 2, 2, R, V, IOK)
-      IF (IOK .NE. 1) RETURN
+      IF (IOK .NE. 1) GO TO 70
       DO 65 J = 1, 3
         P(J) = MPOS(J) + R(J)
    65 CONTINUE
       CALL VLMARK(VB, NV, LB, NL, P, 3, 2, 1, H, XA, XB, YA, YB, NP,
      &            XM, YM, NM)
+C     The S-IVB from its state where it is not placed: not with the
+C     CSM (SIVST's IOK 2, before separation or docked to the stack).
+   70 IF (MDON(KSIV) .EQ. 1) RETURN
+      CALL VSTATE(GET, 3, 2, R, V, IOK)
+      IF (IOK .NE. 1) RETURN
+      DO 75 J = 1, 3
+        P(J) = MPOS(J) + R(J)
+   75 CONTINUE
+      CALL VLMARK(VB, NV, LB, NL, P, 4, NCH(4), 1, H, XA, XB, YA, YB,
+     &            NP, XM, YM, NM)
       RETURN
       END
 C
 C     VPRES: IVBIT, the vehicles in this frame's world, for hdr(21): 1
 C     the CSM, 2 the LM, 4 the S-IVB, each if placed as a model or
-C     known by its state (VSTATE; the LM docked too); the vehicle the
-C     camera rides in a window or station view (IRIDE) is not counted.
+C     known by its state (VSTATE; the LM docked too, the S-IVB docked
+C     to the stack too); the vehicle the camera rides in a window or
+C     station view (IRIDE) is not counted, nor the S-IVB before the
+C     separation (SEP), while it carries the CSM.
       SUBROUTINE VPRES(GET)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION GET, R(3), V(3)
+      DOUBLE PRECISION GET, R(3), V(3), EVGET
       INTEGER IRIDE, IOK, KCSPL, KLMPL
       IVBIT = 0
       IF (KCSPL() .NE. 0 .OR. IRIDE() .NE. 1) IVBIT = 1
       IOK = 0
       IF (IRIDE() .NE. 2) CALL VSTATE(GET, 2, 2, R, V, IOK)
       IF (KLMPL() .NE. 0 .OR. IOK .NE. 0) IVBIT = IVBIT + 2
-      IF (MDON(KSIV) .EQ. 1) IVBIT = IVBIT + 4
+      IOK = 0
+      IF (MDON(KSIV) .EQ. 0) CALL VSTATE(GET, 3, 1, R, V, IOK)
+      IF (GET .LT. EVGET(KESEP)) IOK = 0
+      IF (MDON(KSIV) .EQ. 1 .OR. IOK .NE. 0) IVBIT = IVBIT + 4
       RETURN
       END
 C
