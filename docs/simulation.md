@@ -49,7 +49,7 @@ Page interface (see `CLAUDE.md`):
 - `hdr(17)` reports the source used: 0 replay, 1 sim with updates, 2 sim free.
 - `hdr(18)`, `hdr(19)` and `hdr(20)` give the last run's position error (km), velocity error (ft/s) and the time of the nearest reference row.
 
-A time outside the tape, for example before translunar injection, falls back to replay.
+A time outside the tape, for example before translunar injection, falls back to replay. The engine flies the CSM only (tape channel 1). The lunar module (LM) is always drawn from replay: its own legs (`VEH=LM` in the scenario) and the rules of `LMSTAT` in `src/traj.f`. Its CSM-relative spans (docked, 300 ft out after undocking, the closing before docking) follow whichever CSM state the frame uses.
 
 ## Period analogue
 

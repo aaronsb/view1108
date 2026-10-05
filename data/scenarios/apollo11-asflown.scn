@@ -23,7 +23,8 @@
 *   SITE     LAT= LON= AZ=  (lunar landing site, deg, and descent azimuth)
 *   PAD      NAME= LAT= LON= (launch pad, deg; LATTYPE=GC geocentric, GD
 *            geodetic), NAME at most 7 characters, lettered beside its mark
-*   LEG      TYPE=CIRC|CONIC|LUNAR  FROM= TO=  (g.e.t. span it covers)
+*   LEG      TYPE=CIRC|CONIC|LUNAR|LCONIC  FROM= TO=  (g.e.t. span it
+*            covers)  VEH=CSM|LM  (the vehicle on it; default CSM)
 *     CIRC   Earth circular orbit through a state: T= LAT= LON= HDG=, orbit
 *            altitude ALT= (n mi).  LATTYPE=GC geocentric, GD geodetic.
 *     CONIC  Earth-centred conic from a state: T= LAT= LON= ALT= V= (ft/s)
@@ -31,7 +32,15 @@
 *     LUNAR  Moon circular orbit through two states, T= LAT= LON= and
 *            TB= LATB= LONB= (selenographic), N= whole revolutions between
 *            them, ALT= (n mi).  The plane and the mean motion come from
-*            the two states.
+*            the two states.  ALTB= (n mi): the radius moves steadily from
+*            ALT at T to ALTB at TB (default ALT, a circle).
+*     LCONIC Moon-centred conic from a state: T= LAT= LON= (selenographic)
+*            ALT= (n mi above the mean radius) V= (ft/s) FPA= (deg); its
+*            horizontal direction lies in the plane of the CSM's lunar leg
+*            at T (MR Table 7-II's lunar headings are not in a frame we can
+*            use, as for the REF cards below).  Or, with DV= (ft/s) and
+*            P= R= N= (as a BURN card's) and no state: the same vehicle's
+*            previous leg at T (mid-burn) plus that impulse.
 *   EVENT    KIND= T=  (an event the kernel keys on)
 *   TIMELINE T= KIND= NAME=  (a row of the mission's timeline; see TIMELINE below)
 *
@@ -58,6 +67,41 @@ LEG TYPE=LUNAR FROM=75:49:50.4 TO=80:11:36.8 T=75:55:48.0 LAT=0.16 LON=167.13 TB
 LEG TYPE=LUNAR FROM=80:11:36.8 TO=100:12:00.0 T=80:11:53.5 LAT=-0.02 LON=169.16 TB=100:12:00.0 LATB=1.11 LONB=116.21 N=10 ALT=62.2 SRC="MR Table 7-II p. 7-9, circularization cutoff and undocking; altitude the mean of the two rows"
 LEG TYPE=LUNAR FROM=100:12:00.0 TO=135:23:42.3 T=100:40:01.9 LAT=1.05 LON=31.41 TB=130:09:31.2 LATB=1.10 LONB=41.85 N=14 ALT=62.0 SRC="MR Table 7-II p. 7-9, separation cutoff and ascent stage jettison; altitude the mean of the two rows"
 *
+* The LM after undocking (VEH=LM; traj.f LMSTAT gives its state outside
+* these spans).  From the separation to descent orbit insertion, a circle
+* through the separation cutoff row and the DOI ignition row, its radius
+* moving from the CSM leg's 62.0 n mi to the DOI row's 56.4.  The
+* separation burn was the CSM's (service module RCS, 1.4 ft/s, 5.2 s: MR
+* Table 7-V p. 7-11), so at its cutoff the LM was within a few hundred
+* feet of the CSM: we take the CSM's row and its leg's altitude for the
+* LM (the row's own 62.5 would put the LM 3000 ft from the CSM at once),
+* and LMSTAT blends the 300 ft separation offset into the leg over its
+* first 300 s.  (Through the undocking row instead, the LM's leg starts
+* 18 km from the CSM's; a conic through the DOI row misses the
+* separation row by 21 km.)  The descent orbit, a conic through the PDI
+* row, from DOI cutoff to PDI: it passes 2.7 km behind the DOI cutoff row
+* and 4.7 km across it (the plane is the CSM's: LCST), 57.8 by 6.4 n mi.
+* A conic from the DOI cutoff row instead (57.8 by 11.4) misses the PDI
+* row by 21.6 km along track and 9.4 km in height; ours, we keep the
+* first.  SP p. 104 and MR Table 7-V print the descent orbit's 58.5 by
+* 7.8 n mi on the PDI row (our reading: one row low; MR section 5.1 has
+* "a 60- by 8.2-mile orbit").  No state for the powered descent before
+* LMDESC's last 600 s, nor for the powered ascent (none found).  After
+* lunar orbit insertion, conics through MR Table 7-II's LM rows: the
+* insertion row to CSI ignition (50.1 by 9.4 n mi; SP p. 104 48.0 by
+* 9.4), the CSI cutoff row to CDH ignition (50.9 by 47.5; SP 49.3 by
+* 45.7), the TPI ignition row back to CDH cutoff (no CDH row: 49.4 by
+* 42.7; SP 47.4 by 42.1) and the TPI cutoff row to TPF (63.8 by 44.0;
+* SP 61.7 by 43.7).  The two-body conics part where they meet: at CDH
+* by 42 km, mostly along track (ours, accepted).  The TPF row is a
+* check only (its altitude is unreadable on our copy).
+LEG TYPE=LUNAR VEH=LM FROM=100:39:52.9 TO=101:36:14.0 T=100:40:01.9 LAT=1.05 LON=31.41 TB=101:36:14.0 LATB=-1.12 LONB=-140.20 N=0 ALT=62.0 ALTB=56.4 SRC="MR Table 7-II p. 7-9, separation cutoff (1.05 N, 31.41 E; the CSM's, taken for the LM, at the CSM leg's 62.0 n mi, not the row's 62.5: ours) and descent orbit insertion ignition (1.12 S, 140.20 W, 56.4 n mi); from the CSM/LM separation ignition, SP p. 104 100:39:52.90"
+LEG TYPE=LCONIC VEH=LM FROM=101:36:44.0 TO=102:33:05.0 T=102:33:05.0 LAT=1.02 LON=39.39 ALT=6.4 V=5564.9 FPA=0.03 SRC="MR Table 7-II p. 7-9, powered descent initiation: 1.02 N, 39.39 E, 6.4 n mi, 5564.9 ft/s, 0.03 deg; from DOI cutoff 101:36:44.00, SP p. 104"
+LEG TYPE=LCONIC VEH=LM FROM=124:29:15.7 TO=125:19:35.0 T=124:29:15.7 LAT=0.73 LON=12.99 ALT=10.0 V=5537.9 FPA=0.28 SRC="MR Table 7-II p. 7-9, LM orbit insertion: 0.73 N, 12.99 E, 10.0 n mi, 5537.9 ft/s, 0.28 deg; to CSI ignition 125:19:35.00, SP p. 104"
+LEG TYPE=LCONIC VEH=LM FROM=125:20:22.0 TO=126:17:49.6 T=125:20:22.0 LAT=-0.91 LON=-149.57 ALT=48.4 V=5376.6 FPA=0.09 SRC="MR Table 7-II p. 7-9, coelliptic sequence initiation cutoff: 0.91 S, 149.57 W, 48.4 n mi, 5376.6 ft/s, 0.09 deg; to CDH ignition 126:17:49.6, MR Table 7-V p. 7-11"
+LEG TYPE=LCONIC VEH=LM FROM=126:18:07.4 TO=127:03:51.8 T=127:03:51.8 LAT=-1.17 LON=-110.28 ALT=44.1 V=5391.5 FPA=-0.16 SRC="MR Table 7-II p. 7-9, terminal phase initiation ignition: 1.17 S, 110.28 W, 44.1 n mi, 5391.5 ft/s, -0.16 deg; from CDH cutoff 126:18:07.40, SP p. 104"
+LEG TYPE=LCONIC VEH=LM FROM=127:04:14.5 TO=127:46:09.8 T=127:04:14.5 LAT=-1.17 LON=-111.46 ALT=44.0 V=5413.2 FPA=-0.03 SRC="MR Table 7-II p. 7-9, terminal phase initiation cutoff: 1.17 S, 111.46 W, 44.0 n mi, 5413.2 ft/s, -0.03 deg; to TPF ignition 127:46:09.80, SP p. 104"
+*
 * Transearth coast: conics from the second midcourse correction, from
 * command module/service module separation, and from entry interface.
 LEG TYPE=CONIC FROM=135:26:13.7 TO=150:29:57.4 T=150:29:57.4 LATTYPE=GD LAT=-13.16 LON=-37.79 ALT=169087.2 V=4075.0 FPA=-80.34 HDG=129.30 SRC="MR Table 7-II p. 7-9, second midcourse correction ignition"
@@ -73,6 +117,13 @@ EVENT KIND=UNDOCK T=100:12:00.0 SRC="MR Table 3-I p. 3-4"
 EVENT KIND=TOUCH T=102:45:39.9 SRC="MR Table 3-I p. 3-4, lunar landing"
 EVENT KIND=EI T=195:03:05.7 SRC="MR Table 7-VII p. 7-12, entry interface"
 EVENT KIND=PTC T=10:58:19 SRC="Apollo 11 Flight Journal, 010:58:19, Collins: PTC is started now"
+EVENT KIND=LMSEP T=100:39:52.9 SRC="SP p. 104, CSM/LM separation ignition 100:39:52.90; MR Table 7-V p. 7-11"
+EVENT KIND=PDI T=102:33:05.01 SRC="SP p. 104, LM powered descent initiation 102:33:05.01"
+EVENT KIND=LIFT T=124:22:00.79 SRC="SP p. 104, LM lunar liftoff ignition 124:22:00.79"
+EVENT KIND=TPF T=127:46:09.8 SRC="SP p. 104, LM terminal phase finalize ignition 127:46:09.80"
+EVENT KIND=LMDOK T=128:03:00.0 SRC="SP p. 104, CSM/LM docked 128:03:00.00; MR Table 7-II p. 7-9"
+EVENT KIND=JETT T=130:09:31.2 SRC="SP p. 104, LM ascent stage jettisoned 130:09:31.20; MR Table 7-II p. 7-9"
+EVENT KIND=CMSEP T=194:49:12.7 SRC="MR Table 7-II p. 7-9, command module/service module separation; SP p. 109 has 194:49:12.70"
 *
 * ---------------------------------------------------------------------
 * TIMELINE: the mission's sequence of events as SP-4029 prints it (printed pp. 105-110, "Apollo 11 Timeline"),

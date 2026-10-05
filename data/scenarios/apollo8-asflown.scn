@@ -55,6 +55,7 @@ EVENT KIND=LOI1 T=69:08:20.4 SRC="MR8 Table 3-I p. 3-3, lunar orbit insertion ig
 EVENT KIND=LOI2 T=73:35:07 SRC="MR8 Table 3-I p. 3-3, lunar orbit circularization ignition"
 EVENT KIND=PHOTO T=75:48:39.7 SRC="SVS 4129: AS08-14-2383, the Earthrise photograph, at 16:39:39.7 UT on 24 December 1968, which is 75:48:39.7 after range zero"
 EVENT KIND=TEI T=89:19:16.6 SRC="MR8 Table 3-I p. 3-3, transearth injection ignition"
+EVENT KIND=CMSEP T=146:28:48.0 SRC="SP p. 50, CM/SM separation"
 EVENT KIND=EI T=146:46:12.8 SRC="MR8 Table 3-I p. 3-4, entry interface (400 000 feet)"
 *
 * ---------------------------------------------------------------------

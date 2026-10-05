@@ -56,6 +56,14 @@ C     place on the S-IVB (scene 7).
       CALL LMRCS
       CALL LMANT
       CALL MODEND(KLMS)
+C     LM ascent stage alone, after lunar lift-off, with the drogue and
+C     docking target (LMDOCK) kept for the lunar-orbit docking (ours).
+      CALL MODBEG(KLMA)
+      CALL LMASC
+      CALL LMDOCK
+      CALL LMRCS
+      CALL LMANT
+      CALL MODEND(KLMA)
 C     S-IVB with the instrument unit and the stub of the SLA.
       CALL MODBEG(KSIV)
       CALL SIVBMD
@@ -65,6 +73,11 @@ C     CSM, an outline (MDHL = 0).
       CALL CSMBLD
       CALL MODEND(KCSM)
       MDHL(KCSM) = 0
+C     CM alone, after CM/SM separation, an outline like the CSM.
+      CALL MODBEG(KCMO)
+      CALL CMBLD
+      CALL MODEND(KCMO)
+      MDHL(KCMO) = 0
 C     CM cabin: the commander's window outlines about the design eye,
 C     an outline (station view only).
       CALL MODBEG(KCMC)
@@ -109,11 +122,39 @@ C     RESTOMOD END
       RETURN
       END
 C
+C     KLMPL: the LM model placed this frame (KLMD, KLMS or KLMA), else
+C     0.  KCSPL: the same for the CSM (KCSM, or the CM alone, KCMO).
+      INTEGER FUNCTION KLMPL()
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      KLMPL = 0
+      IF (MDON(KLMD) .EQ. 1) KLMPL = KLMD
+      IF (MDON(KLMS) .EQ. 1) KLMPL = KLMS
+      IF (MDON(KLMA) .EQ. 1) KLMPL = KLMA
+      RETURN
+      END
+C
+      INTEGER FUNCTION KCSPL()
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      KCSPL = 0
+      IF (MDON(KCSM) .EQ. 1) KCSPL = KCSM
+      IF (MDON(KCMO) .EQ. 1) KCSPL = KCMO
+      RETURN
+      END
+C
 C-----------------------------------------------------------------------
 C     LMBODY: the LM's stages, body axes X up, Y right, Z forward, the
-C     descent stage base at X = 0.  Solids IS0+1 .. IS0+8; the hatch
-C     is a mark on the lower cabin's front (solid IS0+2, face 10, its
-C     +Z cap), the windows on the upper cabin's (IS0+8, face 8).
+C     descent stage base at X = 0: the descent stage (LMDSC, solid
+C     IS0+1), then the ascent stage (LMASC, solids IS0+2 .. IS0+8).
+C     LMASC alone is the ascent stage after lift-off (KLMA), in the
+C     same body frame.  The hatch is a mark on the lower cabin's front
+C     (ascent solid 1, face 10, its +Z cap), the windows on the upper
+C     cabin's (ascent solid 7, face 8).
 C     The ascent stage is placed by Grumman's LM inch stations (Lunar
 C     Module Structures ... Study Guide, course 30915, 2-15-67, "SG"):
 C     "a design reference point given as the X 200.00 inch station"
@@ -132,6 +173,31 @@ C     at X 3.0 m (from SG Fig. 13), the front's knee at X 3.021, the
 C     octagons and the outside of the midsection and aft bay.
 C-----------------------------------------------------------------------
       SUBROUTINE LMBODY
+      CALL LMDSC
+      CALL LMASC
+      RETURN
+      END
+C
+C     LMDSC: the descent stage, solid 1 of LMBODY.
+      SUBROUTINE LMDSC
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,8)
+C     1  descent stage: octagon 4.2 m across, X 0 .. 1.7.
+      CALL OCTAG(2.1D0, 2.1D0, 0.9D0, P)
+      CALL SETV(O, 0.0D0, 0.0D0, 0.0D0)
+      CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
+      CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
+      CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
+      CALL MKPRS(8, P, O, A1, A2, AN, 1.7D0)
+      RETURN
+      END
+C
+C     LMASC: the ascent stage, solids 2 .. 8 of LMBODY (1 .. 7 here),
+C     with its window and hatch marks.
+      SUBROUTINE LMASC
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
@@ -142,16 +208,9 @@ C     RESTOMOD END
       DATA Q / 1.168D0, 0.0D0, 1.168D0, 0.463D0, 0.484D0, 1.147D0,
      &  -0.484D0, 1.147D0, -1.168D0, 0.463D0, -1.168D0, 0.0D0 /
       IS0 = NSOL
-      IC = IS0 + 2
-      IU = IS0 + 8
+      IC = IS0 + 1
+      IU = IS0 + 7
 C
-C     1  descent stage: octagon 4.2 m across, X 0 .. 1.7.
-      CALL OCTAG(2.1D0, 2.1D0, 0.9D0, P)
-      CALL SETV(O, 0.0D0, 0.0D0, 0.0D0)
-      CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
-      CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
-      CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
-      CALL MKPRS(8, P, O, A1, A2, AN, 1.7D0)
 C     2  crew cabin, an octagon about the 92 in cylinder, from the aft
 C        bulkhead (Z27) to the lower front face (Z64.557).
       CALL OCTAG(1.168D0, 1.168D0, 0.684D0, P)
@@ -321,8 +380,8 @@ C     RESTOMOD END
 C
 C-----------------------------------------------------------------------
 C     LMDOCK: docking drogue and CSM-active docking target, as marks
-C     on the LM model LMBODY has just built (tunnel = its solid 5,
-C     midsection = its solid 3, of 8).
+C     on the LM model LMBODY (or LMASC) has just built (tunnel = its
+C     solid 5, midsection = its solid 3, of 8; of LMASC's 7, 4 and 2).
 C     Drogue, a cone in the tunnel's +X cap (face 10): "a conical
 C     drogue mounted in the LM docking tunnel", which is 32 in across
 C     (press kit, printed p. 88 and p. 101).  Depth: ours.
@@ -847,23 +906,11 @@ C     RESTOMOD END
       INTEGER K, J, I
       FT = 0.3048D0
       RB = 0.5D0 * (12.0D0 + 10.0D0 / 12.0D0) * FT
-      DO 10 K = 1, 16
-        P(1,K) = RB * DCOS(DBLE(K) * PI / 8.0D0)
-        P(2,K) = RB * DSIN(DBLE(K) * PI / 8.0D0)
-   10 CONTINUE
+C     CM cone and tunnel.
+      CALL CMBLD
       CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
       CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
       CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
-C     CM cone and tunnel.
-      CALL SETV(O, 0.0D0, 0.0D0, 0.0D0)
-      CALL MKFRU(16, P, O, A1, A2, AN, 2.25D0, 0.55D0 / RB)
-      DO 12 K = 1, 16
-        P(1,K) = 0.45D0 * DCOS(DBLE(K) * PI / 8.0D0)
-        P(2,K) = 0.45D0 * DSIN(DBLE(K) * PI / 8.0D0)
-   12 CONTINUE
-      CALL SETV(O, 2.25D0, 0.0D0, 0.0D0)
-      CALL MKPRS(16, P, O, A1, A2, AN,
-     &           (10.0D0 + 7.0D0 / 12.0D0) * FT - 2.25D0)
 C     SM and fairing, one cylinder of the SM's diameter up to the CM.
       XF = 22.0D0 / 12.0D0 * FT
       HS = (12.0D0 + 11.0D0 / 12.0D0) * FT
@@ -928,6 +975,37 @@ C     High-gain antenna: boom and four dishes.
      &        + (CY + DSIN(DBLE(K + 1) * PI / 6.0D0) * HA) * BU(3), 0)
    40   CONTINUE
    50 CONTINUE
+      RETURN
+      END
+C
+C     CMBLD: the CM, its first two solids of CSMBLD (cone, then
+C     tunnel), same body frame; alone it is the CM after CM/SM
+C     separation (KCMO).
+      SUBROUTINE CMBLD
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,16), FT, RB
+      INTEGER K
+      FT = 0.3048D0
+      RB = 0.5D0 * (12.0D0 + 10.0D0 / 12.0D0) * FT
+      DO 10 K = 1, 16
+        P(1,K) = RB * DCOS(DBLE(K) * PI / 8.0D0)
+        P(2,K) = RB * DSIN(DBLE(K) * PI / 8.0D0)
+   10 CONTINUE
+      CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
+      CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
+      CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
+      CALL SETV(O, 0.0D0, 0.0D0, 0.0D0)
+      CALL MKFRU(16, P, O, A1, A2, AN, 2.25D0, 0.55D0 / RB)
+      DO 12 K = 1, 16
+        P(1,K) = 0.45D0 * DCOS(DBLE(K) * PI / 8.0D0)
+        P(2,K) = 0.45D0 * DSIN(DBLE(K) * PI / 8.0D0)
+   12 CONTINUE
+      CALL SETV(O, 2.25D0, 0.0D0, 0.0D0)
+      CALL MKPRS(16, P, O, A1, A2, AN,
+     &           (10.0D0 + 7.0D0 / 12.0D0) * FT - 2.25D0)
       RETURN
       END
 C

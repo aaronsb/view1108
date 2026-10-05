@@ -41,7 +41,7 @@ C     RESTOMOD END
       INTEGER LOOKD
       DOUBLE PRECISION TG(3), D(3), DIST, DS(3), CG0(3), P(3), VDOT
       DOUBLE PRECISION C
-      INTEGER IT, IOK, I
+      INTEGER IT, IOK, I, KCSPL
       LOOKD = 0
       IVUSE = IVIEW
 C     Scene 8's own view is the external one.
@@ -69,9 +69,9 @@ C     The external view's default target is the scene's subject.
 C     Seen from outside, a camera riding the CSM (scenes 1, 2, 3, 4,
 C     7, 9) shows the CSM: its outline with the CM's base 1.2 m behind
 C     the eye along the scene's boresight, its X axis along that
-C     boresight (ours).
-      IF (IVUSE .EQ. 1 .AND. MDON(KCSM) .EQ. 0 .AND. ISCN .NE. 5
-     &    .AND. ISCN .NE. 8) CALL CSMCAM
+C     boresight (ours); after CM/SM separation the CM alone.
+      IF (IVUSE .EQ. 1 .AND. KCSPL() .EQ. 0 .AND. ISCN .NE. 5
+     &    .AND. ISCN .NE. 8) CALL CSMCAM(GET)
       CALL TGTPOS(GET, IT, PM, CG, TG, DIST, IOK)
       IF (IOK .EQ. 0) RETURN
       DO 10 I = 1, 3
@@ -129,9 +129,9 @@ C-----------------------------------------------------------------------
 C     TGTPOS: target IT's geocentric position TG (km) and the external
 C     view's distance DIST (km).  IOK = 0 if the scene has no such
 C     target, or it is the camera itself in a window view.  Vehicles:
-C     the placed models (the CSM, KCSM; the LM, KLMD or KLMS), else
-C     the CSM from the state source (VSTATE) where the camera is not
-C     the CSM (scenes 5, 6).
+C     the placed models (the CSM, KCSPL; the LM, KLMPL), else
+C     the vehicle's state (VSTATE) where it has one and the camera
+C     does not ride it (IRIDE).
 C-----------------------------------------------------------------------
       SUBROUTINE TGTPOS(GET, IT, PM, CG, TG, DIST, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -140,7 +140,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION GET, PM(3), CG(3), TG(3), DIST, R(3), V(3)
       DOUBLE PRECISION D
-      INTEGER IT, IOK, I, KL
+      INTEGER IT, IOK, I, KL, IRIDE, KC, KCSPL, KLMPL
       IOK = 1
       DIST = 0.0D0
       DO 5 I = 1, 3
@@ -161,13 +161,14 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         IF (IVUSE .EQ. 1) IOK = 0
       ELSE IF (IT .EQ. 4) THEN
         DIST = 0.060D0
-        IF (MDON(KCSM) .EQ. 1) THEN
-C         The placed CSM: aim at the top of its tunnel.
+        KC = KCSPL()
+        IF (KC .NE. 0) THEN
+C         The placed CSM (or CM): aim at the top of its tunnel.
           DO 30 I = 1, 3
-            TG(I) = CG(I) + MDP(I,KCSM) + 3.2D-3 * MDAT(I,1,KCSM)
+            TG(I) = CG(I) + MDP(I,KC) + 3.2D-3 * MDAT(I,1,KC)
    30     CONTINUE
-        ELSE IF (ISCN .EQ. 5 .OR. ISCN .EQ. 6) THEN
-          CALL VSTATE(GET, 1, R, V)
+        ELSE IF (IRIDE() .NE. 1) THEN
+          CALL VSTATE(GET, 1, 1, R, V, IOK)
           DO 35 I = 1, 3
             TG(I) = R(I)
    35     CONTINUE
@@ -176,15 +177,18 @@ C         The placed CSM: aim at the top of its tunnel.
         END IF
       ELSE
         DIST = 0.040D0
-        KL = 0
-        IF (MDON(KLMD) .EQ. 1) KL = KLMD
-        IF (MDON(KLMS) .EQ. 1) KL = KLMS
-        IF (KL .EQ. 0) THEN
-          IOK = 0
-        ELSE
+        KL = KLMPL()
+        IF (KL .NE. 0) THEN
           DO 50 I = 1, 3
             TG(I) = CG(I) + MDP(I,KL)
    50     CONTINUE
+        ELSE IF (IRIDE() .NE. 2) THEN
+          CALL VSTATE(GET, 2, 1, R, V, IOK)
+          DO 55 I = 1, 3
+            TG(I) = R(I)
+   55     CONTINUE
+        ELSE
+          IOK = 0
         END IF
       END IF
 C     RESTOMOD END
@@ -198,16 +202,37 @@ C     A window view cannot aim at its own camera.
       RETURN
       END
 C
-C     CSMCAM: place the CSM outline around the scene's camera, the CM's
-C     base 1.2 m behind the eye, X along the reference boresight, Z
-C     along its up (ours).
-      SUBROUTINE CSMCAM
+C     IRIDE: the vehicle the camera rides this frame (after VIEWPT has
+C     set IVUSE): 1 the CSM (the window views of scenes 1, 2, 3, 4, 7
+C     and 9, and the CM station in any scene), 2 the LM (scene 5, the
+C     LM station), 0 none (scenes 6 and 8, and the external views).
+      INTEGER FUNCTION IRIDE()
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION AT(3,3), P(3), Z(3)
-      INTEGER I
+      IRIDE = 1
+      IF (ISCN .EQ. 5) IRIDE = 2
+      IF (ISCN .EQ. 6 .OR. ISCN .EQ. 8 .OR. IVUSE .EQ. 1) IRIDE = 0
+      IF (IVUSE .EQ. 2) IRIDE = 1
+      IF (IVUSE .EQ. 3) IRIDE = 2
+      RETURN
+      END
+C
+C     CSMCAM: place the CSM outline around the scene's camera, the CM's
+C     base 1.2 m behind the eye, X along the reference boresight, Z
+C     along its up (ours).  From CM/SM separation (the scenario's
+C     CMSEP event) the CM alone (KCMO).
+      SUBROUTINE CSMCAM(GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, AT(3,3), P(3), Z(3), TS, EVGET
+      INTEGER I, K
+      K = KCSM
+      TS = EVGET(KECMS)
+      IF (TS .GE. 0.0D0 .AND. GET .GE. TS) K = KCMO
       DO 10 I = 1, 3
         AT(I,1) = BREF(I)
         AT(I,3) = UREF(I)
@@ -215,7 +240,7 @@ C     RESTOMOD END
         Z(I) = 0.0D0
    10 CONTINUE
       CALL VCRS(AT(1,3), AT(1,1), AT(1,2))
-      CALL MPLACE(KCSM, AT, P, Z)
+      CALL MPLACE(K, AT, P, Z)
       RETURN
       END
 C
@@ -261,26 +286,27 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION CG(3), AT(3,3), E(3), V(3), W(3), DS(3), Z(3)
-      INTEGER IOK, I, J
+      INTEGER IOK, I, J, KC, KCSPL
       IOK = 0
       IF (ISCN .EQ. 5 .OR. ISCN .EQ. 6) RETURN
       IOK = 1
       CALL CMEYE(E)
       CALL SETV(Z, 0.0D0, 0.0D0, 0.0D0)
-      IF (MDON(KCSM) .EQ. 0) GO TO 20
+      KC = KCSPL()
+      IF (KC .EQ. 0) GO TO 20
       DO 10 I = 1, 3
-        V(I) = (E(I) - MDBO(I,KCSM)) * 1.0D-3
+        V(I) = (E(I) - MDBO(I,KC)) * 1.0D-3
         DO 5 J = 1, 3
-          AT(I,J) = MDAT(I,J,KCSM)
+          AT(I,J) = MDAT(I,J,KC)
     5   CONTINUE
    10 CONTINUE
       CALL MXV(AT, V, W)
       DO 15 I = 1, 3
-        W(I) = W(I) + MDP(I,KCSM)
+        W(I) = W(I) + MDP(I,KC)
         CG(I) = CG(I) + W(I)
         DS(I) = -W(I)
    15 CONTINUE
-      CALL MSHIFT(DS, KCSM)
+      CALL MSHIFT(DS, KC)
       GO TO 30
    20 DO 25 I = 1, 3
         AT(I,1) = BREF(I)
@@ -312,11 +338,9 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION CG(3), AT(3,3), E(3), V(3), W(3), DS(3), C, S
       DOUBLE PRECISION Z(3)
-      INTEGER IOK, I, J, KL
+      INTEGER IOK, I, J, KL, KLMPL
       IOK = 0
-      KL = 0
-      IF (MDON(KLMD) .EQ. 1) KL = KLMD
-      IF (MDON(KLMS) .EQ. 1) KL = KLMS
+      KL = KLMPL()
       IF (KL .EQ. 0) RETURN
       IOK = 1
       CALL LDEYE(E)

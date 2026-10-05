@@ -273,7 +273,6 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       INTEGER K, I
       DOUBLE PRECISION T, R(3), V(3), RB(3), VB(3), PM(3), VM(3)
-      DOUBLE PRECISION X(3), Y(3), Z(3), DN, DV
       DO 10 I = 1, 3
         RB(I) = R(I)
         VB(I) = V(I)
@@ -287,20 +286,7 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
    20   CONTINUE
       END IF
 C     RESTOMOD END
-      DO 30 I = 1, 3
-        X(I) = VB(I)
-   30 CONTINUE
-      CALL VUNIT(X)
-      CALL VCRS(RB, VB, Z)
-      CALL VUNIT(Z)
-      CALL VCRS(Z, X, Y)
-      DN = DSQRT(BNP(K)**2 + BNR(K)**2 + BNN(K)**2)
-      IF (DN .LE. 0.0D0) RETURN
-      DV = BNDV(K) * 0.3048D-3 / DN
-      DO 40 I = 1, 3
-        V(I) = V(I) + DV * (BNP(K) * X(I) + BNR(K) * Y(I)
-     &       + BNN(K) * Z(I))
-   40 CONTINUE
+      CALL IMPULS(RB, VB, BNDV(K), BNP(K), BNR(K), BNN(K), V)
       RETURN
       END
 C
@@ -309,34 +295,24 @@ C     REFST: reference row J as a geocentric EQ state.  About the Earth
 C     from its card as a CONIC leg's state (STATEV).  About the Moon:
 C     its selenographic position at its altitude above the mean
 C     radius RM, its speed and flight-path angle, and the horizontal
-C     direction of the lunar leg's plane at that time (our choice),
-C     then the Moon's own state added.
+C     direction of the lunar leg's plane at that time (LCST, traj.f;
+C     our choice), then the Moon's own state added.
 C-----------------------------------------------------------------------
       SUBROUTINE REFST(J, R, V)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      INTEGER J, K, I, LEGAT
-      DOUBLE PRECISION R(3), V(3), S(3), U(3), M(3,3), HN(3), W(3)
-      DOUBLE PRECISION PM(3), VM(3), RA, SP, G
+      INTEGER J, I
+      DOUBLE PRECISION R(3), V(3), PM(3), VM(3)
       IF (RFBOD(J) .EQ. 2) GO TO 10
       CALL STATEV(RFP(1,J), RFGC(J), R, V)
       RETURN
-   10 CALL LLUNIT(RFP(4,J), RFP(5,J), S)
-      CALL MOONRT(RFP(3,J), M)
-      CALL MXV(M, S, U)
-      K = LEGAT(RFP(3,J), 2)
-      CALL VCRS(LGEL(1,K), LGEL(4,K), HN)
-      CALL VCRS(HN, U, W)
-      CALL VUNIT(W)
-      RA = RM + RFP(6,J) * 1.852D0
-      SP = RFP(7,J) * 0.3048D-3
-      G = RFP(8,J) * DR
+   10 CALL LCST(RFP(1,J), R, V)
       CALL MOONV(RFP(3,J), PM, VM)
       DO 20 I = 1, 3
-        R(I) = PM(I) + RA * U(I)
-        V(I) = VM(I) + SP * (DSIN(G) * U(I) + DCOS(G) * W(I))
+        R(I) = PM(I) + R(I)
+        V(I) = VM(I) + V(I)
    20 CONTINUE
       RETURN
       END

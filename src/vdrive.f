@@ -75,7 +75,7 @@ C     RESTOMOD END
       INTEGER ISC
       DOUBLE PRECISION GET, YAW, PIT, ROL, FOV
       DOUBLE PRECISION R(3), V(3), PM(3), E(3), S(3), X, Y, TFIX
-      INTEGER I, ISNSC(9)
+      INTEGER I, ISNSC(9), IVS
       DOUBLE PRECISION VDOT, EVGET
 C     The scenario of each scene: Apollo 11 as flown for scenes 1-8,
 C     Apollo 8 as flown for scene 9.
@@ -115,7 +115,7 @@ C       set at the photograph's time; the pointing is S9REF's.
         FOV = 8.0D0
         IF (ISCN .EQ. 9) GET = EVGET(KEPHO)
         IF (ISCN .EQ. 9) FOV = 12.72D0
-        CALL VSTATE(GET, 2, R, V)
+        CALL VSTATE(GET, 1, 2, R, V, IVS)
         CALL MOONG(GET, PM)
         E(1) = -PM(1) - R(1)
         E(2) = -PM(2) - R(2)
@@ -137,8 +137,8 @@ C       only its limb arc as the spacecraft closes on entry.
         GET = TETP - 5.0D0 * 3600.0D0
         FOV = 60.0D0
         ELOFF = 0.0D0
-        CALL VSTATE(TFIX, 1, R, V)
-        CALL VSTATE(TETP - 3600.0D0, 1, E, S)
+        CALL VSTATE(TFIX, 1, 1, R, V, IVS)
+        CALL VSTATE(TETP - 3600.0D0, 1, 1, E, S, IVS)
         DO 22 I = 1, 3
           PM(I) = -R(I)
           E(I) = -E(I)
@@ -216,8 +216,8 @@ C     RESTOMOD END
       DOUBLE PRECISION TB(4,MAXT)
       INTEGER NT, TC(MAXTC), NCH
       DOUBLE PRECISION PM(3), CG(3), CV(3), RB, RNG, D1, D2, D3, D4
-      DOUBLE PRECISION PB(3), RR, VNRM, VDOT, RHO
-      INTEGER I, IREF, IWIN, IOK, J, LOOKD
+      DOUBLE PRECISION PB(3), RR, VNRM, VDOT, RHO, RC(3), RL(3), VX(3)
+      INTEGER I, IREF, IWIN, IOK, J, LOOKD, KLMPL
       DOUBLE PRECISION MR1(3,3), MR2(3,3)
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
@@ -276,7 +276,7 @@ C     reference body IREF, window code IWIN, reference attitude.
       S6LON = YAW
       CALL SCNCAM(GET, PM, CG, CV, IREF, IWIN)
 C     Spacecraft models first: they hide stars and bodies.
-      CALL SCNMOD(GET)
+      CALL SCNMOD(GET, PM, CG)
 C     The camera target and the external view (vview.f).
       CALL VIEWPT(GET, PM, CG, YAW, PIT, ROL, LOOKD)
       DO 20 I = 1, 3
@@ -322,23 +322,21 @@ C     RESTOMOD END
       HD(6) = DBLE(IREF)
       HD(7) = DBLE(ISCN)
       HD(8) = DBLE(IWIN)
-      IF (ISCN .EQ. 4) HD(9) = 300.0D0
 C     Scene 5: the footpads' altitude (LMDESC), 0 at touchdown.
       IF (ISCN .EQ. 5) HD(10) = LMALT * 1000.0D0 / 0.3048D0
-      IF (ISCN .EQ. 7) HD(9) = S7RNG
 C     Reference body in the picture, for the page's camera steering:
 C     centre X, Y (deg, even off frame), angular radius, in front flag.
 C     Scene 4: the LM.  Scene 7: the LM's docking target (S7POSE).
       DO 40 I = 1, 3
         PB(I) = EPOS(I)
         IF (IREF .EQ. 2) PB(I) = MPOS(I)
-        IF (ISCN .EQ. 4) PB(I) = 300.0D0 * 0.3048D-3 * BREF(I)
+        IF (ISCN .EQ. 4 .AND. KLMPL() .NE. 0) PB(I) = MDP(I,KLMPL())
         IF (ISCN .EQ. 7) PB(I) = S7LP(I) - 0.72D-3 * S7AT(I,2)
         IF (ISCN .EQ. 8) PB(I) = MDP(I,KCSM) + 3.2D-3 * MDAT(I,1,KCSM)
    40 CONTINUE
       RR = RE
       IF (IREF .EQ. 2) RR = RM
-      IF (ISCN .EQ. 4) RR = 4.5D-3
+      IF (ISCN .EQ. 4 .AND. KLMPL() .NE. 0) RR = 4.5D-3
 C     Scene 7: the LM, half its 14 ft 1 in width (Apollo 11 press kit,
 C     printed p. 96).
       IF (ISCN .EQ. 7) RR = 2.15D-3
@@ -355,6 +353,16 @@ C     and the last engine run's error at the reference row nearest
 C     GET: position (km), velocity (ft/s), that row's g.e.t. (s).
       HD(17) = DBLE(ISRCU)
       CALL SIMERR(GET, J, HD(20), HD(18), HD(19))
+C     The CSM to LM range (ft) where both states are known (VSTATE;
+C     0 docked), kept from HD(17)'s record of the source; scene 7:
+C     the docking ring's range of its closing law (S7POSE).
+      I = ISRCU
+      CALL CSMSL(GET, RC, VX)
+      CALL VSTATE(GET, 2, 2, RL, VX, IOK)
+      ISRCU = I
+      IF (IOK .NE. 0) HD(9) = DSQRT((RL(1) - RC(1))**2
+     &  + (RL(2) - RC(2))**2 + (RL(3) - RC(3))**2) * 1.0D3 / 0.3048D0
+      IF (ISCN .EQ. 7) HD(9) = S7RNG
       HD(14) = 0.0D0
       IF (VDOT(PB, CB) .GT. 0.0D0) HD(14) = 1.0D0
 C     The vehicles in this frame's world (VPRES): 1 CSM, 2 LM, 4 S-IVB.
@@ -368,7 +376,7 @@ C     enables its station buttons from these; HD(21) leaves out the
 C     vehicle the camera rides, so it cannot.
       HD(22) = 4.0D0
       IF (ISCN .NE. 5 .AND. ISCN .NE. 6) HD(22) = HD(22) + 1.0D0
-      IF (MDON(KLMD) .EQ. 1 .OR. MDON(KLMS) .EQ. 1 .OR. ISCN .EQ. 5
+      IF (KLMPL() .NE. 0 .OR. ISCN .EQ. 5
      &  .OR. IVUSE .EQ. 3) HD(22) = HD(22) + 2.0D0
 C     Text for the recorder's character generator.
       CALL TXALL(LB, NL, TB, NT, TC, NCH)
@@ -389,7 +397,7 @@ C     RESTOMOD END
       DOUBLE PRECISION R(3), V(3), RU(3), VU(3), SU(3), H(3), E(3)
       DOUBLE PRECISION DIP, CA, SA, CD, SD, P2(3), R2(3), K, VDOT
       DOUBLE PRECISION XB(3), YB(3), ZB(3), PMF(3), VNRM
-      INTEGER I, ICAM, LUNIN
+      INTEGER I, ICAM, LUNIN, IVS
 C
       IWIN = 1
 C     The camera class: the scene's own, but scene 9 (Apollo 8) away
@@ -402,7 +410,7 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (ICAM .EQ. 1 .OR. ICAM .EQ. 4 .OR. ICAM .EQ. 9) THEN
 C       CSM in lunar orbit.
         IREF = 2
-        CALL VSTATE(GET, 2, R, V)
+        CALL VSTATE(GET, 1, 2, R, V, IVS)
         DO 10 I = 1, 3
           CG(I) = PM(I) + R(I)
           CV(I) = V(I)
@@ -437,7 +445,7 @@ C         Out of plane toward the LM, local vertical up.
       ELSE IF (ICAM .EQ. 2) THEN
 C       Coast.  Attitude held inertially (FXB, FXU, set by VINIT).
         IREF = 1
-        CALL VSTATE(GET, 1, R, V)
+        CALL VSTATE(GET, 1, 1, R, V, IVS)
         DO 40 I = 1, 3
           CG(I) = R(I)
           CV(I) = V(I)
@@ -448,7 +456,7 @@ C       Coast.  Attitude held inertially (FXB, FXU, set by VINIT).
 C       Parking orbit (and scene 9 away from the Moon).  Forward,
 C       boresight 8 deg above the horizon.
         IREF = 1
-        CALL VSTATE(GET, 1, R, V)
+        CALL VSTATE(GET, 1, 1, R, V, IVS)
         DO 70 I = 1, 3
           CG(I) = R(I)
           CV(I) = V(I)
@@ -497,7 +505,7 @@ C       Earth, looking at it with the Earth behind; the stack's X axis
 C       up.  Its own view is external (VIEWPT), which yaw and pitch
 C       carry around the stack.
         IREF = 1
-        CALL VSTATE(GET, 1, R, V)
+        CALL VSTATE(GET, 1, 1, R, V, IVS)
         CALL S8ATT(GET)
         DO 120 I = 1, 3
           BREF(I) = -R(I)
@@ -517,7 +525,7 @@ C       face the stack, which holds an inertial attitude (S7ATT).
 C       Boresight along the CSM +X axis, which is down the LM's -X
 C       axis; the LM front (+Z) up.
         IREF = 1
-        CALL VSTATE(GET, 1, R, V)
+        CALL VSTATE(GET, 1, 1, R, V, IVS)
         CALL S7ATT
         DO 110 I = 1, 3
           CG(I) = R(I)
@@ -617,41 +625,139 @@ C     RESTOMOD END
 C
 C-----------------------------------------------------------------------
 C     SCNMOD: place this frame's models (after SCNCAM, before the sky
-C     is drawn, since placed solids hide stars and bodies).
+C     is drawn, since placed solids hide stars and bodies): the
+C     scene's own, then the vehicles near the camera at their states
+C     (VEHPL).  PM the Moon, CG the camera (geocentric, km).
 C-----------------------------------------------------------------------
-      SUBROUTINE SCNMOD(GET)
+      SUBROUTINE SCNMOD(GET, PM, CG)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION GET
+      DOUBLE PRECISION GET, PM(3), CG(3)
       CALL MCLEAR
-      IF (ISCN .EQ. 4) CALL LMPIRO(GET)
+      IF (ISCN .EQ. 4) CALL LMPIRO(GET, PM, CG)
       IF (ISCN .EQ. 7) CALL S7POSE(GET)
       IF (ISCN .EQ. 8) CALL S8POSE
+      CALL VEHPL(GET, PM, CG)
       RETURN
       END
 C
 C-----------------------------------------------------------------------
-C     LMPIRO: the LM 300 ft from the CSM along the reference
-C     boresight, turning slowly for inspection (scene 4).
+C     LMREL: the LM's position LP (km) relative to the camera CG, from
+C     its state (VSTATE); IOK = 0 if it has none of its own (docked,
+C     or none at all) or is within 15 m of the camera, where its model
+C     would hold the camera (ours).
 C-----------------------------------------------------------------------
-      SUBROUTINE LMPIRO(GET)
+      SUBROUTINE LMREL(GET, PM, CG, LP, V, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION GET
-      DOUBLE PRECISION AT(3,3), R1(3,3), R2(3,3), R3(3,3), R4(3,3)
-      DOUBLE PRECISION BX(3,3), LP(3), BO(3), T, PS, TH, PH, DIST
-      DOUBLE PRECISION EVGET
-      INTEGER I
-C     Body axes in the reference frame: X up, Z toward the camera.
+      DOUBLE PRECISION GET, PM(3), CG(3), LP(3), V(3), R(3), VNRM
+      INTEGER IOK, I
+      CALL VSTATE(GET, 2, 2, R, V, IOK)
+      IF (IOK .NE. 1) IOK = 0
+      IF (IOK .EQ. 0) RETURN
       DO 10 I = 1, 3
-        BX(I,1) = UREF(I)
-        BX(I,2) = -RREF(I)
-        BX(I,3) = -BREF(I)
+        LP(I) = PM(I) + R(I) - CG(I)
    10 CONTINUE
+      IF (VNRM(LP) .LT. 15.0D-6) IOK = 0
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     VEHPL: the LM at its state (LMSTAT), placed when it is within 5
+C     km of the camera (where its model spans more than about 0.1 deg;
+C     ours), not already placed by the scene and not carrying the
+C     camera (scene 5): before touchdown with its descent stage, the
+C     gear-down model (KLMD); from lift-off (the LIFT event) the ascent
+C     stage alone (KLMA).  Landed, from touchdown to lift-off, it is
+C     not placed (the marker of lvlab.f stands for it).  Attitude ours:
+C     +X along the local vertical, +Z along the motion; the ascent
+C     stage from TPF (terminal phase finalize) on, braking to the CSM,
+C     turns its +X, the docking tunnel's axis, toward the CSM.
+C-----------------------------------------------------------------------
+      SUBROUTINE VEHPL(GET, PM, CG)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, PM(3), CG(3), LP(3), V(3), AT(3,3), BO(3)
+      DOUBLE PRECISION RL(3), RC(3), VC(3), TL, TF, C, VDOT, VNRM
+      DOUBLE PRECISION EVGET
+      INTEGER IOK, I, J, K, KLMPL
+      IF (ISCN .EQ. 5 .OR. KLMPL() .NE. 0) RETURN
+      K = KLMD
+      TL = EVGET(KELFT)
+      IF (TL .GE. 0.0D0 .AND. GET .GE. TL) K = KLMA
+      IF (K .EQ. KLMD .AND. LUT0 .GT. 0.0D0 .AND. GET .GE. LUT0)
+     &  RETURN
+      CALL LMREL(GET, PM, CG, LP, V, IOK)
+      IF (IOK .EQ. 0) RETURN
+      IF (VNRM(LP) .GT. 5.0D0) RETURN
+C     Up: from the Moon's centre to the LM.
+      DO 10 I = 1, 3
+        AT(I,1) = CG(I) + LP(I) - PM(I)
+   10 CONTINUE
+      TF = EVGET(KETPF)
+      IF (K .NE. KLMA .OR. TF .LT. 0.0D0 .OR. GET .LT. TF) GO TO 15
+C     The ascent stage braking to docking: up toward the CSM (the
+C     source used, ISRCU, kept as the camera's).
+      J = ISRCU
+      CALL VSTATE(GET, 2, 2, RL, V, IOK)
+      CALL VSTATE(GET, 1, 2, RC, VC, IOK)
+      ISRCU = J
+      DO 12 I = 1, 3
+        AT(I,1) = RC(I) - RL(I)
+   12 CONTINUE
+   15 CALL VUNIT(AT(1,1))
+      C = VDOT(V, AT(1,1))
+      DO 20 I = 1, 3
+        AT(I,3) = V(I) - C * AT(I,1)
+   20 CONTINUE
+      CALL VUNIT(AT(1,3))
+      CALL VCRS(AT(1,3), AT(1,1), AT(1,2))
+      CALL SETV(BO, 2.3D0, 0.0D0, 0.0D0)
+      CALL MPLACE(K, AT, LP, BO)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     LMPIRO: the LM at its state (LMSTAT: 300 ft out along the orbit
+C     normal from undocking to the separation burn), turning slowly for
+C     inspection (scene 4); not placed where it has no state of its
+C     own (LMREL), nor from touchdown on, as in VEHPL (the gear-down
+C     model is the LM with its descent stage).
+C-----------------------------------------------------------------------
+      SUBROUTINE LMPIRO(GET, PM, CG)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, PM(3), CG(3)
+      DOUBLE PRECISION AT(3,3), R1(3,3), R2(3,3), R3(3,3), R4(3,3)
+      DOUBLE PRECISION BX(3,3), LP(3), BO(3), V(3), T, PS, TH, PH, C
+      DOUBLE PRECISION EVGET, VDOT
+      INTEGER I, IOK, K
+C     Nothing between touchdown and lift-off (VEHPL's rule): the LM
+C     stands at the landing site, below any scene 4 camera.
+      IF (LUT0 .GT. 0.0D0 .AND. GET .GE. LUT0 .AND. (EVGET(KELFT)
+     &  .LT. 0.0D0 .OR. GET .LT. EVGET(KELFT))) RETURN
+      CALL LMREL(GET, PM, CG, LP, V, IOK)
+      IF (IOK .EQ. 0) RETURN
+C     Body axes: X up (the reference up made square to the line of
+C     sight), Z toward the camera.
+      DO 10 I = 1, 3
+        BX(I,3) = -LP(I)
+   10 CONTINUE
+      CALL VUNIT(BX(1,3))
+      C = VDOT(UREF, BX(1,3))
+      DO 15 I = 1, 3
+        BX(I,1) = UREF(I) - C * BX(I,3)
+   15 CONTINUE
+      CALL VUNIT(BX(1,1))
+      CALL VCRS(BX(1,3), BX(1,1), BX(1,2))
       T = GET - EVGET(KEUND)
       PS = (35.0D0 + 1.5D0 * T) * DR
       TH = -(20.0D0 + 15.0D0 * DSIN(T * 2.0D0 * PI / 300.0D0)) * DR
@@ -664,13 +770,12 @@ C     turn in the picture about body Z (toward the camera).
       CALL MXM(R3, R2, R4)
       CALL MXM(R4, R1, R2)
       CALL MXM(BX, R2, AT)
-      DIST = 300.0D0 * 0.3048D-3
-      DO 20 I = 1, 3
-        LP(I) = DIST * BREF(I)
-   20 CONTINUE
-C     Centred on the stage joint.
+C     Centred on the stage joint, the state's point (LMSTAT).  From
+C     lift-off (the LIFT event) the ascent stage alone (KLMA).
       CALL SETV(BO, 2.3D0, 0.0D0, 0.0D0)
-      CALL MPLACE(KLMD, AT, LP, BO)
+      K = KLMD
+      IF (EVGET(KELFT) .GE. 0.0D0 .AND. GET .GE. EVGET(KELFT)) K = KLMA
+      CALL MPLACE(K, AT, LP, BO)
       RETURN
       END
 C
@@ -773,10 +878,10 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION T, R(3), V(3), S(3), H(3), X(3), Y(3), VDOT
       DOUBLE PRECISION EVGET
-      INTEGER I
+      INTEGER I, IVS
 C     The attitude time from the scenario (TDATT).
       T = EVGET(KETDA)
-      CALL VSTATE(T, 1, R, V)
+      CALL VSTATE(T, 1, 1, R, V, IVS)
       CALL SUNG(T, S)
       CALL VCRS(R, V, H)
       CALL VUNIT(H)

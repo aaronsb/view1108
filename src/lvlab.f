@@ -17,19 +17,20 @@ C         each placed model: off the model's projected X axis by the
 C         model's projected half-width across that axis plus a gap,
 C         so the name clears the model's lines.  The CSM gets CM and SM
 C         labels beside its two modules, on the same side, or one CSM
-C         label when those two would touch.
+C         label when those two would touch.  The CM alone (after CM/SM
+C         separation) is CM, the ascent stage alone (after lunar
+C         lift-off) LM.
 C       Markers: a placed model whose picture spans less than 0.2
 C         percent of the field (under about one plot pixel) gets the
 C         small boxed X of the Moon view's landing site (DMOON6, BOXX)
 C         at its centre instead, with its label beside the box.  So do
-C         vehicles known only by their state: the CSM in scenes 5 and
-C         6 (VSTATE, replay or tape), and the LM in its modelled
-C         descent (LMDESC, the last 600 s before touchdown) where the
-C         camera does not ride it.  The LM has no state of its own
-C         anywhere else: the scenario's legs and the tape carry the CSM
-C         only.  Docked, it rides with the CSM's mark; from undocking
-C         to the modelled descent, and after touchdown (where the Moon
-C         view's landing site mark stands), it is not marked.
+C         vehicles known only by their state (VSTATE): one not placed
+C         as a model, which the camera does not ride (IRIDE), where it
+C         has a state; the CSM's is CM from CM/SM separation on.  The
+C         LM has one only where LMSTAT's rules (traj.f)
+C         give it one; docked to the CSM it is not marked (the CSM's
+C         mark or model stands for both), nor in the Moon view (scene
+C         6) while landed (the landing site's box stands for it).
 C       A label that would leave the frame or meet a name already
 C         lettered (the other layers' labels, VLSEED, or a vehicle's)
 C         tries the other side of its vehicle, then is dropped.
@@ -49,12 +50,11 @@ C     RESTOMOD END
       DOUBLE PRECISION XA(64), XB(64), YA(64)
       DOUBLE PRECISION YB(64), XM(8), YM(8), H, TINY, C(3), P(3), Q(3)
       DOUBLE PRECISION R(3), V(3), XMN, XMX, YMN, YMX, X1, Y1, X2, Y2
-      DOUBLE PRECISION SALT, SEYE, FX(3), FY(3), FZ(3)
-      INTEGER KORD(4), IDM(4), NCH(5), M, K, N, J, NP, NP0, NM, IOK
-      INTEGER ISD
-      INTEGER LMKNOW
-      DATA KORD / KCSM, KLMD, KLMS, KSIV /
-      DATA IDM / 5, 3, 3, 4 /
+      INTEGER KORD(6), IDM(6), NCH(5), M, K, N, J, NP, NP0, NM, IOK
+      INTEGER ISD, IRIDE, KCSPL, KLMPL, ID
+      DOUBLE PRECISION TS, TL, EVGET
+      DATA KORD / KCSM, KCMO, KLMD, KLMS, KLMA, KSIV /
+      DATA IDM / 5, 1, 3, 3, 3, 4 /
       DATA NCH / 2, 2, 2, 5, 3 /
       NM = 0
 C     The name height TXALL letters at, and 0.2 percent of the field.
@@ -62,7 +62,7 @@ C     The name height TXALL letters at, and 0.2 percent of the field.
       TINY = 0.004D0 * BOXH
 C     The names already placed by the other layers are kept clear of.
       CALL VLSEED(LB, NL, H, XA, XB, YA, YB, NP)
-      DO 50 M = 1, 4
+      DO 50 M = 1, 6
         K = KORD(M)
         IF (MDON(K) .EQ. 0) GO TO 50
         CALL VLPTS(K, VLPX, VLPY, N)
@@ -107,26 +107,27 @@ C       the SM (the rest) on the same side with the CM's box counted.
      &    NCH(IDM(M)), XA, XB, YA, YB, NP)
    50 CONTINUE
 C
-C     The CSM from its state, where it is not placed and the camera
-C     does not ride it (as TGTPOS): scenes 5 and 6.
-      IF (MDON(KCSM) .EQ. 1) GO TO 60
-      IF (ISCN .NE. 5 .AND. ISCN .NE. 6) GO TO 60
-      CALL VSTATE(GET, 2, R, V)
+C     The CSM and the LM from their states, where they are not placed
+C     and the camera does not ride them; the LM not while docked, nor
+C     in the Moon view while it stands at the landing site, whose boxed
+C     X (DMOON6) stands for it there.
+      IF (KCSPL() .NE. 0 .OR. IRIDE() .EQ. 1) GO TO 60
+      CALL VSTATE(GET, 1, 2, R, V, IOK)
       DO 55 J = 1, 3
         P(J) = MPOS(J) + R(J)
    55 CONTINUE
-      CALL VLMARK(VB, NV, LB, NL, P, 5, 3, 1, H, XA, XB, YA, YB, NP,
-     &            XM, YM, NM)
-C
-C     The LM in its modelled descent (LMDESC gives the commander's eye;
-C     LMDESC also sets LMALT and LMEYE for scene 5, kept here).
-   60 IF (LMKNOW(GET) .EQ. 0) RETURN
-      SALT = LMALT
-      SEYE = LMEYE
-      CALL LMDESC(GET, Q, FX, FY, FZ)
-      LMALT = SALT
-      LMEYE = SEYE
-      CALL MXV(MMF, Q, R)
+      ID = 5
+      TS = EVGET(KECMS)
+      IF (TS .GE. 0.0D0 .AND. GET .GE. TS) ID = 1
+      CALL VLMARK(VB, NV, LB, NL, P, ID, NCH(ID), 1, H, XA, XB, YA, YB,
+     &            NP, XM, YM, NM)
+   60 IF (KLMPL() .NE. 0) RETURN
+      IF (IRIDE() .EQ. 2) RETURN
+      TL = EVGET(KELFT)
+      IF (ISCN .EQ. 6 .AND. LUT0 .GT. 0.0D0 .AND. GET .GE. LUT0
+     &    .AND. (TL .LT. 0.0D0 .OR. GET .LT. TL)) RETURN
+      CALL VSTATE(GET, 2, 2, R, V, IOK)
+      IF (IOK .NE. 1) RETURN
       DO 65 J = 1, 3
         P(J) = MPOS(J) + R(J)
    65 CONTINUE
@@ -135,39 +136,22 @@ C     LMDESC also sets LMALT and LMEYE for scene 5, kept here).
       RETURN
       END
 C
-C     LMKNOW: 1 if the LM, not placed as a model and not carrying the
-C     camera (scene 5), has a state of its own at GET: the modelled
-C     descent, from 600 s before touchdown (LMDESC) to touchdown.
-      INTEGER FUNCTION LMKNOW(GET)
-C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
-      INCLUDE 'viewdims.inc'
-      INCLUDE 'viewcom.inc'
-C     RESTOMOD END
-      DOUBLE PRECISION GET
-      LMKNOW = 0
-      IF (MDON(KLMD) .EQ. 1 .OR. MDON(KLMS) .EQ. 1) RETURN
-      IF (ISCN .EQ. 5 .OR. LUT0 .LE. 0.0D0) RETURN
-      IF (GET .LT. LUT0 - 600.0D0 .OR. GET .GE. LUT0) RETURN
-      LMKNOW = 1
-      RETURN
-      END
-C
 C     VPRES: IVBIT, the vehicles in this frame's world, for hdr(21): 1
 C     the CSM, 2 the LM, 4 the S-IVB, each if placed as a model or
-C     known by its state for a marker (VLABEL); the vehicle the camera
-C     rides in a window or station view is not counted.
+C     known by its state (VSTATE; the LM docked too); the vehicle the
+C     camera rides in a window or station view (IRIDE) is not counted.
       SUBROUTINE VPRES(GET)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION GET
-      INTEGER LMKNOW
+      DOUBLE PRECISION GET, R(3), V(3)
+      INTEGER IRIDE, IOK, KCSPL, KLMPL
       IVBIT = 0
-      IF (MDON(KCSM) .EQ. 1 .OR. ISCN .EQ. 5 .OR. ISCN .EQ. 6)
-     &  IVBIT = 1
-      IF (MDON(KLMD) .EQ. 1 .OR. MDON(KLMS) .EQ. 1 .OR.
-     &    LMKNOW(GET) .EQ. 1) IVBIT = IVBIT + 2
+      IF (KCSPL() .NE. 0 .OR. IRIDE() .NE. 1) IVBIT = 1
+      IOK = 0
+      IF (IRIDE() .NE. 2) CALL VSTATE(GET, 2, 2, R, V, IOK)
+      IF (KLMPL() .NE. 0 .OR. IOK .NE. 0) IVBIT = IVBIT + 2
       IF (MDON(KSIV) .EQ. 1) IVBIT = IVBIT + 4
       RETURN
       END
