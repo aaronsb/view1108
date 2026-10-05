@@ -22,8 +22,9 @@ plan of MSC's 1108 room survives in our sources.
 | IN 66-FM-79 | W. R. Pruett, MSC Internal Note 66-FM-79, Aug 1966 (NTRS 19700025047): <https://ntrs.nasa.gov/citations/19700025047> |
 | HEPCAT | TRW Systems for MSC, Users Manual for Computer Program HEPCAT, June 1970 (NTRS 19700027062): <https://ntrs.nasa.gov/citations/19700027062> |
 
-The manuals and the brochure are © Sperry Rand. We studied them but do not keep them in the repository, nor the UNISCOPE
-photo.
+The UNIVAC manuals (© Sperry Rand), the 4020 manual and brochure (© Stromberg-Carlson), IN 66-FM-79 and HEPCAT are
+hosted in the reference library, `web/library/`, whose README gives their rights and sources; the bookcase below holds
+them. The 1108 II brochure, the 4060 description and the UNISCOPE photo are not kept in the repository.
 
 Palette, read off the brochure's colour plates (approximate): cabinets `#c9ccc8`, the CPU row's warmer grey
 `#cfcbc0`, panels charcoal `#3a3f44`, accent orange `#c8642a`, desk tops `#eeeeea`. The lamps are warm white and
@@ -47,6 +48,7 @@ Sizes are W x H x D in metres.
 | `reeltable` | Table with stacked reels, a reel rack and a desk clock | MSC photo | 1.6 x 0.75 x 0.8 (inferred) | Fair |
 | `desk` | White slab on chrome T-legs | Brochure p. 7 | 1.5 x 0.73 x 0.75 (ours) | Fair |
 | `chair` | Chrome swivel chair on casters | Brochure p. 7 | 0.6 x 0.88 x 0.6 (ours) | Fair |
+| `bookcase` | Steel bookcase with one ring binder per document of the reference library, upright between L-shaped bookends; the lower shelf holds three unlabelled binders lying flat | none: ours | 1.0 x 1.1 x 0.36 (ours) | HYPOTHETICAL throughout (below) |
 | `filmrecorder` | S-C 4020 Computer Recorder: the microfilm recorder, HYPOTHETICAL as to MSC's model (below) | 4020 brochure pp. 1, 4; 4020 manual Fig. 1 (p. 1), Fig. 5 (p. 7), p. 25 | 2.24 x 1.88 x 0.94 (basic unit 66 x 37 x 74 in plus the 22 in tape adapter, brochure p. 4) | Fair on look; the model at MSC is our choice |
 
 **The 1558's shape.** UP-7789's photographs, scaled by the 35 in width: Figure 2-5 (p. 11, square on) gives the face's
@@ -127,6 +129,16 @@ the viewing port, the frame counter, the panel layouts and lamp meanings, the co
 
 Not modelled: drums (FH-432/1782, FASTRAND; we cannot identify them in the MSC photo; they are heard, see Sound), a
 keypunch, and the 4020's tape transport and hard-copy camera.
+
+## The reference library
+
+No source shows where MSC kept its manuals; the bookcase, its place (against the east wall behind the UNISCOPE's
+desk, its front 0.9 m clear) and everything on it are ours. Each binder's thickness follows its PDF's page count (1 in
+rings for the thinnest up to 2 1/2 in for 330 pages), its spine card gives the number and a short title in the
+nameplate face, and the colours are ours too: grey and blue vinyl for the UNIVAC manuals, black and oxblood for the
+Stromberg-Carlson ones, buff for the NASA reports. The bookends are olive enamel. A binder is picked on its own (its
+title on hover); asked for, it slides 7 cm out of the row while the camera flies to its spine, and back when the room
+returns.
 
 ## Sound
 

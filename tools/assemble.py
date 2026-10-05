@@ -11,6 +11,7 @@ a line of a form feed and its path, HTML-escaped),
 __FONT_3270_B64__ (web/fonts/3270-Regular.subset.woff2), __FONT_JBM_B64__ (web/fonts/JetBrainsMono-Regular.subset.woff2),
 __FONT_MICH_B64__ (web/fonts/Michroma-Regular.subset.woff2, the machine room's nameplates),
 __PHOTOS_JSON__ (build/photos.json from tools/photo_pack.py, the Fusion tab's photographs; [] when absent),
+__LIBRARY_JSON__ (web/library/library.json, the reference library's manifest; the PDFs stay beside the page),
 __LAB_JS__ (build/lab.js, the machine room bundled from web/lab; empty when absent, and the page has no Room).
 The kernel's symbol table (build/symbols.json, tools/gen_symbols.py) follows the listing's </pre> as
 <script type="application/json" id="fsym">, when that file is there.
@@ -26,6 +27,7 @@ INPUTS = {
     "font": R / "web/fonts/3270-Regular.subset.woff2",
     "fontjbm": R / "web/fonts/JetBrainsMono-Regular.subset.woff2",
     "fontmich": R / "web/fonts/Michroma-Regular.subset.woff2",
+    "library": R / "web/library/library.json",
 }
 missing = [f"  {k}: {p.relative_to(R)}" for k, p in INPUTS.items() if not p.is_file()]
 if missing:
@@ -72,6 +74,7 @@ subs = {
     "__FONT_3270_B64__": base64.b64encode(INPUTS["font"].read_bytes()).decode(),
     "__FONT_JBM_B64__": base64.b64encode(INPUTS["fontjbm"].read_bytes()).decode(),
     "__FONT_MICH_B64__": base64.b64encode(INPUTS["fontmich"].read_bytes()).decode(),
+    "__LIBRARY_JSON__": INPUTS["library"].read_text().replace("</", "<\\/"),
     "__WASM_B64__": base64.b64encode(INPUTS["wasm"].read_bytes()).decode(),
 }
 LAB = R / "build/lab.js"

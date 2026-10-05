@@ -1,7 +1,7 @@
 // Room and Tiled: the workbench inside a 3D machine room (web/lab, inlined from build/lab.js as VIEW_LAB), or the
 // plain page. The lab is started only when Room is chosen: in Tiled there is no WebGL context and no extra frame loop.
 // In the room the vector terminal's screen is the plot (#cv), the glass terminal opens Source, the microfilm recorder
-// opens Print and the line printer the kernel listing on greenbar; clicking one flies the camera to it, and on arrival
+// opens Print, the line printer the kernel listing on greenbar and the bookcase (or one of its binders) the library; clicking one flies the camera to it, and on arrival
 // the page shows that tab (or the listing, over it). The Room button, or Esc on a plot tab or in Source (once
 // Source has closed its own overlays), flies back out.
 "use strict";
@@ -44,10 +44,12 @@ function roomPlace() { $("labhost").style.top = $("tabs").getBoundingClientRect(
 // the lab starts at that pose and fades in over the page before it flies out.
 const ROOM_FADE = 250;
 // What each terminal opens (its `opens`), the tab that is, and the terminal a tab belongs to.
-const ROOM_OPENS = { vector: "workbench", glass: "source", filmrecorder: "print", printer: "listing" };
-const roomTabOf = opens => opens === "source" || opens === "print" ? opens : opens === "listing" ? tab : roomCanvasTab;
+// The listing and the library open over the page, which keeps its tab.
+const ROOM_OPENS = { vector: "workbench", glass: "source", filmrecorder: "print", printer: "listing", library: "library" };
+const roomOver = opens => opens === "listing" || opens === "library";
+const roomTabOf = opens => opens === "source" || opens === "print" ? opens : roomOver(opens) ? tab : roomCanvasTab;
 const roomTermOf = t => t === "source" ? "glass" : t === "print" ? "filmrecorder" : "vector";
-const roomScreenEl = opens => opens === "source" ? $("srcws") : opens === "listing" ? null : cv;
+const roomScreenEl = opens => opens === "source" ? $("srcws") : roomOver(opens) ? null : cv;
 // The printer's page: the listing (listing.js) on greenbar, open over the page; the room fades over it (page.css).
 // Its rect is the first sheet's column as far as it shows, as tall as the printer's 14 7/8 x 11 in sheet would be.
 let roomListing = false;
@@ -56,7 +58,12 @@ function roomListingOpen() {
   $("blroom").hidden = false;
 }
 function roomListingClose() { roomListing = false; $("blroom").hidden = true; $("list").classList.remove("open"); $("list").style.visibility = ""; applyListing(); }
+// The library (library.js) opened from the bookcase: it has no screen to match (roomRect null), so the flight ends at
+// the close-up of the bookcase or binder and the room fades over the overlay.
+let roomLibrary = false;
+function roomLibraryClose() { roomLibrary = false; $("blibroom").hidden = true; libraryClose(); }
 function roomRect(opens) {
+  if (opens === "library") return null;
   if (opens !== "listing") return roomScreenEl(opens).getBoundingClientRect();
   const p = $("paper").getBoundingClientRect(), g = $("paper").querySelector(".pg").getBoundingClientRect();
   const x0 = Math.max(p.left, g.left), x1 = Math.min(p.right, g.right);
@@ -104,6 +111,7 @@ function roomShowLab(from) {
   const inset = el && roomInset(), fadeIn = () => roomFade(true, () => {
     if (el) roomUnclip(el);
     if (opens === "listing") roomListingClose();
+    roomLibraryClose();   // from the bookcase or not, the library does not stay open under the room
     document.body.classList.add("room");
   });
   if (inset) {
@@ -113,13 +121,14 @@ function roomShowLab(from) {
   else fadeIn();
   roomSync();
 }
-function roomArrive(opens) {
+function roomArrive(opens, name = "") {
   roomShown = false; document.body.classList.remove("room");
   setTab(roomTabOf(opens));
   if (canvasTab()) cv.focus({ preventScroll: true });
   const el = roomScreenEl(opens), inset = el && roomInset();
   if (inset) roomClip(el, inset, "inset(0px)");
   if (opens === "listing") { roomListingOpen(); $("list").style.visibility = ""; labEvent("print", performance.now(), 6); soundPrintFeed(); }   // the paper moves on as you arrive
+  if (opens === "library") { roomLibrary = true; $("blibroom").hidden = false; libraryOpen(name.startsWith("binder:") ? name.slice(7) : undefined); }
   roomFade(false, () => { if (el) roomUnclip(el); if (!roomShown) LAB.hide(); });
   roomSync();
 }
@@ -163,6 +172,13 @@ window.addEventListener("keydown", e => {
   e.preventDefault(); e.stopImmediatePropagation(); roomShowLab("printer");
 }, true);
 $("blroom").onclick = () => { if (roomIn && !roomShown && !roomBusy()) roomShowLab("printer"); };
+// The library opened from the bookcase: Esc and its ← Room go back to the bookcase; Close leaves it for the page.
+window.addEventListener("keydown", e => {
+  if (e.key !== "Escape" || e.defaultPrevented || !roomLibrary || !roomIn || roomShown || roomBusy()) return;
+  e.preventDefault(); e.stopImmediatePropagation(); roomShowLab("library");
+}, true);
+$("blibroom").onclick = () => { if (roomIn && !roomShown && !roomBusy()) roomShowLab("library"); };
+$("blibclose").addEventListener("click", () => { roomLibrary = false; $("blibroom").hidden = true; });
 $("bclose").addEventListener("click", () => { if (roomListing) { roomListing = false; $("blroom").hidden = true; } });
 WIDE.addEventListener("change", roomApply);
 window.addEventListener("resize", () => { if (roomShown) roomPlace(); });
