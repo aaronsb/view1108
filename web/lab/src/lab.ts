@@ -9,9 +9,9 @@
 //
 // Arrival: a flight into a terminal (a click, E, or the walk's dwell) ends at its arrival pose (a console's
 // anchors.view, its screen and keyboard as its operator sees them; else the handover pose below) and stays in the
-// room, live, with a line on how to go on; a click there (anywhere: the machine fills the view, so any click means it;
-// at the bookcase a binder picks its document), E or Enter opens it, and Esc, the Room button or a walking key steps
-// back.
+// room, live, with a line on how to go on; a click on the machine (at the bookcase, on a binder: the first pulls it
+// out, the second opens its document), E or Enter opens it; a click on anything else, Esc, the Room button or a
+// walking key steps back.
 //
 // Handover: opening a terminal that opens a tab eases (OPEN_S) to where its screen covers, on the lab canvas, the
 // rect the page's element will occupy (hooks.screenRect: #cv for the workbench, the Source workspace for source),
@@ -610,11 +610,14 @@ export class Lab {
     if (!g || g.id !== e.pointerId) return;
     this.drag = null;
     if (g.moved || e.type !== "pointerup") return;
-    if (this.at) {   // a click anywhere at a close-up opens it; on a shelf it pulls a thing out, again opens it
+    // At a close-up a click on the machine opens it; on a shelf a click on a book pulls it out, again opens it. A click
+    // on anything else (the bookcase's own frame, the room, another machine) steps back into the room.
+    if (this.at) {
       if (Math.hypot(e.clientX - g.x, e.clientY - g.y) >= CLICK_PX) return;
       const p = this.hit(e.clientX, e.clientY);
       if (p?.equipment.pull) { if (p.equipment.pull()) this.open(p.name); else this.lockUI(); }
-      else this.open();
+      else if (p && p.name === this.at.name && this.at.opens !== "library") this.open();
+      else this.back();
       return;
     }
     if (this.mode !== "free") return;
