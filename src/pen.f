@@ -110,6 +110,17 @@ C     RESTOMOD END
       END
 C
 C     EMIT0: Liang-Barsky clip to the frame, then store.
+C
+C     The segment is stored as four DOUBLE PRECISION plot degrees
+C     (60-bit fractions, about 18 digits; UP-4046 Rev 3 pp. 4-9,
+C     4-10), far more than a recorder frame resolves (about 1000
+C     points an axis, 10 bits).  A 1969 plot-tape writer could
+C     plausibly have packed each end point as two 18-bit raster
+C     coordinates in one 36-bit word (partial-word addressing in
+C     6, 9, 12 and 18-bit portions, sec. 4.3.2; FORTRAN V's FLD,
+C     sec. 10.4.1), and shifted a whole frame with one Add Halves
+C     (function code 72,04, sec. 4.7.2) per point.  Our conjecture:
+C     no VIEW listing survives.  We keep plot degrees for the page.
       SUBROUTINE EMIT0(VB, NV, X1, Y1, X2, Y2)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'

@@ -9,3 +9,4 @@ web/view1108.html
 
 # Local copies of public NASA source documents and research notes (not redistributed; see docs/sources.md when written)
 reference/cache/
+web/lab/node_modules/

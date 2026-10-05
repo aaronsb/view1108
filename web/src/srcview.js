@@ -13,8 +13,8 @@ const sxSig = u => (u.type ? u.type + " " : "") + (u.kind === "block data" ? "BL
 
 // ---- building the workspace (on first entry to the tab) ----
 function srcBuild() {
-  const ws = $("srcws"), bsrc = $("bsrc");
-  bsrc.remove(); bsrc.textContent = "Print listing"; bsrc.title = "The kernel as a period compile listing (dark terminal or greenbar paper)";
+  const ws = $("srcws"), bsrc = $("bsrc"), blib = $("blib");
+  bsrc.remove(); blib.remove(); bsrc.textContent = "Print listing"; bsrc.title = "The kernel as a period compile listing (dark terminal or greenbar paper)";
   ws.innerHTML = `<div id="sxbar">
     <button id="sxfiles" title="Files and units" aria-controls="sxtree">Files</button>
     <button id="sxback" title="Back (Alt+Left)" aria-label="Back">&larr;</button><button id="sxfwd" title="Forward (Alt+Right)" aria-label="Forward">&rarr;</button>
@@ -25,7 +25,7 @@ function srcBuild() {
   <aside id="sxinsp" aria-label="Inspector"></aside>
   <div id="sxqo" hidden role="dialog" aria-label="Go to"><input id="sxqi" type="search" placeholder="Unit, /COMMON/, member, PARAMETER, file or file:line" autocomplete="off" spellcheck="false"><div id="sxql" role="listbox"></div></div>
   <div id="sxtip" hidden role="tooltip"></div>`;
-  $("sxbar").appendChild(bsrc);
+  $("sxbar").append(bsrc, blib);
   $("sxtl").innerHTML = sxTree();
   ws.addEventListener("click", sxClick);
   ws.addEventListener("toggle", e => { const d = e.target; if (d.matches?.("details.sx-tu") && d.open && !d.dataset.done) { d.dataset.done = "1"; d.insertAdjacentHTML("beforeend", sxOutline(SX.unit[d.dataset.u])); } }, true);
@@ -405,5 +405,8 @@ window.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && (e.key === "p" || e.key === "P")) { e.preventDefault(); sxQuickOpen(); }
   else if (e.key === "/" && !typing) { e.preventDefault(); sxQuickOpen(); }
   else if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); sxHist(e.key === "ArrowLeft" ? -1 : 1); }
-  else if (e.key === "Escape") { $("sxqo").hidden = true; $("sxtip").hidden = true; $("sxtree").classList.remove("open"); }
+  else if (e.key === "Escape") {   // closes Source's overlays; with none open it is left to the room (room.js)
+    if (!$("sxqo").hidden || !$("sxtip").hidden || $("sxtree").classList.contains("open")) e.preventDefault();
+    $("sxqo").hidden = true; $("sxtip").hidden = true; $("sxtree").classList.remove("open");
+  }
 });

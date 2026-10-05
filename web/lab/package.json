@@ -1,0 +1,20 @@
+{
+  "name": "view1108-lab",
+  "private": true,
+  "version": "0.0.1",
+  "description": "The machine room around the VIEW-1108 workbench, bundled into build/lab.js by tools/build.sh",
+  "license": "MIT",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --minify --format=iife --target=es2020 --legal-comments=eof --outfile=../../build/lab.js",
+    "typecheck": "tsc --noEmit",
+    "gallery": "esbuild src/gallery.ts --bundle --format=iife --target=es2020 --sourcemap --outfile=../../build/lab-gallery.js"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@types/three": "0.186.0",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}

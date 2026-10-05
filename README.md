@@ -43,7 +43,7 @@ The page is the console. It starts by replaying the film, then hands you the con
 | **Live** | Simulate | The Apollo 11 mission clock at 1× (or 10×, 60×). The scene follows the mission phase from the g.e.t. you type or scrub to. |
 | **Beam** | Print | Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades. Speeds run from an estimated 1108-plus-recorder pace down to a slow trace you can watch, up to a persistence-of-vision blur. The recorder rates are our estimates (see [docs/univac-1108.md](docs/univac-1108.md)). |
 
-Keys (in every tab but Source): arrows look, Q/E roll, +/- field of view, space pause, `[` `]` speed, R reset, 1–9 scenes, `T` beam (opens Print), `L` copy link, `M` sound. The Source tab browses the kernel source the page is running (routines, COMMON blocks, call graph; [docs/modes.md](docs/modes.md)), and its Print listing button shows it as a period compile listing.
+Keys (in every tab but Source): arrows look, Q/E roll, +/- field of view, space pause, `[` `]` speed, R reset, 1–9 scenes, `T` beam (opens Print), `L` copy link, `M` sound. The Source tab browses the kernel source the page is running (routines, COMMON blocks, call graph; [docs/modes.md](docs/modes.md)), and its Print listing button shows it as a period compile listing. Its Library button (or, in the machine room, a binder on the bookcase) opens the manuals and reports the reconstruction is built from as PDFs, hosted with the page ([web/library/](web/library/README.md)).
 
 ## Link parameters
 
@@ -62,7 +62,9 @@ The `[ LINK ]` button (key `L`) copies a URL that reproduces the current view. Y
 | `labels`, `frame`, `hidden` | `0` or `1` (names, plot frame, hidden lines) | `labels=0` |
 | `bloom`, `jitter`, `dust`, `fps` | `0` or `1` (film effects; `fps=1` is the 16 fps film rate) | `bloom=1` |
 | `catalog` | `nav` (391 stars) or `full` | `catalog=full` |
+| `disp`, `hz` | `auto`, `film` or `scope` (the microfilm look or the 1558 vector console); `16` or `steady` (the scope's refresh) | `disp=scope&hz=steady` |
 | `listing` | `dark` or `light` (Fortran listing) | `listing=light` |
+| `space` | `room` or `tiled`: the 3D machine room around the workbench, or the plain page | `space=tiled` |
 | `bare`, `still=earthrise`, `film=N` | chrome hidden; frozen Earthrise; Attract at film second N (for screenshots) | `still=earthrise` |
 
 Example: <https://aaronsb.github.io/view1108/?mode=live&get=102:45:40&fov=100> opens Live at the landing, with a 100 degree field of view.
@@ -103,6 +105,8 @@ Probably, with changes: the fenced items above rewritten in FORTRAN V terms, and
 ## Build
 
 Needs LFortran 0.66, LLVM/clang 23 and binaryen 121 (conda-forge), plus gfortran, node and python3 (with Pillow, for the Fusion photographs).
+
+The machine room (Room, `web/lab/`: TypeScript and three.js, bundled by esbuild) also needs npm and, the first time, the network: `tools/build.sh` runs `npm ci` from `web/lab/package-lock.json` and bundles `build/lab.js`. Without them the build warns and the page comes out without the Room. See [web/lab/README.md](web/lab/README.md).
 
 ```
 micromamba create -p ~/lf -c conda-forge lfortran=0.66.0 llvm-tools=23.1.2 lld=23.1.2 clang=23.1.2 binaryen=121

@@ -1,0 +1,2 @@
+# PDFs are binary: no text diffs or line-ending conversion (some scans would otherwise read as text).
+*.pdf binary

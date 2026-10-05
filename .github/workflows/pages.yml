@@ -29,18 +29,35 @@ jobs:
             lld=23.1.2
             clang=23.1.2
             binaryen=121
+            pillow
           cache-environment: true
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Pillow for the Fusion photographs (tools/photo_pack.py), in the environment above and for the system python3.
+      - name: Pillow for the system Python
+        run: sudo apt-get update && sudo apt-get install -y python3-pil
       - name: Build (FORTRAN -> wasm -> page) and self-test
         shell: bash -el {0}
         run: LF_BIN="$MAMBA_ROOT_PREFIX/envs/lf/bin" ./tools/build.sh
+      # The machine room, the photographs and the symbol table are optional for a local build (build.sh warns and
+      # goes on without them); the published page must have all three.
+      - name: Check the page carries the room, the photographs and the symbols
+        run: |
+          grep -q VIEW_LAB web/view1108.html
+          grep -q 'data:image/jpeg;base64' web/view1108.html
+          grep -q 'id="fsym"' web/view1108.html
+          test -s web/library/library.json
+      # esbuild bundles without type-checking; a name lost in a merge would only fail in the visitor's browser.
+      - name: Type-check the machine room
+        run: npm --prefix web/lab exec -- tsc --noEmit -p web/lab
       - name: Stage site
         run: |
           mkdir -p _site
           cp web/view1108.html _site/index.html
           cp docs/media/og-earthrise.png _site/og-earthrise.png
+          # The reference library: -L copies the files behind web/library/'s symlinks into reference/.
+          cp -rL web/library _site/library
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

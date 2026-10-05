@@ -30,6 +30,8 @@
   <button role="tab" data-tab="fusion" title="Crew photographs over the vector frame">Fusion</button>
   <button role="tab" data-tab="source" title="The kernel's FORTRAN">Source</button>
   <span class="sp"></span>
+  <!-- Room or Tiled (web/src/room.js): shown only when the page carries the lab and the screen is wide. -->
+  <button id="bspace" hidden>Room</button><button id="btiled" hidden title="The plain page">Tiled</button>
   <button id="bsound" title="M: machine-room sound (ours, synthesized)">Sound off</button>
   <button id="blink" title="L: copy a link to this view">Link</button>
 </nav>
@@ -38,8 +40,8 @@
 <div id="ws">
   <div id="wrap"><canvas id="cv" tabindex="0" aria-label="VIEW-1108 plot"></canvas></div>
   <div id="status" role="status" aria-live="off"></div>
-  <!-- The kernel's code browser (web/src/srcindex.js, srcview.js), built on first entry. -->
-  <section id="srcws" hidden aria-label="Kernel source"><button id="bsrc">Print listing</button></section>
+  <!-- The kernel's code browser (web/src/srcindex.js, srcview.js; its theme srctheme.js), built on first entry. -->
+  <section id="srcws" hidden aria-label="Kernel source"><button id="bsrc">Print listing</button><button id="blib" title="The manuals and reports this reconstruction is built from, as PDFs">Library</button></section>
 </div>
 <div id="dock">
 <div id="ctl">
@@ -100,8 +102,8 @@
   <!-- Timeline (web/src/timeline.js): the scenario's events from SP-4029, and the Apollo in Real Time companion. -->
   <section class="shade" data-shade="timeline" data-tabs="review" id="tlgrp"><button class="shade-h" type="button">Timeline</button>
   <div id="tlairt">
-    <div class="grp"><button id="bairt" title="Open Apollo in Real Time at this g.e.t. in its own window">Companion</button><button id="bairtre" title="Point the companion at this g.e.t. again">Resync</button></div>
-    <div class="grp note">Jumps here re-point it; it plays in real time on its own, and its pause and rate are independent. Apollo in Real Time (Ben Feist), apolloinrealtime.org</div>
+    <div class="grp"><button id="bairt" title="Open Apollo in Real Time at this g.e.t. in its own window">Companion</button><button id="bairtre" title="Point the companion at this g.e.t. again">Resync</button><button id="bfollow" class="on" hidden title="The scene follows the g.e.t. as the replay plays; click to stop">Following</button></div>
+    <div class="grp note">Jumps here re-point it; it plays in real time on its own, and its pause and rate are independent. Opening or resyncing it starts Following: the scene changes with the mission phase as the replay plays. Apollo in Real Time (Ben Feist), apolloinrealtime.org</div>
   </div>
   <div class="grp" id="tlkinds"></div>
   <div id="tllist" role="list" aria-label="Mission events"></div>
@@ -132,20 +134,29 @@
     <button id="bfrm" class="on">Frame</button>
     <button id="bhid" title="Show the LM and S-IVB wireframe edges hidden behind the vehicles as dashed lines (the film drops them; TN D-6853 describes hidden-line LM and S-IVB models)">LM hidden lines</button>
     <button id="bcat" title="C">Catalog</button>
-  </div></section>
+  </div>
+  <div class="grp"><span class="lbl">Screen</span><button data-disp="auto" title="S: the 1558 scope where the page was reached through the room (not in Attract or Print), else film">Auto</button><button data-disp="film" title="S: the microfilm recorder, with its film effects">Film</button><button data-disp="scope" title="S: the room's UNIVAC 1558 vector console: no film effects">Scope</button></div>
+  <div class="grp"><span class="lbl">Refresh</span><button data-hz="16" title="H: the scope redraws the picture every 1/16 s on a fading phosphor">16 Hz</button><button data-hz="steady" title="H: a steady, modern vector picture">Steady</button></div></section>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-7: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. I: cabin. W: cabin walls. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-7: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. S: screen (film or scope). H: scope refresh. I: cabin. W: cabin walls. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
 <div id="about"><p>A reconstruction of VIEW, the Manned Spacecraft Center program that drew Apollo window views on a UNIVAC 1108 (FORTRAN V, output photographed from a CRT onto microfilm: NASA TN D-6853, p. 3). We know of no surviving source code; the geometry here is our own FORTRAN and this page only films it.</p>G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197.</div>
 </div>
 </div>
 <div id="err"></div>
+<!-- The machine room's canvas (build/lab.js), over the workspace while the room is shown. -->
+<div id="labhost"></div>
 
-<div id="list"><h2><span>VIEW KERNEL - our reconstruction; we know of no surviving source code</span><span class="btns"><button id="blist">Light</button><button id="bclose">Close</button></span></h2><pre id="lst"></pre><div id="paper"></div></div>
+<div id="list"><h2><span>VIEW KERNEL - our reconstruction; we know of no surviving source code</span><span class="btns"><button id="bfresh" title="Clear the paper and print the listing again, line by line (any click, Esc or scroll skips to the end)">Print fresh copy</button><button id="bpspeed" title="Print speed: REAL, 1,200 lines a minute (UP-4046 sec. 8.5), or FAST, ten times that">Real</button><button id="bpdf" title="The listing as a PDF of 14 7/8 x 11 in greenbar pages">Download PDF</button><button id="blist">Light</button><button id="blroom" hidden title="Return to the room (Esc)">← Room</button><button id="bclose">Close</button></span></h2><pre id="lst"></pre><div id="paper"></div></div>
+<!-- The reference library (web/src/library.js): the list of web/library/'s documents and the browser's PDF viewer. -->
+<div id="libr" role="dialog" aria-label="Reference library"><h2><span>REFERENCE LIBRARY</span><span class="btns"><a id="libnew" class="libbtn" target="_blank" rel="noopener">Open in new tab</a><a id="libsrc" class="libbtn" target="_blank" rel="noopener">Source</a><button id="blibroom" hidden title="Return to the room (Esc)">← Room</button><button id="blibclose">Close</button></span></h2>
+<div id="libbody"><ul id="liblist"></ul><div id="libview"><div id="libtitle"></div><iframe id="libframe" title="The document"></iframe><p id="libnote" hidden></p></div></div></div>
 <pre id="fsrc" hidden>__FORTRAN_SRC__</pre>
 <script type="application/json" id="photos">__PHOTOS_JSON__</script>
-<script>var __FALLBACK_JS__, __NAMES_JS__;</script>
+<script type="application/json" id="flib">__LIBRARY_JSON__</script>
+<script>var __FALLBACK_JS__, __NAMES_JS__, __LAB_JS__;</script>
 <script>__NAMES_JS__</script>
 <script>__FALLBACK_JS__</script>
+<script>__LAB_JS__</script>
 <!-- Page modules, in this order. tools/assemble.py inlines the stylesheet and joins the scripts into one
      strict-mode closure; served as is (?mock) they load as separate scripts. -->
 <script src="src/config.js"></script>
@@ -165,13 +176,18 @@
 <script src="src/pad.js"></script>
 <script src="src/shades.js"></script>
 <script src="src/listing.js"></script>
+<script src="src/printout.js"></script>
+<script src="src/library.js"></script>
 <script src="src/link.js"></script>
 <script src="src/sound.js"></script>
+<script src="src/whine.js"></script>
 <script src="src/tabs.js"></script>
 <script src="src/srcindex.js"></script>
 <script src="src/srcview.js"></script>
+<script src="src/srctheme.js"></script>
 <script src="src/timeline.js"></script>
 <script src="src/fusion.js"></script>
+<script src="src/room.js"></script>
 <script src="src/main.js"></script>
 </body>
 </html>

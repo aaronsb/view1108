@@ -11,20 +11,31 @@ const ELEMENTS = $("fsrc").textContent.split(/^\f/m).map((p, i) => {
 // DARK: each element under a banner naming it, as a compile listing heads each element.
 const RULE = "=".repeat(72);
 $("lst").textContent = ELEMENTS.map(e => e.file ? `${RULE}\n ${e.inc ? "INCLUDE" : "ELEMENT"} ${e.name}   (${e.file})\n${RULE}\n${e.src}` : e.src).join("\n");
-// LIGHT: each element starts a new sheet and numbers its own lines; the sheet header names the element.
-function buildPaper() {
-  const paper = $("paper"); if (paper.dataset.built) return; paper.dataset.built = "1";
-  const PER = 64;   // 64 text lines + header + blank = 66
-  let pg = 0;
+// LIGHT: each element starts a new sheet and numbers its own lines; the sheet header names the element. A sheet is
+// 66 lines: the header, a blank and 64 lines of text. The sheets' lines are shared with the fresh copy and the PDF
+// (printout.js).
+const SHEET_TEXT = 64;
+let listingSheets = null;
+function listingPages() {
+  if (listingSheets) return listingSheets;
+  listingSheets = [];
   for (const e of ELEMENTS) {
     const lines = e.src.replace(/\t/g, "        ").split("\n");
     if (lines.length && lines[lines.length - 1] === "") lines.pop();
-    for (let first = 0; first < lines.length; first += PER) {
-      const el = document.createElement("div"), pre = document.createElement("pre"); el.className = "pg";
-      let txt = "VIEW-1108 KERNEL LISTING (OUR RECONSTRUCTION)   " + (e.name ? (e.inc ? "INCLUDE " : "ELEMENT ") + fieldata(e.name) + "   " : "") + "PAGE " + (++pg) + "\n\n";
-      for (let i = first; i < Math.min(lines.length, first + PER); i++) txt += String(i + 1).padStart(5, " ") + "  " + fieldata(lines[i]) + "\n";
-      pre.textContent = txt; el.appendChild(pre); paper.appendChild(el);
+    for (let first = 0; first < lines.length; first += SHEET_TEXT) {
+      const head = "VIEW-1108 KERNEL LISTING (OUR RECONSTRUCTION)   " + (e.name ? (e.inc ? "INCLUDE " : "ELEMENT ") + fieldata(e.name) + "   " : "") + "PAGE " + (listingSheets.length + 1);
+      const text = [];
+      for (let i = first; i < Math.min(lines.length, first + SHEET_TEXT); i++) text.push(String(i + 1).padStart(5, " ") + "  " + fieldata(lines[i]));
+      listingSheets.push({ lines: [head, "", ...text] });
     }
+  }
+  return listingSheets;
+}
+function buildPaper() {
+  const paper = $("paper"); if (paper.dataset.built) return; paper.dataset.built = "1";
+  for (const s of listingPages()) {
+    const el = document.createElement("div"), pre = document.createElement("pre"); el.className = "pg";
+    pre.textContent = s.lines.join("\n") + "\n"; el.appendChild(pre); paper.appendChild(el);
   }
 }
 let listingLight = UP.get("listing") ? UP.get("listing") === "light" : prefs.listing === "light";   // ?listing=dark|light

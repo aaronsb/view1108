@@ -31,7 +31,7 @@ function beamCommit(list, now) {
   const tEnd = t0 + cost[n] / vps * 1000;
   beamFrames.push({ sg, dsh, tOn, n, tEnd, tau: cfg.tau * 1000 });
   beamNextStart = tEnd;
-  soundFrame(tEnd);
+  soundFrame(tEnd); labEvent("beamFrame", tEnd);
 }
 const lowerBound = (arr, n, v) => { let lo = 0, hi = n; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] < v) lo = m + 1; else hi = m; } return lo; };
 // Draw every traced segment with an intensity that has decayed exp(-age/tau), in a few intensity buckets so each
@@ -62,5 +62,43 @@ function beamRender(now, lw, flick) {
     const r = Math.max(2.5, W * 0.005), g = ctx.createRadialGradient(beamPen[0], beamPen[1], 0, beamPen[0], beamPen[1], r * 2.2);
     g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.35, "rgba(255,255,255,0.9)"); g.addColorStop(1, "rgba(255,255,255,0)");
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(beamPen[0], beamPen[1], r * 2.2, 0, 6.2832); ctx.fill();
+  }
+}
+
+// ---- SCOPE at 16 Hz: the UNIVAC 1558's tube redrawn as a beam pass every 1/16 s ----
+// Ours throughout: UP-7789 gives no refresh rate or phosphor, and the white beam (the page's) is HYPOTHETICAL. The
+// beam writes the latest kernel frame's strokes in drawing order (vbuf, then stars, then text, as BeamRec records
+// them), spread over the whole 1/16 s period by beamCommit's cost per segment, then starts again; the page draws it at
+// the display's rate. A stroke's brightness is exp(-age/tau) since the beam last passed it: tau 300 ms, a short-medium
+// persistence (in the spirit of P31), so a line has fallen to 81% when the beam returns. Where the beam stops and
+// starts (a stroke's free ends) it dwells, and leaves a slightly brighter dot, as on vector arcade monitors.
+const SCOPE_T = 1000 / 16, SCOPE_TAU = 300, SCOPE_BK = 8;
+let scopeCost = new Float64Array(1);
+function scopeRender(sg, now, lw) {
+  const n = sg.length / 5; if (!n) return;
+  if (scopeCost.length < n + 1) scopeCost = new Float64Array(n + 1);
+  const c = scopeCost;
+  for (let i = 0; i < n; i++) c[i + 1] = c[i] + 1 + 2 * Math.hypot(sg[i * 5 + 2] - sg[i * 5], sg[i * 5 + 3] - sg[i * 5 + 1]) / W;
+  const ph = (now % SCOPE_T) / SCOPE_T, ps = [], pd = [], dots = [];
+  for (let b = 0; b < SCOPE_BK; b++) { ps.push(new Path2D()); pd.push(new Path2D()); dots.push(new Path2D()); }
+  const near = (i, j) => Math.abs(sg[i] - sg[j]) + Math.abs(sg[i + 1] - sg[j + 1]) < 0.5;   // css px
+  const dot = (P, x, y) => { P.moveTo(x, y); P.lineTo(x + 0.01, y); };
+  for (let i = 0; i < n; i++) {
+    let age = ph - c[i] / c[n]; if (age < 0) age += 1;   // periods since the beam wrote it
+    const b = Math.min(SCOPE_BK - 1, Math.floor(age * SCOPE_BK)), o = i * 5, x0 = sg[o], y0 = sg[o + 1], x1 = sg[o + 2], y1 = sg[o + 3];
+    const P = sg[o + 4] ? pd[b] : ps[b];
+    P.moveTo(x0, y0); P.lineTo(x1, y1);
+    if (sg[o + 4]) continue;
+    if (i === 0 || !near(o, o - 3)) dot(dots[b], x0, y0);       // start: after a blanked move
+    if (i === n - 1 || !near(o + 2, o + 5)) dot(dots[b], x1, y1);   // end: before one
+  }
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (let b = 0; b < SCOPE_BK; b++) {
+    const k = Math.exp(-(b + 0.5) / SCOPE_BK * SCOPE_T / SCOPE_TAU);
+    for (const [w, a] of [[lw * 3.2, 0.10], [lw, 0.85]]) {
+      ctx.strokeStyle = `rgba(255,255,255,${a * k})`; ctx.lineWidth = w;
+      ctx.setLineDash([]); ctx.stroke(ps[b]); ctx.setLineDash([lw * 5, lw * 4]); ctx.stroke(pd[b]);
+    }
+    ctx.setLineDash([]); ctx.strokeStyle = `rgba(255,255,255,${k})`; ctx.lineWidth = lw * 1.8; ctx.stroke(dots[b]);
   }
 }

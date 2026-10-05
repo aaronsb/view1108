@@ -15,6 +15,9 @@ function syncUI() {
   document.getElementById("bdust").classList.toggle("on", effDust());
   document.getElementById("bfps").classList.toggle("on", effFps());
   document.getElementById("bblm").classList.toggle("on", effBloom());
+  for (const id of ["bjit", "bdust", "bfps", "bblm"]) $(id).disabled = !isFilm();   // the SCOPE has no film effects
+  document.querySelectorAll("[data-disp]").forEach(b => b.classList.toggle("on", b.dataset.disp === dispChoice()));
+  document.querySelectorAll("[data-hz]").forEach(b => { b.classList.toggle("on", b.dataset.hz === scopeHz()); b.disabled = isFilm(); });
   document.getElementById("bcat").textContent = "Catalog " + (effCatalog() === "full" ? "full" : "nav");
   document.getElementById("blab").classList.toggle("on", labLv > 0);
   if (FEAT.lablv) document.getElementById("blab").textContent = "Labels " + LAB_LEVELS[labLv];
@@ -39,6 +42,8 @@ $("bdust").onclick = () => toggle("dust");
 $("bfps").onclick = () => toggle("fps");
 $("bblm").onclick = () => toggle("bloom");
 $("bcat").onclick = toggleCatalog;
+document.querySelectorAll("[data-disp]").forEach(b => { b.onclick = () => setDisp(b.dataset.disp); });
+document.querySelectorAll("[data-hz]").forEach(b => { b.onclick = () => setHz(b.dataset.hz); });
 $("bhid").onclick = () => { leaveAttract(); hidden = !hidden; syncUI(); };
 $("bplay").onclick = () => { leaveAttract(); playing = !playing; syncUI(); };
 $("bslow").onclick = () => { leaveAttract(); bump(-1); };
@@ -87,6 +92,7 @@ const typingIn = () => { const a = document.activeElement; return !!a && (a.tagN
 window.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if ($("list").classList.contains("open")) { if (e.key === "Escape") $("list").classList.remove("open"); return; }
+  if (libraryIsOpen()) return;   // its own Esc (library.js)
   if (!canvasTab() || typingIn()) return;
   const k = e.key;
   if (k === "j" || k === "J") { toggle("jitter"); e.preventDefault(); return; }
@@ -96,6 +102,8 @@ window.addEventListener("keydown", e => {
   if (k === "l" || k === "L") { copyLink(); e.preventDefault(); return; }
   if (k === "b" || k === "B") { toggle("bloom"); e.preventDefault(); return; }
   if (k === "c" || k === "C") { toggleCatalog(); e.preventDefault(); return; }
+  if (k === "s" || k === "S") { cycleDisp(); e.preventDefault(); return; }
+  if (k === "h" || k === "H") { setHz(scopeHz() === "16" ? "steady" : "16"); e.preventDefault(); return; }
   if ((k === "i" || k === "I") && FEAT.cabin) { toggleCabin(); e.preventDefault(); return; }
   if ((k === "w" || k === "W") && FEAT.walls) { toggleWalls(); e.preventDefault(); return; }
   if (k.length === 1 || k.startsWith("Arrow")) leaveAttract();
