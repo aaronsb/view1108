@@ -188,7 +188,7 @@ The registry (`EQUIPMENT`, with sizes in `FOOTPRINT`, W x H x D in metres; sourc
 | `cardreader` | | card reader, 1.0 x 1.1 x 0.7 |
 | `reeltable` | | table with reels and a desk clock, 1.6 x 0.75 x 0.8 |
 | `desk` | | desk, 1.5 x 0.73 x 0.75; anchor `top` |
-| `chair` | | swivel chair, 0.6 x 0.88 x 0.6 |
+| `chair` | | swivel chair, 0.6 x 0.88 x 0.6; `{tall: true}` a drafting chair (seat 0.74 m, foot ring) |
 | `bookcase` | | steel bookcase, 1.0 x 1.1 x 0.36, holding a ring binder per document of `web/library/library.json` (imported; JSON modules via `resolveJsonModule`); `anchors.binders` are pieces of their own the room places as `"binder:<id>"`; the bookcase and every binder open `"library"`; `anchors.props` (placed as `"prop:<id>"`) are `inert`: named on hover, nothing on a click |
 | `filmrecorder` | | S-C 4020 microfilm recorder (HYPOTHETICAL as MSC's), 2.24 x 1.88 x 0.94; its viewing port shows the plot dimmed; `beamFrame` steps its frame counter; opens `"print"` (the Print tab) |
 

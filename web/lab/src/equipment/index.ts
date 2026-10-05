@@ -17,8 +17,9 @@ import { build as chair } from "./chair";
 import { build as filmrecorder } from "./filmrecorder";
 import { build as bookcase } from "./bookcase";
 
-/** Options a room may pass: a tape unit's numbers (head plate `number`, top strip `index`), a CPU cabinet's lamp panel. */
-export interface EquipmentOptions { number?: number; index?: number; lampPanel?: boolean }
+/** Options a room may pass: a tape unit's numbers (head plate `number`, top strip `index`), a CPU cabinet's lamp panel,
+ *  a chair's height. */
+export interface EquipmentOptions { number?: number; index?: number; lampPanel?: boolean; tall?: boolean }
 export type EquipmentFactory = (ctx: BuildContext, opts?: EquipmentOptions) => Equipment;
 
 export const EQUIPMENT: Record<string, EquipmentFactory> = {

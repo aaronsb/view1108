@@ -50,7 +50,7 @@ Sizes are W x H x D in metres.
 | `cardreader` | Card reader | MSC photo (foreground) | 1.0 x 1.1 x 0.7 (inferred) | Low: model unidentified |
 | `reeltable` | Table with stacked reels, a reel rack and a desk clock | MSC photo | 1.6 x 0.75 x 0.8 (inferred) | Fair |
 | `desk` | White slab on chrome T-legs | Brochure p. 7 | 1.5 x 0.73 x 0.75 (ours) | Fair |
-| `chair` | Chrome swivel chair on casters | Brochure p. 7 | 0.6 x 0.88 x 0.6 (ours) | Fair |
+| `chair` | Chrome swivel chair on casters; `{tall: true}` a drafting chair with a foot ring, at the 1558's shelf | Brochure p. 7 | 0.6 x 0.88 x 0.6; tall 0.6 x 1.16 x 0.6 (ours) | Fair; the tall one ours |
 | `bookcase` | Steel bookcase with one ring binder per document of the reference library, upright between L-shaped bookends, then a telephone directory, two paperbacks and an index card, for looks; the lower shelf holds three unlabelled binders lying flat | none: ours | 1.0 x 1.1 x 0.36 (ours) | HYPOTHETICAL throughout (below) |
 | `filmrecorder` | S-C 4020 Computer Recorder: the microfilm recorder, HYPOTHETICAL as to MSC's model (below) | 4020 brochure pp. 1, 4; 4020 manual Fig. 1 (p. 1), Fig. 5 (p. 7), p. 25 | 2.24 x 1.88 x 0.94 (basic unit 66 x 37 x 74 in plus the 22 in tape adapter, brochure p. 4) | Fair on look; the model at MSC is our choice |
 

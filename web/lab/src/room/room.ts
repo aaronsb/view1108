@@ -48,7 +48,7 @@ export function build(ctx: BuildContext): Room {
   const place = (kind: string, at: [number, number, number], turn: number, name = `${kind}-${++count}`, opts?: Record<string, unknown>) => {
     const equipment = EQUIPMENT[kind] ? (EQUIPMENT[kind] as Builder)(ctx, opts) : standIn(kind);
     const o = equipment.object, b = new THREE.Box3().setFromObject(o);
-    o.position.set(...at); o.rotation.y = turn;
+    o.position.set(...at); o.rotation.y = turn; o.updateMatrixWorld();
     o.userData.placed = name;
     o.traverse(c => { const m = c as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
     object.add(o);
@@ -64,8 +64,12 @@ export function build(ctx: BuildContext): Room {
   const nW = ROOM.d / 2, wW = ROOM.w / 2;
   for (let i = 0; i < 7; i++) place("uniservo", [-2.7 + i * 0.82, 0, -nW + 0.45], S, undefined, { number: 60 + i, index: i + 1 });
   for (let i = 0; i < 5; i++) place("cpu", [-wW + 0.48, 0, -1.64 + i * 0.82], E, undefined, { lampPanel: i === 2 });
-  place("console4009", [-1.2, 0, -1.0], N);
-  place("chair", [-1.2, 0, -0.3], N);
+  // The operator's chair at the 4009's seat (its keyboard end), facing it; without the anchor, centred in front of it.
+  // The console stands far enough south that the chair leaves the tape units' 0.9 m aisle.
+  const op = place("console4009", [-1.2, 0, -0.55], N);
+  const seat = op.anchors.seat as { position: THREE.Vector3; yaw: number } | undefined;
+  const seatAt = op.object.localToWorld(seat?.position.clone() ?? new THREE.Vector3(0, 0, 0.86));
+  place("chair", [seatAt.x, 0, seatAt.z], N + (seat?.yaw ?? Math.PI));
   place("reeltable", [0.75, 0, 1.2], 0.08);
   place("chair", [1.5, 0, 1.85], -2.4);
 
@@ -75,7 +79,11 @@ export function build(ctx: BuildContext): Room {
   const glassAt = desk.object.localToWorld(new THREE.Vector3(0.25, dt, -0.05));
   place("glass", [glassAt.x, glassAt.y, glassAt.z], -0.19, "glass");
   place("chair", [2.55, 0, -0.5], N - 0.19);
-  place("vector", [1.2, 0, -1.0], 0.32, "vector");   // beside the desk, turned toward the overview's eye
+  const vector = place("vector", [1.2, 0, -1.0], 0.32, "vector");   // beside the desk, turned toward the overview's eye
+  // A drafting chair for the 1558's shelf (0.98 m up), off to its left so that the walk-up in front stays clear,
+  // turned toward the keyboard (ours).
+  const stool = vector.object.localToWorld(new THREE.Vector3(-0.62, 0, 0.92)), keys = vector.object.localToWorld(new THREE.Vector3(0, 0, 0.5));
+  place("chair", [stool.x, 0, stool.z], Math.atan2(keys.x - stool.x, keys.z - stool.z), undefined, { tall: true });
   place("controller1557", [3.4, 0, -nW + 0.38], S);
   place("filmrecorder", [wW - 0.47, 0, 0.85], W, "filmrecorder");
   place("printer", [wW - 0.4, 0, 2.75], W, "printer");
