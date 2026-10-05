@@ -34,7 +34,7 @@ Sizes are W x H x D in metres.
 
 | Registry name | What it is | Source | Size | Confidence |
 |---|---|---|---|---|
-| `vector` | UNIVAC 1558 Graphic Display Console, showing the plot | UP-7789 Fig. 1-1 (p. 1), light pen p. 15, function keys p. 16, size p. 27 | 0.9 x 1.5 x 1.25 (35 x 60 x 50 in, read as W x H x D: inferred) | Shape good. Its use at MSC is not documented; we chose it as the 1108's own vector display |
+| `vector` | UNIVAC 1558 Graphic Display Console, showing the plot | UP-7789 Fig. 1-1 (p. 1), Fig. 2-5 (p. 11), Fig. 2-7 (p. 14), light pen p. 15, function keys p. 16, size p. 27 | 0.9 x 1.5 x 1.25 (35 x 60 x 50 in, read as W x H x D: inferred) | Shape good (below). Its use at MSC is not documented; we chose it as the 1108's own vector display |
 | `glass` | UNISCOPE 100 Display Terminal, showing the kernel source | UP-7701 Fig. 1-1 and p. 1 (10 x 5 in viewing area, 16 x 64 or 12 x 80, green on dark), size p. 30 | 0.46 x 0.33 x 0.69 | Good. Delivered from 1970, a year after the film (an anachronism we keep for Source) |
 | `uniservo` | UNISERVO VIII-C tape unit | UP-4046 sec. 8.4.2 (120 in/s, 240 in/s rewind, 2400 ft reels); brochure p. 7; MSC photo (numbers 60, 61, ...) | 0.75 x 1.8 x 0.75 (inferred) | Good on look; vacuum columns not shown |
 | `cpu` | 1108 cabinet; `{lampPanel: true}` is the processor's maintenance panel | Brochure p. 3 (colour) | 0.8 x 1.9 x 0.8 (inferred) | Good on look; the lamp count is ours |
@@ -47,6 +47,15 @@ Sizes are W x H x D in metres.
 | `chair` | Chrome swivel chair on casters | Brochure p. 7 | 0.6 x 0.88 x 0.6 (ours) | Fair |
 | `filmrecorder` | S-C 4020 Computer Recorder: the microfilm recorder, HYPOTHETICAL as to MSC's model (below) | 4020 brochure pp. 1, 4; 4020 manual Fig. 1 (p. 1), Fig. 5 (p. 7), p. 25 | 2.24 x 1.88 x 0.94 (basic unit 66 x 37 x 74 in plus the 22 in tape adapter, brochure p. 4) | Fair on look; the model at MSC is our choice |
 
+**The 1558's shape.** UP-7789's photographs, scaled by the 35 in width: Figure 2-5 (p. 11, square on) gives the face's
+outline (a hexagon chamfered at the top corners), the centred bezel and tube, the light pen and its cord at the upper
+right, and the shelf; Figure 2-7 (p. 14) gives the keyboard's groups key by key (6 function keys and the cursor keys at
+the left, the typewriter block, TRANSMIT and RETURN, the 35 function keys in columns of 2, 3 and 2, two square buttons,
+three knobs and a lamp on the strip behind); Figure 1-1 (p. 1, three-quarter view) gives the hood sweeping back with
+a sloped top, its sides curving under the shelf, and the pedestal set back with three light panels a side. The depth
+split between head, shelf and pedestal, and the function-key legends the figure does not show legibly, are ours. The
+keys are plain white with printed legends, as the figures show (no backlight).
+
 ## What moves
 
 - **Tape units.** The reels turn at tape speed over their pack radius, so the emptier reel turns faster. The packs
@@ -57,9 +66,8 @@ Sizes are W x H x D in metres.
 - **CPU lamp panel.** 36 lamps a row in octal groups of three, one row per 36-bit word. The top row counts the kernel
   frames drawn, the second shows the g.e.t. in seconds, and the rest are random words (ours). The lamps change about
   20 times a second while the page plays and slowly when it is idle.
-- **1558.** The plot screen, unlit and outside tone mapping. The 35 function keys glow as if backlit and carry
-  printed legends; the backlight is HYPOTHETICAL (UP-7789 p. 16 describes plastic overlays, not lamps). The
-  power-lamp colour is ours.
+- **1558.** The plot screen, unlit and outside tone mapping, under a faint glossy dome that only adds reflections.
+  The power-lamp colour is ours.
 - **UNISCOPE 100.** 64 x 16 green characters in the IBM 3270 face when the page has it. The screen shows the Source
   tab's marked line or current unit, or VFRAME from `vdrive.f` in the embedded listing, and is redrawn only when that
   text changes. The cursor blinks.
