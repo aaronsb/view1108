@@ -20,7 +20,10 @@ C     for it (the LM outside LMSTAT's rules), 1 if there is, 2 for the
 C     LM docked to the CSM (the CSM's state).  The CSM always has one.
 C     ISRCU records the source used for the CSM: 0 replay, 1 sim with
 C     state vector updates, 2 sim without.  The LM's own legs are
-C     read from the replay only (the tape carries the CSM).
+C     read from the replay only (the tape carries the CSM).  From
+C     the scenario's entry interface (its EI event, TETP) on, the CSM
+C     is the replay's too: the engine flies in a vacuum, the entry
+C     leg (a TABLE, traj.f) through the atmosphere (ours).
       SUBROUTINE VSTATE(GET, IVEH, IBODY, R, V, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -32,6 +35,7 @@ C     RESTOMOD END
       IF (IVEH .EQ. 2) GO TO 30
       ISRCU = 0
       IF (ISRC .NE. 1 .OR. ITPSN .NE. ISN) GO TO 20
+      IF (TETP .GE. 0.0D0 .AND. GET .GT. TETP) GO TO 20
       CALL TPGET(1, GET, R, V, ITP)
       IF (ITP .EQ. 0) GO TO 20
       ISRCU = 2 - MOD(ISIMF, 2)

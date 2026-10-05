@@ -39,9 +39,11 @@ function airtRealTime() {
 // The camera for a g.e.t., outside Live (whose PHASES are coarser and pin the windowed scenes through JUMPS): each
 // scenario's time cut into spans [until, scene, view, target, fov], the span applying while g.e.t. < until. view and
 // target are in_view and in_target (0, or absent: the scene's own); fov the field in degrees (absent: the scene's
-// default). [t, s, 1, 1, 20]: no scene's own camera has a state or draws anything useful then, so the scene's EXTERNAL
-// view looks at the Earth at a 20 deg field (ours), the disc with its LC-39A mark (learth.f DPAD); the CSM is marked
-// where VSTATE puts it. The spans are ours, from the scenarios' cards and the kernel's code (data/scenarios/*.scn, src/*.f).
+// default). [t, s, 1, 1, 20]: on the pad, in the ascent and in the entry the scene's EXTERNAL view looks at the Earth
+// at a 20 deg field (ours), the disc with its LC-39A mark (learth.f DPAD); the CSM is marked where VSTATE puts it, on
+// the TABLE legs (traj.f TABRV): standing on the pad, running downrange to S-IVB cutoff, falling to the splash point
+// and riding there. The whole disc shows where on the Earth that is, which a camera beside the CSM (target 4) would not.
+// The spans are ours, from the scenarios' cards and the kernel's code (data/scenarios/*.scn, src/*.f).
 // Burn spans (ignition to cutoff, the TIMELINE rows of SP-4029) follow MSC IN 69-FM-197's views of the same burn: its
 // CSM burn plots (figures 5.1-1, 6.1-1, 7.1-1) look along the CM's X axis through the left rendezvous window at a
 // 100 deg field, which is the CM station (in_view 2, vview.f STATCM; CMCAB reads that window off figure 9.0-3). A row
@@ -51,7 +53,7 @@ const EXT_NOTE = "external view of the Earth";
 const WIN_NOTE = "the CSM window aimed at the Earth";
 const TL_SCENES = {
   1: [   // Apollo 11
-    [709.33, 3, 1, 1, 20],  // before Earth orbit insertion (the first LEG card, CIRC FROM 0:11:49.33): LEGAT stretches the parking orbit back
+    [699.33, 3, 1, 1, 20],  // the pad and the ascent (TABLE leg, SP p. 103) to S-IVB cutoff, where the CIRC leg begins (FROM 0:11:39.33)
     [9856.2, 3],            // CIRC leg to the S-IVB's 2nd burn ignition, 2:44:16.2 (TIMELINE row, SP p. 105): scene 3's forward horizon view (vdrive.f SCNCAM)
     [10203.03, 3, 2, 0, 100], // TLI, to the 2nd burn cutoff 2:50:03.03 (SP p. 105): the CM station at 100 deg, the Earth's limb across
                             // the frame and stars, as figure 5.1-1 (PDF pp. 53-55, printed 35-37; pre-flight 2:44:11 to 2:50:02)
@@ -78,14 +80,14 @@ const TL_SCENES = {
     [487573.7, 1, 2, 0, 100], // TEI, to the transearth leg (CONIC FROM 135:26:13.7; cutoff 135:26:13.69, SP p. 109): the CM station
                             // at 100 deg, the Moon's limb across the frame, as figure 7.1-1 (PDF pp. 203-205, printed 185-187)
     [698400, 2],            // transearth coast: scene 2's held attitude (VINIT) keeps the Earth in frame to about 194:00 (our run)
-    [702186.7, 3],          // the entry approach in scene 3's horizon view, to the EI event 195:03:05.7
-    [Infinity, 3, 1, 1, 20] // the entry leg past EI is a conic without an atmosphere
+    [702185.7, 3],          // the entry approach in scene 3's horizon view, to the EI event 195:03:05.7
+    [Infinity, 3, 1, 1, 20] // the entry (TABLE leg, MR Table 7-VII p. 7-12) to splashdown, 195:18:35, then the splash point
   ],
   2: [   // Apollo 8 (data/scenarios/apollo8-asflown.scn): scene 9 rides its LUNAR legs (LUNORB) with the Earthrise
          // camera, and the Earth legs with scene 3's forward view above the horizon (vdrive.f SCNCAM, traj.f LUNIN).
          // The 50 deg field of the window views is MSC IN 69-FM-197's for the CSM window aimed at the Earth on
          // Apollo 11's transearth coast (figure 7.3.2-1, "constant field of view (earth)", printed p. 207).
-    [694.98, 9, 1, 1, 20],  // before the CIRC leg, FROM 0:11:34.98 (SP p. 45 ascent table)
+    [684.98, 9, 1, 1, 20],  // the pad and the ascent (TABLE leg, SP p. 45) to S-IVB cutoff, where the CIRC leg begins (FROM 0:11:24.98)
     [10237.79, 9, 0, 0, 70],// the CIRC leg to the S-IVB's 2nd burn ignition, 2:50:37.79 (SP p. 48): the horizon view at scene 3's 70 deg (VINIT)
     [10555.51, 9, 2, 0, 100],// TLI, to its cutoff 2:55:55.51 (SP p. 48): the CM station at 100 deg, the Apollo 11 note's TLI format (figure 5.1-1)
     [10565.5, 9, 0, 0, 70], // the CIRC leg stretched to TLI, 2:56:05.5 (EVENT TLI, MR8 Table 5-II p. 5-7)
@@ -96,7 +98,7 @@ const TL_SCENES = {
     [321556.6, 9],          // lunar orbit to TEI ignition, 89:19:16.6 (the last LUNAR leg's TO; EVENT TEI, MR8 Table 3-I p. 3-3)
     [321760.3, 9, 2, 0, 100],// TEI, to its cutoff 89:22:40.3 (SP p. 49): the CM station at 100 deg, the Apollo 11 note's TEI format (figure 7.1-1)
     [528372.8, 9, 0, 1, 50],// the transearth conics to entry interface, 146:46:12.8 (EVENT EI, MR8 Table 3-I p. 3-4)
-    [Infinity, 9, 1, 1, 20] // the entry leg past EI is a conic without an atmosphere
+    [Infinity, 9, 1, 1, 20] // the entry (TABLE leg, MR8 Tables 5-V and 6.9-IV) to splashdown, 147:00:42, then the splash point
   ]
 };
 const tlFor = g => { const t = TL_SCENES[tlScenario()]; return t.find(s => g < s[0]) || t[t.length - 1]; };

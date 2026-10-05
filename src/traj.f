@@ -19,7 +19,13 @@ C              and mean motion from those states (lunar orbit); its
 C              radius may change steadily from the one to the other;
 C       LCONIC Moon-centred Kepler conic from a state, or from the
 C              vehicle's leg before it plus an impulse (the LM's
-C              descent orbit and rendezvous).
+C              descent orbit and rendezvous);
+C       TABLE  states listed at their g.e.t.s about the Earth, joined
+C              by cubic Hermite arcs (TABRV): the powered ascent from
+C              lift-off to S-IVB cutoff and the entry from entry
+C              interface to splashdown.  Before its first row and
+C              after its last a table holds that row's place on the
+C              turning Earth (the pad, the splash point).
 C     Each leg carries one vehicle, the CSM or the LM.  For the CSM a
 C     g.e.t. outside every leg takes the nearest leg; the LM has a
 C     state only where LMSTAT's rules give it one.
@@ -52,6 +58,8 @@ C     RESTOMOD END
         IF (LGSN(K) .NE. IM) GO TO 90
         IF (IP .EQ. 1 .AND. LGTYP(K) .EQ. KLCON) GO TO 90
         IF (IP .EQ. 2 .AND. LGTYP(K) .NE. KLCON) GO TO 90
+C       A TABLE leg is read from its rows each time (TABRV).
+        IF (LGTYP(K) .EQ. KTABL) GO TO 90
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         IF (LGTYP(K) .EQ. KCIRC) THEN
 C         Circle through the state's position, along its heading.
@@ -237,9 +245,9 @@ C     RESTOMOD END
       END
 C
 C     LEGAT: the current scenario's leg of vehicle IVEH (1 CSM, 2 LM)
-C     about the Earth (ICLS = 1: CIRC or CONIC) or the Moon (ICLS = 2:
-C     LUNAR or LCONIC) whose span holds GET, else the one whose span
-C     ends nearest it; 0 if there is none.
+C     about the Earth (ICLS = 1: CIRC, CONIC or TABLE) or the Moon
+C     (ICLS = 2: LUNAR or LCONIC) whose span holds GET, else the one
+C     whose span ends nearest it; 0 if there is none.
       INTEGER FUNCTION LEGAT(GET, ICLS, IVEH)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -288,14 +296,15 @@ C
 C-----------------------------------------------------------------------
 C     STATEV: the state in card fields P (the layout of LGP), geocentric
 C     EQ km and km/s.  Latitude
-C     geodetic (MR Table 7-I, p. 7-8) or geocentric (IGC = 1, as in
+C     geodetic (MR Table 7-I, p. 7-8) or geocentric (IGC = 1 or 3, as in
 C     SP-4029's ascent table); altitude above the ellipsoid (ours:
 C     equatorial radius RE, flattening 1/298.257); longitude Earth
 C     fixed, turned by GMST at the state's time to the equator and
 C     equinox of date, then to J2000 by PRECM's transpose.  Speed,
 C     flight-
 C     path angle and heading are space-fixed, against the geocentric
-C     horizontal (MR Table 7-I).
+C     horizontal (MR Table 7-I), or, with IGC 2 or 3, relative to the
+C     turning Earth (a TABLE row's VEL=EF), the Earth's turning added.
 C-----------------------------------------------------------------------
       SUBROUTINE STATEV(P, IGC, R, V)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -305,8 +314,10 @@ C     RESTOMOD END
       INTEGER IGC
       DOUBLE PRECISION P(NLGP), R(3), V(3)
       DOUBLE PRECISION F, E2, FI, LA, H, SF, CF, XN, U(3), N(3), E(3)
-      DOUBLE PRECISION G, HD, SP, GMSTAT, PSI, RA, PM(3,3), W(3)
+      DOUBLE PRECISION G, HD, SP, GMSTAT, PSI, RA, PM(3,3), W(3), OM
       INTEGER I
+C     The Earth's turning, rad/s: the rate of GMSTAT.
+      OM = 360.98564736629D0 * DR / 86400.0D0
       F = 1.0D0 / 298.257D0
       E2 = F * (2.0D0 - F)
       FI = P(4) * DR
@@ -315,7 +326,7 @@ C     RESTOMOD END
       SF = DSIN(FI)
       CF = DCOS(FI)
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (IGC .EQ. 1) THEN
+      IF (MOD(IGC, 2) .EQ. 1) THEN
         RA = RE * (1.0D0 - F * SF * SF) + H
         R(1) = RA * CF * DCOS(LA)
         R(2) = RA * CF * DSIN(LA)
@@ -346,6 +357,10 @@ C     Geocentric horizontal at R.
         V(I) = SP * (DSIN(G) * U(I) + DCOS(G) * (DCOS(HD) * N(I)
      &       + DSIN(HD) * E(I)))
    20 CONTINUE
+      IF (IGC .LT. 2) GO TO 25
+      V(1) = V(1) - OM * R(2)
+      V(2) = V(2) + OM * R(1)
+   25 CONTINUE
 C     Equator of date to J2000.
       CALL PRECM((TJD0 + P(3) / 86400.0D0 - 2451545.0D0) / 36525.0D0,
      &           PM)
@@ -383,8 +398,8 @@ C-----------------------------------------------------------------------
 C
 C-----------------------------------------------------------------------
 C     LEGRV: position and velocity on leg K at GET, about its body (the
-C     Earth for CIRC and CONIC, the Moon for LUNAR and LCONIC), EQ km
-C     and km/s.
+C     Earth for CIRC, CONIC and TABLE, the Moon for LUNAR and LCONIC),
+C     EQ km and km/s.
 C-----------------------------------------------------------------------
       SUBROUTINE LEGRV(K, GET, R, V)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -399,6 +414,8 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         IF (LGTYP(K) .EQ. KLCON) GM = GMM
         CALL KEPLER(LGEL(1,K), LGEL(4,K), LGEL(7,K), LGEL(8,K),
      &              LGEL(9,K), GM, GET, R, V)
+      ELSE IF (LGTYP(K) .EQ. KTABL) THEN
+        CALL TABRV(K, GET, R, V)
       ELSE IF (LGTYP(K) .EQ. KCIRC) THEN
         TH = LGEL(11,K) * (GET - LGEL(9,K))
         C = DCOS(TH)
@@ -422,6 +439,91 @@ C       LUNAR: the radius RA moves at LGEL(7) km/s.
    20   CONTINUE
       END IF
 C     RESTOMOD END
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     TABRV: position and velocity at GET on TABLE leg K, the arc
+C     between two listed states A (at TA) and B (at TB), geocentric EQ
+C     km and km/s.  Each row is made inertial at its own time
+C     (STATEV), and the arc is the cubic Hermite through the two
+C     positions with the two velocities as end slopes, as the tape is
+C     read (TPGET): ours, VIEW integrated (TN D-6853, p. 3).  Before TA
+C     the vehicle stands at A's place on the turning Earth, after TB
+C     at B's (LEGAT hands a table its times outside every leg: before
+C     lift-off and after splashdown).
+C     The rows' altitudes are above the ellipsoid, but the Earth is
+C     drawn as a sphere of radius RE, which the pad and the splash
+C     point lie up to 6 km inside.  Near the ground a row is lifted
+C     onto the sphere, by its ellipsoid's depth there times
+C     1 - ALT/HB, nothing from HB (50 n mi, ours) up: the vehicle
+C     stands on the drawn pad, and the rows at orbit and at entry
+C     interface keep their true radius, where the legs either side
+C     meet them.
+C-----------------------------------------------------------------------
+      SUBROUTINE TABRV(K, GET, R, V)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      INTEGER K
+      DOUBLE PRECISION GET, R(3), V(3)
+      DOUBLE PRECISION PA(NLGP), PB(NLGP), RA(3), VA(3), RB(3), VB(3)
+      DOUBLE PRECISION TA, TB, H, S, H00, H10, H01, H11, D00, D10, D01
+      DOUBLE PRECISION D11, HB, SF
+      INTEGER I, IGA, IGB
+      HB = 50.0D0
+      DO 10 I = 1, NLGP
+        PA(I) = LGP(I,K)
+        PB(I) = LGP(I,K)
+   10 CONTINUE
+      TA = LGP(3,K)
+      TB = LGP(10,K)
+      PB(3) = TB
+      PB(4) = LGP(11,K)
+      PB(5) = LGP(12,K)
+      PB(6) = LGP(17,K)
+      PB(7) = LGP(13,K)
+      PB(8) = LGP(14,K)
+      PB(9) = LGP(15,K)
+      SF = DSIN(PA(4) * DR)
+      IF (PA(6) .LT. HB) PA(6) = PA(6)
+     &  + RE * SF * SF / (298.257D0 * 1.852D0) * (1.0D0 - PA(6) / HB)
+      SF = DSIN(PB(4) * DR)
+      IF (PB(6) .LT. HB) PB(6) = PB(6)
+     &  + RE * SF * SF / (298.257D0 * 1.852D0) * (1.0D0 - PB(6) / HB)
+      IGA = LGGC(K) + 2 * MOD(LGN(K), 2)
+      IGB = LGGC(K) + 2 * (LGN(K) / 2)
+C     Outside the arc: the end row's place at GET, at rest on the
+C     Earth.
+      IF (GET .GE. TA) GO TO 20
+      PA(3) = GET
+      PA(7) = 0.0D0
+      CALL STATEV(PA, LGGC(K) + 2, R, V)
+      RETURN
+   20 IF (GET .LE. TB) GO TO 30
+      PB(3) = GET
+      PB(7) = 0.0D0
+      CALL STATEV(PB, LGGC(K) + 2, R, V)
+      RETURN
+   30 CALL STATEV(PA, IGA, RA, VA)
+      CALL STATEV(PB, IGB, RB, VB)
+      H = TB - TA
+      S = (GET - TA) / H
+      H00 = (1.0D0 + 2.0D0 * S) * (1.0D0 - S)**2
+      H10 = S * (1.0D0 - S)**2
+      H01 = S * S * (3.0D0 - 2.0D0 * S)
+      H11 = S * S * (S - 1.0D0)
+      D00 = 6.0D0 * S * (S - 1.0D0) / H
+      D10 = (1.0D0 - S) * (1.0D0 - 3.0D0 * S) / H
+      D01 = -D00
+      D11 = S * (3.0D0 * S - 2.0D0) / H
+      DO 40 I = 1, 3
+        R(I) = H00 * RA(I) + H10 * H * VA(I) + H01 * RB(I)
+     &       + H11 * H * VB(I)
+        V(I) = D00 * RA(I) + D10 * H * VA(I) + D01 * RB(I)
+     &       + D11 * H * VB(I)
+   40 CONTINUE
       RETURN
       END
 C
