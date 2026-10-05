@@ -43,7 +43,8 @@ C     RESTOMOD END
       FT = 0.3048D0
 C     Per engine (SPS, DPS, APS, J-2): exit plane X and radius (m, in
 C     the model's body frame), plume length (m).  SPS: CSMBLD's nozzle
-C     exit, 22 in + 12 ft 11 in + 9 ft 8 in aft of the CM's base,
+C     exit, 22 in + 12 ft 11 in + 9 ft 8 in aft of the CM's base
+C     (CSMBLD's XS - XN, its origin 0.457 m above that base),
 C     radius 3 ft 11.25 in; the CSM 35 ft long (CSMBLD).  DPS, APS:
 C     the descent stage's base (X 0) and top (X 1.7, LMBODY), radii
 C     0.75 and 0.4 m, ours; the LM model 4.51 m to its tunnel's top

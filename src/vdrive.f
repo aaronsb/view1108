@@ -334,7 +334,7 @@ C     Scene 4: the LM.  Scene 7: the LM's docking target (S7POSE).
         IF (IREF .EQ. 2) PB(I) = MPOS(I)
         IF (ISCN .EQ. 4 .AND. KLMPL() .NE. 0) PB(I) = MDP(I,KLMPL())
         IF (ISCN .EQ. 7) PB(I) = S7LP(I) - 0.72D-3 * S7AT(I,2)
-        IF (ISCN .EQ. 8) PB(I) = MDP(I,KCSM) + 3.2D-3 * MDAT(I,1,KCSM)
+        IF (ISCN .EQ. 8) PB(I) = MDP(I,KCSM) + 2.743D-3 * MDAT(I,1,KCSM)
    40 CONTINUE
       RR = RE
       IF (IREF .EQ. 2) RR = RM
@@ -856,7 +856,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION GET, D, V(3), W(3), Z(3)
-      DOUBLE PRECISION PS(3), AC(3,3), S7RF
+      DOUBLE PRECISION PS(3), AC(3,3), S7RF, CMTOP
       INTEGER I
       S7RNG = S7RF(GET)
 C     The camera is the COAS in the CSM's left rendezvous window,
@@ -884,19 +884,20 @@ C     p. 88) with room for the SPS nozzle: our guess.
 C     Seen from outside (IVIEW 1; SCNMOD runs before VIEWPT sets
 C     IVUSE), the CSM itself, coaxial with the LM and facing it: its
 C     axes S7AT's with X and Y turned over (STKPL's half turn about Z),
-C     the CM's base 10 ft 7 in (CSMBLD; STKPL) plus the range S7RNG
+C     the CSM's origin CMTOP (models.f; STKPL) plus the range S7RNG
 C     behind the LM's tunnel top S7LP, so the two tunnels' tops meet
-C     at docking and the camera sits in the CM 1.2 m above its base,
-C     as CSMCAM puts it.  Placed, it replaces VIEWPT's outline around
-C     the camera (CSMCAM); the window view keeps the camera in the CSM
-C     and draws no CSM (ours).
+C     at docking and the camera, 2 m behind that top (above), sits in
+C     the CM 0.77 m above the CSM's origin, near the eye's X 0.70
+C     (CMEYE).  Placed, it replaces VIEWPT's CSM around the camera
+C     (CSMCAM); the window view keeps the camera in the CSM and draws
+C     no CSM (ours).
       IF (IVIEW .NE. 1) RETURN
       DO 30 I = 1, 3
         AC(I,1) = -S7AT(I,1)
         AC(I,2) = -S7AT(I,2)
         AC(I,3) = S7AT(I,3)
    30 CONTINUE
-      D = (S7RNG + 10.0D0 + 7.0D0 / 12.0D0) * 0.3048D-3
+      D = S7RNG * 0.3048D-3 + CMTOP() * 1.0D-3
       DO 40 I = 1, 3
         PS(I) = S7LP(I) - D * AC(I,1)
    40 CONTINUE

@@ -11,7 +11,10 @@ C
 C=======================================================================
 C     SPACECRAFT MODELS.  A library of wireframe models in /CLM/,
 C     built once (MLIB).  Each model is data: convex solids (prisms,
-C     MKPRS) and free lines (XLINE), in its own body frame, in metres.
+C     MKPRS; frusta, MKFRU) and free lines (XLINE), in its own body
+C     frame, in metres.  A solid standing for a curved surface (the
+C     CSM's cone, cylinder, nozzles) is smooth (LSMO): the edges
+C     between its sides are drawn only where they are its outline.
 C     A free line with IS = 0 is a stand-alone line (legs, rims); with
 C     IS > 0 it is a mark on face LXF of solid IS (windows, target),
 C     hidden when that face is turned away.  The model table /CMODI/
@@ -68,16 +71,14 @@ C     S-IVB with the instrument unit and the stub of the SLA.
       CALL MODBEG(KSIV)
       CALL SIVBMD
       CALL MODEND(KSIV)
-C     CSM, an outline (MDHL = 0).
+C     CSM, with the docking probe.
       CALL MODBEG(KCSM)
       CALL CSMBLD
       CALL MODEND(KCSM)
-      MDHL(KCSM) = 0
-C     CM alone, after CM/SM separation, an outline like the CSM.
+C     CM alone, after CM/SM separation.
       CALL MODBEG(KCMO)
       CALL CMBLD
       CALL MODEND(KCMO)
-      MDHL(KCMO) = 0
 C     CM cabin: the commander's window outlines about the design eye,
 C     an outline (station view only).
       CALL MODBEG(KCMC)
@@ -487,9 +488,9 @@ C       Trusses from the housing's inboard face.
       RETURN
       END
 C
-C     RCSNZ: one RCS nozzle, an 8-sided frustum from the face of the
-C     cluster housing (half size HB) about X, Y, Z (m), firing along
-C     body axis IA (1 X, 2 Y, 3 Z) with sign SG.  Sizes: ours.
+C     RCSNZ: one RCS nozzle (RCSNV) from the LM cluster housing (half
+C     size HB) about X, Y, Z (m), firing along body axis IA (1 X, 2 Y,
+C     3 Z) with sign SG.
       SUBROUTINE RCSNZ(X, Y, Z, IA, SG, HB)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -497,12 +498,8 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION X, Y, Z, SG, HB
       INTEGER IA
-      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), Q(2,8)
-      INTEGER K, I1, I2
-      DO 10 K = 1, 8
-        Q(1,K) = 0.045D0 * DCOS(DBLE(K) * PI / 4.0D0)
-        Q(2,K) = 0.045D0 * DSIN(DBLE(K) * PI / 4.0D0)
-   10 CONTINUE
+      DOUBLE PRECISION A1(3), A2(3), AN(3)
+      INTEGER I1, I2
       CALL SETV(AN, 0.0D0, 0.0D0, 0.0D0)
       CALL SETV(A1, 0.0D0, 0.0D0, 0.0D0)
       CALL SETV(A2, 0.0D0, 0.0D0, 0.0D0)
@@ -511,8 +508,29 @@ C     RESTOMOD END
       AN(IA) = SG
       A1(I1) = 1.0D0
       A2(I2) = 1.0D0
+      CALL RCSNV(X, Y, Z, AN, A1, A2, HB)
+      RETURN
+      END
+C
+C     RCSNV: one RCS nozzle, an 8-sided frustum from the face of a
+C     cluster housing (half size HB) about X, Y, Z (m), firing along
+C     unit AN, its octagon in axes A1, A2.  Sizes: ours.
+      SUBROUTINE RCSNV(X, Y, Z, AN, A1, A2, HB)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION X, Y, Z, AN(3), A1(3), A2(3), HB
+      DOUBLE PRECISION O(3), Q(2,8)
+      INTEGER K
+      DO 10 K = 1, 8
+        Q(1,K) = 0.045D0 * DCOS(DBLE(K) * PI / 4.0D0)
+        Q(2,K) = 0.045D0 * DSIN(DBLE(K) * PI / 4.0D0)
+   10 CONTINUE
       CALL SETV(O, X, Y, Z)
-      O(IA) = O(IA) + SG * (HB - 0.01D0)
+      DO 20 K = 1, 3
+        O(K) = O(K) + AN(K) * (HB - 0.01D0)
+   20 CONTINUE
       CALL MKFRU(8, Q, O, A1, A2, AN, 0.35D0, 0.11D0 / 0.045D0)
       RETURN
       END
@@ -615,7 +633,9 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION Y1, X1, Z1, Y2, X2, Z2
       INTEGER IS
+      LXOK = 0
       IF (NXL .GE. MXL) RETURN
+      LXOK = 1
       NXL = NXL + 1
       LXL(1,NXL) = X1
       LXL(2,NXL) = Y1
@@ -653,6 +673,9 @@ C     points counter-clockwise (duplicates when C = 0 are harmless).
 C
 C     MKPRS: prism over polygon P (NP points in axes A1, A2 about O),
 C     extruded H along AN.  Faces 1..NP sides, NP+1 base, NP+2 cap.
+C     Its edges are all real (LSMO = 0); a caller building a curved
+C     surface sets LSMO(NSOL) = 1 after the call (as MKFRU's), if
+C     the call added it (LBOK).
       SUBROUTINE MKPRS(NP, P, O, A1, A2, AN, H)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -664,11 +687,14 @@ C     RESTOMOD END
       INTEGER I, K, K2, IS, IA, IB, IC, NE
 C     A full model table takes no more solids (as XLINE takes no more
 C     lines).
+      LBOK = 0
       IF (NSOL .GE. MSOL) RETURN
+      LBOK = 1
       NSOL = NSOL + 1
       IS = NSOL
       NLV(IS) = 2 * NP
       NLF(IS) = NP + 2
+      LSMO(IS) = 0
       DO 20 K = 1, NP
         DO 10 I = 1, 3
           LMV(I,K,IS) = O(I) + P(1,K) * A1(I) + P(2,K) * A2(I)
@@ -756,11 +782,14 @@ C     RESTOMOD END
       INTEGER I, K, K2, IS, IA, IB, IC, NE
 C     A full model table takes no more solids (as XLINE takes no more
 C     lines).
+      LBOK = 0
       IF (NSOL .GE. MSOL) RETURN
+      LBOK = 1
       NSOL = NSOL + 1
       IS = NSOL
       NLV(IS) = 2 * NP
       NLF(IS) = NP + 2
+      LSMO(IS) = 0
       DO 20 K = 1, NP
         DO 10 I = 1, 3
           LMV(I,K,IS) = O(I) + P(1,K) * A1(I) + P(2,K) * A2(I)
@@ -834,7 +863,9 @@ C     RESTOMOD END
       DOUBLE PRECISION P(2,NP), O(3), A1(3), A2(3), AN(3), H, G
       DOUBLE PRECISION E1(3), E2(3), N(3), VDOT
       INTEGER I, K, IS
+      LBOK = 0
       IF (NSOL .GE. MSOL) RETURN
+      LBOK = 1
       CALL MKPRS(NP, P, O, A1, A2, AN, H)
       IS = NSOL
       DO 20 K = 1, NP
@@ -861,22 +892,38 @@ C     The cap's plane again, facing along AN.
       END
 C
 C-----------------------------------------------------------------------
-C     CSMBLD: the command and service module.  Body axes X along the
-C     stack toward the CM apex, Y and Z across (Apollo CSM convention:
-C     the RCS quads sit near +-Y and +-Z, below); origin at the centre
-C     of the CM's base, metres.  Sources (CSM News Reference, North
-C     American Rockwell 1969, "NR"; Apollo Operations Handbook SM2A-
-C     03-Block II-(1), 1969, "AOH"; Apollo 11 press kit, "PK"), where
-C     they disagree the one used is named:
-C       CM: "Height 10ft 7 in.", "Diameter 12ft 10in." (NR p. 39; PK
-C         p. 87 has 11 ft 5 in high, AOH p. 1-4 11 ft 1.5 in).  The
-C         cone's shape is ours: a 16-sided frustum to 0.55 m radius at
-C         2.25 m (about 32 deg half-angle), then a tunnel 0.45 m in
-C         radius to the 10 ft 7 in height (tunnel size ours).
-C       Fairing: "22 inches high" (NR p. 54; AOH p. 1-50 has 26 in),
-C         drawn as a short cylinder of the SM's diameter.
-C       SM: the cylinder "12 feet 11 inches long (high) and 12 feet 10
-C         inches in diameter" (AOH p. 1-50).
+C     CSMBLD: the command and service module, hidden-line solids like
+C     the LM's.  Body axes X along the stack toward the CM apex, Y and
+C     Z across (Apollo CSM convention: the RCS quads sit near +-Y and
+C     +-Z, below); origin on the axis where the CM is widest, X =
+C     0.0254 (Xc - 18) m as CMINT, metres.  Sources (CSM News
+C     Reference, North American Rockwell 1969, "NR"; Apollo Operations
+C     Handbook SM2A-03-Block II-(1), 1969, "AOH"; Apollo 11 press kit,
+C     "PK"), where they disagree the one used is named:
+C       CM: CMBLD (solids 1 to 3, its windows and hatch), then the
+C         docking probe: an 8-sided frustum 0.3 m proud of the docking
+C         ring, as deep as the LM's drogue (LMDOCK), so docked it sits
+C         in the LM's tunnel and is hidden there; three support arms.
+C         Sizes ours.
+C       SM and fairing, one 24-sided prism of the SM's diameter up to
+C         the CM: the SM "12 feet 11 inches long (high) and 12 feet 10
+C         inches in diameter" (AOH p. 1-50); the fairing "22 inches
+C         high" (NR p. 55; AOH p. 1-50 has 26 in), "composed of 16
+C         pieces; eight electrical power subsystem radiators alternated
+C         with eight aluminum honeycomb panels" (NR p. 55): its joint
+C         to the SM a ring, the 16 pieces' joints marks.
+C       Sectors: "two 50-degree (Sectors 1 and 4), two 60-degree
+C         (Sectors 3 and 6), and two 70-degree (Sectors 2 and 5)" (NR
+C         p. 56), the RCS packages in sectors II (+Y), III (+Z), V (-Y)
+C         and VI (-Z) (AOH Fig. 1-28, p. 1-49); the sector panels "are
+C         bolted to the radial beams" (NR p. 55), so the six beams are
+C         seams on the skin.  Their angles allow sector 1 to start
+C         anywhere 0 to 40 deg before +Y (toward -Z); we take 20.
+C       ECS radiators: "bonded to the sector panels on opposite sides
+C         of the module ... each about 30 square feet in area" (NR p.
+C         55), across sectors II/III and V/VI (AOH Fig. 1-28): two
+C         panels 1.39 by 2.0 m centred on those sector joints, their
+C         height on the SM ours.
 C       SPS nozzle: an extension "protruding more than 9 feet below
 C         the aft bulkhead" (NR p. 58); we take 9 ft 8 in, the NR p. 3
 C         "22ft,7 in. excluding fairing" less the AOH's 12 ft 11 in
@@ -884,16 +931,27 @@ C         (ours), and "an exit diameter of 7 feet 10-1/2 inches" (NR
 C         p. 162); the throat end (0.5 m radius) is ours.
 C       RCS quads: "four clusters of 90 degrees apart around the upper
 C         portion" (NR p. 58), "offset about 7 degrees from the Y and Z
-C         axes" (NR p. 148); each "eight feet long and nearly three feet
-C         wide" (NR p. 59), 0.3 m proud of the skin and centred 1.5 m
-C         below the SM's top (ours).
+C         axes" (NR p. 147); each package "eight feet long and nearly
+C         three feet wide" (NR p. 59), a panel marked on the skin,
+C         centred 1.5 m below the SM's top (ours).  Its engines,
+C         "mounted with two pointed up and down and two pointed to the
+C         sides in opposite directions" (NR p. 59), "canted 10 degrees
+C         outward" (NR p. 147), on a housing 0.3 m proud; housing and
+C         nozzle sizes are the LM's (LMRCS, ours).  Five solids a quad.
+C       VHF scimitar antennas: two, "mounted 180 degrees apart on the
+C         service module" (NR p. 175), "approximately 13-3/4 inches
+C         long" (NR p. 59), free lines; their place on the SM (between
+C         the quads, near the top) and the blade's outline are ours.
 C       High-gain antenna: on the aft bulkhead; "four 31-inch diameter
-C         parabolas" (NR p. 177); the boom "swings out at right angles
-C         to the spacecraft longitudinal axis, with the boom pointing 52
-C         degrees below the heads-up horizontal" (PK p. 90).  Our
-C         reading: the boom leaves the SM's aft edge in the Y-Z plane,
-C         52 deg from +Y toward -Z; its length (2.4 m) and the dishes'
-C         arrangement (2 by 2, square to the boom) are ours.
+C         reflectors surrounding an 11-inch square reflector" (NR p.
+C         59); the boom "swings out at right angles to the spacecraft
+C         longitudinal axis, with the boom pointing 52 degrees below
+C         the heads-up horizontal" (PK p. 90).  Our reading: the boom
+C         leaves the SM's aft edge in the Y-Z plane, 52 deg from +Y
+C         toward -Z; its length (2.4 m) and the dishes' arrangement (2
+C         by 2, square to the boom) are ours.  Free lines.
+C     Curved surfaces (cone, cylinder, nozzle, probe) are smooth
+C     solids (LSMO): only their outlines and rims are drawn.
 C-----------------------------------------------------------------------
       SUBROUTINE CSMBLD
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -901,54 +959,141 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,24), Q(2,8)
-      DOUBLE PRECISION FT, RB, XF, XS, HS, XN, RN, C, S, C2, S2
-      DOUBLE PRECISION BR(3), BD(3), BU(3), T(3), CX, CY, HA, R
-      INTEGER K, J, I
+      DOUBLE PRECISION FT, RB, XF, XS, HS, XN, RN, C, S, CMTOP, XT
+      DOUBLE PRECISION BR(3), BD(3), BU(3), T(3), CX, CY, HA, R, XQ
+      DOUBLE PRECISION B0, SA(6), HB, CS, SN, U(3), W(3), D, XB
+      DOUBLE PRECISION BL(2,6)
+      INTEGER K, J, I, ISM
+      DATA SA / 0.0D0, 70.0D0, 130.0D0, 180.0D0, 250.0D0, 310.0D0 /
+      DATA BL / 0.0D0, 0.0D0, 0.05D0, 0.11D0, 0.17D0, 0.17D0,
+     &  0.34D0, 0.15D0, 0.20D0, 0.10D0, 0.10D0, 0.0D0 /
       FT = 0.3048D0
       RB = 0.5D0 * (12.0D0 + 10.0D0 / 12.0D0) * FT
-C     CM cone and tunnel.
+      XT = CMTOP()
+C     CM: cone, apex, docking ring, windows and hatch.
       CALL CMBLD
+C     Docking probe and its three arms.
+      DO 10 K = 1, 8
+        Q(1,K) = 0.06D0 * DCOS(DBLE(K) * PI / 4.0D0)
+        Q(2,K) = 0.06D0 * DSIN(DBLE(K) * PI / 4.0D0)
+   10 CONTINUE
       CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
       CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
       CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
-C     SM and fairing, one cylinder of the SM's diameter up to the CM.
+      CALL SETV(O, XT, 0.0D0, 0.0D0)
+      CALL MKFRU(8, Q, O, A1, A2, AN, 0.3D0, 0.5D0)
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
+      DO 12 K = 0, 2
+        C = DCOS(DBLE(K) * 2.0D0 * PI / 3.0D0)
+        S = DSIN(DBLE(K) * 2.0D0 * PI / 3.0D0)
+        CALL XLINE(0.36D0 * C, XT, 0.36D0 * S, 0.06D0 * C,
+     &             XT + 0.12D0, 0.06D0 * S, 0)
+   12 CONTINUE
+C
+C     SM and fairing.
       XF = 22.0D0 / 12.0D0 * FT
       HS = (12.0D0 + 11.0D0 / 12.0D0) * FT
       XS = -XF - HS
-      DO 14 K = 1, 16
-        P(1,K) = RB * DCOS(DBLE(K) * PI / 8.0D0)
-        P(2,K) = RB * DSIN(DBLE(K) * PI / 8.0D0)
+      DO 14 K = 1, 24
+        P(1,K) = RB * DCOS(DBLE(K) * PI / 12.0D0)
+        P(2,K) = RB * DSIN(DBLE(K) * PI / 12.0D0)
    14 CONTINUE
       CALL SETV(O, XS, 0.0D0, 0.0D0)
-      CALL MKPRS(16, P, O, A1, A2, AN, HS + XF)
-C     The fairing's joint to the SM, a ring of free lines.
-      DO 16 K = 1, 16
-        CALL XLINE(P(1,K), -XF, P(2,K), P(1,MOD(K,16)+1), -XF,
-     &             P(2,MOD(K,16)+1), 0)
+      CALL MKPRS(24, P, O, A1, A2, AN, HS + XF)
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
+      IF (LBOK .EQ. 1) ISM = NSOL
+C     The fairing's joint to the SM and its 16 pieces.
+      CALL XARC(-XF, RB, 0.0D0, 360.0D0, ISM, 24)
+      DO 16 K = 0, 15
+        C = DCOS(DBLE(K) * PI / 8.0D0 + PI / 16.0D0)
+        S = DSIN(DBLE(K) * PI / 8.0D0 + PI / 16.0D0)
+        CALL XMK(RB * C, -XF, RB * S, RB * C, 0.0D0, RB * S, ISM, 24)
    16 CONTINUE
+C     Sector joints, sector 1 from B0 (deg from +Y toward +Z).
+      B0 = -20.0D0
+      DO 18 K = 1, 6
+        C = DCOS((B0 + SA(K)) * DR)
+        S = DSIN((B0 + SA(K)) * DR)
+        CALL XMK(RB * C, XS, RB * S, RB * C, -XF, RB * S, ISM, 24)
+   18 CONTINUE
+C     ECS radiators on the joints of sectors II/III and V/VI.
+      D = 0.695D0 / RB / DR
+      DO 20 K = 0, 1
+        XB = B0 + 70.0D0 + 180.0D0 * DBLE(K)
+        CALL XARC(-XF - 0.6D0, RB, XB - D, XB + D, ISM, 24)
+        CALL XARC(-XF - 2.6D0, RB, XB - D, XB + D, ISM, 24)
+        DO 19 J = -1, 1, 2
+          C = DCOS((XB + DBLE(J) * D) * DR)
+          S = DSIN((XB + DBLE(J) * D) * DR)
+          CALL XMK(RB * C, -XF - 0.6D0, RB * S, RB * C, -XF - 2.6D0,
+     &             RB * S, ISM, 24)
+   19   CONTINUE
+   20 CONTINUE
+C
 C     SPS nozzle extension, from its throat end at the aft bulkhead.
       XN = (9.0D0 + 8.0D0 / 12.0D0) * FT
       RN = 0.5D0 * (7.0D0 + 10.5D0 / 12.0D0) * FT
-      DO 18 K = 1, 16
-        P(1,K) = 0.5D0 * DCOS(DBLE(K) * PI / 8.0D0)
-        P(2,K) = 0.5D0 * DSIN(DBLE(K) * PI / 8.0D0)
-   18 CONTINUE
+      DO 22 K = 1, 24
+        P(1,K) = 0.5D0 * DCOS(DBLE(K) * PI / 12.0D0)
+        P(2,K) = 0.5D0 * DSIN(DBLE(K) * PI / 12.0D0)
+   22 CONTINUE
       CALL SETV(O, XS, 0.0D0, 0.0D0)
       CALL SETV(AN, -1.0D0, 0.0D0, 0.0D0)
-      CALL MKFRU(16, P, O, A1, A2, AN, XN, RN / 0.5D0)
+      CALL MKFRU(24, P, O, A1, A2, AN, XN, RN / 0.5D0)
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
       CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
-C     RCS quad housings.
+C
+C     RCS quads: panel marks, housing, four nozzles.
+      HB = 0.15D0
+      XQ = -XF - 1.5D0
+      CS = DCOS(10.0D0 * DR)
+      SN = DSIN(10.0D0 * DR)
+      CALL OCTAG(HB, HB, 0.03D0, Q)
+      D = 0.5D0 * 3.0D0 * FT / RB / DR
       DO 30 J = 0, 3
-        C = DCOS((7.0D0 + 90.0D0 * DBLE(J)) * DR)
-        S = DSIN((7.0D0 + 90.0D0 * DBLE(J)) * DR)
+        XB = 7.0D0 + 90.0D0 * DBLE(J)
+        C = DCOS(XB * DR)
+        S = DSIN(XB * DR)
         CALL SETV(BR, 0.0D0, C, S)
         CALL SETV(T, 0.0D0, -S, C)
-        CALL OCTAG(0.5D0 * 3.0D0 * FT, 0.15D0, 0.0D0, Q)
-        CALL SETV(O, -XF - 1.5D0 - 0.5D0 * 8.0D0 * FT,
-     &            (RB + 0.15D0) * C, (RB + 0.15D0) * S)
-        CALL MKPRS(8, Q, O, T, BR, AN, 8.0D0 * FT)
+        CALL XARC(XQ + 4.0D0 * FT, RB, XB - D, XB + D, ISM, 24)
+        CALL XARC(XQ - 4.0D0 * FT, RB, XB - D, XB + D, ISM, 24)
+        DO 25 K = -1, 1, 2
+          CX = DCOS((XB + DBLE(K) * D) * DR)
+          CY = DSIN((XB + DBLE(K) * D) * DR)
+          CALL XMK(RB * CX, XQ + 4.0D0 * FT, RB * CY, RB * CX,
+     &             XQ - 4.0D0 * FT, RB * CY, ISM, 24)
+   25   CONTINUE
+        R = RB + HB - 0.05D0
+        CALL SETV(O, XQ - HB, R * C, R * S)
+        CALL MKPRS(8, Q, O, T, BR, AN, 2.0D0 * HB)
+        DO 28 K = 1, 4
+          DO 26 I = 1, 3
+            IF (K .EQ. 1) U(I) = CS * AN(I) + SN * BR(I)
+            IF (K .EQ. 2) U(I) = -CS * AN(I) + SN * BR(I)
+            IF (K .EQ. 3) U(I) = CS * T(I) + SN * BR(I)
+            IF (K .EQ. 4) U(I) = -CS * T(I) + SN * BR(I)
+   26     CONTINUE
+          CALL PERP(U, W, BU)
+          CALL RCSNV(XQ, R * C, R * S, U, W, BU, HB)
+          IF (LBOK .EQ. 1) LSMO(NSOL) = 1
+   28   CONTINUE
    30 CONTINUE
-C     High-gain antenna: boom and four dishes.
+C
+C     VHF scimitars, 180 deg apart, between the quads (BL: the
+C     blade's outline, down the SM and out from it, m).
+      DO 34 J = 0, 1
+        C = DCOS((142.0D0 + 180.0D0 * DBLE(J)) * DR)
+        S = DSIN((142.0D0 + 180.0D0 * DBLE(J)) * DR)
+        DO 32 K = 1, 6
+          I = MOD(K, 6) + 1
+          CALL XLINE((RB + BL(2,K)) * C, -XF - 0.25D0 - BL(1,K),
+     &      (RB + BL(2,K)) * S, (RB + BL(2,I)) * C,
+     &      -XF - 0.25D0 - BL(1,I), (RB + BL(2,I)) * S, 0)
+   32   CONTINUE
+   34 CONTINUE
+C
+C     High-gain antenna: boom, four dishes, the square horn.
       C = DCOS(-52.0D0 * DR)
       S = DSIN(-52.0D0 * DR)
       CALL SETV(BD, 0.0D0, C, S)
@@ -957,58 +1102,280 @@ C     High-gain antenna: boom and four dishes.
       CALL XLINE(RB * C, XS, RB * S, (RB + 2.4D0) * C, XS,
      &           (RB + 2.4D0) * S, 0)
       HA = 0.5D0 * 31.0D0 * 0.0254D0
+      R = RB + 2.4D0
       DO 50 I = 0, 3
         CX = (DBLE(MOD(I, 2)) - 0.5D0) * 2.0D0 * HA
         CY = (DBLE(I / 2) - 0.5D0) * 2.0D0 * HA
-        DO 40 K = 0, 11
-          C2 = DCOS(DBLE(K) * PI / 6.0D0) * HA
-          S2 = DSIN(DBLE(K) * PI / 6.0D0) * HA
-          R = RB + 2.4D0
-          CALL XLINE(R * C + (CX + C2) * T(2) + (CY + S2) * BU(2),
-     &      XS + (CX + C2) * T(1) + (CY + S2) * BU(1),
-     &      R * S + (CX + C2) * T(3) + (CY + S2) * BU(3),
-     &      R * C + (CX + DCOS(DBLE(K + 1) * PI / 6.0D0) * HA) * T(2)
-     &        + (CY + DSIN(DBLE(K + 1) * PI / 6.0D0) * HA) * BU(2),
-     &      XS + (CX + DCOS(DBLE(K + 1) * PI / 6.0D0) * HA) * T(1)
-     &        + (CY + DSIN(DBLE(K + 1) * PI / 6.0D0) * HA) * BU(1),
-     &      R * S + (CX + DCOS(DBLE(K + 1) * PI / 6.0D0) * HA) * T(3)
-     &        + (CY + DSIN(DBLE(K + 1) * PI / 6.0D0) * HA) * BU(3), 0)
-   40   CONTINUE
+        CALL HGARNG(R, C, S, XS, CX, CY, HA, T, BU, 12)
    50 CONTINUE
+C     The horn, a square ring (a 4-sided ring turned 45 deg).
+      HA = 0.5D0 * 11.0D0 * 0.0254D0 * DSQRT(2.0D0)
+      CALL HGARNG(R, C, S, XS, 0.0D0, 0.0D0, HA, T, BU, 4)
       RETURN
       END
 C
-C     CMBLD: the CM, its first two solids of CSMBLD (cone, then
-C     tunnel), same body frame; alone it is the CM after CM/SM
-C     separation (KCMO).
+C     HGARNG: a ring on the high-gain antenna, N sides (12 a dish rim,
+C     4 the horn, corners at 45 deg) of radius HA about (CX, CY) in the
+C     plane of T and BU at the boom's end (R out along (C, S) in Y-Z,
+C     at X = XS).
+      SUBROUTINE HGARNG(R, C, S, XS, CX, CY, HA, T, BU, N)
+      DOUBLE PRECISION R, C, S, XS, CX, CY, HA, T(3), BU(3)
+      INTEGER N
+      DOUBLE PRECISION PI, A, B, A2, B2, H, F
+      INTEGER K
+      PI = 3.141592653589793D0
+      H = 2.0D0 * PI / DBLE(N)
+      F = 0.0D0
+      IF (N .EQ. 4) F = 0.25D0 * PI
+      DO 10 K = 0, N - 1
+        A = CX + DCOS(DBLE(K) * H + F) * HA
+        B = CY + DSIN(DBLE(K) * H + F) * HA
+        A2 = CX + DCOS(DBLE(K + 1) * H + F) * HA
+        B2 = CY + DSIN(DBLE(K + 1) * H + F) * HA
+        CALL XLINE(R * C + A * T(2) + B * BU(2),
+     &    XS + A * T(1) + B * BU(1), R * S + A * T(3) + B * BU(3),
+     &    R * C + A2 * T(2) + B2 * BU(2),
+     &    XS + A2 * T(1) + B2 * BU(1), R * S + A2 * T(3) + B2 * BU(3),
+     &    0)
+   10 CONTINUE
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     CMBLD: the CM, solids 1 to 3 of CSMBLD, same body frame; alone it
+C     is the CM after CM/SM separation (KCMO), without the probe (the
+C     probe is "removed from the vehicle tunnels and stowed" for crew
+C     transfer, PK p. 88; that the CM comes home without it is ours).
+C       Cone: the afterbody's "33 deg" half-angle (NASA TM X-1243, Fig.
+C         1(a)) from the "12ft 10in." diameter (NR p. 39) at X = 0 up
+C         to X 2.3 m, a 24-sided smooth frustum; then the forward heat
+C         shield's top, flattened to the docking ring (a frustum to
+C         0.43 m, ours), and the docking ring, 0.40 m in radius (ours)
+C         to CMTOP.  The forward heat shield's seam a ring at X 1.75,
+C         above the crew compartment's forward bulkhead (CMINT; ours).
+C       Windows 1 to 5 (TN D-7439, p. 3): CMINT's inner outlines (CMWIN)
+C         carried out along rays from the eye they were read for (the
+C         commander's, mirrored for 4 and 5; the centre couch's, Y 0,
+C         DB Fig. 4.4-7, for the hatch window 3) to the outer cone, so
+C         from the eye the outer and inner outlines agree (ours).
+C         Marks on the cone, hidden with their face.
+C       Side hatch: CMINT's outline ("about 29 inches high and 34
+C         inches wide", NR p. 45) carried out square to the wall.
+C-----------------------------------------------------------------------
       SUBROUTINE CMBLD
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,16), FT, RB
-      INTEGER K
+      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,24), FT, RB, TC
+      DOUBLE PRECISION W(3,8), E(3), F(3), V(3), G(3,8), XK, RK, CMTOP
+      DOUBLE PRECISION SY, CN, SNN, R
+      INTEGER K, J, I, IC, N, NW
       FT = 0.3048D0
       RB = 0.5D0 * (12.0D0 + 10.0D0 / 12.0D0) * FT
-      DO 10 K = 1, 16
-        P(1,K) = RB * DCOS(DBLE(K) * PI / 8.0D0)
-        P(2,K) = RB * DSIN(DBLE(K) * PI / 8.0D0)
+      TC = DTAN(33.0D0 * DR)
+      XK = 2.3D0
+      RK = RB - TC * XK
+      DO 10 K = 1, 24
+        P(1,K) = RB * DCOS(DBLE(K) * PI / 12.0D0)
+        P(2,K) = RB * DSIN(DBLE(K) * PI / 12.0D0)
    10 CONTINUE
       CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
       CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
       CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
       CALL SETV(O, 0.0D0, 0.0D0, 0.0D0)
-      CALL MKFRU(16, P, O, A1, A2, AN, 2.25D0, 0.55D0 / RB)
-      DO 12 K = 1, 16
-        P(1,K) = 0.45D0 * DCOS(DBLE(K) * PI / 8.0D0)
-        P(2,K) = 0.45D0 * DSIN(DBLE(K) * PI / 8.0D0)
+      CALL MKFRU(24, P, O, A1, A2, AN, XK, RK / RB)
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
+      IC = NSOL
+      DO 12 K = 1, 24
+        P(1,K) = RK * DCOS(DBLE(K) * PI / 12.0D0)
+        P(2,K) = RK * DSIN(DBLE(K) * PI / 12.0D0)
    12 CONTINUE
-      CALL SETV(O, 2.25D0, 0.0D0, 0.0D0)
-      CALL MKPRS(16, P, O, A1, A2, AN,
-     &           (10.0D0 + 7.0D0 / 12.0D0) * FT - 2.25D0)
+      CALL SETV(O, XK, 0.0D0, 0.0D0)
+      CALL MKFRU(24, P, O, A1, A2, AN, 0.25D0, 0.43D0 / RK)
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
+      DO 14 K = 1, 16
+        P(1,K) = 0.40D0 * DCOS(DBLE(K) * PI / 8.0D0)
+        P(2,K) = 0.40D0 * DSIN(DBLE(K) * PI / 8.0D0)
+   14 CONTINUE
+      CALL SETV(O, XK + 0.25D0, 0.0D0, 0.0D0)
+      CALL MKPRS(16, P, O, A1, A2, AN, CMTOP() - XK - 0.25D0)
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
+C     Forward heat shield seam.
+      CALL XARC(1.75D0, RB - TC * 1.75D0, 0.0D0, 360.0D0, IC, 24)
+C     Windows 1, 2 (and mirrored 5, 4), 3, then the side hatch.
+      CN = DCOS(33.0D0 * DR)
+      SNN = DSIN(33.0D0 * DR)
+      DO 40 J = 1, 6
+        I = J
+        IF (J .GT. 2) I = J - 2
+        SY = 1.0D0
+        IF (J .EQ. 3 .OR. J .EQ. 4) SY = -1.0D0
+        CALL CMWIN(I, N, W)
+        CALL CMEYE(E)
+        E(2) = SY * E(2)
+        IF (I .EQ. 3) E(2) = 0.0D0
+        DO 30 K = 1, N
+          DO 20 NW = 1, 3
+            F(NW) = W(NW,K)
+   20     CONTINUE
+          F(2) = SY * F(2)
+C         The hatch: from a point inside, square to the wall.
+          IF (I .NE. 4) GO TO 28
+          R = DSQRT(F(2) * F(2) + F(3) * F(3))
+          E(1) = F(1) - SNN
+          E(2) = F(2) - CN * F(2) / R
+          E(3) = F(3) - CN * F(3) / R
+   28     CALL CONHIT(E, F, RB, TC, V)
+          DO 25 NW = 1, 3
+            G(NW,K) = V(NW)
+   25     CONTINUE
+   30   CONTINUE
+        DO 35 K = 1, N
+          NW = MOD(K, N) + 1
+          CALL XMK(G(2,K), G(1,K), G(3,K), G(2,NW), G(1,NW), G(3,NW),
+     &             IC, 24)
+   35   CONTINUE
+   40 CONTINUE
       RETURN
       END
 C
+C     CMTOP: X (m) of the top of the CM's docking ring, where the LM's
+C     tunnel meets it docked: the CM's "Height 10ft 7 in." (NR p. 39)
+C     above Xc 0, the bottom of the aft heat shield (AOH Fig. 1-2, p.
+C     1-5), with X = 0.0254 (Xc - 18) as CMINT.
+      DOUBLE PRECISION FUNCTION CMTOP()
+      CMTOP = 0.0254D0 * (127.0D0 - 18.0D0)
+      RETURN
+      END
+C
+C     CMWIN: CM window I (1 left side, 2 left rendezvous, 3 hatch) or,
+C     I = 4, the side hatch: N corners W (X, Y, Z, CSM body metres) on
+C     CMINT's inner wall; see CMINT for their sources.
+      SUBROUTINE CMWIN(I, N, W)
+      INTEGER I, N, K, J
+      DOUBLE PRECISION W(3,8), W1(3,5), W2(3,5), W3(3,8), HS(3,4)
+      DATA W1 / 0.742D0, -1.020D0, -0.851D0, 0.879D0, -0.939D0,
+     &  -0.808D0, 0.902D0, -0.945D0, -0.778D0, 0.909D0, -1.016D0,
+     &  -0.675D0, 0.744D0, -1.120D0, -0.711D0 /
+      DATA W2 / 0.924D0, -0.629D0, -1.034D0, 0.929D0, -0.611D0,
+     &  -1.040D0, 1.036D0, -0.577D0, -0.979D0, 1.058D0, -0.690D0,
+     &  -0.885D0, 0.996D0, -0.715D0, -0.917D0 /
+      DATA W3 / 0.986D0, 0.089D0, -1.166D0, 0.942D0, 0.052D0,
+     &  -1.197D0, 0.926D0, 0.0D0, -1.208D0, 0.942D0, -0.052D0,
+     &  -1.197D0, 0.986D0, -0.089D0, -1.166D0, 1.044D0, -0.075D0,
+     &  -1.129D0, 1.073D0, 0.0D0, -1.113D0, 1.044D0, 0.075D0,
+     &  -1.129D0 /
+      DATA HS / 0.688D0, -0.425D0, -1.295D0, 1.306D0, -0.417D0,
+     &  -0.866D0, 1.306D0, 0.417D0, -0.866D0, 0.688D0, 0.425D0,
+     &  -1.295D0 /
+      N = 5
+      IF (I .EQ. 3) N = 8
+      IF (I .EQ. 4) N = 4
+      DO 20 K = 1, N
+        DO 10 J = 1, 3
+          IF (I .EQ. 1) W(J,K) = W1(J,K)
+          IF (I .EQ. 2) W(J,K) = W2(J,K)
+          IF (I .EQ. 3) W(J,K) = W3(J,K)
+          IF (I .EQ. 4) W(J,K) = HS(J,K)
+   10   CONTINUE
+   20 CONTINUE
+      RETURN
+      END
+C
+C     CONHIT: P, where the ray from E through F (CSM body metres) meets
+C     the CM's outer cone, radius RB at X = 0 narrowing by TC a metre
+C     (the nearest crossing ahead of E); F itself if it never does.
+      SUBROUTINE CONHIT(E, F, RB, TC, P)
+      DOUBLE PRECISION E(3), F(3), RB, TC, P(3)
+      DOUBLE PRECISION D(3), A, B, C, Q, T, T1, T2, H
+      INTEGER I
+      DO 10 I = 1, 3
+        D(I) = F(I) - E(I)
+        P(I) = F(I)
+   10 CONTINUE
+      H = RB - TC * E(1)
+      A = D(2) * D(2) + D(3) * D(3) - TC * TC * D(1) * D(1)
+      B = 2.0D0 * (E(2) * D(2) + E(3) * D(3) + TC * D(1) * H)
+      C = E(2) * E(2) + E(3) * E(3) - H * H
+      Q = B * B - 4.0D0 * A * C
+      IF (Q .LT. 0.0D0 .OR. DABS(A) .LT. 1.0D-12) RETURN
+      T1 = (-B + DSQRT(Q)) / (2.0D0 * A)
+      T2 = (-B - DSQRT(Q)) / (2.0D0 * A)
+      T = T1
+      IF (T2 .GT. 0.0D0 .AND. (T2 .LT. T .OR. T .LE. 0.0D0)) T = T2
+      IF (T .LE. 0.0D0) RETURN
+      DO 20 I = 1, 3
+        P(I) = E(I) + T * D(I)
+   20 CONTINUE
+      RETURN
+      END
+C
+C     KFACE: the side face of an N-sided solid about the body X axis
+C     (MKPRS, MKFRU with axes Y, Z; vertex K at K 360/N deg from +Y
+C     toward +Z, face K from vertex K to K+1) that holds the point at
+C     Y, Z.
+      INTEGER FUNCTION KFACE(Y, Z, N)
+      DOUBLE PRECISION Y, Z, A
+      INTEGER N
+      A = DATAN2(Z, Y)
+      IF (A .LT. 0.0D0) A = A + 2.0D0 * 3.141592653589793D0
+      KFACE = INT(A / (2.0D0 * 3.141592653589793D0 / DBLE(N)))
+      IF (KFACE .LT. 1) KFACE = N
+      IF (KFACE .GT. N) KFACE = N
+      RETURN
+      END
+C
+C     XMK: a mark from (Y1, X1, Z1) to (Y2, X2, Z2) on the sides of
+C     solid IS, N-sided about the body X axis: cut where it would span
+C     more than half a face, each piece on the face it lies over.
+      SUBROUTINE XMK(Y1, X1, Z1, Y2, X2, Z2, IS, N)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION Y1, X1, Z1, Y2, X2, Z2
+      INTEGER IS, N
+      DOUBLE PRECISION A, F0, F1, YM, ZM
+      INTEGER K, M, KFACE
+      A = DABS(DATAN2(Y1 * Z2 - Z1 * Y2, Y1 * Y2 + Z1 * Z2))
+      M = 1 + INT(A / (PI / DBLE(N)))
+      DO 10 K = 1, M
+        F0 = DBLE(K - 1) / DBLE(M)
+        F1 = DBLE(K) / DBLE(M)
+        CALL XLINE(Y1 + F0 * (Y2 - Y1), X1 + F0 * (X2 - X1),
+     &    Z1 + F0 * (Z2 - Z1), Y1 + F1 * (Y2 - Y1),
+     &    X1 + F1 * (X2 - X1), Z1 + F1 * (Z2 - Z1), IS)
+        YM = Y1 + 0.5D0 * (F0 + F1) * (Y2 - Y1)
+        ZM = Z1 + 0.5D0 * (F0 + F1) * (Z2 - Z1)
+        IF (LXOK .EQ. 1) LXF(NXL) = KFACE(YM, ZM, N)
+   10 CONTINUE
+      RETURN
+      END
+C
+C     XARC: a mark on the sides of solid IS (as XMK), the arc at X of
+C     radius R from D1 to D2 deg (from +Y toward +Z), in pieces of
+C     half a face.
+      SUBROUTINE XARC(X, R, D1, D2, IS, N)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION X, R, D1, D2
+      INTEGER IS, N
+      DOUBLE PRECISION A0, A1
+      INTEGER K, M, KFACE
+      M = 1 + INT((D2 - D1) / (180.0D0 / DBLE(N)))
+      DO 10 K = 1, M
+        A0 = (D1 + (D2 - D1) * DBLE(K - 1) / DBLE(M)) * DR
+        A1 = (D1 + (D2 - D1) * DBLE(K) / DBLE(M)) * DR
+        CALL XLINE(R * DCOS(A0), X, R * DSIN(A0),
+     &             R * DCOS(A1), X, R * DSIN(A1), IS)
+        IF (LXOK .EQ. 1) LXF(NXL) = KFACE(DCOS(0.5D0 * (A0 + A1)),
+     &                   DSIN(0.5D0 * (A0 + A1)), N)
+   10 CONTINUE
+      RETURN
+      END
 C-----------------------------------------------------------------------
 C     CMCAB: the CM cabin as the station view shows it: the left
 C     rendezvous window's outlines as VIEW drew them, in CSM body
@@ -1159,26 +1526,10 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION W1(3,5), W2(3,5), W3(3,8), HS(3,4), D1(3,4)
+      DOUBLE PRECISION W1(3,8), W2(3,8), W3(3,8), HS(3,8), D1(3,4)
       DOUBLE PRECISION D2(3,4), CX(5), CZ(5), EB(3,6), HB(3,4), C(3)
       DOUBLE PRECISION GA(7), CA, SA, YC, YA, YB
-      INTEGER K, J, L
-C     Window 1, left side; 2, left rendezvous; 3, hatch.
-      DATA W1 / 0.742D0, -1.020D0, -0.851D0, 0.879D0, -0.939D0,
-     &  -0.808D0, 0.902D0, -0.945D0, -0.778D0, 0.909D0, -1.016D0,
-     &  -0.675D0, 0.744D0, -1.120D0, -0.711D0 /
-      DATA W2 / 0.924D0, -0.629D0, -1.034D0, 0.929D0, -0.611D0,
-     &  -1.040D0, 1.036D0, -0.577D0, -0.979D0, 1.058D0, -0.690D0,
-     &  -0.885D0, 0.996D0, -0.715D0, -0.917D0 /
-      DATA W3 / 0.986D0, 0.089D0, -1.166D0, 0.942D0, 0.052D0,
-     &  -1.197D0, 0.926D0, 0.0D0, -1.208D0, 0.942D0, -0.052D0,
-     &  -1.197D0, 0.986D0, -0.089D0, -1.166D0, 1.044D0, -0.075D0,
-     &  -1.129D0, 1.073D0, 0.0D0, -1.113D0, 1.044D0, 0.075D0,
-     &  -1.129D0 /
-C     Side hatch, on the wall: 29 in along the cone, 34 in around.
-      DATA HS / 0.688D0, -0.425D0, -1.295D0, 1.306D0, -0.417D0,
-     &  -0.866D0, 1.306D0, 0.417D0, -0.866D0, 0.688D0, 0.425D0,
-     &  -1.295D0 /
+      INTEGER K, J, L, N1, N2, N3, N4
 C     Main display console: left wing (panel 1; panel 3 its mirror)
 C     and centre (panel 2), hung from the wall above the side hatch.
       DATA D1 / 1.372D0, -0.388D0, -0.833D0, 1.016D0, -0.508D0,
@@ -1238,13 +1589,19 @@ C     Forward bulkhead, tunnel and forward hatch.
       CALL SETV(C, 2.286D0, 0.0D0, 0.0D0)
       CALL XRING(C, 1, 0.419D0, 16)
       CALL XRING(C, 1, 0.381D0, 16)
-C     Windows (XWIN: also the window mask's) and the side hatch.
-      CALL XWIN(5, W1, 1.0D0)
-      CALL XWIN(5, W1, -1.0D0)
-      CALL XWIN(5, W2, 1.0D0)
-      CALL XWIN(5, W2, -1.0D0)
-      CALL XWIN(8, W3, 1.0D0)
-      CALL XPOLY(4, HS, 1, 1.0D0)
+C     Windows (XWIN: also the window mask's) and the side hatch, on
+C     the inner wall (CMWIN): 1, left side; 2, left rendezvous; 3,
+C     hatch; the side hatch, 29 in along the cone, 34 in around.
+      CALL CMWIN(1, N1, W1)
+      CALL CMWIN(2, N2, W2)
+      CALL CMWIN(3, N3, W3)
+      CALL CMWIN(4, N4, HS)
+      CALL XWIN(N1, W1, 1.0D0)
+      CALL XWIN(N1, W1, -1.0D0)
+      CALL XWIN(N2, W2, 1.0D0)
+      CALL XWIN(N2, W2, -1.0D0)
+      CALL XWIN(N3, W3, 1.0D0)
+      CALL XPOLY(N4, HS, 1, 1.0D0)
 C     Main display console.
       CALL XPOLY(4, D2, 1, 1.0D0)
       CALL XPOLY(4, D1, 1, 1.0D0)

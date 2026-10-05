@@ -30,10 +30,12 @@ C     RESTOMOD END
       INTEGER KCMC, KCMI, KLMI, KLMA, KCMO
 C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
 C     (1978); FORTRAN V wrote PARAMETER I = 2 (UP-4046 Rev 3, sec.
-C     10.4.1).  And 96 solids (the LM's RCS clusters are 20 a model,
-C     in three LM models) make /CLM/ and /CLMI/ about 140K words (our
-C     count), over half the 1108's 262,144 (docs/univac-1108.md).
-      PARAMETER (MSOL=96, MVX=48, MFC=26, MED=72, MXL=1200, MMOD=10)
+C     10.4.1).  And 120 solids (the LM's RCS clusters are 20 a model,
+C     in three LM models; the CSM's quads 20 more) make /CLM/ and
+C     /CLMI/ about 176K words (our count: 1,294 words a solid, 21,000
+C     for the free lines, 2 words a DP number), two thirds of the
+C     1108's 262,144 (docs/univac-1108.md).
+      PARAMETER (MSOL=120, MVX=48, MFC=26, MED=72, MXL=1500, MMOD=10)
 C     RESTOMOD END
 C     Model numbers (MLIB): LM gear down, LM gear stowed with docking
 C     aids, S-IVB with IU and SLA ring, CSM, CM cabin (window), CM
@@ -256,14 +258,18 @@ C     axes (m); for the LM X up, Y right, Z forward.
 C     Solid K is convex: vertices LMV, outward face planes N.x = D
 C     (LMN, LMD), edges LME(1..4,J) = vertex, vertex, face, face.
 C     Free lines LXL (legs, pads) and face marks LXS/LXF (windows).
-C     LWV, LWN, LWD: the same in camera-relative EQ for this frame.
+C     LSMO(K) = 1: solid K stands for a curved surface (MKPRS, MKFRU
+C     sides about its axis); an edge between two of its sides is drawn
+C     only where one is turned toward the camera and the other away.
+C     LWV, LWN, LWD: the same in camera-relative EQ for this frame,
+C     with LWC, LWR the centre and radius of a sphere holding it.
       DOUBLE PRECISION LMV(3,MVX,MSOL), LMN(3,MFC,MSOL), LMD(MFC,MSOL)
       DOUBLE PRECISION LWV(3,MVX,MSOL), LWN(3,MFC,MSOL), LWD(MFC,MSOL)
-      DOUBLE PRECISION LXL(6,MXL)
-      COMMON /CLM/ LMV, LMN, LMD, LWV, LWN, LWD, LXL
+      DOUBLE PRECISION LXL(6,MXL), LWC(3,MSOL), LWR(MSOL)
+      COMMON /CLM/ LMV, LMN, LMD, LWV, LWN, LWD, LXL, LWC, LWR
       INTEGER NSOL, NLV(MSOL), NLF(MSOL), NLE(MSOL), LME(4,MED,MSOL)
-      INTEGER NXL, LXS(MXL), LXF(MXL)
-      COMMON /CLMI/ NSOL, NLV, NLF, NLE, LME, NXL, LXS, LXF
+      INTEGER NXL, LXS(MXL), LXF(MXL), LSMO(MSOL)
+      COMMON /CLMI/ NSOL, NLV, NLF, NLE, LME, NXL, LXS, LXF, LSMO
 C
 C     /CS7/ scene 7, transposition and docking.  S7AT: LM body axes
 C     (columns X, Y, Z) in EQ, held inertially.  S7LP: the LM tunnel
@@ -288,10 +294,16 @@ C     placed.
       DOUBLE PRECISION MDAT(3,3,MMOD), MDP(3,MMOD), MDBO(3,MMOD)
 C     MDHL(K) = 1: model K is drawn with hidden lines removed and its
 C     solids hide other things; 0: an outline, every edge drawn and
-C     nothing hidden by it (the CSM; TN D-6853 p. 12 names hidden-line
-C     models of the LM and S-IVB only: our reading).
+C     nothing hidden by it (the cabins about the eye).  TN D-6853 p. 12
+C     names hidden-line models of the LM and S-IVB only; the CSM's is
+C     ours.
       INTEGER MDHL(MMOD)
       COMMON /CMODH/ MDHL
+C     LBOK 1 if the last solid builder (MKPRS, MKFRU, MKWDG) added a
+C     solid, 0 if the table was full; LXOK the same for XLINE.  Code
+C     that marks the solid or line just built tests them first.
+      INTEGER LBOK, LXOK
+      COMMON /CMOK/ LBOK, LXOK
       COMMON /CMOD/ MDAT, MDP, MDBO
 C
 C     /CWIN/ the cabin windows, for the window mask (vmask.f): window

@@ -68,7 +68,7 @@ C     The external view's default target is the scene's subject.
       IF (IVUSE .EQ. 1 .AND. (IT .EQ. 0 .OR. IT .EQ. 3))
      &  CALL TGTDEF(GET, IT)
 C     Seen from outside, a camera riding the CSM (scenes 1, 2, 3, 4,
-C     7, 9) shows the CSM: its outline with the CM's base 1.2 m behind
+C     7, 9) shows the CSM: its origin (CSMBLD) 1.2 m behind
 C     the eye along the scene's boresight, its X axis along that
 C     boresight (ours); after CM/SM separation the CM alone.
       IF (IVUSE .EQ. 1 .AND. KCSPL() .EQ. 0 .AND. ISCN .NE. 5
@@ -98,8 +98,11 @@ C     as it can be.
       IF (IVUSE .NE. 1) RETURN
 C
 C     External: free-look sets the direction, the camera backs off
-C     along it to DIST from the target.
-      CALL LOOK(YAW, PIT, ROL)
+C     along it to DIST from the target.  Scene 7's reference looks
+C     down the docking axis, where the CSM's solids hide the LM it
+C     docks with: it starts 60 deg round and 25 deg up (ours).
+      IF (ISCN .EQ. 7) CALL LOOK(YAW + 60.0D0, PIT + 25.0D0, ROL)
+      IF (ISCN .NE. 7) CALL LOOK(YAW, PIT, ROL)
       LOOKD = 1
       DO 30 I = 1, 3
         CG(I) = TG(I) - DIST * CB(I)
@@ -242,8 +245,8 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     CSMCAM: place the CSM outline around the scene's camera, the CM's
-C     base 1.2 m behind the eye, X along the reference boresight, Z
+C     CSMCAM: place the CSM around the scene's camera, its origin
+C     (CSMBLD) 1.2 m behind the eye, X along the reference boresight, Z
 C     along its up (ours).  From CM/SM separation (the scenario's
 C     CMSEP event) the CM alone (KCMO).
       SUBROUTINE CSMCAM(GET)
