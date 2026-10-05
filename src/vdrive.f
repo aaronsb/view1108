@@ -387,11 +387,17 @@ C     RESTOMOD END
       DOUBLE PRECISION R(3), V(3), RU(3), VU(3), SU(3), H(3), E(3)
       DOUBLE PRECISION DIP, CA, SA, CD, SD, P2(3), R2(3), K, VDOT
       DOUBLE PRECISION XB(3), YB(3), ZB(3), PMF(3), VNRM
-      INTEGER I
+      INTEGER I, ICAM, LUNIN
 C
       IWIN = 1
+C     The camera class: the scene's own, but scene 9 (Apollo 8) away
+C     from lunar orbit takes scene 3's forward view above the Earth's
+C     horizon (our choice: no Apollo 8 view survives, TN D-6853
+C     printed p. 3).
+      ICAM = ISCN
+      IF (ISCN .EQ. 9 .AND. LUNIN(GET) .EQ. 0) ICAM = 3
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (ISCN .EQ. 1 .OR. ISCN .EQ. 4 .OR. ISCN .EQ. 9) THEN
+      IF (ICAM .EQ. 1 .OR. ICAM .EQ. 4 .OR. ICAM .EQ. 9) THEN
 C       CSM in lunar orbit.
         IREF = 2
         CALL VSTATE(GET, 2, R, V)
@@ -403,7 +409,7 @@ C       CSM in lunar orbit.
    10   CONTINUE
         CALL VUNIT(RU)
         CALL VUNIT(VU)
-        IF (ISCN .EQ. 1 .OR. ISCN .EQ. 9) THEN
+        IF (ICAM .EQ. 1 .OR. ICAM .EQ. 9) THEN
 C         Forward along the orbit, turned AZOFF in azimuth, down to
 C         the horizon by the dip angle.
           CALL VCRS(VU, RU, SU)
@@ -418,7 +424,7 @@ C         the horizon by the dip angle.
             UREF(I) = SD * H(I) + CD * RU(I)
    20     CONTINUE
 C         Scene 9: turned to the photograph's framing (S9REF).
-          IF (ISCN .EQ. 9) CALL S9REF
+          IF (ICAM .EQ. 9) CALL S9REF
         ELSE
 C         Out of plane toward the LM, local vertical up.
           CALL VCRS(RU, VU, BREF)
@@ -426,7 +432,7 @@ C         Out of plane toward the LM, local vertical up.
             UREF(I) = RU(I)
    30     CONTINUE
         END IF
-      ELSE IF (ISCN .EQ. 2) THEN
+      ELSE IF (ICAM .EQ. 2) THEN
 C       Coast.  Attitude held inertially (FXB, FXU, set by VINIT).
         IREF = 1
         CALL VSTATE(GET, 1, R, V)
@@ -436,8 +442,9 @@ C       Coast.  Attitude held inertially (FXB, FXU, set by VINIT).
           BREF(I) = FXB(I)
           UREF(I) = FXU(I)
    40   CONTINUE
-      ELSE IF (ISCN .EQ. 3) THEN
-C       Parking orbit.  Forward, boresight 8 deg above the horizon.
+      ELSE IF (ICAM .EQ. 3) THEN
+C       Parking orbit (and scene 9 away from the Moon).  Forward,
+C       boresight 8 deg above the horizon.
         IREF = 1
         CALL VSTATE(GET, 1, R, V)
         DO 70 I = 1, 3
@@ -455,7 +462,7 @@ C       Parking orbit.  Forward, boresight 8 deg above the horizon.
           BREF(I) = CD * VU(I) - SD * RU(I)
           UREF(I) = SD * VU(I) + CD * RU(I)
    80   CONTINUE
-      ELSE IF (ISCN .EQ. 6) THEN
+      ELSE IF (ICAM .EQ. 6) THEN
 C       Moon view: looking at the centre from above the sub-observer
 C       point (S6LAT, S6LON), selenographic north up (our choice; a
 C       J2000-north layout would do as well).
@@ -482,7 +489,7 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         END IF
 C     RESTOMOD END
         CALL VUNIT(UREF)
-      ELSE IF (ISCN .EQ. 8) THEN
+      ELSE IF (ICAM .EQ. 8) THEN
 C       The docked stack (S8ATT) from 60 m on its far side from the
 C       Earth, looking at it with the Earth behind; the stack's X axis
 C       up.  Its own view is external (VIEWPT), which yaw and pitch
@@ -501,7 +508,7 @@ C       carry around the stack.
           CV(I) = V(I)
   125   CONTINUE
         CALL VUNIT(UREF)
-      ELSE IF (ISCN .EQ. 7) THEN
+      ELSE IF (ICAM .EQ. 7) THEN
 C       Transposition and docking.  The CSM on the translunar ellipse
 C       (30 m from the S-IVB, nothing at this scale), turned around to
 C       face the stack, which holds an inertial attitude (S7ATT).
@@ -693,7 +700,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION GET, TCLS, TDOK, U, A, D, V(3), W(3), Z(3)
-      DOUBLE PRECISION PS(3), EVGET
+      DOUBLE PRECISION PS(3), AC(3,3), EVGET
       INTEGER I
 C     Approach start and docking from the scenario (APPR, DOCK).
       TCLS = EVGET(KEAPR)
@@ -725,6 +732,26 @@ C     p. 88) with room for the SPS nozzle: our guess.
    20 CONTINUE
       CALL SETV(Z, 0.0D0, 0.0D0, 0.0D0)
       CALL MPLACE(KSIV, S7AT, PS, Z)
+C     Seen from outside (IVIEW 1; SCNMOD runs before VIEWPT sets
+C     IVUSE), the CSM itself, coaxial with the LM and facing it: its
+C     axes S7AT's with X and Y turned over (STKPL's half turn about Z),
+C     the CM's base 10 ft 7 in (CSMBLD; STKPL) plus the range S7RNG
+C     behind the LM's tunnel top S7LP, so the two tunnels' tops meet
+C     at docking and the camera sits in the CM 1.2 m above its base,
+C     as CSMCAM puts it.  Placed, it replaces VIEWPT's outline around
+C     the camera (CSMCAM); the window view keeps the camera in the CSM
+C     and draws no CSM (ours).
+      IF (IVIEW .NE. 1) RETURN
+      DO 30 I = 1, 3
+        AC(I,1) = -S7AT(I,1)
+        AC(I,2) = -S7AT(I,2)
+        AC(I,3) = S7AT(I,3)
+   30 CONTINUE
+      D = (S7RNG + 10.0D0 + 7.0D0 / 12.0D0) * 0.3048D-3
+      DO 40 I = 1, 3
+        PS(I) = S7LP(I) - D * AC(I,1)
+   40 CONTINUE
+      CALL MPLACE(KCSM, AC, PS, Z)
       RETURN
       END
 C
