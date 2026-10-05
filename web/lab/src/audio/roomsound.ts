@@ -48,6 +48,7 @@ interface Graph {
   ctx: BaseAudioContext; dest: AudioNode; master: GainNode; wet: GainNode; analyser: AnalyserNode;
   srcs: Src[]; tapes: Tape[]; rows: { src: Src; hum: GainNode; buzz: GainNode }[]; fastrand: Src;
   rec: Recorder | null; nodes: AudioScheduledSourceNode[]; lit: boolean; nextSeek: number; whine: Whine | null; printerIn: AudioNode | null;
+  doors: { src: Src; state: { open: boolean }; open: boolean } | null;
 }
 
 export class RoomSound {
@@ -141,9 +142,10 @@ export class RoomSound {
     // Cabinet fans and transformers, ours: each cabinet's fan a blade-pass tone (shaft 3,420-3,480 rev/min, a 2-pole
     // induction motor's 60 Hz less slip; 5 blades, 285-290 Hz, so neighbours beat) over band-limited noise, and a
     // faint mains hum (60 Hz and its harmonics, 120 Hz strongest) from one shared generator, louder at the power
-    // cabinet, whose transformers hum.
+    // cabinet, whose transformers hum; its doors latch and creak when they open and shut.
     const blade = wave(ctx, [1, 0.35, 0.12, 0.05]);
     const hum = osc(wave(ctx, [0.6, 1, 0.3, 0.25, 0.1, 0.08]), MAINS), humBus = gain(1); hum.connect(humBus);
+    let doors: Graph["doors"] = null;
     const cabinets = this.room.placed.filter(p => /^(cpu|power|controller1557|filmrecorder)(-|$)/.test(p.name));
     cabinets.forEach((p, k) => {
       const pos = this.at(p.equipment, 1.5), s = source(p.name, pos, 1.0, 1.0);
@@ -151,6 +153,8 @@ export class RoomSound {
       wander(t.frequency, 0.4, k);
       const n = noise(N.pink, 1.2), bp = filt("bandpass", 1100 + this.r() * 400, 0.5), ng = gain(0.22); n.connect(bp).connect(ng).connect(s.input);
       const hp = filt("lowpass", 800); const hg = gain(p.name === "power" ? 0.13 : 0.05); humBus.connect(hp).connect(hg).connect(s.input);
+      const state = p.equipment.anchors.doors as { open: boolean } | undefined;
+      if (state) doors = { src: s, state, open: state.open };
     });
 
     // Drums behind the west wall (heard through it: low-passed). FH-432: three drums at 120 Hz (slip, ours, detunes
@@ -230,7 +234,7 @@ export class RoomSound {
     const pr = this.room.placed.find(p => /^printer(-|$)/.test(p.name));
     const printerIn = pr ? source(pr.name + "-print", this.at(pr.equipment, 1.1), 1.0, 1).input : null;
 
-    this.g = { ctx, dest, master, wet, analyser, srcs, tapes, rows, fastrand, rec, nodes, lit, nextSeek: ctx.currentTime + 3, whine: wh, printerIn };
+    this.g = { ctx, dest, master, wet, analyser, srcs, tapes, rows, fastrand, rec, nodes, lit, nextSeek: ctx.currentTime + 3, whine: wh, printerIn, doors };
   }
 
   /** One step: the listener, the duck, the tape units, the lights and the FASTRAND's idle seeks. */
@@ -282,6 +286,14 @@ export class RoomSound {
         }
         a.setTargetAtTime(0.012, s, 0.05); b.setTargetAtTime(0, s, 0.1);
       });
+    }
+
+    const d = g.doors;
+    if (d && d.state.open !== d.open) {   // the power cabinet's doors: the latch, and a short low creak of the hinges (ours)
+      d.open = d.state.open;
+      this.shot(() => click(ctx, d.src.input, t, d.open ? 1900 : 1500, 3, 0.03, 0.25, this.r()));
+      this.shot(() => click(ctx, d.src.input, t + 0.05, 420, 6, 0.35, 0.06, this.r()));
+      if (!d.open) this.shot(() => knock(ctx, d.src.input, t + 0.85, 140, 70, 0.06, 0.2));
     }
 
     const rec = g.rec;

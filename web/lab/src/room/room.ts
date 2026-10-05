@@ -3,11 +3,11 @@
 // The layout is ours. The MSC photograph of 15 July 1969 shows tape drives in a row, a work table with stacked
 // reels, a card reader and printers, but no floor plan survives; this arrangement puts the same kinds of machine
 // in a 9 m by 7 m room so that one standing view from the south-east takes in the terminals and the tapes:
-// UNISERVO drives along the north wall, the 1108's cabinets along the west wall (the lamp-panel cabinet at the
-// centre, the power cabinet at the south end), the 4009 operator console facing the tapes, the reel table at the centre, and in the east half a desk
+// UNISERVO drives along the north wall, the 1108's five cabinets along the west wall (the lamp-panel cabinet at the
+// centre), the 4009 operator console facing the tapes, the reel table at the centre, and in the east half a desk
 // with the UNISCOPE 100 beside the 1558 graphic console, turned toward the viewer, with its 1557 controller behind
 // them. Along the east wall the microfilm recorder, downstream of the computer as the film was, then the printer;
-// the card reader in the south-west corner; behind the UNISCOPE's desk, against the east wall between the 1557 and the
+// the card reader in the south-west corner and the low power distribution cabinet east of it on the south wall; behind the UNISCOPE's desk, against the east wall between the 1557 and the
 // film recorder, the reference library's bookcase, facing the room across the desk's back aisle. The door is in the south wall, west of centre, with nothing in its
 // swing and a clear aisle from it into the room, and the light switch on its latch side; every front has an aisle of
 // at least 0.9 m (the plan's check, `footprints`, is what the walk collides with).
@@ -63,8 +63,7 @@ export function build(ctx: BuildContext): Room {
 
   const nW = ROOM.d / 2, wW = ROOM.w / 2;
   for (let i = 0; i < 7; i++) place("uniservo", [-2.7 + i * 0.82, 0, -nW + 0.45], S, undefined, { number: 60 + i, index: i + 1 });
-  for (let i = 0; i < 4; i++) place("cpu", [-wW + 0.48, 0, -1.64 + i * 0.82], E, undefined, { lampPanel: i === 2 });
-  place("powercab", [-wW + 0.48, 0, -1.64 + 4 * 0.82], E, "power");
+  for (let i = 0; i < 5; i++) place("cpu", [-wW + 0.48, 0, -1.64 + i * 0.82], E, undefined, { lampPanel: i === 2 });
   place("console4009", [-1.2, 0, -1.0], N);
   place("chair", [-1.2, 0, -0.3], N);
   place("reeltable", [0.75, 0, 1.2], 0.08);
@@ -81,6 +80,7 @@ export function build(ctx: BuildContext): Room {
   place("filmrecorder", [wW - 0.47, 0, 0.85], W, "filmrecorder");
   place("printer", [wW - 0.4, 0, 2.75], W, "printer");
   place("cardreader", [-wW + 0.37, 0, nW - 0.65], E);
+  place("powercab", [-2.3, 0, nW - 0.37], N, "power");   // clear of the card reader's front aisle and the door's swing
   // The bookcase; each of its binders is placed under its own name, so it is picked, labelled and flown to alone.
   const library = place("bookcase", [wW - 0.19, 0, -2.2], W, "library");
   const binders = library.anchors.binders as Binder[];
@@ -135,7 +135,7 @@ export function build(ctx: BuildContext): Room {
     door: { x: DOOR.x, z: nW, w: DOOR.w },
     overview: { position: new THREE.Vector3(2.4, 1.62, 3.15), target: new THREE.Vector3(0.1, 1.0, -1.6), fov: 55 },
     labels: { vector: "UNIVAC 1558 — workbench", glass: "UNISCOPE 100 — source", filmrecorder: "Microfilm recorder (S-C 4020, hypothetical) — print",
-      printer: "Line printer — listing", switch: "Lights", power: "Power distribution — three-phase, 60 Hz (hypothetical)", door: "Exit — github.com/aaronsb/view1108", library: "Reference library",
+      printer: "Line printer — listing", switch: "Lights", power: "Power distribution — click to open/close the doors", door: "Exit — github.com/aaronsb/view1108", library: "Reference library",
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
       ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },
     lightsOn: true,

@@ -32,7 +32,7 @@ export const FOOTPRINT: Record<string, [number, number, number]> = {
   glass: [0.46, 0.33, 0.69],
   uniservo: [0.75, 1.8, 0.75],
   cpu: [0.8, 1.9, 0.8],
-  powercab: [0.8, 1.9, 0.8],
+  powercab: [1.0, 1.13, 0.7],
   console4009: [2.8, 1.25, 0.95],
   controller1557: [1.2, 1.6, 0.6],
   printer: [1.4, 1.2, 0.8],
