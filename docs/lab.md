@@ -43,14 +43,14 @@ Sizes are W x H x D in metres.
 | `glass` | UNISCOPE 100 Display Terminal, showing the kernel source | UP-7701 Fig. 1-1 and p. 1 (10 x 5 in viewing area, 16 x 64 or 12 x 80, green on dark), size p. 30; UNISCOPE photo (below) | 0.46 x 0.33 x 0.69 | Good. Delivered from 1970, a year after the film (an anachronism we keep for Source) |
 | `uniservo` | UNISERVO VIII-C tape unit | UP-4046 sec. 8.4.2 (120 in/s, 240 in/s rewind, 2400 ft reels); brochure p. 7; MSC photo (numbers 60, 61, ...) | 0.75 x 1.8 x 0.75 (inferred) | Good on look; vacuum columns not shown |
 | `cpu` | 1108 cabinet; `{lampPanel: true}` is the processor's maintenance panel | Brochure p. 3 (colour) | 0.8 x 1.9 x 0.8 (inferred) | Good on look; the lamp count is ours |
-| `powercab` | Power distribution cabinet at the south end of the 1108 row: meters, lamps, breakers (below) | none for the panel; the cabinet is `cpu`'s | 0.8 x 1.9 x 0.8 | HYPOTHETICAL |
+| `powercab` | Power distribution cabinet, low, on the south wall east of the card reader: a sloped meter panel over a pair of doors (below) | none | 1.0 x 1.13 x 0.7 (ours) | HYPOTHETICAL |
 | `console4009` | 1108 Display Console, type 4009: indicator panel with Day Clock, display unit with CRT and keyboard, PAGEWRITER on a pedestal (below) | UP-7604 Figs. 2-1, 2-3, 2-4, 4-1, Tables 2-1, 2-3, secs. 2.1 to 2.3.4; UP-7619 App. A and cover; console photo; UP-4046 Fig. 1-1; brochure pp. 6, 7 | 2.8 x 1.25 x 0.95 (2.8 x 1.13 x 0.9 drawn; desk and panel sizes ours) | Fair: parts and display unit sourced, layout ours |
 | `controller1557` | UNIVAC 1557 Display Controller | UP-7789 p. 27 (48 x 24 x 64 in, read as W x D x H) | 1.2 x 1.6 x 0.6 | Size sourced, look HYPOTHETICAL (no figure) |
 | `printer` | High-speed printer, 132 columns, 1200 lines/min, fanfold greenbar paper | UP-4046 sec. 8.5 (model not stated); MSC photo | 1.4 x 1.2 x 0.8 (inferred) | Fair; the paper path and stacker are ours |
 | `cardreader` | Card reader | MSC photo (foreground) | 1.0 x 1.1 x 0.7 (inferred) | Low: model unidentified |
 | `reeltable` | Table with stacked reels, a reel rack and a desk clock | MSC photo | 1.6 x 0.75 x 0.8 (inferred) | Fair |
 | `desk` | White slab on chrome T-legs | Brochure p. 7 | 1.5 x 0.73 x 0.75 (ours) | Fair |
-| `chair` | Chrome swivel chair on casters | Brochure p. 7 | 0.6 x 0.88 x 0.6 (ours) | Fair |
+| `chair` | Chrome swivel chair on casters; `{tall: true}` a drafting chair with a foot ring, at the 1558's shelf | Brochure p. 7 | 0.6 x 0.88 x 0.6; tall 0.6 x 1.16 x 0.6 (ours) | Fair; the tall one ours |
 | `bookcase` | Steel bookcase with one ring binder per document of the reference library, upright between L-shaped bookends, then a telephone directory, two paperbacks and an index card, for looks; the lower shelf holds three unlabelled binders lying flat | none: ours | 1.0 x 1.1 x 0.36 (ours) | HYPOTHETICAL throughout (below) |
 | `filmrecorder` | S-C 4020 Computer Recorder: the microfilm recorder, HYPOTHETICAL as to MSC's model (below) | 4020 brochure pp. 1, 4; 4020 manual Fig. 1 (p. 1), Fig. 5 (p. 7), p. 25 | 2.24 x 1.88 x 0.94 (basic unit 66 x 37 x 74 in plus the 22 in tape adapter, brochure p. 4) | Fair on look; the model at MSC is our choice |
 
@@ -129,9 +129,8 @@ What comes from where:
   slatted grille at the right, the small UNIVAC plate under the screen and the brushed strip across the top. That the
   4009's display unit is a UNISCOPE 300 is our reading of the console photo and the shared screen; Fig. 2-1 shows a
   light strip at the top of the face too small to read, and lettering it "U N I S C O P E  3 0 0" follows that
-  reading (HYPOTHETICAL). The keyboard is the 4009's, not the 300's: four banks of 47 keys and the space bar, a row of
-  8 interrupt keys and 2 function keys (UP-7604 sec. 2.3.1; the text's "7 keys" is read as 47, which with the space
-  bar gives four banks of about 12), with a red key and two lamps at the deck's back left (Fig. 2-1).
+  reading (HYPOTHETICAL). The keyboard is the UNISCOPE 100's (below; our choice): UP-7604's four-bank keyboard (sec.
+  2.3.1) is not reproduced. A red key and two lamps stand at the deck's back left (Fig. 2-1).
 - **PAGEWRITER** (Fig. 2-4): a low wedge with the platen under its top and a control strip on its sloping front, on a
   light grey pedestal with a white top. The pedestal's place at the desk's left end is ours.
 - **Back** (seen from the overview; no source shows it): the modesty panel with a cable cut-out at its foot and the
@@ -176,29 +175,35 @@ height, the badge (4020 brochure p. 1 photograph); the sizes; the CHARACTRON tub
 camera and its supply and take-up magazines above it (4020 manual Fig. 5). HYPOTHETICAL: the window onto the camera,
 the viewing port, the frame counter, the panel layouts and lamp meanings, the colours.
 
-Not modelled: drums (FH-432/1782, FASTRAND; we cannot identify them in the MSC photo; they are heard, see Sound), a
+Not modelled: drums (FH-432/1782, FASTRAND; we cannot identify them in the MSC photo; they are heard from inside the compute row, see Sound), a
 keypunch, and the 4020's tape transport and hard-copy camera.
 
 ## The power cabinet
 
-The south end of the 1108 row is a power distribution cabinet, HYPOTHETICAL. What our sources say about the 1108's power is little: each storage bank has "an adjacent cabinet"
+The power distribution cabinet is a low floor-standing unit against the south wall, east of the card reader, with
+nothing in front of it for 0.9 m and clear of the door's swing; it, its place and its look are HYPOTHETICAL. What our sources say about the 1108's power is little: each storage bank has "an adjacent cabinet"
 holding "dc power supplies for operation of the bank and the associated MMA" (UP-4046 sec. 3.4), and the processor
 has a Power Loss Interrupt (Table 4-7, address 210 octal). Neither UP-4046 nor anything we found on bitsavers gives
 the 1108's input voltage, phases or frequency, or says whether it ran from a motor-generator set; 400 Hz sets fed
 other machines of the period (the UNIVAC 1218 military computer "required both 115VAC, one-phase, 60 Hz and 115VAC,
 three-phase, 400 Hz power", <https://en.wikipedia.org/wiki/UNIVAC_418>), but we found nothing that says so of the 1108, so the
 cabinet shows a 60-cycle feed only. Ours, all of it: 208 V three-phase four-wire 60 cycles (US building power), the
-legends, the readings (about 78, 84 and 71 A, half scale; the voltmeter near 208 V on whichever pair its selector
-names; the frequency at 60), the elapsed-hours count, the branch names. "Cycles" rather than "hertz" is the US usage
+legends, the readings (about 78, 84 and 71 A, half scale; the line voltages; the frequency at 60), the
+elapsed-hours count, the branch names. "Cycles" rather than "hertz" is the US usage
 of the time on our reading.
 
-The panel: three round ammeters (phase A, B, C), a line-to-line voltmeter with a selector (A-B, B-C, C-A, OFF), a
+Its shape is that of a desk-height switchgear console: a vertical front 0.68 m high, then the instrument panel sloped
+back 40 degrees from vertical so that it faces a standing viewer, then a flat top at 1.13 m. The sloped panel: three
+round ammeters (phase A, B, C), a line-to-line voltmeter with its selector (OFF, A-B, B-C, C-A; clicking the knob turns
+it to the next, and the voltmeter reads 0 at OFF and 207.5, 209 or 208.2 V on the pairs), a
 frequency meter, an elapsed-hours counter, a control-power key switch, a guarded emergency-off button, a status row
 lit (POWER ON and MAIN BKR CLOSED white, PHASE A to C green) and an alarm row dark (OVER TEMP, OVER CURRENT, PHASE
-LOSS, GROUND FAULT, UNDER VOLTAGE), and the main and eight branch breakers, all on. The faces and legends are one
-canvas texture; the needles are springs (a 0.65 s period, underdamped) toward readings that wander slowly and rise
-about 10 A and flicker while the page plays or draws, more while the tape units run. Using it (E, or a click) turns
-the voltmeter's selector to the next pair.
+LOSS, GROUND FAULT, UNDER VOLTAGE). The faces and legends are one canvas texture; the needles are springs (a 0.65 s
+period, underdamped) toward readings that wander slowly and rise about 10 A and flicker while the page plays or
+draws, more while the tape units run. Below it a pair of louvred doors on side hinges; using the cabinet (E, or a
+click) swings them open 100 degrees, and again shut. Behind them, on a galvanised pan: copper bus bars for the three
+phases and a tinned neutral on phenolic standoffs, the main breaker and eight branch breakers (all on) with a typed
+directory strip, the feed cables up from the floor, a dry control transformer, a terminal strip and a ground bar.
 
 ## The reference library
 
@@ -244,18 +249,18 @@ shown the room ducks 8 dB and its tape units keep turning, so an engine run is s
 | Source | Where | What it is | Sourced | Ours |
 |---|---|---|---|---|
 | Air handling | 3 ceiling diffusers, 2 perforated floor tiles | pink noise low-passed to a rumble (most of it under 120 Hz) and band-passed to a hiss (450 to 1000 Hz); slow drift | the raised floor and dropped ceiling (MSC photo) | everything else |
-| Cabinet fans | each 1108 cabinet (the power cabinet's hum louder, 8 dB, for its transformers), the 1557 and the film recorder | a blade-pass tone over band-limited noise, and a faint mains hum (60 Hz and harmonics, 120 Hz strongest) | US mains, 60 Hz | 3,420 to 3,480 rev/min, 5 blades (285 to 290 Hz, so neighbours beat); levels |
-| FH-432 drums | behind the west wall | three drums at 120 Hz and harmonics, windage from the flying heads | 7,200 rev/min (UP-4046 p. 8-5); three FH-432 (or one FH-1782, 1,800 rev/min, p. 8-6) in the minimum system (p. 5-3) | that MSC had these, their place, the slight detune, the windage |
-| FASTRAND II | behind the west wall | a rumble modulated at 14.7 Hz, low harmonics, head seeks (a knock and a click) | 880 rev/min (p. 8-10); 64 heads moved together in 30 to 86 ms (p. 8-8); one FASTRAND in the minimum system (p. 5-3) | the sound of a seek; seeks every 4 to 15 s, and a burst on each engine run |
+| Cabinet fans | each 1108 cabinet, the power cabinet (its hum louder, 8 dB, for its transformers), the 1557 and the film recorder | a blade-pass tone over band-limited noise, and a faint mains hum (60 Hz and harmonics, 120 Hz strongest); the power cabinet's doors latch and creak as they open and shut, and its voltmeter selector clicks | US mains, 60 Hz | the power cabinet's latch, creak and selector click; 3,420 to 3,480 rev/min, 5 blades (285 to 290 Hz, so neighbours beat); levels |
+| FH-432 drums | inside the compute row's second cabinet (our placement; the MSC photo does not show the drums) | three drums at 120 Hz and harmonics, windage from the flying heads | 7,200 rev/min (UP-4046 p. 8-5); three FH-432 (or one FH-1782, 1,800 rev/min, p. 8-6) in the minimum system (p. 5-3) | that MSC had these, their place, the slight detune, the windage |
+| FASTRAND II | inside the compute row's fourth cabinet (our placement) | a rumble modulated at 14.7 Hz, low harmonics, head seeks (a knock and a click) | 880 rev/min (p. 8-10); 64 heads moved together in 30 to 86 ms (p. 8-8); one FASTRAND in the minimum system (p. 5-3) | the sound of a seek; seeks every 4 to 15 s, and a burst on each engine run |
 | Tape units | each UNISERVO | at rest a faint vacuum blower; moving, two reel-motor whines pitched at the reels' speed, the vacuum columns' air and the tape's hiss; a knock at start and stop | speeds (UP-4046 sec. 8.4.2); the reels' motion from the unit's model | 24 commutator bars (so the whine is 90 to 200 Hz reading, twice that on rewind); levels |
 | Deflection whine | the 1558's screen | the beam's path for one refresh, sampled at the audio rate: its velocity in x and y (what a yoke's voltage follows) and the blank and unblank edges, looped at the refresh (1/16 s; 1/60 s at half level on STEADY), high-passed at 150 Hz, a 6 dB peak at 3 kHz, low-passed at 4.5 kHz, soft-clipped; rebuilt from each kernel frame (at most 16 a second; 0.1 to 2.2 ms each in the headless check, scenes 4, 1, 6) and crossfaded in 30 ms | | all of it. Designers potted and varnished deflection magnetics to keep them quiet, so it is residual leakage, deliberately faint: about 36 dB under the bed at the overview, rolloff 4 (10 dB down at 1.5 m), no room response. Room only; at the 1558 on SCOPE outside Beam, at the film recorder (its own CRT) while it runs; Tiled has none |
 | Film recorder | `filmrecorder` (when the room places one) | idle: its cabinet fan only. Running (the Print tab, or Beam): a film-transport motor (30 Hz and harmonics, a 12-tooth gear at 360 Hz, a little flutter) that spins up and down over about a second, its own plot-tape transport whining for a block read before each frame, and per frame a shutter tick, three claw clicks and a stop thunk, timings varied a little; the CRT whine above. Frames come from Beam's frames, or on the Print tab one every 1.2 to 1.8 s; at most one every 0.35 s | | all of it: no source names MSC's recorder or describes its sound |
 | Footsteps | the viewer, walking (Room) | a step every 0.77 m walked (0.55 s at walking speed, quicker with Shift), feet alternating a little left and right: a heel tap (noise band-passed at 700 to 950 Hz) with a faint hollow knock (260 to 180 Hz, a tile on pedestals), then a softer toe tap; level and pitch varied per step, well under the bed; none when a wall or machine stops you, none in flights | | all of it |
 | Ballasts | each troffer row | 120 Hz hum with harmonics; a strike ticks, flickers and buzzes | | the model (magnetic ballasts hum at twice the mains frequency); it follows the room's light switch (`room.lightsOn`) |
 
-The panners use the inverse distance law (1 m reference; rolloff 1 for the machines, 0.5 to 0.8 for the air, the
-drums and the ballasts). The drums are low-passed (1.1 to 1.4 kHz) as heard through the wall. At the overview the
-mix is about -29 dBFS RMS (peaks -13 dBFS) with this spread (share of the power by octave band, dB): 20-63 Hz -7.5,
+The panners use the inverse distance law (1 m reference; rolloff 1 for the machines and the drums, 0.5 to 0.8 for the
+air and the ballasts). The drums are low-passed at 4.5 kHz as heard through their cabinets' doors. At the overview the
+mix measured about -29 dBFS RMS (on 2026-10-04, with the drums still behind the west wall; not re-measured since they moved into the compute row) (peaks -13 dBFS) with this spread (share of the power by octave band, dB): 20-63 Hz -7.5,
 63-125 -4.3, 125-250 -10.7, 250-500 -15.6, 500-1k -15.7, 1-2k -16.4, 2-4k -20.5, 4-8k -26.3, 8-16k -34.8. Standing at a
 tape unit raises its level about 10 dB over the overview, and its burst of reads lifts the mix there about 3 dB. The
 printer's sounds come from `web/src/sound.js`: printing the listing (a fresh copy, `web/src/printout.js`) plays a hammer

@@ -3,11 +3,11 @@
 // The layout is ours. The MSC photograph of 15 July 1969 shows tape drives in a row, a work table with stacked
 // reels, a card reader and printers, but no floor plan survives; this arrangement puts the same kinds of machine
 // in a 9 m by 7 m room so that one standing view from the south-east takes in the terminals and the tapes:
-// UNISERVO drives along the north wall, the 1108's cabinets along the west wall (the lamp-panel cabinet at the
-// centre, the power cabinet at the south end), the 4009 operator console facing the tapes, the reel table at the centre, and in the east half a desk
+// UNISERVO drives along the north wall, the 1108's five cabinets along the west wall (the lamp-panel cabinet at the
+// centre), the 4009 operator console facing the tapes, the reel table at the centre, and in the east half a desk
 // with the UNISCOPE 100 beside the 1558 graphic console, turned toward the viewer, with its 1557 controller behind
 // them. Along the east wall the microfilm recorder, downstream of the computer as the film was, then the printer;
-// the card reader in the south-west corner; behind the UNISCOPE's desk, against the east wall between the 1557 and the
+// the card reader in the south-west corner and the low power distribution cabinet east of it on the south wall; behind the UNISCOPE's desk, against the east wall between the 1557 and the
 // film recorder, the reference library's bookcase, facing the room across the desk's back aisle. The door is in the south wall, west of centre, with nothing in its
 // swing and a clear aisle from it into the room, and the light switch on its latch side; every front has an aisle of
 // at least 0.9 m (the plan's check, `footprints`, is what the walk collides with).
@@ -48,7 +48,7 @@ export function build(ctx: BuildContext): Room {
   const place = (kind: string, at: [number, number, number], turn: number, name = `${kind}-${++count}`, opts?: Record<string, unknown>) => {
     const equipment = EQUIPMENT[kind] ? (EQUIPMENT[kind] as Builder)(ctx, opts) : standIn(kind);
     const o = equipment.object, b = new THREE.Box3().setFromObject(o);
-    o.position.set(...at); o.rotation.y = turn;
+    o.position.set(...at); o.rotation.y = turn; o.updateMatrixWorld();
     o.userData.placed = name;
     o.traverse(c => { const m = c as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
     object.add(o);
@@ -63,10 +63,13 @@ export function build(ctx: BuildContext): Room {
 
   const nW = ROOM.d / 2, wW = ROOM.w / 2;
   for (let i = 0; i < 7; i++) place("uniservo", [-2.7 + i * 0.82, 0, -nW + 0.45], S, undefined, { number: 60 + i, index: i + 1 });
-  for (let i = 0; i < 4; i++) place("cpu", [-wW + 0.48, 0, -1.64 + i * 0.82], E, undefined, { lampPanel: i === 2 });
-  place("powercab", [-wW + 0.48, 0, -1.64 + 4 * 0.82], E, "power");
-  place("console4009", [-1.2, 0, -1.0], N);
-  place("chair", [-1.2, 0, -0.3], N);
+  for (let i = 0; i < 5; i++) place("cpu", [-wW + 0.48, 0, -1.64 + i * 0.82], E, undefined, { lampPanel: i === 2 });
+  // The operator's chair at the 4009's seat (its keyboard end), facing it; without the anchor, centred in front of it.
+  // The console stands far enough south that the chair leaves the tape units' 0.9 m aisle.
+  const op = place("console4009", [-1.2, 0, -0.55], N);
+  const seat = op.anchors.seat as { position: THREE.Vector3; yaw: number } | undefined;
+  const seatAt = op.object.localToWorld(seat?.position.clone() ?? new THREE.Vector3(0, 0, 0.86));
+  place("chair", [seatAt.x, 0, seatAt.z], N + (seat?.yaw ?? Math.PI));
   place("reeltable", [0.75, 0, 1.2], 0.08);
   place("chair", [1.5, 0, 1.85], -2.4);
 
@@ -76,11 +79,20 @@ export function build(ctx: BuildContext): Room {
   const glassAt = desk.object.localToWorld(new THREE.Vector3(0.25, dt, -0.05));
   place("glass", [glassAt.x, glassAt.y, glassAt.z], -0.19, "glass");
   place("chair", [2.55, 0, -0.5], N - 0.19);
-  place("vector", [1.2, 0, -1.0], 0.32, "vector");   // beside the desk, turned toward the overview's eye
+  const vector = place("vector", [1.2, 0, -1.0], 0.32, "vector");   // beside the desk, turned toward the overview's eye
+  // A drafting chair for the 1558's shelf (0.92 m up), off to its left so that the walk-up in front stays clear,
+  // turned toward the keyboard (ours).
+  const stool = vector.object.localToWorld(new THREE.Vector3(-0.62, 0, 0.92)), keys = vector.object.localToWorld(new THREE.Vector3(0, 0, 0.5));
+  place("chair", [stool.x, 0, stool.z], Math.atan2(keys.x - stool.x, keys.z - stool.z), undefined, { tall: true });
   place("controller1557", [3.4, 0, -nW + 0.38], S);
   place("filmrecorder", [wW - 0.47, 0, 0.85], W, "filmrecorder");
   place("printer", [wW - 0.4, 0, 2.75], W, "printer");
   place("cardreader", [-wW + 0.37, 0, nW - 0.65], E);
+  // The power cabinet, clear of the card reader's front aisle and the door's swing; its voltmeter selector is a piece
+  // of its own, picked and turned apart from the cabinet's doors.
+  const power = place("powercab", [-2.3, 0, nW - 0.37], N, "power");
+  const selector = power.anchors.selector as Equipment;
+  selector.object.userData.placed = "power:selector"; placed.push({ name: "power:selector", equipment: selector });
   // The bookcase; each of its binders is placed under its own name, so it is picked, labelled and flown to alone.
   const library = place("bookcase", [wW - 0.19, 0, -2.2], W, "library");
   const binders = library.anchors.binders as Binder[];
@@ -135,7 +147,7 @@ export function build(ctx: BuildContext): Room {
     door: { x: DOOR.x, z: nW, w: DOOR.w },
     overview: { position: new THREE.Vector3(2.4, 1.62, 3.15), target: new THREE.Vector3(0.1, 1.0, -1.6), fov: 55 },
     labels: { vector: "UNIVAC 1558 — workbench", glass: "UNISCOPE 100 — source", filmrecorder: "Microfilm recorder (S-C 4020, hypothetical) — print",
-      printer: "Line printer — listing", switch: "Lights", power: "Power distribution — three-phase, 60 Hz (hypothetical)", door: "Exit — github.com/aaronsb/view1108", library: "Reference library",
+      printer: "Line printer — listing", switch: "Lights", power: "Power distribution — click to open/close the doors", "power:selector": "Voltmeter selector — click to turn", door: "Exit — github.com/aaronsb/view1108", library: "Reference library",
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
       ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },
     lightsOn: true,

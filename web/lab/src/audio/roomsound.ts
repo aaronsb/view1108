@@ -26,8 +26,9 @@ const WHINE_ROLLOFF = 4;       // the 1558's whine: -22 dB at the overview (4.1 
 
 // The drums (UP-4046 rev. 3): FH-432 7,200 rev/min (p. 8-5), FH-1782 1,800 rev/min (p. 8-6), FASTRAND II 880 rev/min
 // (p. 8-10), its 64 heads moved together in 30 to 86 ms (p. 8-8). The minimum 1108 system has three FH-432 drums (or
-// one FH-1782) and one FASTRAND (sec. 5, p. 5-3); we give the room that: three FH-432 and a FASTRAND II, behind the
-// west wall (no source places MSC's drums; we cannot find them in the MSC photograph).
+// one FH-1782) and one FASTRAND (sec. 5, p. 5-3); we give the room that: three FH-432 and a FASTRAND II, heard from
+// inside the compute row, the FH-432s in its second cabinet and the FASTRAND in its fourth (our placement: no source
+// places MSC's drums, and we cannot find them in the MSC photograph).
 const FH432_HZ = 7200 / 60, FASTRAND_HZ = 880 / 60;
 const SEEK_MS: [number, number] = [30, 86];
 
@@ -48,6 +49,7 @@ interface Graph {
   ctx: BaseAudioContext; dest: AudioNode; master: GainNode; wet: GainNode; analyser: AnalyserNode;
   srcs: Src[]; tapes: Tape[]; rows: { src: Src; hum: GainNode; buzz: GainNode }[]; fastrand: Src;
   rec: Recorder | null; nodes: AudioScheduledSourceNode[]; lit: boolean; nextSeek: number; whine: Whine | null; printerIn: AudioNode | null;
+  panel: { src: Src; state: { open: boolean; sel: number }; open: boolean; sel: number } | null;
 }
 
 export class RoomSound {
@@ -141,27 +143,36 @@ export class RoomSound {
     // Cabinet fans and transformers, ours: each cabinet's fan a blade-pass tone (shaft 3,420-3,480 rev/min, a 2-pole
     // induction motor's 60 Hz less slip; 5 blades, 285-290 Hz, so neighbours beat) over band-limited noise, and a
     // faint mains hum (60 Hz and its harmonics, 120 Hz strongest) from one shared generator, louder at the power
-    // cabinet, whose transformers hum.
+    // cabinet, whose transformers hum; its doors latch and creak when they open and shut, its voltmeter selector clicks
+    // into each detent.
     const blade = wave(ctx, [1, 0.35, 0.12, 0.05]);
     const hum = osc(wave(ctx, [0.6, 1, 0.3, 0.25, 0.1, 0.08]), MAINS), humBus = gain(1); hum.connect(humBus);
+    let panel: Graph["panel"] = null;
     const cabinets = this.room.placed.filter(p => /^(cpu|power|controller1557|filmrecorder)(-|$)/.test(p.name));
     cabinets.forEach((p, k) => {
-      const pos = this.at(p.equipment, 1.5), s = source(p.name, pos, 1.0, 1.0);
+      const pos = this.at(p.equipment, p.name === "power" ? 0.8 : 1.5), s = source(p.name, pos, 1.0, 1.0);
       const rpm = 3420 + this.r() * 60, t = osc(blade, rpm / 60 * 5), tg = gain(0.035); t.connect(tg).connect(s.input);
       wander(t.frequency, 0.4, k);
       const n = noise(N.pink, 1.2), bp = filt("bandpass", 1100 + this.r() * 400, 0.5), ng = gain(0.22); n.connect(bp).connect(ng).connect(s.input);
       const hp = filt("lowpass", 800); const hg = gain(p.name === "power" ? 0.13 : 0.05); humBus.connect(hp).connect(hg).connect(s.input);
+      const state = p.equipment.anchors.panel as { open: boolean; sel: number } | undefined;
+      if (state) panel = { src: s, state, open: state.open, sel: state.sel };
     });
 
-    // Drums behind the west wall (heard through it: low-passed). FH-432: three drums at 120 Hz (slip, ours, detunes
-    // them a little) with windage from the heads flying over the surface. FASTRAND: its two big drums at 14.7 Hz, a
-    // rumble the rotation modulates, low harmonics, and the head carriage's seeks.
-    const wallX = -ROOM.w / 2 - 0.6;
-    const fh = source("fh432", new THREE.Vector3(wallX, 1.0, -1.6), 0.8, 0.55, 1400);
+    // Drums in the compute row (the cpu cabinets, north to south), at cabinet height just inside the front, heard
+    // through the door panel (a mild low-pass, ours). FH-432: three drums at 120 Hz (slip, ours, detunes them a little)
+    // with windage from the heads flying over the surface. FASTRAND: its two big drums at 14.7 Hz, a rumble the
+    // rotation modulates, low harmonics, and the head carriage's seeks.
+    const row = this.room.placed.filter(p => /^cpu-\d+$/.test(p.name))
+      .map(p => (p.equipment.object.updateMatrixWorld(), p.equipment.object.localToWorld(new THREE.Vector3(0, 1.0, 0.3))))
+      .sort((a, b) => a.z - b.z);
+    const inRow = (k: number, dflt: THREE.Vector3) => row[Math.min(k, row.length - 1)] ?? dflt;
+    const PANEL = 4500;
+    const fh = source("fh432", inRow(1, new THREE.Vector3(-3.7, 1.0, -0.8)), 1.0, 0.55, PANEL);
     const drumWave = wave(ctx, [1, 0.4, 0.25, 0.1]);
     for (const hz of [FH432_HZ * 0.9996, FH432_HZ, FH432_HZ * 1.0005]) { const o = osc(drumWave, hz), og = gain(0.03); o.connect(og).connect(fh.input); }
-    { const n = noise(N.pink, 1.5), bp = filt("bandpass", 2200, 0.8), ng = gain(0.35); n.connect(bp).connect(ng).connect(fh.input); }
-    const fastrand = source("fastrand", new THREE.Vector3(wallX, 0.8, 1.4), 0.8, 0.6, 1100);
+    { const n = noise(N.pink, 1.5), bp = filt("bandpass", 2200, 0.8), ng = gain(0.16); n.connect(bp).connect(ng).connect(fh.input); }
+    const fastrand = source("fastrand", inRow(3, new THREE.Vector3(-3.7, 1.0, 0.8)), 1.0, 0.6, PANEL);
     {
       const n = noise(N.brown, 1), lp = filt("lowpass", 180, 0.6), am = gain(0.7); n.connect(lp).connect(am).connect(fastrand.input);
       const rot = osc("sine", FASTRAND_HZ), depth = gain(0.3); rot.connect(depth).connect(am.gain);
@@ -230,7 +241,7 @@ export class RoomSound {
     const pr = this.room.placed.find(p => /^printer(-|$)/.test(p.name));
     const printerIn = pr ? source(pr.name + "-print", this.at(pr.equipment, 1.1), 1.0, 1).input : null;
 
-    this.g = { ctx, dest, master, wet, analyser, srcs, tapes, rows, fastrand, rec, nodes, lit, nextSeek: ctx.currentTime + 3, whine: wh, printerIn };
+    this.g = { ctx, dest, master, wet, analyser, srcs, tapes, rows, fastrand, rec, nodes, lit, nextSeek: ctx.currentTime + 3, whine: wh, printerIn, panel };
   }
 
   /** One step: the listener, the duck, the tape units, the lights and the FASTRAND's idle seeks. */
@@ -283,6 +294,15 @@ export class RoomSound {
         a.setTargetAtTime(0.012, s, 0.05); b.setTargetAtTime(0, s, 0.1);
       });
     }
+
+    const d = g.panel;   // the power cabinet (ours): its doors' latch and a short low creak of the hinges; the selector's detent
+    if (d && d.state.open !== d.open) {
+      d.open = d.state.open;
+      this.shot(() => click(ctx, d.src.input, t, d.open ? 1900 : 1500, 3, 0.03, 0.25, this.r()));
+      this.shot(() => click(ctx, d.src.input, t + 0.05, 420, 6, 0.35, 0.06, this.r()));
+      if (!d.open) this.shot(() => knock(ctx, d.src.input, t + 0.85, 140, 70, 0.06, 0.2));
+    }
+    if (d && d.state.sel !== d.sel) { d.sel = d.state.sel; this.shot(() => click(ctx, d.src.input, t, 3200, 4, 0.012, 0.15, this.r())); }
 
     const rec = g.rec;
     if (rec) {

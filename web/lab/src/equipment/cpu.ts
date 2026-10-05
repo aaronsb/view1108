@@ -14,8 +14,7 @@ export interface CpuOptions { lampPanel?: boolean }
 const COLS = 36, ROWS = 12;
 
 /** The cabinet itself, 0.8 x 1.9 x 0.8: plinth, body, top, the dark reveals at its sides and a pair of doors from
- *  0.1 m up to `doorTop` with their handles at `handleY`. Above the doors the front is left for a panel. The power
- *  cabinet (powercab.ts) is built on it too. */
+ *  0.1 m up to `doorTop` with their handles at `handleY`. Above the doors the front is left for a panel. */
 export function cabinet(P: Parts, doorTop: number, handleY: number): void {
   const warm = paint(PAL.warm), dark = paint(PAL.charcoal, 0.9);
   P.box(0.78, 0.08, 0.76, paint(PAL.dark, 0.9), 0, 0.04, 0);
