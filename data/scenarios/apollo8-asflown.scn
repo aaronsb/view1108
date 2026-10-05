@@ -22,9 +22,22 @@ SCENARIO ID=2 MISSION="APOLLO 8" NAME="AS FLOWN"
 EPOCH JD=2440212.035417 SRC="MR8 p. 2-1: Range zero for this mission was 12:51:00 G.m.t. (21 December 1968)"
 PAD NAME="LC-39A" LATTYPE=GC LAT=28.4470 LON=-80.6041 SRC="SP p. 45, Apollo 8 ascent phase table, Liftoff 000:00:00.67: geocentric latitude 28.4470 deg N, longitude -80.6041 deg E; SP p. 34: Apollo 8 was launched from Launch Complex 39, Pad A, at the Kennedy Space Center, Florida"
 *
+* The powered ascent, as Apollo 11's: SP p. 45's ascent table, lift-off to
+* S-IVB first cutoff.
+LEG TYPE=TABLE LATTYPE=GC SRC="SP p. 45, Apollo 8 ascent phase table: geocentric latitude, altitude, space-fixed velocity, flight-path angle and heading"
+ROW T=0:00:00.67 LAT=28.4470 LON=-80.6041 ALT=0.032 V=1340.7 FPA=0.00 HDG=90.00 SRC="SP p. 45, liftoff"
+ROW T=0:01:01.45 LAT=28.4526 LON=-80.5805 ALT=3.971 V=2078.4 FPA=26.79 HDG=85.21 SRC="SP p. 45, Mach 1 achieved"
+ROW T=0:01:18.9 LAT=28.4645 LON=-80.5398 ALT=7.252 V=2754.7 FPA=29.56 HDG=82.43 SRC="SP p. 45, maximum dynamic pressure"
+ROW T=0:02:05.93 LAT=28.5581 LON=-80.1934 ALT=22.398 V=6213.78 FPA=24.527 HDG=76.572 SRC="SP p. 45, S-IC center engine cutoff"
+ROW T=0:02:33.82 LAT=28.6856 LON=-79.7302 ALT=35.503 V=8899.77 FPA=20.699 HDG=75.387 SRC="SP p. 45, S-IC outboard engine cutoff"
+ROW T=0:02:34.47 LAT=28.6893 LON=-79.7168 ALT=35.838 V=8930.15 FPA=20.605 HDG=75.384 SRC="SP p. 45, S-IC/S-II separation"
+ROW T=0:08:44.04 LAT=31.5492 LON=-65.3897 ALT=103.424 V=22379.1 FPA=0.646 HDG=81.777 SRC="SP p. 45, S-II engine cutoff"
+ROW T=0:08:44.90 LAT=31.5565 LON=-65.3338 ALT=103.460 V=22391.60 FPA=0.636 HDG=81.807 SRC="SP p. 45, S-II/S-IVB separation"
+ROW T=0:11:24.98 LAT=32.4541 LON=-54.0565 ALT=103.324 V=25562.43 FPA=-0.001 HDG=88.098 SRC="SP p. 45, S-IVB 1st burn cutoff"
+*
 * Earth parking orbit, as Apollo 11's: the S-IVB first cutoff state on a
-* circle at the mean of SP's 99.99 by 99.57 n mi (p. 45).
-LEG TYPE=CIRC FROM=0:11:34.98 TO=2:50:37.79 T=0:11:24.98 LATTYPE=GC LAT=32.4541 LON=-54.0565 V=25562.43 FPA=-0.001 HDG=88.098 ALT=99.78 SRC="SP p. 45 ascent table, S-IVB 1st burn cutoff: geocentric 32.4541 N, -54.0565 E, space-fixed velocity 25,562.43, flight-path angle -0.001, heading 88.098; orbit 99.99 by 99.57 n mi, same page"
+* circle at the mean of SP's 99.99 by 99.57 n mi (p. 45), from that cutoff.
+LEG TYPE=CIRC FROM=0:11:24.98 TO=2:50:37.79 T=0:11:24.98 LATTYPE=GC LAT=32.4541 LON=-54.0565 V=25562.43 FPA=-0.001 HDG=88.098 ALT=99.78 SRC="SP p. 45 ascent table, S-IVB 1st burn cutoff: geocentric 32.4541 N, -54.0565 E, space-fixed velocity 25,562.43, flight-path angle -0.001, heading 88.098; orbit 99.99 by 99.57 n mi, same page"
 *
 * Translunar coast: conics from translunar injection and from the first
 * midcourse correction cutoff.  Earth only (no lunar gravity): ours.
@@ -44,9 +57,30 @@ LEG TYPE=LUNAR FROM=69:08:20.4 TO=73:35:07 T=69:12:27.3 LAT=-9.89 LON=179.56 TB=
 LEG TYPE=LUNAR FROM=73:35:07 TO=89:19:16.6 T=75:48:39.7 LAT=-11.15 LON=113.80 TB=89:19:16.6 LATB=-9.27 LONB=174.78 N=6 ALT=59.40 SRC="SVS 4129, head-up display at AS08-14-2383 (16:39:39.7 UT = 75:48:39.7 g.e.t.): 11.15 S, 113.80 E, 110.0 km; MR8 Table 5-II p. 5-8, transearth injection ignition"
 *
 * Transearth coast: conics from the third midcourse correction ignition and
-* from entry interface.  Earth only: ours.
+* from entry interface, to entry interface.  Earth only: ours.
 LEG TYPE=CONIC FROM=89:22:40.3 TO=103:59:54 T=103:59:54 LATTYPE=GD LAT=-5.67 LON=-57.27 ALT=165561.5 V=4299 FPA=-80.59 HDG=52.65 SRC="MR8 Table 5-II p. 5-8, third midcourse correction ignition"
-LEG TYPE=CONIC FROM=103:59:54 TO=147:00:42 T=146:46:12.8 LATTYPE=GD LAT=20.83 LON=-179.89 ALT=65.90 V=36221 FPA=-6.50 HDG=121.57 SRC="MR8 Table 5-V p. 5-10, entry interface (400 000 feet); the table prints the flight-path angle unsigned, 6.50, and entry is downward"
+LEG TYPE=CONIC FROM=103:59:54 TO=146:46:12.8 T=146:46:12.8 LATTYPE=GD LAT=20.83 LON=-179.89 ALT=65.90 V=36221 FPA=-6.50 HDG=121.57 SRC="MR8 Table 5-V p. 5-10, entry interface (400 000 feet); the table prints the flight-path angle unsigned, 6.50, and entry is downward"
+*
+* Entry, entry interface to splashdown.  Between them, three states of the
+* best-estimate trajectory, MR8 Table 6.9-IV p. 6-52 (peak g, start of the
+* final phase, drogue deployment minus 50 s: X, Y, Z in ft and ft/s, the
+* Z axis the Earth's (their latitudes match Table 5-V's at entry interface
+* and at the drogues to 0.02 deg)), made into these rows by us: placed on
+* the turning Earth from Table 5-V's entry interface longitude.  So placed
+* the drogue-minus-50 s state lies 3.217 deg of longitude east of Table
+* 5-V's drogue position (8.100 N, 165.013 W, best estimate), which no
+* 50 s fall closes; we take that up by turning the rows west at a steady
+* rate from entry interface to it (positions only), so the third lands on
+* the drogue longitude.  Under the parachutes the CM falls straight down
+* (ours); after splashdown it rides at the splash point.
+LEG TYPE=TABLE LATTYPE=GD SRC="Apollo 8 entry: MR8 Tables 5-V p. 5-10, 6.9-IV p. 6-52 and 3-I p. 3-4"
+ROW T=146:46:12.8 LAT=20.83 LON=-179.89 ALT=65.90 V=36221 FPA=-6.50 HDG=121.57 SRC="MR8 Table 5-V p. 5-10, entry interface (400 000 feet)"
+ROW T=146:47:38.4 LAT=16.445 LON=-173.657 ALT=30.006 V=31288.2 FPA=-0.087 HDG=123.411 SRC="MR8 Table 6.9-IV p. 6-52, peak g, best-estimate trajectory, made a row by us (see above)"
+ROW T=146:48:34.4 LAT=14.092 LON=-170.696 ALT=31.816 V=24881.5 FPA=-0.817 HDG=124.580 SRC="MR8 Table 6.9-IV p. 6-52, start of the final phase, best-estimate trajectory, made a row by us (see above)"
+ROW T=146:53:56.4 LAT=8.118 LON=-165.013 ALT=8.426 V=1842.8 FPA=-18.777 HDG=100.034 SRC="MR8 Table 6.9-IV p. 6-52, drogue deployment minus 50 seconds, best-estimate trajectory, made a row by us (see above)"
+ROW T=146:54:47.8 LAT=8.100 LON=-165.013 ALT=3.785 V=300 FPA=-90 HDG=0 VEL=EF SRC="MR8 Table 3-I p. 3-4, drogue deployment; position MR8 Table 5-V p. 5-10, best-estimate trajectory; 23,000 ft (3.785 n mi), Apollo 8 Flight Journal, day 6, PAO at 146:53:57: Drogue chutes out at 23,000 feet; falling at 300 ft/s, ours"
+ROW T=146:55:38.9 LAT=8.100 LON=-165.013 ALT=1.646 V=30 FPA=-90 HDG=0 VEL=EF SRC="MR8 Table 3-I p. 3-4, main parachute deployment; 10,000 ft (1.646 n mi), ours, from the crew's Should be approaching 10K ... Standby with the mains in 1 second, Apollo 8 Flight Journal, day 6, 146:55:32; then about 30 ft/s, the mean fall from there to the water"
+ROW T=147:00:42 LAT=8.125 LON=-165.020 ALT=0 V=31 FPA=-90 HDG=0 VEL=EF SRC="MR8 Table 3-I p. 3-4, landing; MR8 p. 9-4, 8 deg 7.5 min N, 165 deg 1.2 min W (recovery forces); splashdown at 31 ft/s on three parachutes, Apollo 11 press kit printed p. 62"
 *
 * Events.
 EVENT KIND=TLI T=2:56:05.5 SRC="MR8 Table 5-II p. 5-7, translunar injection (cutoff 2:55:55.5 plus 10 s)"

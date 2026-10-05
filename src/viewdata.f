@@ -41,7 +41,10 @@ C              1 FROM, 2 TO, 3 T (g.e.t. s), 4 LAT, 5 LON (deg),
 C              6 ALT (n mi), 7 V (ft/s), 8 FPA, 9 HDG (deg),
 C              10 TB (s), 11 LATB, 12 LONB (deg), LCONIC 13 DV
 C              (ft/s), 14 P, 15 R, 16 N, 17 ALTB (n mi; LUNAR, the
-C              altitude at TB).  Vehicle LGVEH: 1 CSM, 2 LM.
+C              altitude at TB).  TABLE (one leg per pair of rows):
+C              3-9 row A, 10-12 row B's T LAT LON, 13-15 its V FPA
+C              HDG, 17 its ALT; LGN 1 A's, 2 B's velocity Earth
+C              fixed.  Vehicle LGVEH: 1 CSM, 2 LM.
 C              Event J of scenario EVSN(J), kind EVKND, g.e.t. EVT (s).
       DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)
       DOUBLE PRECISION SNSAZ(NSN)
@@ -8034,203 +8037,219 @@ C       Complex 39, Pad A, at the Kennedy Space Center, Florida
      1 76,67,45,51,57,65,0,0,76,67,
      1 45,51,57,65,0,0/
 C     LEG 1
+C       TABLE: SP p. 103, Apollo 11 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 103, liftoff; SP p. 103, Mach 1 achieved
+      DATA LGP(1,1) / 0.630D0 /
+      DATA LGP(2,1) / 66.300D0 /
+      DATA LGP(3,1) / 0.630D0 /
+      DATA LGP(4,1) / 28.447D0 /
+      DATA LGP(5,1) / -80.604D0 /
+      DATA LGP(6,1) / 0.032D0 /
+      DATA LGP(7,1) / 1340.700D0 /
+      DATA LGP(8,1) / 0.060D0 /
+      DATA LGP(9,1) / 90.000D0 /
+      DATA LGP(10,1) / 66.300D0 /
+      DATA LGP(11,1) / 28.452D0 /
+      DATA LGP(12,1) / -80.585D0 /
+      DATA LGP(13,1) / 2023.900D0 /
+      DATA LGP(14,1) / 27.880D0 /
+      DATA LGP(15,1) / 85.320D0 /
+      DATA LGP(16,1) / 0.000D0 /
+      DATA LGP(17,1) / 4.236D0 /
+C     LEG 2
+C       TABLE: SP p. 103, Apollo 11 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 103, Mach 1 achieved; SP p. 103, maximum
+C       dynamic pressure
+      DATA LGP(1,2) / 66.300D0 /
+      DATA LGP(2,2) / 83.000D0 /
+      DATA LGP(3,2) / 66.300D0 /
+      DATA LGP(4,2) / 28.452D0 /
+      DATA LGP(5,2) / -80.585D0 /
+      DATA LGP(6,2) / 4.236D0 /
+      DATA LGP(7,2) / 2023.900D0 /
+      DATA LGP(8,2) / 27.880D0 /
+      DATA LGP(9,2) / 85.320D0 /
+      DATA LGP(10,2) / 83.000D0 /
+      DATA LGP(11,2) / 28.462D0 /
+      DATA LGP(12,2) / -80.550D0 /
+      DATA LGP(13,2) / 2671.900D0 /
+      DATA LGP(14,2) / 29.230D0 /
+      DATA LGP(15,2) / 82.410D0 /
+      DATA LGP(16,2) / 0.000D0 /
+      DATA LGP(17,2) / 7.326D0 /
+C     LEG 3
+C       TABLE: SP p. 103, Apollo 11 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 103, maximum dynamic pressure; SP p. 103,
+C       S-IC center engine cutoff; the book prints longitude -81.1517,
+C       which would put it 50 n mi west of the pad: -80.1517, ours,
+C       fits the row's range of 25.067 n mi
+      DATA LGP(1,3) / 83.000D0 /
+      DATA LGP(2,3) / 135.200D0 /
+      DATA LGP(3,3) / 83.000D0 /
+      DATA LGP(4,3) / 28.462D0 /
+      DATA LGP(5,3) / -80.550D0 /
+      DATA LGP(6,3) / 7.326D0 /
+      DATA LGP(7,3) / 2671.900D0 /
+      DATA LGP(8,3) / 29.230D0 /
+      DATA LGP(9,3) / 82.410D0 /
+      DATA LGP(10,3) / 135.200D0 /
+      DATA LGP(11,3) / 28.574D0 /
+      DATA LGP(12,3) / -80.152D0 /
+      DATA LGP(13,3) / 6492.800D0 /
+      DATA LGP(14,3) / 22.957D0 /
+      DATA LGP(15,3) / 76.315D0 /
+      DATA LGP(16,3) / 0.000D0 /
+      DATA LGP(17,3) / 23.761D0 /
+C     LEG 4
+C       TABLE: SP p. 103, Apollo 11 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 103, S-IC center engine cutoff; the book
+C       prints longitude -81.1517, which would put it 50 n mi west of
+C       the pad: -80.1517, ours, fits the row's range of 25.067 n mi;
+C       SP p. 103, S-IC outboard engine cutoff
+      DATA LGP(1,4) / 135.200D0 /
+      DATA LGP(2,4) / 161.630D0 /
+      DATA LGP(3,4) / 135.200D0 /
+      DATA LGP(4,4) / 28.574D0 /
+      DATA LGP(5,4) / -80.152D0 /
+      DATA LGP(6,4) / 23.761D0 /
+      DATA LGP(7,4) / 6492.800D0 /
+      DATA LGP(8,4) / 22.957D0 /
+      DATA LGP(9,4) / 76.315D0 /
+      DATA LGP(10,4) / 161.630D0 /
+      DATA LGP(11,4) / 28.701D0 /
+      DATA LGP(12,4) / -79.691D0 /
+      DATA LGP(13,4) / 9068.600D0 /
+      DATA LGP(14,4) / 19.114D0 /
+      DATA LGP(15,4) / 75.439D0 /
+      DATA LGP(16,4) / 0.000D0 /
+      DATA LGP(17,4) / 35.701D0 /
+C     LEG 5
+C       TABLE: SP p. 103, Apollo 11 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 103, S-IC outboard engine cutoff; SP p.
+C       103, S-IC/S-II separation
+      DATA LGP(1,5) / 161.630D0 /
+      DATA LGP(2,5) / 162.300D0 /
+      DATA LGP(3,5) / 161.630D0 /
+      DATA LGP(4,5) / 28.701D0 /
+      DATA LGP(5,5) / -79.691D0 /
+      DATA LGP(6,5) / 35.701D0 /
+      DATA LGP(7,5) / 9068.600D0 /
+      DATA LGP(8,5) / 19.114D0 /
+      DATA LGP(9,5) / 75.439D0 /
+      DATA LGP(10,5) / 162.300D0 /
+      DATA LGP(11,5) / 28.705D0 /
+      DATA LGP(12,5) / -79.676D0 /
+      DATA LGP(13,5) / 9100.600D0 /
+      DATA LGP(14,5) / 19.020D0 /
+      DATA LGP(15,5) / 75.436D0 /
+      DATA LGP(16,5) / 0.000D0 /
+      DATA LGP(17,5) / 36.029D0 /
+C     LEG 6
+C       TABLE: SP p. 103, Apollo 11 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 103, S-IC/S-II separation; SP p. 103, S-II
+C       center engine cutoff
+      DATA LGP(1,6) / 162.300D0 /
+      DATA LGP(2,6) / 460.620D0 /
+      DATA LGP(3,6) / 162.300D0 /
+      DATA LGP(4,6) / 28.705D0 /
+      DATA LGP(5,6) / -79.676D0 /
+      DATA LGP(6,6) / 36.029D0 /
+      DATA LGP(7,6) / 9100.600D0 /
+      DATA LGP(8,6) / 19.020D0 /
+      DATA LGP(9,6) / 75.436D0 /
+      DATA LGP(10,6) / 460.620D0 /
+      DATA LGP(11,6) / 30.951D0 /
+      DATA LGP(12,6) / -69.431D0 /
+      DATA LGP(13,6) / 18725.500D0 /
+      DATA LGP(14,6) / 0.897D0 /
+      DATA LGP(15,6) / 79.646D0 /
+      DATA LGP(16,6) / 0.000D0 /
+      DATA LGP(17,6) / 97.280D0 /
+C     LEG 7
+C       TABLE: SP p. 103, Apollo 11 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 103, S-II center engine cutoff; SP p. 103,
+C       S-II outboard engine cutoff
+      DATA LGP(1,7) / 460.620D0 /
+      DATA LGP(2,7) / 548.220D0 /
+      DATA LGP(3,7) / 460.620D0 /
+      DATA LGP(4,7) / 30.951D0 /
+      DATA LGP(5,7) / -69.431D0 /
+      DATA LGP(6,7) / 97.280D0 /
+      DATA LGP(7,7) / 18725.500D0 /
+      DATA LGP(8,7) / 0.897D0 /
+      DATA LGP(9,7) / 79.646D0 /
+      DATA LGP(10,7) / 548.220D0 /
+      DATA LGP(11,7) / 31.709D0 /
+      DATA LGP(12,7) / -64.198D0 /
+      DATA LGP(13,7) / 22690.800D0 /
+      DATA LGP(14,7) / 0.619D0 /
+      DATA LGP(15,7) / 82.396D0 /
+      DATA LGP(16,7) / 0.000D0 /
+      DATA LGP(17,7) / 101.142D0 /
+C     LEG 8
+C       TABLE: SP p. 103, Apollo 11 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 103, S-II outboard engine cutoff; SP p.
+C       103, S-II/S-IVB separation
+      DATA LGP(1,8) / 548.220D0 /
+      DATA LGP(2,8) / 549.000D0 /
+      DATA LGP(3,8) / 548.220D0 /
+      DATA LGP(4,8) / 31.709D0 /
+      DATA LGP(5,8) / -64.198D0 /
+      DATA LGP(6,8) / 101.142D0 /
+      DATA LGP(7,8) / 22690.800D0 /
+      DATA LGP(8,8) / 0.619D0 /
+      DATA LGP(9,8) / 82.396D0 /
+      DATA LGP(10,8) / 549.000D0 /
+      DATA LGP(11,8) / 31.715D0 /
+      DATA LGP(12,8) / -64.147D0 /
+      DATA LGP(13,8) / 22699.600D0 /
+      DATA LGP(14,8) / 0.611D0 /
+      DATA LGP(15,8) / 82.426D0 /
+      DATA LGP(16,8) / 0.000D0 /
+      DATA LGP(17,8) / 101.175D0 /
+C     LEG 9
+C       TABLE: SP p. 103, Apollo 11 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 103, S-II/S-IVB separation; SP p. 103,
+C       S-IVB 1st burn cutoff
+      DATA LGP(1,9) / 549.000D0 /
+      DATA LGP(2,9) / 699.330D0 /
+      DATA LGP(3,9) / 549.000D0 /
+      DATA LGP(4,9) / 31.715D0 /
+      DATA LGP(5,9) / -64.147D0 /
+      DATA LGP(6,9) / 101.175D0 /
+      DATA LGP(7,9) / 22699.600D0 /
+      DATA LGP(8,9) / 0.611D0 /
+      DATA LGP(9,9) / 82.426D0 /
+      DATA LGP(10,9) / 699.330D0 /
+      DATA LGP(11,9) / 32.486D0 /
+      DATA LGP(12,9) / -53.459D0 /
+      DATA LGP(13,9) / 25561.600D0 /
+      DATA LGP(14,9) / 0.011D0 /
+      DATA LGP(15,9) / 88.414D0 /
+      DATA LGP(16,9) / 0.000D0 /
+      DATA LGP(17,9) / 103.202D0 /
+C     LEG 10
 C       CIRC: SP p. 103 ascent table, S-IVB 1st burn cutoff: geocentric
 C       32.4865 N, -53.4588 E, space-fixed velocity 25,561.6,
 C       flight-path angle 0.011, heading 88.414; orbit MR p. 3-1
-      DATA LGP(1,1) / 709.330D0 /
-      DATA LGP(2,1) / 9856.200D0 /
-      DATA LGP(3,1) / 699.330D0 /
-      DATA LGP(4,1) / 32.486D0 /
-      DATA LGP(5,1) / -53.459D0 /
-      DATA LGP(6,1) / 99.950D0 /
-      DATA LGP(7,1) / 25561.600D0 /
-      DATA LGP(8,1) / 0.011D0 /
-      DATA LGP(9,1) / 88.414D0 /
-      DATA LGP(10,1) / 0.000D0 /
-      DATA LGP(11,1) / 0.000D0 /
-      DATA LGP(12,1) / 0.000D0 /
-      DATA LGP(13,1) / 0.000D0 /
-      DATA LGP(14,1) / 0.000D0 /
-      DATA LGP(15,1) / 0.000D0 /
-      DATA LGP(16,1) / 0.000D0 /
-      DATA LGP(17,1) / 99.950D0 /
-C     LEG 2
-C       CONIC: MR Table 7-II p. 7-9, translunar injection
-      DATA LGP(1,2) / 10213.200D0 /
-      DATA LGP(2,2) / 96298.700D0 /
-      DATA LGP(3,2) / 10213.200D0 /
-      DATA LGP(4,2) / 9.980D0 /
-      DATA LGP(5,2) / -164.840D0 /
-      DATA LGP(6,2) / 180.600D0 /
-      DATA LGP(7,2) / 35546.000D0 /
-      DATA LGP(8,2) / 7.370D0 /
-      DATA LGP(9,2) / 60.070D0 /
-      DATA LGP(10,2) / 0.000D0 /
-      DATA LGP(11,2) / 0.000D0 /
-      DATA LGP(12,2) / 0.000D0 /
-      DATA LGP(13,2) / 0.000D0 /
-      DATA LGP(14,2) / 0.000D0 /
-      DATA LGP(15,2) / 0.000D0 /
-      DATA LGP(16,2) / 0.000D0 /
-      DATA LGP(17,2) / 180.600D0 /
-C     LEG 3
-C       CONIC: MR Table 7-II p. 7-9, first midcourse correction cutoff
-      DATA LGP(1,3) / 96298.700D0 /
-      DATA LGP(2,3) / 272990.400D0 /
-      DATA LGP(3,3) / 96301.800D0 /
-      DATA LGP(4,3) / 6.000D0 /
-      DATA LGP(5,3) / -11.170D0 /
-      DATA LGP(6,3) / 109477.200D0 /
-      DATA LGP(7,3) / 5010.000D0 /
-      DATA LGP(8,3) / 76.880D0 /
-      DATA LGP(9,3) / 120.870D0 /
-      DATA LGP(10,3) / 0.000D0 /
-      DATA LGP(11,3) / 0.000D0 /
-      DATA LGP(12,3) / 0.000D0 /
-      DATA LGP(13,3) / 0.000D0 /
-      DATA LGP(14,3) / 0.000D0 /
-      DATA LGP(15,3) / 0.000D0 /
-      DATA LGP(16,3) / 0.000D0 /
-      DATA LGP(17,3) / 109477.200D0 /
-C     LEG 4
-C       LUNAR: MR Table 7-II p. 7-9, lunar orbit insertion cutoff and
-C       circularization ignition; altitude the mean of SP p. 104's
-C       169.7 by 60.0 n mi
-      DATA LGP(1,4) / 272990.400D0 /
-      DATA LGP(2,4) / 288696.800D0 /
-      DATA LGP(3,4) / 273348.000D0 /
-      DATA LGP(4,4) / 0.160D0 /
-      DATA LGP(5,4) / 167.130D0 /
-      DATA LGP(6,4) / 114.900D0 /
-      DATA LGP(7,4) / 0.000D0 /
-      DATA LGP(8,4) / 0.000D0 /
-      DATA LGP(9,4) / 0.000D0 /
-      DATA LGP(10,4) / 288696.800D0 /
-      DATA LGP(11,4) / -0.020D0 /
-      DATA LGP(12,4) / 170.090D0 /
-      DATA LGP(13,4) / 0.000D0 /
-      DATA LGP(14,4) / 0.000D0 /
-      DATA LGP(15,4) / 0.000D0 /
-      DATA LGP(16,4) / 0.000D0 /
-      DATA LGP(17,4) / 114.900D0 /
-C     LEG 5
-C       LUNAR: MR Table 7-II p. 7-9, circularization cutoff and
-C       undocking; altitude the mean of the two rows
-      DATA LGP(1,5) / 288696.800D0 /
-      DATA LGP(2,5) / 360720.000D0 /
-      DATA LGP(3,5) / 288713.500D0 /
-      DATA LGP(4,5) / -0.020D0 /
-      DATA LGP(5,5) / 169.160D0 /
-      DATA LGP(6,5) / 62.200D0 /
-      DATA LGP(7,5) / 0.000D0 /
-      DATA LGP(8,5) / 0.000D0 /
-      DATA LGP(9,5) / 0.000D0 /
-      DATA LGP(10,5) / 360720.000D0 /
-      DATA LGP(11,5) / 1.110D0 /
-      DATA LGP(12,5) / 116.210D0 /
-      DATA LGP(13,5) / 0.000D0 /
-      DATA LGP(14,5) / 0.000D0 /
-      DATA LGP(15,5) / 0.000D0 /
-      DATA LGP(16,5) / 0.000D0 /
-      DATA LGP(17,5) / 62.200D0 /
-C     LEG 6
-C       LUNAR: MR Table 7-II p. 7-9, separation cutoff and ascent stage
-C       jettison; altitude the mean of the two rows
-      DATA LGP(1,6) / 360720.000D0 /
-      DATA LGP(2,6) / 487422.300D0 /
-      DATA LGP(3,6) / 362401.900D0 /
-      DATA LGP(4,6) / 1.050D0 /
-      DATA LGP(5,6) / 31.410D0 /
-      DATA LGP(6,6) / 62.000D0 /
-      DATA LGP(7,6) / 0.000D0 /
-      DATA LGP(8,6) / 0.000D0 /
-      DATA LGP(9,6) / 0.000D0 /
-      DATA LGP(10,6) / 468571.200D0 /
-      DATA LGP(11,6) / 1.100D0 /
-      DATA LGP(12,6) / 41.850D0 /
-      DATA LGP(13,6) / 0.000D0 /
-      DATA LGP(14,6) / 0.000D0 /
-      DATA LGP(15,6) / 0.000D0 /
-      DATA LGP(16,6) / 0.000D0 /
-      DATA LGP(17,6) / 62.000D0 /
-C     LEG 7
-C       LUNAR: MR Table 7-II p. 7-9, separation cutoff (1.05 N, 31.41
-C       E; the CSM's, taken for the LM, at the CSM leg's 62.0 n mi, not
-C       the row's 62.5: ours) and descent orbit insertion ignition
-C       (1.12 S, 140.20 W, 56.4 n mi); from the CSM/LM separation
-C       ignition, SP p. 104 100:39:52.90
-      DATA LGP(1,7) / 362392.900D0 /
-      DATA LGP(2,7) / 365774.000D0 /
-      DATA LGP(3,7) / 362401.900D0 /
-      DATA LGP(4,7) / 1.050D0 /
-      DATA LGP(5,7) / 31.410D0 /
-      DATA LGP(6,7) / 62.000D0 /
-      DATA LGP(7,7) / 0.000D0 /
-      DATA LGP(8,7) / 0.000D0 /
-      DATA LGP(9,7) / 0.000D0 /
-      DATA LGP(10,7) / 365774.000D0 /
-      DATA LGP(11,7) / -1.120D0 /
-      DATA LGP(12,7) / -140.200D0 /
-      DATA LGP(13,7) / 0.000D0 /
-      DATA LGP(14,7) / 0.000D0 /
-      DATA LGP(15,7) / 0.000D0 /
-      DATA LGP(16,7) / 0.000D0 /
-      DATA LGP(17,7) / 56.400D0 /
-C     LEG 8
-C       LCONIC: MR Table 7-II p. 7-9, powered descent initiation: 1.02
-C       N, 39.39 E, 6.4 n mi, 5564.9 ft/s, 0.03 deg; from DOI cutoff
-C       101:36:44.00, SP p. 104
-      DATA LGP(1,8) / 365804.000D0 /
-      DATA LGP(2,8) / 369185.000D0 /
-      DATA LGP(3,8) / 369185.000D0 /
-      DATA LGP(4,8) / 1.020D0 /
-      DATA LGP(5,8) / 39.390D0 /
-      DATA LGP(6,8) / 6.400D0 /
-      DATA LGP(7,8) / 5564.900D0 /
-      DATA LGP(8,8) / 0.030D0 /
-      DATA LGP(9,8) / 0.000D0 /
-      DATA LGP(10,8) / 0.000D0 /
-      DATA LGP(11,8) / 0.000D0 /
-      DATA LGP(12,8) / 0.000D0 /
-      DATA LGP(13,8) / 0.000D0 /
-      DATA LGP(14,8) / 0.000D0 /
-      DATA LGP(15,8) / 0.000D0 /
-      DATA LGP(16,8) / 0.000D0 /
-      DATA LGP(17,8) / 6.400D0 /
-C     LEG 9
-C       LCONIC: MR Table 7-II p. 7-9, LM orbit insertion: 0.73 N, 12.99
-C       E, 10.0 n mi, 5537.9 ft/s, 0.28 deg; to CSI ignition
-C       125:19:35.00, SP p. 104
-      DATA LGP(1,9) / 448155.700D0 /
-      DATA LGP(2,9) / 451175.000D0 /
-      DATA LGP(3,9) / 448155.700D0 /
-      DATA LGP(4,9) / 0.730D0 /
-      DATA LGP(5,9) / 12.990D0 /
-      DATA LGP(6,9) / 10.000D0 /
-      DATA LGP(7,9) / 5537.900D0 /
-      DATA LGP(8,9) / 0.280D0 /
-      DATA LGP(9,9) / 0.000D0 /
-      DATA LGP(10,9) / 0.000D0 /
-      DATA LGP(11,9) / 0.000D0 /
-      DATA LGP(12,9) / 0.000D0 /
-      DATA LGP(13,9) / 0.000D0 /
-      DATA LGP(14,9) / 0.000D0 /
-      DATA LGP(15,9) / 0.000D0 /
-      DATA LGP(16,9) / 0.000D0 /
-      DATA LGP(17,9) / 10.000D0 /
-C     LEG 10
-C       LCONIC: MR Table 7-II p. 7-9, coelliptic sequence initiation
-C       cutoff: 0.91 S, 149.57 W, 48.4 n mi, 5376.6 ft/s, 0.09 deg; to
-C       CDH ignition 126:17:49.6, MR Table 7-V p. 7-11
-      DATA LGP(1,10) / 451222.000D0 /
-      DATA LGP(2,10) / 454669.600D0 /
-      DATA LGP(3,10) / 451222.000D0 /
-      DATA LGP(4,10) / -0.910D0 /
-      DATA LGP(5,10) / -149.570D0 /
-      DATA LGP(6,10) / 48.400D0 /
-      DATA LGP(7,10) / 5376.600D0 /
-      DATA LGP(8,10) / 0.090D0 /
-      DATA LGP(9,10) / 0.000D0 /
+      DATA LGP(1,10) / 699.330D0 /
+      DATA LGP(2,10) / 9856.200D0 /
+      DATA LGP(3,10) / 699.330D0 /
+      DATA LGP(4,10) / 32.486D0 /
+      DATA LGP(5,10) / -53.459D0 /
+      DATA LGP(6,10) / 99.950D0 /
+      DATA LGP(7,10) / 25561.600D0 /
+      DATA LGP(8,10) / 0.011D0 /
+      DATA LGP(9,10) / 88.414D0 /
       DATA LGP(10,10) / 0.000D0 /
       DATA LGP(11,10) / 0.000D0 /
       DATA LGP(12,10) / 0.000D0 /
@@ -8238,20 +8257,18 @@ C       CDH ignition 126:17:49.6, MR Table 7-V p. 7-11
       DATA LGP(14,10) / 0.000D0 /
       DATA LGP(15,10) / 0.000D0 /
       DATA LGP(16,10) / 0.000D0 /
-      DATA LGP(17,10) / 48.400D0 /
+      DATA LGP(17,10) / 99.950D0 /
 C     LEG 11
-C       LCONIC: MR Table 7-II p. 7-9, terminal phase initiation
-C       ignition: 1.17 S, 110.28 W, 44.1 n mi, 5391.5 ft/s, -0.16 deg;
-C       from CDH cutoff 126:18:07.40, SP p. 104
-      DATA LGP(1,11) / 454687.400D0 /
-      DATA LGP(2,11) / 457431.800D0 /
-      DATA LGP(3,11) / 457431.800D0 /
-      DATA LGP(4,11) / -1.170D0 /
-      DATA LGP(5,11) / -110.280D0 /
-      DATA LGP(6,11) / 44.100D0 /
-      DATA LGP(7,11) / 5391.500D0 /
-      DATA LGP(8,11) / -0.160D0 /
-      DATA LGP(9,11) / 0.000D0 /
+C       CONIC: MR Table 7-II p. 7-9, translunar injection
+      DATA LGP(1,11) / 10213.200D0 /
+      DATA LGP(2,11) / 96298.700D0 /
+      DATA LGP(3,11) / 10213.200D0 /
+      DATA LGP(4,11) / 9.980D0 /
+      DATA LGP(5,11) / -164.840D0 /
+      DATA LGP(6,11) / 180.600D0 /
+      DATA LGP(7,11) / 35546.000D0 /
+      DATA LGP(8,11) / 7.370D0 /
+      DATA LGP(9,11) / 60.070D0 /
       DATA LGP(10,11) / 0.000D0 /
       DATA LGP(11,11) / 0.000D0 /
       DATA LGP(12,11) / 0.000D0 /
@@ -8259,20 +8276,18 @@ C       from CDH cutoff 126:18:07.40, SP p. 104
       DATA LGP(14,11) / 0.000D0 /
       DATA LGP(15,11) / 0.000D0 /
       DATA LGP(16,11) / 0.000D0 /
-      DATA LGP(17,11) / 44.100D0 /
+      DATA LGP(17,11) / 180.600D0 /
 C     LEG 12
-C       LCONIC: MR Table 7-II p. 7-9, terminal phase initiation cutoff:
-C       1.17 S, 111.46 W, 44.0 n mi, 5413.2 ft/s, -0.03 deg; to TPF
-C       ignition 127:46:09.80, SP p. 104
-      DATA LGP(1,12) / 457454.500D0 /
-      DATA LGP(2,12) / 459969.800D0 /
-      DATA LGP(3,12) / 457454.500D0 /
-      DATA LGP(4,12) / -1.170D0 /
-      DATA LGP(5,12) / -111.460D0 /
-      DATA LGP(6,12) / 44.000D0 /
-      DATA LGP(7,12) / 5413.200D0 /
-      DATA LGP(8,12) / -0.030D0 /
-      DATA LGP(9,12) / 0.000D0 /
+C       CONIC: MR Table 7-II p. 7-9, first midcourse correction cutoff
+      DATA LGP(1,12) / 96298.700D0 /
+      DATA LGP(2,12) / 272990.400D0 /
+      DATA LGP(3,12) / 96301.800D0 /
+      DATA LGP(4,12) / 6.000D0 /
+      DATA LGP(5,12) / -11.170D0 /
+      DATA LGP(6,12) / 109477.200D0 /
+      DATA LGP(7,12) / 5010.000D0 /
+      DATA LGP(8,12) / 76.880D0 /
+      DATA LGP(9,12) / 120.870D0 /
       DATA LGP(10,12) / 0.000D0 /
       DATA LGP(11,12) / 0.000D0 /
       DATA LGP(12,12) / 0.000D0 /
@@ -8280,99 +8295,104 @@ C       ignition 127:46:09.80, SP p. 104
       DATA LGP(14,12) / 0.000D0 /
       DATA LGP(15,12) / 0.000D0 /
       DATA LGP(16,12) / 0.000D0 /
-      DATA LGP(17,12) / 44.000D0 /
+      DATA LGP(17,12) / 109477.200D0 /
 C     LEG 13
-C       CONIC: MR Table 7-II p. 7-9, second midcourse correction
-C       ignition
-      DATA LGP(1,13) / 487573.700D0 /
-      DATA LGP(2,13) / 541797.400D0 /
-      DATA LGP(3,13) / 541797.400D0 /
-      DATA LGP(4,13) / -13.160D0 /
-      DATA LGP(5,13) / -37.790D0 /
-      DATA LGP(6,13) / 169087.200D0 /
-      DATA LGP(7,13) / 4075.000D0 /
-      DATA LGP(8,13) / -80.340D0 /
-      DATA LGP(9,13) / 129.300D0 /
-      DATA LGP(10,13) / 0.000D0 /
-      DATA LGP(11,13) / 0.000D0 /
-      DATA LGP(12,13) / 0.000D0 /
+C       LUNAR: MR Table 7-II p. 7-9, lunar orbit insertion cutoff and
+C       circularization ignition; altitude the mean of SP p. 104's
+C       169.7 by 60.0 n mi
+      DATA LGP(1,13) / 272990.400D0 /
+      DATA LGP(2,13) / 288696.800D0 /
+      DATA LGP(3,13) / 273348.000D0 /
+      DATA LGP(4,13) / 0.160D0 /
+      DATA LGP(5,13) / 167.130D0 /
+      DATA LGP(6,13) / 114.900D0 /
+      DATA LGP(7,13) / 0.000D0 /
+      DATA LGP(8,13) / 0.000D0 /
+      DATA LGP(9,13) / 0.000D0 /
+      DATA LGP(10,13) / 288696.800D0 /
+      DATA LGP(11,13) / -0.020D0 /
+      DATA LGP(12,13) / 170.090D0 /
       DATA LGP(13,13) / 0.000D0 /
       DATA LGP(14,13) / 0.000D0 /
       DATA LGP(15,13) / 0.000D0 /
       DATA LGP(16,13) / 0.000D0 /
-      DATA LGP(17,13) / 169087.200D0 /
+      DATA LGP(17,13) / 114.900D0 /
 C     LEG 14
-C       CONIC: MR Table 7-II p. 7-9, command module/service module
-C       separation
-      DATA LGP(1,14) / 541807.400D0 /
-      DATA LGP(2,14) / 702185.700D0 /
-      DATA LGP(3,14) / 701352.700D0 /
-      DATA LGP(4,14) / -35.090D0 /
-      DATA LGP(5,14) / 122.540D0 /
-      DATA LGP(6,14) / 1778.300D0 /
-      DATA LGP(7,14) / 29615.500D0 /
-      DATA LGP(8,14) / -35.260D0 /
-      DATA LGP(9,14) / 69.270D0 /
-      DATA LGP(10,14) / 0.000D0 /
-      DATA LGP(11,14) / 0.000D0 /
-      DATA LGP(12,14) / 0.000D0 /
+C       LUNAR: MR Table 7-II p. 7-9, circularization cutoff and
+C       undocking; altitude the mean of the two rows
+      DATA LGP(1,14) / 288696.800D0 /
+      DATA LGP(2,14) / 360720.000D0 /
+      DATA LGP(3,14) / 288713.500D0 /
+      DATA LGP(4,14) / -0.020D0 /
+      DATA LGP(5,14) / 169.160D0 /
+      DATA LGP(6,14) / 62.200D0 /
+      DATA LGP(7,14) / 0.000D0 /
+      DATA LGP(8,14) / 0.000D0 /
+      DATA LGP(9,14) / 0.000D0 /
+      DATA LGP(10,14) / 360720.000D0 /
+      DATA LGP(11,14) / 1.110D0 /
+      DATA LGP(12,14) / 116.210D0 /
       DATA LGP(13,14) / 0.000D0 /
       DATA LGP(14,14) / 0.000D0 /
       DATA LGP(15,14) / 0.000D0 /
       DATA LGP(16,14) / 0.000D0 /
-      DATA LGP(17,14) / 1778.300D0 /
+      DATA LGP(17,14) / 62.200D0 /
 C     LEG 15
-C       CONIC: MR Table 7-VII p. 7-12, entry interface (400 000 ft)
-      DATA LGP(1,15) / 702185.700D0 /
-      DATA LGP(2,15) / 705600.000D0 /
-      DATA LGP(3,15) / 702185.700D0 /
-      DATA LGP(4,15) / -3.190D0 /
-      DATA LGP(5,15) / 171.960D0 /
-      DATA LGP(6,15) / 65.800D0 /
-      DATA LGP(7,15) / 36194.400D0 /
-      DATA LGP(8,15) / -6.480D0 /
-      DATA LGP(9,15) / 50.180D0 /
-      DATA LGP(10,15) / 0.000D0 /
-      DATA LGP(11,15) / 0.000D0 /
-      DATA LGP(12,15) / 0.000D0 /
+C       LUNAR: MR Table 7-II p. 7-9, separation cutoff and ascent stage
+C       jettison; altitude the mean of the two rows
+      DATA LGP(1,15) / 360720.000D0 /
+      DATA LGP(2,15) / 487422.300D0 /
+      DATA LGP(3,15) / 362401.900D0 /
+      DATA LGP(4,15) / 1.050D0 /
+      DATA LGP(5,15) / 31.410D0 /
+      DATA LGP(6,15) / 62.000D0 /
+      DATA LGP(7,15) / 0.000D0 /
+      DATA LGP(8,15) / 0.000D0 /
+      DATA LGP(9,15) / 0.000D0 /
+      DATA LGP(10,15) / 468571.200D0 /
+      DATA LGP(11,15) / 1.100D0 /
+      DATA LGP(12,15) / 41.850D0 /
       DATA LGP(13,15) / 0.000D0 /
       DATA LGP(14,15) / 0.000D0 /
       DATA LGP(15,15) / 0.000D0 /
       DATA LGP(16,15) / 0.000D0 /
-      DATA LGP(17,15) / 65.800D0 /
+      DATA LGP(17,15) / 62.000D0 /
 C     LEG 16
-C       CIRC: SP p. 45 ascent table, S-IVB 1st burn cutoff: geocentric
-C       32.4541 N, -54.0565 E, space-fixed velocity 25,562.43,
-C       flight-path angle -0.001, heading 88.098; orbit 99.99 by 99.57
-C       n mi, same page
-      DATA LGP(1,16) / 694.980D0 /
-      DATA LGP(2,16) / 10237.790D0 /
-      DATA LGP(3,16) / 684.980D0 /
-      DATA LGP(4,16) / 32.454D0 /
-      DATA LGP(5,16) / -54.056D0 /
-      DATA LGP(6,16) / 99.780D0 /
-      DATA LGP(7,16) / 25562.430D0 /
-      DATA LGP(8,16) / -0.001D0 /
-      DATA LGP(9,16) / 88.098D0 /
-      DATA LGP(10,16) / 0.000D0 /
-      DATA LGP(11,16) / 0.000D0 /
-      DATA LGP(12,16) / 0.000D0 /
+C       LUNAR: MR Table 7-II p. 7-9, separation cutoff (1.05 N, 31.41
+C       E; the CSM's, taken for the LM, at the CSM leg's 62.0 n mi, not
+C       the row's 62.5: ours) and descent orbit insertion ignition
+C       (1.12 S, 140.20 W, 56.4 n mi); from the CSM/LM separation
+C       ignition, SP p. 104 100:39:52.90
+      DATA LGP(1,16) / 362392.900D0 /
+      DATA LGP(2,16) / 365774.000D0 /
+      DATA LGP(3,16) / 362401.900D0 /
+      DATA LGP(4,16) / 1.050D0 /
+      DATA LGP(5,16) / 31.410D0 /
+      DATA LGP(6,16) / 62.000D0 /
+      DATA LGP(7,16) / 0.000D0 /
+      DATA LGP(8,16) / 0.000D0 /
+      DATA LGP(9,16) / 0.000D0 /
+      DATA LGP(10,16) / 365774.000D0 /
+      DATA LGP(11,16) / -1.120D0 /
+      DATA LGP(12,16) / -140.200D0 /
       DATA LGP(13,16) / 0.000D0 /
       DATA LGP(14,16) / 0.000D0 /
       DATA LGP(15,16) / 0.000D0 /
       DATA LGP(16,16) / 0.000D0 /
-      DATA LGP(17,16) / 99.780D0 /
+      DATA LGP(17,16) / 56.400D0 /
 C     LEG 17
-C       CONIC: MR8 Table 5-II p. 5-7, translunar injection
-      DATA LGP(1,17) / 10565.500D0 /
-      DATA LGP(2,17) / 39599.500D0 /
-      DATA LGP(3,17) / 10565.500D0 /
-      DATA LGP(4,17) / 21.480D0 /
-      DATA LGP(5,17) / -143.020D0 /
-      DATA LGP(6,17) / 187.100D0 /
-      DATA LGP(7,17) / 35505.000D0 /
-      DATA LGP(8,17) / 7.900D0 /
-      DATA LGP(9,17) / 67.490D0 /
+C       LCONIC: MR Table 7-II p. 7-9, powered descent initiation: 1.02
+C       N, 39.39 E, 6.4 n mi, 5564.9 ft/s, 0.03 deg; from DOI cutoff
+C       101:36:44.00, SP p. 104
+      DATA LGP(1,17) / 365804.000D0 /
+      DATA LGP(2,17) / 369185.000D0 /
+      DATA LGP(3,17) / 369185.000D0 /
+      DATA LGP(4,17) / 1.020D0 /
+      DATA LGP(5,17) / 39.390D0 /
+      DATA LGP(6,17) / 6.400D0 /
+      DATA LGP(7,17) / 5564.900D0 /
+      DATA LGP(8,17) / 0.030D0 /
+      DATA LGP(9,17) / 0.000D0 /
       DATA LGP(10,17) / 0.000D0 /
       DATA LGP(11,17) / 0.000D0 /
       DATA LGP(12,17) / 0.000D0 /
@@ -8380,18 +8400,20 @@ C       CONIC: MR8 Table 5-II p. 5-7, translunar injection
       DATA LGP(14,17) / 0.000D0 /
       DATA LGP(15,17) / 0.000D0 /
       DATA LGP(16,17) / 0.000D0 /
-      DATA LGP(17,17) / 187.100D0 /
+      DATA LGP(17,17) / 6.400D0 /
 C     LEG 18
-C       CONIC: MR8 Table 5-II p. 5-7, first midcourse correction cutoff
-      DATA LGP(1,18) / 39599.500D0 /
-      DATA LGP(2,18) / 248900.400D0 /
-      DATA LGP(3,18) / 39601.900D0 /
-      DATA LGP(4,18) / -1.710D0 /
-      DATA LGP(5,18) / -123.750D0 /
-      DATA LGP(6,18) / 52771.700D0 /
-      DATA LGP(7,18) / 8172.000D0 /
-      DATA LGP(8,18) / 73.750D0 /
-      DATA LGP(9,18) / 120.540D0 /
+C       LCONIC: MR Table 7-II p. 7-9, LM orbit insertion: 0.73 N, 12.99
+C       E, 10.0 n mi, 5537.9 ft/s, 0.28 deg; to CSI ignition
+C       125:19:35.00, SP p. 104
+      DATA LGP(1,18) / 448155.700D0 /
+      DATA LGP(2,18) / 451175.000D0 /
+      DATA LGP(3,18) / 448155.700D0 /
+      DATA LGP(4,18) / 0.730D0 /
+      DATA LGP(5,18) / 12.990D0 /
+      DATA LGP(6,18) / 10.000D0 /
+      DATA LGP(7,18) / 5537.900D0 /
+      DATA LGP(8,18) / 0.280D0 /
+      DATA LGP(9,18) / 0.000D0 /
       DATA LGP(10,18) / 0.000D0 /
       DATA LGP(11,18) / 0.000D0 /
       DATA LGP(12,18) / 0.000D0 /
@@ -8399,61 +8421,62 @@ C       CONIC: MR8 Table 5-II p. 5-7, first midcourse correction cutoff
       DATA LGP(14,18) / 0.000D0 /
       DATA LGP(15,18) / 0.000D0 /
       DATA LGP(16,18) / 0.000D0 /
-      DATA LGP(17,18) / 52771.700D0 /
+      DATA LGP(17,18) / 10.000D0 /
 C     LEG 19
-C       LUNAR: MR8 Table 5-II p. 5-7, lunar orbit insertion cutoff and
-C       circularization ignition; altitude the mean of MR8 p. 5-3's
-C       168.5 by 60.0 n mi
-      DATA LGP(1,19) / 248900.400D0 /
-      DATA LGP(2,19) / 264907.000D0 /
-      DATA LGP(3,19) / 249147.300D0 /
-      DATA LGP(4,19) / -9.890D0 /
-      DATA LGP(5,19) / 179.560D0 /
-      DATA LGP(6,19) / 114.250D0 /
-      DATA LGP(7,19) / 0.000D0 /
-      DATA LGP(8,19) / 0.000D0 /
+C       LCONIC: MR Table 7-II p. 7-9, coelliptic sequence initiation
+C       cutoff: 0.91 S, 149.57 W, 48.4 n mi, 5376.6 ft/s, 0.09 deg; to
+C       CDH ignition 126:17:49.6, MR Table 7-V p. 7-11
+      DATA LGP(1,19) / 451222.000D0 /
+      DATA LGP(2,19) / 454669.600D0 /
+      DATA LGP(3,19) / 451222.000D0 /
+      DATA LGP(4,19) / -0.910D0 /
+      DATA LGP(5,19) / -149.570D0 /
+      DATA LGP(6,19) / 48.400D0 /
+      DATA LGP(7,19) / 5376.600D0 /
+      DATA LGP(8,19) / 0.090D0 /
       DATA LGP(9,19) / 0.000D0 /
-      DATA LGP(10,19) / 264907.000D0 /
-      DATA LGP(11,19) / -11.610D0 /
-      DATA LGP(12,19) / 160.290D0 /
+      DATA LGP(10,19) / 0.000D0 /
+      DATA LGP(11,19) / 0.000D0 /
+      DATA LGP(12,19) / 0.000D0 /
       DATA LGP(13,19) / 0.000D0 /
       DATA LGP(14,19) / 0.000D0 /
       DATA LGP(15,19) / 0.000D0 /
       DATA LGP(16,19) / 0.000D0 /
-      DATA LGP(17,19) / 114.250D0 /
+      DATA LGP(17,19) / 48.400D0 /
 C     LEG 20
-C       LUNAR: SVS 4129, head-up display at AS08-14-2383 (16:39:39.7 UT
-C       = 75:48:39.7 g.e.t.): 11.15 S, 113.80 E, 110.0 km; MR8 Table
-C       5-II p. 5-8, transearth injection ignition
-      DATA LGP(1,20) / 264907.000D0 /
-      DATA LGP(2,20) / 321556.600D0 /
-      DATA LGP(3,20) / 272919.700D0 /
-      DATA LGP(4,20) / -11.150D0 /
-      DATA LGP(5,20) / 113.800D0 /
-      DATA LGP(6,20) / 59.400D0 /
-      DATA LGP(7,20) / 0.000D0 /
-      DATA LGP(8,20) / 0.000D0 /
+C       LCONIC: MR Table 7-II p. 7-9, terminal phase initiation
+C       ignition: 1.17 S, 110.28 W, 44.1 n mi, 5391.5 ft/s, -0.16 deg;
+C       from CDH cutoff 126:18:07.40, SP p. 104
+      DATA LGP(1,20) / 454687.400D0 /
+      DATA LGP(2,20) / 457431.800D0 /
+      DATA LGP(3,20) / 457431.800D0 /
+      DATA LGP(4,20) / -1.170D0 /
+      DATA LGP(5,20) / -110.280D0 /
+      DATA LGP(6,20) / 44.100D0 /
+      DATA LGP(7,20) / 5391.500D0 /
+      DATA LGP(8,20) / -0.160D0 /
       DATA LGP(9,20) / 0.000D0 /
-      DATA LGP(10,20) / 321556.600D0 /
-      DATA LGP(11,20) / -9.270D0 /
-      DATA LGP(12,20) / 174.780D0 /
+      DATA LGP(10,20) / 0.000D0 /
+      DATA LGP(11,20) / 0.000D0 /
+      DATA LGP(12,20) / 0.000D0 /
       DATA LGP(13,20) / 0.000D0 /
       DATA LGP(14,20) / 0.000D0 /
       DATA LGP(15,20) / 0.000D0 /
       DATA LGP(16,20) / 0.000D0 /
-      DATA LGP(17,20) / 59.400D0 /
+      DATA LGP(17,20) / 44.100D0 /
 C     LEG 21
-C       CONIC: MR8 Table 5-II p. 5-8, third midcourse correction
-C       ignition
-      DATA LGP(1,21) / 321760.300D0 /
-      DATA LGP(2,21) / 374394.000D0 /
-      DATA LGP(3,21) / 374394.000D0 /
-      DATA LGP(4,21) / -5.670D0 /
-      DATA LGP(5,21) / -57.270D0 /
-      DATA LGP(6,21) / 165561.500D0 /
-      DATA LGP(7,21) / 4299.000D0 /
-      DATA LGP(8,21) / -80.590D0 /
-      DATA LGP(9,21) / 52.650D0 /
+C       LCONIC: MR Table 7-II p. 7-9, terminal phase initiation cutoff:
+C       1.17 S, 111.46 W, 44.0 n mi, 5413.2 ft/s, -0.03 deg; to TPF
+C       ignition 127:46:09.80, SP p. 104
+      DATA LGP(1,21) / 457454.500D0 /
+      DATA LGP(2,21) / 459969.800D0 /
+      DATA LGP(3,21) / 457454.500D0 /
+      DATA LGP(4,21) / -1.170D0 /
+      DATA LGP(5,21) / -111.460D0 /
+      DATA LGP(6,21) / 44.000D0 /
+      DATA LGP(7,21) / 5413.200D0 /
+      DATA LGP(8,21) / -0.030D0 /
+      DATA LGP(9,21) / 0.000D0 /
       DATA LGP(10,21) / 0.000D0 /
       DATA LGP(11,21) / 0.000D0 /
       DATA LGP(12,21) / 0.000D0 /
@@ -8461,20 +8484,19 @@ C       ignition
       DATA LGP(14,21) / 0.000D0 /
       DATA LGP(15,21) / 0.000D0 /
       DATA LGP(16,21) / 0.000D0 /
-      DATA LGP(17,21) / 165561.500D0 /
+      DATA LGP(17,21) / 44.000D0 /
 C     LEG 22
-C       CONIC: MR8 Table 5-V p. 5-10, entry interface (400 000 feet);
-C       the table prints the flight-path angle unsigned, 6.50, and
-C       entry is downward
-      DATA LGP(1,22) / 374394.000D0 /
-      DATA LGP(2,22) / 529242.000D0 /
-      DATA LGP(3,22) / 528372.800D0 /
-      DATA LGP(4,22) / 20.830D0 /
-      DATA LGP(5,22) / -179.890D0 /
-      DATA LGP(6,22) / 65.900D0 /
-      DATA LGP(7,22) / 36221.000D0 /
-      DATA LGP(8,22) / -6.500D0 /
-      DATA LGP(9,22) / 121.570D0 /
+C       CONIC: MR Table 7-II p. 7-9, second midcourse correction
+C       ignition
+      DATA LGP(1,22) / 487573.700D0 /
+      DATA LGP(2,22) / 541797.400D0 /
+      DATA LGP(3,22) / 541797.400D0 /
+      DATA LGP(4,22) / -13.160D0 /
+      DATA LGP(5,22) / -37.790D0 /
+      DATA LGP(6,22) / 169087.200D0 /
+      DATA LGP(7,22) / 4075.000D0 /
+      DATA LGP(8,22) / -80.340D0 /
+      DATA LGP(9,22) / 129.300D0 /
       DATA LGP(10,22) / 0.000D0 /
       DATA LGP(11,22) / 0.000D0 /
       DATA LGP(12,22) / 0.000D0 /
@@ -8482,27 +8504,599 @@ C       entry is downward
       DATA LGP(14,22) / 0.000D0 /
       DATA LGP(15,22) / 0.000D0 /
       DATA LGP(16,22) / 0.000D0 /
-      DATA LGP(17,22) / 65.900D0 /
-      DATA (LGSN(IBD),IBD=1,22) /
+      DATA LGP(17,22) / 169087.200D0 /
+C     LEG 23
+C       CONIC: MR Table 7-II p. 7-9, command module/service module
+C       separation
+      DATA LGP(1,23) / 541807.400D0 /
+      DATA LGP(2,23) / 702185.700D0 /
+      DATA LGP(3,23) / 701352.700D0 /
+      DATA LGP(4,23) / -35.090D0 /
+      DATA LGP(5,23) / 122.540D0 /
+      DATA LGP(6,23) / 1778.300D0 /
+      DATA LGP(7,23) / 29615.500D0 /
+      DATA LGP(8,23) / -35.260D0 /
+      DATA LGP(9,23) / 69.270D0 /
+      DATA LGP(10,23) / 0.000D0 /
+      DATA LGP(11,23) / 0.000D0 /
+      DATA LGP(12,23) / 0.000D0 /
+      DATA LGP(13,23) / 0.000D0 /
+      DATA LGP(14,23) / 0.000D0 /
+      DATA LGP(15,23) / 0.000D0 /
+      DATA LGP(16,23) / 0.000D0 /
+      DATA LGP(17,23) / 1778.300D0 /
+C     LEG 24
+C       TABLE: Apollo 11 entry: MR Table 7-VII p. 7-12 and the landing
+C       point, MR pp. 7-5 and 13-4 Rows: MR Table 7-VII p. 7-12, entry
+C       interface (400 000 ft); MR Table 7-VII p. 7-12, drogue
+C       deployment, onboard guidance position; 24,000 ft (3.950 n mi),
+C       the forward heat shield's jettison height before the drogues
+C       (Apollo 11 press kit, printed p. 90); falling at 300 ft/s, ours
+      DATA LGP(1,24) / 702185.700D0 /
+      DATA LGP(2,24) / 702726.900D0 /
+      DATA LGP(3,24) / 702185.700D0 /
+      DATA LGP(4,24) / -3.190D0 /
+      DATA LGP(5,24) / 171.960D0 /
+      DATA LGP(6,24) / 65.800D0 /
+      DATA LGP(7,24) / 36194.400D0 /
+      DATA LGP(8,24) / -6.480D0 /
+      DATA LGP(9,24) / 50.180D0 /
+      DATA LGP(10,24) / 702726.900D0 /
+      DATA LGP(11,24) / 13.300D0 /
+      DATA LGP(12,24) / -169.150D0 /
+      DATA LGP(13,24) / 300.000D0 /
+      DATA LGP(14,24) / -90.000D0 /
+      DATA LGP(15,24) / 0.000D0 /
+      DATA LGP(16,24) / 0.000D0 /
+      DATA LGP(17,24) / 3.950D0 /
+C     LEG 25
+C       TABLE: Apollo 11 entry: MR Table 7-VII p. 7-12 and the landing
+C       point, MR pp. 7-5 and 13-4 Rows: MR Table 7-VII p. 7-12, drogue
+C       deployment, onboard guidance position; 24,000 ft (3.950 n mi),
+C       the forward heat shield's jettison height before the drogues
+C       (Apollo 11 press kit, printed p. 90); falling at 300 ft/s,
+C       ours; main parachute deployment, ours (see above): 10,000 ft
+C       (1.646 n mi), then about 30 ft/s, the mean fall from there to
+C       the water
+      DATA LGP(1,25) / 702726.900D0 /
+      DATA LGP(2,25) / 702778.000D0 /
+      DATA LGP(3,25) / 702726.900D0 /
+      DATA LGP(4,25) / 13.300D0 /
+      DATA LGP(5,25) / -169.150D0 /
+      DATA LGP(6,25) / 3.950D0 /
+      DATA LGP(7,25) / 300.000D0 /
+      DATA LGP(8,25) / -90.000D0 /
+      DATA LGP(9,25) / 0.000D0 /
+      DATA LGP(10,25) / 702778.000D0 /
+      DATA LGP(11,25) / 13.300D0 /
+      DATA LGP(12,25) / -169.150D0 /
+      DATA LGP(13,25) / 30.000D0 /
+      DATA LGP(14,25) / -90.000D0 /
+      DATA LGP(15,25) / 0.000D0 /
+      DATA LGP(16,25) / 0.000D0 /
+      DATA LGP(17,25) / 1.646D0 /
+C     LEG 26
+C       TABLE: Apollo 11 entry: MR Table 7-VII p. 7-12 and the landing
+C       point, MR pp. 7-5 and 13-4 Rows: main parachute deployment,
+C       ours (see above): 10,000 ft (1.646 n mi), then about 30 ft/s,
+C       the mean fall from there to the water; MR Table 3-I p. 3-5,
+C       landing 195:18:35; MR p. 13-4, 13 deg 19 min N, 169 deg 9 min W
+C       (recovery forces); splashdown at 31 ft/s on three parachutes,
+C       Apollo 11 press kit printed p. 62
+      DATA LGP(1,26) / 702778.000D0 /
+      DATA LGP(2,26) / 703115.000D0 /
+      DATA LGP(3,26) / 702778.000D0 /
+      DATA LGP(4,26) / 13.300D0 /
+      DATA LGP(5,26) / -169.150D0 /
+      DATA LGP(6,26) / 1.646D0 /
+      DATA LGP(7,26) / 30.000D0 /
+      DATA LGP(8,26) / -90.000D0 /
+      DATA LGP(9,26) / 0.000D0 /
+      DATA LGP(10,26) / 703115.000D0 /
+      DATA LGP(11,26) / 13.317D0 /
+      DATA LGP(12,26) / -169.150D0 /
+      DATA LGP(13,26) / 31.000D0 /
+      DATA LGP(14,26) / -90.000D0 /
+      DATA LGP(15,26) / 0.000D0 /
+      DATA LGP(16,26) / 0.000D0 /
+      DATA LGP(17,26) / 0.000D0 /
+C     LEG 27
+C       TABLE: SP p. 45, Apollo 8 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 45, liftoff; SP p. 45, Mach 1 achieved
+      DATA LGP(1,27) / 0.670D0 /
+      DATA LGP(2,27) / 61.450D0 /
+      DATA LGP(3,27) / 0.670D0 /
+      DATA LGP(4,27) / 28.447D0 /
+      DATA LGP(5,27) / -80.604D0 /
+      DATA LGP(6,27) / 0.032D0 /
+      DATA LGP(7,27) / 1340.700D0 /
+      DATA LGP(8,27) / 0.000D0 /
+      DATA LGP(9,27) / 90.000D0 /
+      DATA LGP(10,27) / 61.450D0 /
+      DATA LGP(11,27) / 28.453D0 /
+      DATA LGP(12,27) / -80.581D0 /
+      DATA LGP(13,27) / 2078.400D0 /
+      DATA LGP(14,27) / 26.790D0 /
+      DATA LGP(15,27) / 85.210D0 /
+      DATA LGP(16,27) / 0.000D0 /
+      DATA LGP(17,27) / 3.971D0 /
+C     LEG 28
+C       TABLE: SP p. 45, Apollo 8 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 45, Mach 1 achieved; SP p. 45, maximum
+C       dynamic pressure
+      DATA LGP(1,28) / 61.450D0 /
+      DATA LGP(2,28) / 78.900D0 /
+      DATA LGP(3,28) / 61.450D0 /
+      DATA LGP(4,28) / 28.453D0 /
+      DATA LGP(5,28) / -80.581D0 /
+      DATA LGP(6,28) / 3.971D0 /
+      DATA LGP(7,28) / 2078.400D0 /
+      DATA LGP(8,28) / 26.790D0 /
+      DATA LGP(9,28) / 85.210D0 /
+      DATA LGP(10,28) / 78.900D0 /
+      DATA LGP(11,28) / 28.465D0 /
+      DATA LGP(12,28) / -80.540D0 /
+      DATA LGP(13,28) / 2754.700D0 /
+      DATA LGP(14,28) / 29.560D0 /
+      DATA LGP(15,28) / 82.430D0 /
+      DATA LGP(16,28) / 0.000D0 /
+      DATA LGP(17,28) / 7.252D0 /
+C     LEG 29
+C       TABLE: SP p. 45, Apollo 8 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 45, maximum dynamic pressure; SP p. 45,
+C       S-IC center engine cutoff
+      DATA LGP(1,29) / 78.900D0 /
+      DATA LGP(2,29) / 125.930D0 /
+      DATA LGP(3,29) / 78.900D0 /
+      DATA LGP(4,29) / 28.465D0 /
+      DATA LGP(5,29) / -80.540D0 /
+      DATA LGP(6,29) / 7.252D0 /
+      DATA LGP(7,29) / 2754.700D0 /
+      DATA LGP(8,29) / 29.560D0 /
+      DATA LGP(9,29) / 82.430D0 /
+      DATA LGP(10,29) / 125.930D0 /
+      DATA LGP(11,29) / 28.558D0 /
+      DATA LGP(12,29) / -80.193D0 /
+      DATA LGP(13,29) / 6213.780D0 /
+      DATA LGP(14,29) / 24.527D0 /
+      DATA LGP(15,29) / 76.572D0 /
+      DATA LGP(16,29) / 0.000D0 /
+      DATA LGP(17,29) / 22.398D0 /
+C     LEG 30
+C       TABLE: SP p. 45, Apollo 8 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 45, S-IC center engine cutoff; SP p. 45,
+C       S-IC outboard engine cutoff
+      DATA LGP(1,30) / 125.930D0 /
+      DATA LGP(2,30) / 153.820D0 /
+      DATA LGP(3,30) / 125.930D0 /
+      DATA LGP(4,30) / 28.558D0 /
+      DATA LGP(5,30) / -80.193D0 /
+      DATA LGP(6,30) / 22.398D0 /
+      DATA LGP(7,30) / 6213.780D0 /
+      DATA LGP(8,30) / 24.527D0 /
+      DATA LGP(9,30) / 76.572D0 /
+      DATA LGP(10,30) / 153.820D0 /
+      DATA LGP(11,30) / 28.686D0 /
+      DATA LGP(12,30) / -79.730D0 /
+      DATA LGP(13,30) / 8899.770D0 /
+      DATA LGP(14,30) / 20.699D0 /
+      DATA LGP(15,30) / 75.387D0 /
+      DATA LGP(16,30) / 0.000D0 /
+      DATA LGP(17,30) / 35.503D0 /
+C     LEG 31
+C       TABLE: SP p. 45, Apollo 8 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 45, S-IC outboard engine cutoff; SP p. 45,
+C       S-IC/S-II separation
+      DATA LGP(1,31) / 153.820D0 /
+      DATA LGP(2,31) / 154.470D0 /
+      DATA LGP(3,31) / 153.820D0 /
+      DATA LGP(4,31) / 28.686D0 /
+      DATA LGP(5,31) / -79.730D0 /
+      DATA LGP(6,31) / 35.503D0 /
+      DATA LGP(7,31) / 8899.770D0 /
+      DATA LGP(8,31) / 20.699D0 /
+      DATA LGP(9,31) / 75.387D0 /
+      DATA LGP(10,31) / 154.470D0 /
+      DATA LGP(11,31) / 28.689D0 /
+      DATA LGP(12,31) / -79.717D0 /
+      DATA LGP(13,31) / 8930.150D0 /
+      DATA LGP(14,31) / 20.605D0 /
+      DATA LGP(15,31) / 75.384D0 /
+      DATA LGP(16,31) / 0.000D0 /
+      DATA LGP(17,31) / 35.838D0 /
+C     LEG 32
+C       TABLE: SP p. 45, Apollo 8 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 45, S-IC/S-II separation; SP p. 45, S-II
+C       engine cutoff
+      DATA LGP(1,32) / 154.470D0 /
+      DATA LGP(2,32) / 524.040D0 /
+      DATA LGP(3,32) / 154.470D0 /
+      DATA LGP(4,32) / 28.689D0 /
+      DATA LGP(5,32) / -79.717D0 /
+      DATA LGP(6,32) / 35.838D0 /
+      DATA LGP(7,32) / 8930.150D0 /
+      DATA LGP(8,32) / 20.605D0 /
+      DATA LGP(9,32) / 75.384D0 /
+      DATA LGP(10,32) / 524.040D0 /
+      DATA LGP(11,32) / 31.549D0 /
+      DATA LGP(12,32) / -65.390D0 /
+      DATA LGP(13,32) / 22379.100D0 /
+      DATA LGP(14,32) / 0.646D0 /
+      DATA LGP(15,32) / 81.777D0 /
+      DATA LGP(16,32) / 0.000D0 /
+      DATA LGP(17,32) / 103.424D0 /
+C     LEG 33
+C       TABLE: SP p. 45, Apollo 8 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 45, S-II engine cutoff; SP p. 45,
+C       S-II/S-IVB separation
+      DATA LGP(1,33) / 524.040D0 /
+      DATA LGP(2,33) / 524.900D0 /
+      DATA LGP(3,33) / 524.040D0 /
+      DATA LGP(4,33) / 31.549D0 /
+      DATA LGP(5,33) / -65.390D0 /
+      DATA LGP(6,33) / 103.424D0 /
+      DATA LGP(7,33) / 22379.100D0 /
+      DATA LGP(8,33) / 0.646D0 /
+      DATA LGP(9,33) / 81.777D0 /
+      DATA LGP(10,33) / 524.900D0 /
+      DATA LGP(11,33) / 31.556D0 /
+      DATA LGP(12,33) / -65.334D0 /
+      DATA LGP(13,33) / 22391.600D0 /
+      DATA LGP(14,33) / 0.636D0 /
+      DATA LGP(15,33) / 81.807D0 /
+      DATA LGP(16,33) / 0.000D0 /
+      DATA LGP(17,33) / 103.460D0 /
+C     LEG 34
+C       TABLE: SP p. 45, Apollo 8 ascent phase table: geocentric
+C       latitude, altitude, space-fixed velocity, flight-path angle and
+C       heading Rows: SP p. 45, S-II/S-IVB separation; SP p. 45, S-IVB
+C       1st burn cutoff
+      DATA LGP(1,34) / 524.900D0 /
+      DATA LGP(2,34) / 684.980D0 /
+      DATA LGP(3,34) / 524.900D0 /
+      DATA LGP(4,34) / 31.556D0 /
+      DATA LGP(5,34) / -65.334D0 /
+      DATA LGP(6,34) / 103.460D0 /
+      DATA LGP(7,34) / 22391.600D0 /
+      DATA LGP(8,34) / 0.636D0 /
+      DATA LGP(9,34) / 81.807D0 /
+      DATA LGP(10,34) / 684.980D0 /
+      DATA LGP(11,34) / 32.454D0 /
+      DATA LGP(12,34) / -54.056D0 /
+      DATA LGP(13,34) / 25562.430D0 /
+      DATA LGP(14,34) / -0.001D0 /
+      DATA LGP(15,34) / 88.098D0 /
+      DATA LGP(16,34) / 0.000D0 /
+      DATA LGP(17,34) / 103.324D0 /
+C     LEG 35
+C       CIRC: SP p. 45 ascent table, S-IVB 1st burn cutoff: geocentric
+C       32.4541 N, -54.0565 E, space-fixed velocity 25,562.43,
+C       flight-path angle -0.001, heading 88.098; orbit 99.99 by 99.57
+C       n mi, same page
+      DATA LGP(1,35) / 684.980D0 /
+      DATA LGP(2,35) / 10237.790D0 /
+      DATA LGP(3,35) / 684.980D0 /
+      DATA LGP(4,35) / 32.454D0 /
+      DATA LGP(5,35) / -54.056D0 /
+      DATA LGP(6,35) / 99.780D0 /
+      DATA LGP(7,35) / 25562.430D0 /
+      DATA LGP(8,35) / -0.001D0 /
+      DATA LGP(9,35) / 88.098D0 /
+      DATA LGP(10,35) / 0.000D0 /
+      DATA LGP(11,35) / 0.000D0 /
+      DATA LGP(12,35) / 0.000D0 /
+      DATA LGP(13,35) / 0.000D0 /
+      DATA LGP(14,35) / 0.000D0 /
+      DATA LGP(15,35) / 0.000D0 /
+      DATA LGP(16,35) / 0.000D0 /
+      DATA LGP(17,35) / 99.780D0 /
+C     LEG 36
+C       CONIC: MR8 Table 5-II p. 5-7, translunar injection
+      DATA LGP(1,36) / 10565.500D0 /
+      DATA LGP(2,36) / 39599.500D0 /
+      DATA LGP(3,36) / 10565.500D0 /
+      DATA LGP(4,36) / 21.480D0 /
+      DATA LGP(5,36) / -143.020D0 /
+      DATA LGP(6,36) / 187.100D0 /
+      DATA LGP(7,36) / 35505.000D0 /
+      DATA LGP(8,36) / 7.900D0 /
+      DATA LGP(9,36) / 67.490D0 /
+      DATA LGP(10,36) / 0.000D0 /
+      DATA LGP(11,36) / 0.000D0 /
+      DATA LGP(12,36) / 0.000D0 /
+      DATA LGP(13,36) / 0.000D0 /
+      DATA LGP(14,36) / 0.000D0 /
+      DATA LGP(15,36) / 0.000D0 /
+      DATA LGP(16,36) / 0.000D0 /
+      DATA LGP(17,36) / 187.100D0 /
+C     LEG 37
+C       CONIC: MR8 Table 5-II p. 5-7, first midcourse correction cutoff
+      DATA LGP(1,37) / 39599.500D0 /
+      DATA LGP(2,37) / 248900.400D0 /
+      DATA LGP(3,37) / 39601.900D0 /
+      DATA LGP(4,37) / -1.710D0 /
+      DATA LGP(5,37) / -123.750D0 /
+      DATA LGP(6,37) / 52771.700D0 /
+      DATA LGP(7,37) / 8172.000D0 /
+      DATA LGP(8,37) / 73.750D0 /
+      DATA LGP(9,37) / 120.540D0 /
+      DATA LGP(10,37) / 0.000D0 /
+      DATA LGP(11,37) / 0.000D0 /
+      DATA LGP(12,37) / 0.000D0 /
+      DATA LGP(13,37) / 0.000D0 /
+      DATA LGP(14,37) / 0.000D0 /
+      DATA LGP(15,37) / 0.000D0 /
+      DATA LGP(16,37) / 0.000D0 /
+      DATA LGP(17,37) / 52771.700D0 /
+C     LEG 38
+C       LUNAR: MR8 Table 5-II p. 5-7, lunar orbit insertion cutoff and
+C       circularization ignition; altitude the mean of MR8 p. 5-3's
+C       168.5 by 60.0 n mi
+      DATA LGP(1,38) / 248900.400D0 /
+      DATA LGP(2,38) / 264907.000D0 /
+      DATA LGP(3,38) / 249147.300D0 /
+      DATA LGP(4,38) / -9.890D0 /
+      DATA LGP(5,38) / 179.560D0 /
+      DATA LGP(6,38) / 114.250D0 /
+      DATA LGP(7,38) / 0.000D0 /
+      DATA LGP(8,38) / 0.000D0 /
+      DATA LGP(9,38) / 0.000D0 /
+      DATA LGP(10,38) / 264907.000D0 /
+      DATA LGP(11,38) / -11.610D0 /
+      DATA LGP(12,38) / 160.290D0 /
+      DATA LGP(13,38) / 0.000D0 /
+      DATA LGP(14,38) / 0.000D0 /
+      DATA LGP(15,38) / 0.000D0 /
+      DATA LGP(16,38) / 0.000D0 /
+      DATA LGP(17,38) / 114.250D0 /
+C     LEG 39
+C       LUNAR: SVS 4129, head-up display at AS08-14-2383 (16:39:39.7 UT
+C       = 75:48:39.7 g.e.t.): 11.15 S, 113.80 E, 110.0 km; MR8 Table
+C       5-II p. 5-8, transearth injection ignition
+      DATA LGP(1,39) / 264907.000D0 /
+      DATA LGP(2,39) / 321556.600D0 /
+      DATA LGP(3,39) / 272919.700D0 /
+      DATA LGP(4,39) / -11.150D0 /
+      DATA LGP(5,39) / 113.800D0 /
+      DATA LGP(6,39) / 59.400D0 /
+      DATA LGP(7,39) / 0.000D0 /
+      DATA LGP(8,39) / 0.000D0 /
+      DATA LGP(9,39) / 0.000D0 /
+      DATA LGP(10,39) / 321556.600D0 /
+      DATA LGP(11,39) / -9.270D0 /
+      DATA LGP(12,39) / 174.780D0 /
+      DATA LGP(13,39) / 0.000D0 /
+      DATA LGP(14,39) / 0.000D0 /
+      DATA LGP(15,39) / 0.000D0 /
+      DATA LGP(16,39) / 0.000D0 /
+      DATA LGP(17,39) / 59.400D0 /
+C     LEG 40
+C       CONIC: MR8 Table 5-II p. 5-8, third midcourse correction
+C       ignition
+      DATA LGP(1,40) / 321760.300D0 /
+      DATA LGP(2,40) / 374394.000D0 /
+      DATA LGP(3,40) / 374394.000D0 /
+      DATA LGP(4,40) / -5.670D0 /
+      DATA LGP(5,40) / -57.270D0 /
+      DATA LGP(6,40) / 165561.500D0 /
+      DATA LGP(7,40) / 4299.000D0 /
+      DATA LGP(8,40) / -80.590D0 /
+      DATA LGP(9,40) / 52.650D0 /
+      DATA LGP(10,40) / 0.000D0 /
+      DATA LGP(11,40) / 0.000D0 /
+      DATA LGP(12,40) / 0.000D0 /
+      DATA LGP(13,40) / 0.000D0 /
+      DATA LGP(14,40) / 0.000D0 /
+      DATA LGP(15,40) / 0.000D0 /
+      DATA LGP(16,40) / 0.000D0 /
+      DATA LGP(17,40) / 165561.500D0 /
+C     LEG 41
+C       CONIC: MR8 Table 5-V p. 5-10, entry interface (400 000 feet);
+C       the table prints the flight-path angle unsigned, 6.50, and
+C       entry is downward
+      DATA LGP(1,41) / 374394.000D0 /
+      DATA LGP(2,41) / 528372.800D0 /
+      DATA LGP(3,41) / 528372.800D0 /
+      DATA LGP(4,41) / 20.830D0 /
+      DATA LGP(5,41) / -179.890D0 /
+      DATA LGP(6,41) / 65.900D0 /
+      DATA LGP(7,41) / 36221.000D0 /
+      DATA LGP(8,41) / -6.500D0 /
+      DATA LGP(9,41) / 121.570D0 /
+      DATA LGP(10,41) / 0.000D0 /
+      DATA LGP(11,41) / 0.000D0 /
+      DATA LGP(12,41) / 0.000D0 /
+      DATA LGP(13,41) / 0.000D0 /
+      DATA LGP(14,41) / 0.000D0 /
+      DATA LGP(15,41) / 0.000D0 /
+      DATA LGP(16,41) / 0.000D0 /
+      DATA LGP(17,41) / 65.900D0 /
+C     LEG 42
+C       TABLE: Apollo 8 entry: MR8 Tables 5-V p. 5-10, 6.9-IV p. 6-52
+C       and 3-I p. 3-4 Rows: MR8 Table 5-V p. 5-10, entry interface
+C       (400 000 feet); MR8 Table 6.9-IV p. 6-52, peak g, best-estimate
+C       trajectory, made a row by us (see above)
+      DATA LGP(1,42) / 528372.800D0 /
+      DATA LGP(2,42) / 528458.400D0 /
+      DATA LGP(3,42) / 528372.800D0 /
+      DATA LGP(4,42) / 20.830D0 /
+      DATA LGP(5,42) / -179.890D0 /
+      DATA LGP(6,42) / 65.900D0 /
+      DATA LGP(7,42) / 36221.000D0 /
+      DATA LGP(8,42) / -6.500D0 /
+      DATA LGP(9,42) / 121.570D0 /
+      DATA LGP(10,42) / 528458.400D0 /
+      DATA LGP(11,42) / 16.445D0 /
+      DATA LGP(12,42) / -173.657D0 /
+      DATA LGP(13,42) / 31288.200D0 /
+      DATA LGP(14,42) / -0.087D0 /
+      DATA LGP(15,42) / 123.411D0 /
+      DATA LGP(16,42) / 0.000D0 /
+      DATA LGP(17,42) / 30.006D0 /
+C     LEG 43
+C       TABLE: Apollo 8 entry: MR8 Tables 5-V p. 5-10, 6.9-IV p. 6-52
+C       and 3-I p. 3-4 Rows: MR8 Table 6.9-IV p. 6-52, peak g,
+C       best-estimate trajectory, made a row by us (see above); MR8
+C       Table 6.9-IV p. 6-52, start of the final phase, best-estimate
+C       trajectory, made a row by us (see above)
+      DATA LGP(1,43) / 528458.400D0 /
+      DATA LGP(2,43) / 528514.400D0 /
+      DATA LGP(3,43) / 528458.400D0 /
+      DATA LGP(4,43) / 16.445D0 /
+      DATA LGP(5,43) / -173.657D0 /
+      DATA LGP(6,43) / 30.006D0 /
+      DATA LGP(7,43) / 31288.200D0 /
+      DATA LGP(8,43) / -0.087D0 /
+      DATA LGP(9,43) / 123.411D0 /
+      DATA LGP(10,43) / 528514.400D0 /
+      DATA LGP(11,43) / 14.092D0 /
+      DATA LGP(12,43) / -170.696D0 /
+      DATA LGP(13,43) / 24881.500D0 /
+      DATA LGP(14,43) / -0.817D0 /
+      DATA LGP(15,43) / 124.580D0 /
+      DATA LGP(16,43) / 0.000D0 /
+      DATA LGP(17,43) / 31.816D0 /
+C     LEG 44
+C       TABLE: Apollo 8 entry: MR8 Tables 5-V p. 5-10, 6.9-IV p. 6-52
+C       and 3-I p. 3-4 Rows: MR8 Table 6.9-IV p. 6-52, start of the
+C       final phase, best-estimate trajectory, made a row by us (see
+C       above); MR8 Table 6.9-IV p. 6-52, drogue deployment minus 50
+C       seconds, best-estimate trajectory, made a row by us (see above)
+      DATA LGP(1,44) / 528514.400D0 /
+      DATA LGP(2,44) / 528836.400D0 /
+      DATA LGP(3,44) / 528514.400D0 /
+      DATA LGP(4,44) / 14.092D0 /
+      DATA LGP(5,44) / -170.696D0 /
+      DATA LGP(6,44) / 31.816D0 /
+      DATA LGP(7,44) / 24881.500D0 /
+      DATA LGP(8,44) / -0.817D0 /
+      DATA LGP(9,44) / 124.580D0 /
+      DATA LGP(10,44) / 528836.400D0 /
+      DATA LGP(11,44) / 8.118D0 /
+      DATA LGP(12,44) / -165.013D0 /
+      DATA LGP(13,44) / 1842.800D0 /
+      DATA LGP(14,44) / -18.777D0 /
+      DATA LGP(15,44) / 100.034D0 /
+      DATA LGP(16,44) / 0.000D0 /
+      DATA LGP(17,44) / 8.426D0 /
+C     LEG 45
+C       TABLE: Apollo 8 entry: MR8 Tables 5-V p. 5-10, 6.9-IV p. 6-52
+C       and 3-I p. 3-4 Rows: MR8 Table 6.9-IV p. 6-52, drogue
+C       deployment minus 50 seconds, best-estimate trajectory, made a
+C       row by us (see above); MR8 Table 3-I p. 3-4, drogue deployment;
+C       position MR8 Table 5-V p. 5-10, best-estimate trajectory;
+C       23,000 ft (3.785 n mi), Apollo 8 Flight Journal, day 6, PAO at
+C       146:53:57: Drogue chutes out at 23,000 feet; falling at 300
+C       ft/s, ours
+      DATA LGP(1,45) / 528836.400D0 /
+      DATA LGP(2,45) / 528887.800D0 /
+      DATA LGP(3,45) / 528836.400D0 /
+      DATA LGP(4,45) / 8.118D0 /
+      DATA LGP(5,45) / -165.013D0 /
+      DATA LGP(6,45) / 8.426D0 /
+      DATA LGP(7,45) / 1842.800D0 /
+      DATA LGP(8,45) / -18.777D0 /
+      DATA LGP(9,45) / 100.034D0 /
+      DATA LGP(10,45) / 528887.800D0 /
+      DATA LGP(11,45) / 8.100D0 /
+      DATA LGP(12,45) / -165.013D0 /
+      DATA LGP(13,45) / 300.000D0 /
+      DATA LGP(14,45) / -90.000D0 /
+      DATA LGP(15,45) / 0.000D0 /
+      DATA LGP(16,45) / 0.000D0 /
+      DATA LGP(17,45) / 3.785D0 /
+C     LEG 46
+C       TABLE: Apollo 8 entry: MR8 Tables 5-V p. 5-10, 6.9-IV p. 6-52
+C       and 3-I p. 3-4 Rows: MR8 Table 3-I p. 3-4, drogue deployment;
+C       position MR8 Table 5-V p. 5-10, best-estimate trajectory;
+C       23,000 ft (3.785 n mi), Apollo 8 Flight Journal, day 6, PAO at
+C       146:53:57: Drogue chutes out at 23,000 feet; falling at 300
+C       ft/s, ours; MR8 Table 3-I p. 3-4, main parachute deployment;
+C       10,000 ft (1.646 n mi), ours, from the crew's Should be
+C       approaching 10K ... Standby with the mains in 1 second, Apollo
+C       8 Flight Journal, day 6, 146:55:32; then about 30 ft/s, the
+C       mean fall from there to the water
+      DATA LGP(1,46) / 528887.800D0 /
+      DATA LGP(2,46) / 528938.900D0 /
+      DATA LGP(3,46) / 528887.800D0 /
+      DATA LGP(4,46) / 8.100D0 /
+      DATA LGP(5,46) / -165.013D0 /
+      DATA LGP(6,46) / 3.785D0 /
+      DATA LGP(7,46) / 300.000D0 /
+      DATA LGP(8,46) / -90.000D0 /
+      DATA LGP(9,46) / 0.000D0 /
+      DATA LGP(10,46) / 528938.900D0 /
+      DATA LGP(11,46) / 8.100D0 /
+      DATA LGP(12,46) / -165.013D0 /
+      DATA LGP(13,46) / 30.000D0 /
+      DATA LGP(14,46) / -90.000D0 /
+      DATA LGP(15,46) / 0.000D0 /
+      DATA LGP(16,46) / 0.000D0 /
+      DATA LGP(17,46) / 1.646D0 /
+C     LEG 47
+C       TABLE: Apollo 8 entry: MR8 Tables 5-V p. 5-10, 6.9-IV p. 6-52
+C       and 3-I p. 3-4 Rows: MR8 Table 3-I p. 3-4, main parachute
+C       deployment; 10,000 ft (1.646 n mi), ours, from the crew's
+C       Should be approaching 10K ... Standby with the mains in 1
+C       second, Apollo 8 Flight Journal, day 6, 146:55:32; then about
+C       30 ft/s, the mean fall from there to the water; MR8 Table 3-I
+C       p. 3-4, landing; MR8 p. 9-4, 8 deg 7.5 min N, 165 deg 1.2 min W
+C       (recovery forces); splashdown at 31 ft/s on three parachutes,
+C       Apollo 11 press kit printed p. 62
+      DATA LGP(1,47) / 528938.900D0 /
+      DATA LGP(2,47) / 529242.000D0 /
+      DATA LGP(3,47) / 528938.900D0 /
+      DATA LGP(4,47) / 8.100D0 /
+      DATA LGP(5,47) / -165.013D0 /
+      DATA LGP(6,47) / 1.646D0 /
+      DATA LGP(7,47) / 30.000D0 /
+      DATA LGP(8,47) / -90.000D0 /
+      DATA LGP(9,47) / 0.000D0 /
+      DATA LGP(10,47) / 529242.000D0 /
+      DATA LGP(11,47) / 8.125D0 /
+      DATA LGP(12,47) / -165.020D0 /
+      DATA LGP(13,47) / 31.000D0 /
+      DATA LGP(14,47) / -90.000D0 /
+      DATA LGP(15,47) / 0.000D0 /
+      DATA LGP(16,47) / 0.000D0 /
+      DATA LGP(17,47) / 0.000D0 /
+      DATA (LGSN(IBD),IBD=1,47) /
+     1 1,1,1,1,1,1,1,1,1,1,
+     1 1,1,1,1,1,1,1,1,1,1,
+     1 1,1,1,1,1,1,2,2,2,2,
+     1 2,2,2,2,2,2,2,2,2,2,
+     1 2,2,2,2,2,2,2/
+      DATA (LGTYP(IBD),IBD=1,47) /
+     1 5,5,5,5,5,5,5,5,5,1,
+     1 2,2,3,3,3,3,4,4,4,4,
+     1 4,2,2,5,5,5,5,5,5,5,
+     1 5,5,5,5,1,2,2,3,3,2,
+     1 2,5,5,5,5,5,5/
+      DATA (LGN(IBD),IBD=1,47) /
+     1 0,0,0,0,0,0,0,0,0,0,
+     1 0,0,1,10,14,0,0,0,0,0,
+     1 0,0,0,2,3,3,0,0,0,0,
+     1 0,0,0,0,0,0,0,2,6,0,
+     1 0,0,0,0,2,3,3/
+      DATA (LGGC(IBD),IBD=1,47) /
+     1 1,1,1,1,1,1,1,1,1,1,
+     1 0,0,0,0,0,0,0,0,0,0,
+     1 0,0,0,0,0,0,1,1,1,1,
+     1 1,1,1,1,1,0,0,0,0,0,
+     1 0,0,0,0,0,0,0/
+      DATA (LGVEH(IBD),IBD=1,47) /
      1 1,1,1,1,1,1,1,1,1,1,
      1 1,1,1,1,1,2,2,2,2,2,
-     1 2,2/
-      DATA (LGTYP(IBD),IBD=1,22) /
-     1 1,2,2,3,3,3,3,4,4,4,
-     1 4,4,2,2,2,1,2,2,3,3,
-     1 2,2/
-      DATA (LGN(IBD),IBD=1,22) /
-     1 0,0,0,1,10,14,0,0,0,0,
-     1 0,0,0,0,0,0,0,0,2,6,
-     1 0,0/
-      DATA (LGGC(IBD),IBD=1,22) /
-     1 1,0,0,0,0,0,0,0,0,0,
-     1 0,0,0,0,0,1,0,0,0,0,
-     1 0,0/
-      DATA (LGVEH(IBD),IBD=1,22) /
-     1 1,1,1,1,1,1,2,2,2,2,
-     1 2,2,1,1,1,1,1,1,1,1,
-     1 1,1/
+     1 2,1,1,1,1,1,1,1,1,1,
+     1 1,1,1,1,1,1,1,1,1,1,
+     1 1,1,1,1,1,1,1/
 C     EVENT 1
 C       TDATT: Apollo 11 Flight Journal 002:54:09: S-IVB manoeuvre to
 C       separation attitude to be completed at plus 09 plus 20

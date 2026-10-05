@@ -150,7 +150,7 @@ def craters():
 
 
 # Scenarios (run decks).  Codes shared with the kernel through viewdims.inc.
-LEG_TYPES = {"CIRC": 1, "CONIC": 2, "LUNAR": 3, "LCONIC": 4}
+LEG_TYPES = {"CIRC": 1, "CONIC": 2, "LUNAR": 3, "LCONIC": 4, "TABLE": 5}
 LEG_VEH = {"CSM": 1, "LM": 2}
 EVENT_KINDS = {"TDATT": 1, "SEP": 2, "APPR": 3, "DOCK": 4, "UNDOCK": 5, "TOUCH": 6, "EI": 7,
                "PTC": 8, "TLI": 9, "LOI1": 10, "LOI2": 11, "PHOTO": 12, "TEI": 13,
@@ -176,6 +176,7 @@ CARD_KEYS = {
     "PAD": {"NAME", "LAT", "LON", "LATTYPE", "SRC"},
     "LEG": {"TYPE", "FROM", "TO", "T", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG",
             "TB", "LATB", "LONB", "N", "VEH", "DV", "P", "R", "ALTB", "SRC"},
+    "ROW": {"T", "LAT", "LON", "ALT", "V", "FPA", "HDG", "VEL", "SRC"},
     "EVENT": {"KIND", "T", "SRC"},
     "TIMELINE": {"T", "KIND", "NAME", "SRC"},
     "START": {"T", "END", "BODY", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG", "SRC"},
@@ -194,23 +195,59 @@ def get_s(v):
     return -s if neg else s
 
 
+def table_legs(name, tab):
+    """A LEG TYPE=TABLE and its ROW cards as one leg per pair of rows in g.e.t. order (type
+    TABLE, the kernel's KTABL): LGP 3-9 the first row's T LAT LON ALT V FPA HDG, 10-12 the second's
+    T LAT LON, 13-15 its V FPA HDG, 17 its ALT; LGN bit 1 (value 1) the first row's velocity
+    Earth-fixed (VEL=EF), bit 2 (value 2) the second's; FROM and TO the two rows' times."""
+    rows = tab["rows"]
+    assert len(rows) >= 2, f"{name}: a TABLE leg needs two ROW cards or more"
+    assert all(a["t"] < b["t"] for a, b in zip(rows, rows[1:])), f"{name}: TABLE rows out of order"
+    out = []
+    for a, b in zip(rows, rows[1:]):
+        fa, fb = a["f"], b["f"]
+        p = [a["t"], b["t"], a["t"], *fa, b["t"], fb[0], fb[1], fb[3], fb[4], fb[5], 0.0, fb[2]]
+        assert len(p) == NLGP
+        out.append({"m": tab["m"], "type": LEG_TYPES["TABLE"], "p": p, "gc": tab["gc"],
+                    "veh": tab["veh"], "n": a["ef"] + 2 * b["ef"],
+                    "src": f"TABLE: {tab['src']} Rows: {a['src']}; {b['src']}"})
+    return out
+
+
 def scenarios():
     """Parse data/scenarios/*.scn.  Returns scenarios (dicts with id, mission, name, jd,
     site, sources), legs and events, each carrying its scenario id and source string."""
     mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": [], "tl": []}
     for path in sorted((D / "scenarios").glob("*.scn")):
-        cur = None
-        for ln in path.read_text().splitlines():
-            if not ln.strip() or ln.startswith("*"):
+        cur, tab = None, None
+        for ln in path.read_text().splitlines() + ["*END"]:
+            if not ln.strip() or (ln.startswith("*") and ln != "*END"):
                 continue
-            tok = shlex.split(ln)
+            tok = shlex.split(ln) if ln != "*END" else ["*END"]
             kind, kv = tok[0], dict(t.split("=", 1) for t in tok[1:])
+            if tab is not None and kind != "ROW":
+                legs += table_legs(path.name, tab)
+                tab = None
+            if kind == "*END":
+                break
             if kind not in CARD_KEYS:
                 print(f"warning: {path.name}: unknown card {kind}, ignored")
                 continue
             for k in sorted(set(kv) - CARD_KEYS[kind]):
                 print(f"warning: {path.name}: {kind} card: unknown key {k}, ignored")
-            if kind == "SCENARIO":
+            if kind == "ROW":
+                assert tab is not None, f"{path.name}: ROW card outside a LEG TYPE=TABLE"
+                assert kv.get("VEL", "SF") in ("SF", "EF"), f"{path.name}: ROW VEL= SF or EF"
+                tab["rows"].append({"t": get_s(kv["T"]),
+                                    "f": [float(kv[k]) for k in ("LAT", "LON", "ALT", "V", "FPA",
+                                                                 "HDG")],
+                                    "ef": 1 if kv.get("VEL", "SF") == "EF" else 0,
+                                    "src": kv.get("SRC", "")})
+            elif kind == "LEG" and kv["TYPE"] == "TABLE":
+                tab = {"m": cur["n"], "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
+                       "veh": LEG_VEH[kv.get("VEH", "CSM")], "src": kv.get("SRC", ""),
+                       "rows": []}
+            elif kind == "SCENARIO":
                 cur = {"n": int(kv["ID"]), "name": kv["MISSION"] + " " + kv["NAME"], "jd": None,
                        "site": (0.0, 0.0, 0.0), "pad": ("", 0.0, 0.0, 0), "src": []}
                 mis.append(cur)
@@ -388,7 +425,7 @@ def main():
            "C     Scenarios (data/scenarios): scenarios, trajectory legs of",
            "C     NLGP parameters, events; leg types and event kinds.",
            "      INTEGER NSN, NLEG, NEVT, NLGP",
-           "      INTEGER KCIRC, KCONIC, KLUNAR, KLCON",
+           "      INTEGER KCIRC, KCONIC, KLUNAR, KLCON, KTABL",
            *["      INTEGER " + ", ".join(list(EVENT_PARAMS.values())[i:i + 8])
              for i in range(0, len(EVENT_PARAMS), 8)],
            "C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77",
@@ -401,7 +438,7 @@ def main():
            f"      PARAMETER (NTL={max(1, len(sim['tl']))})",
            "      PARAMETER (" + ", ".join(f"K{k}={v}" for k, v in
                                         (("CIRC", 1), ("CONIC", 2), ("LUNAR", 3),
-                                         ("LCON", 4))) + ")",
+                                         ("LCON", 4), ("TABL", 5))) + ")",
            *["      PARAMETER (" + ", ".join(f"{EVENT_PARAMS[k]}={v}" for k, v in
                                          list(EVENT_KINDS.items())[i:i + 4]) + ")"
              for i in range(0, len(EVENT_KINDS), 4)],
@@ -453,7 +490,10 @@ def main():
          "C              6 ALT (n mi), 7 V (ft/s), 8 FPA, 9 HDG (deg),",
          "C              10 TB (s), 11 LATB, 12 LONB (deg), LCONIC 13 DV",
          "C              (ft/s), 14 P, 15 R, 16 N, 17 ALTB (n mi; LUNAR, the",
-         "C              altitude at TB).  Vehicle LGVEH: 1 CSM, 2 LM.",
+         "C              altitude at TB).  TABLE (one leg per pair of rows):",
+         "C              3-9 row A, 10-12 row B's T LAT LON, 13-15 its V FPA",
+         "C              HDG, 17 its ALT; LGN 1 A's, 2 B's velocity Earth",
+         "C              fixed.  Vehicle LGVEH: 1 CSM, 2 LM.",
          "C              Event J of scenario EVSN(J), kind EVKND, g.e.t. EVT (s).",
          "      DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)",
          "      DOUBLE PRECISION SNSAZ(NSN)",

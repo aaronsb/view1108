@@ -425,7 +425,18 @@ conic from a state, no lunar gravity), `LUNAR` (circle about the Moon through tw
 plane and mean motion from them; with `ALTB=` its radius moves steadily from the first state's
 altitude to the second's), `LCONIC` (Moon-centred conic from a state whose horizontal direction
 lies in the CSM's lunar leg's plane, or from the same vehicle's previous leg plus an impulse,
-`DV= P= R= N=`). `VEH=CSM|LM` names the vehicle a leg carries (default CSM); the Apollo 11
+`DV= P= R= N=`), `TABLE` (listed states, the `ROW` cards after it, joined by cubic Hermite arcs
+through each pair's positions with their velocities as end slopes, `TABRV`; a row's velocity is
+space-fixed or, `VEL=EF`, relative to the turning Earth; before the first row and after the last
+the vehicle stands at that row's place on the Earth; near the ground a row is lifted onto the
+drawn sphere of radius RE, fully at the ground and not at all from 50 n mi up). Each scenario
+has two: the ascent (SP-4029's ascent table, lift-off to S-IVB first cutoff, where the CIRC leg
+now begins; the CSM on the pad before lift-off) and the entry (entry interface to splashdown:
+Apollo 11 MR Table 7-VII and the landing point; Apollo 8 MR8 Tables 5-V and 6.9-IV, the
+best-estimate states turned onto the drogue position as the scenario explains, and Table 3-I's
+parachute times; the CM at the splash point after). From entry interface (the EI event) on,
+`VSTATE` takes the CSM from the replay even when the tape is the source: the engine flies in a
+vacuum. `VEH=CSM|LM` names the vehicle a leg carries (default CSM); the Apollo 11
 scenario has six LM legs from separation to TPF (MR Table 7-II p. 7-9 rows, SP-4029 p. 104
 burns). The Apollo 11 as-flown scenario uses the Mission Report's Table 7-II and
 7-VII states and SP-4029's ascent table; the Apollo 8 one the Apollo 8 Mission Report's
