@@ -555,6 +555,10 @@ C     where marked):
 C       before UNDOCK, and from LMDOK to JETT: docked;
 C       UNDOCK to LMSEP: 300 ft from the CSM along the orbit normal,
 C         the pirouette's distance (scene 4; ours);
+C       LMSEP to LMSEP + 300 s: its first leg plus its offset from that
+C         leg at LMSEP, dying away linearly, so the LM leaves the 300 ft
+C         point without a jump (ours: the drift, about 1 ft/s, is of the
+C         order of the separation burn's 1.4 ft/s, MR Table 7-V p. 7-11);
 C       TOUCH - 600 s to TOUCH: the modelled descent (LMDESC);
 C       TOUCH to LIFT: landed at the site;
 C       TPF to LMDOK: the CSM plus the LM's offset from it at TPF on
@@ -575,11 +579,13 @@ C     RESTOMOD END
       INTEGER IOK
       DOUBLE PRECISION TU, TS, TF, TD, TJ, TL, F, D(3), DV(3), H(3)
       DOUBLE PRECISION PMF(3), P2(3), XB(3), YB(3), ZB(3), M(3,3)
-      DOUBLE PRECISION SALT, SEYE, W, LMLOC, EVGET
+      DOUBLE PRECISION SALT, SEYE, W, LMLOC, TBL, EVGET
       INTEGER I, K, LMLEG
 C     Body point of the state above the footpads (km): the stage joint
 C     at X = 2.3 m, the gear's pads at X = -1.1 m (LMGEAR).
       LMLOC = 3.4D-3
+C     The separation's blend time (s; ours).
+      TBL = 300.0D0
       IOK = 0
       TU = EVGET(KEUND)
       IF (TU .LT. 0.0D0) RETURN
@@ -600,6 +606,20 @@ C     at X = 2.3 m, the gear's pads at X = -1.1 m (LMGEAR).
       IF (K .EQ. 0) RETURN
       CALL LEGRV(K, GET, R, V)
       IOK = 1
+      IF (TS .LT. 0.0D0 .OR. GET .GE. TS + TBL) RETURN
+      IF (LMLEG(TS) .NE. K) RETURN
+C     Just after the separation: the offset at LMSEP of the 300 ft
+C     point (label 20) from the leg, dying away over TBL.
+      CALL LEGRV(K, TS, D, DV)
+      CALL CSMSL(TS, P2, XB)
+      CALL VCRS(P2, XB, H)
+      CALL VUNIT(H)
+      F = 1.0D0 - (GET - TS) / TBL
+      DO 5 I = 1, 3
+        D(I) = P2(I) + 300.0D0 * 0.3048D-3 * H(I) - D(I)
+        R(I) = R(I) + F * D(I)
+        V(I) = V(I) - D(I) / TBL
+    5 CONTINUE
       RETURN
 C     Docked: the CSM.
    10 CALL CSMSL(GET, R, V)
@@ -645,6 +665,7 @@ C     LMDESC's LMALT and LMEYE belong to scene 5's frame: kept.
       LMEYE = SEYE
       CALL MOONRT(GET, M)
       CALL MXV(M, PMF, R)
+      CALL MOONRT(GET + 1.0D0, M)
       CALL MXV(M, P2, H)
       DO 45 I = 1, 3
         V(I) = H(I) - R(I)

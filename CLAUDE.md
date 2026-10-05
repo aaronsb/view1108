@@ -306,7 +306,8 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
 4. **LM rendezvous** — LM wireframe seen from the CSM, turning in place (the post-undocking
    inspection pirouette). (`t22.png`, `t25.png`) The LM sits at its state (`LMSTAT`: 300 ft
    along the orbit normal from undocking to the separation burn, ours), so later in the scene
-   it drifts away on its own leg, and it is not drawn where it has no state of its own.
+   it drifts away on its own leg, and it is not drawn where it has no state of its own nor
+   from touchdown on (the gear-down model, as `VEHPL`).
 5. **LM descent** — LM front window with the LPD scale, horizon rising through the window
    during pitch-over, flattened craters. (`t28.png`, `t31.png`, `t35.png`)
 6. **Moon view** — a modern addition (the inspiration is a present-day VIEW-style plot, not a
@@ -371,10 +372,12 @@ CSM label when those two would touch. A placed model spanning less than 0.2% of 
 (about one plot pixel), and a vehicle known only by its state (`VSTATE`: not placed, not
 ridden by the camera, `IRIDE`), gets the small boxed X of scene 6's landing site at its
 centre and its name at the first free corner of the box, hidden behind the Earth or Moon. The
-LM is not marked while docked (the CSM stands for both) nor where it has no state.
+LM is not marked while docked (the CSM stands for both), nor where it has no state, nor in
+scene 6 while landed (TOUCH to LIFT: the landing site's boxed X stands for it; ours).
 The LM's state (`LMSTAT` in `traj.f`, keyed to the scenario's events; ours where marked):
 docked (the CSM's) before UNDOCK and from LMDOK to JETT; from UNDOCK to LMSEP 300 ft from the
-CSM along the orbit normal (ours); its VEH=LM legs (and gaps of 60 s or less between them, the
+CSM along the orbit normal (ours), that offset from its first leg dying away over the 300 s
+after LMSEP (ours); its VEH=LM legs (and gaps of 60 s or less between them, the
 burns; ours); LMDESC from 600 s before TOUCH to TOUCH; the landing site from TOUCH to LIFT; from
 TPF to LMDOK the CSM plus the LM's offset from it at TPF, closing linearly to nothing (ours);
 none during the powered descent before LMDESC, the powered ascent, after JETT, or in a scenario

@@ -26,7 +26,8 @@ C         vehicles known only by their state (VSTATE): one not placed
 C         as a model, which the camera does not ride (IRIDE), where it
 C         has a state.  The LM has one only where LMSTAT's rules (traj.f)
 C         give it one; docked to the CSM it is not marked (the CSM's
-C         mark or model stands for both).
+C         mark or model stands for both), nor in the Moon view (scene
+C         6) while landed (the landing site's box stands for it).
 C       A label that would leave the frame or meet a name already
 C         lettered (the other layers' labels, VLSEED, or a vehicle's)
 C         tries the other side of its vehicle, then is dropped.
@@ -46,6 +47,7 @@ C     RESTOMOD END
       DOUBLE PRECISION XA(64), XB(64), YA(64)
       DOUBLE PRECISION YB(64), XM(8), YM(8), H, TINY, C(3), P(3), Q(3)
       DOUBLE PRECISION R(3), V(3), XMN, XMX, YMN, YMX, X1, Y1, X2, Y2
+      DOUBLE PRECISION TL, EVGET
       INTEGER KORD(4), IDM(4), NCH(5), M, K, N, J, NP, NP0, NM, IOK
       INTEGER ISD, IRIDE
       DATA KORD / KCSM, KLMD, KLMS, KSIV /
@@ -103,7 +105,9 @@ C       the SM (the rest) on the same side with the CM's box counted.
    50 CONTINUE
 C
 C     The CSM and the LM from their states, where they are not placed
-C     and the camera does not ride them; the LM not while docked.
+C     and the camera does not ride them; the LM not while docked, nor
+C     in the Moon view while it stands at the landing site, whose boxed
+C     X (DMOON6) stands for it there.
       IF (MDON(KCSM) .EQ. 1 .OR. IRIDE() .EQ. 1) GO TO 60
       CALL VSTATE(GET, 1, 2, R, V, IOK)
       DO 55 J = 1, 3
@@ -113,6 +117,9 @@ C     and the camera does not ride them; the LM not while docked.
      &            XM, YM, NM)
    60 IF (MDON(KLMD) .EQ. 1 .OR. MDON(KLMS) .EQ. 1) RETURN
       IF (IRIDE() .EQ. 2) RETURN
+      TL = EVGET(KELFT)
+      IF (ISCN .EQ. 6 .AND. LUT0 .GT. 0.0D0 .AND. GET .GE. LUT0
+     &    .AND. (TL .LT. 0.0D0 .OR. GET .LT. TL)) RETURN
       CALL VSTATE(GET, 2, 2, R, V, IOK)
       IF (IOK .NE. 1) RETURN
       DO 65 J = 1, 3

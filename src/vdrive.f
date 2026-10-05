@@ -709,7 +709,8 @@ C-----------------------------------------------------------------------
 C     LMPIRO: the LM at its state (LMSTAT: 300 ft out along the orbit
 C     normal from undocking to the separation burn), turning slowly for
 C     inspection (scene 4); not placed where it has no state of its
-C     own (LMREL).
+C     own (LMREL), nor from touchdown on, as in VEHPL (the gear-down
+C     model is the LM with its descent stage).
 C-----------------------------------------------------------------------
       SUBROUTINE LMPIRO(GET, PM, CG)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -721,6 +722,7 @@ C     RESTOMOD END
       DOUBLE PRECISION BX(3,3), LP(3), BO(3), V(3), T, PS, TH, PH, C
       DOUBLE PRECISION EVGET, VDOT
       INTEGER I, IOK
+      IF (LUT0 .GT. 0.0D0 .AND. GET .GE. LUT0) RETURN
       CALL LMREL(GET, PM, CG, LP, V, IOK)
       IF (IOK .EQ. 0) RETURN
 C     Body axes: X up (the reference up made square to the line of
