@@ -62,6 +62,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Layer 7 | `lcoas.f` | COAS reticle (scene 7) |
 | Layer 8 | `lshad.f` | LM shadow (scene 5) |
 | Layer 9 | `llpd.f` | LPD scale and LM window (scene 5) |
+| Layer 10 | `lburn.f` | burn cue: exhaust of a placed vehicle firing a main engine, and its BURN text (a modern addition) |
 
 Every layer is a subroutine with the argument list `(GET, VB, NV, SB, NS, LB, NL)`. To add one:
 a new file, the next id and one `CALL` in `LAYERS`, and the id in the scene lists there. The
@@ -252,7 +253,9 @@ Outputs (written by the kernel):
   MOON beside their `lbuf` labels when bit 0 is set, height 1.4% of the field; in scene 6 also
   mare/lacus/sinus/oceanus names centred on their centres and "APOLLO 11 LANDING SITE"; at
   `in_lablv` 1 and up the vehicle names ("CM", "SM", "LM", "S-IVB", "CSM") and the pad's name
-  from its PAD card ("LC-39A"). The kernel
+  from its PAD card ("LC-39A"); at `in_lablv` 1 and up, in a window or station view from a
+  vehicle firing a main engine, "SPS BURN", "DPS BURN", "APS BURN" or "S-IVB BURN" in the
+  box's top left corner (the burn cue, below). The kernel
   assumes a character width of 0.7 × height for alignment. Crater names stay in `lbuf`
   (kind 2) for the page. MAXT = 300, MAXTC = 6000.
 
@@ -400,6 +403,23 @@ scenario's PAD card, LC-39A for Apollo 11: SP-4029 printed p. 103, geocentric 28
 -80.6041 E, made geodetic to sit on the coastlines' footing) is the same boxed X on the
 Earth, turned with it like the coastlines, hidden on the far side, drawn once the Earth's disc
 is too large for its EARTH name.
+
+Burn cue (`src/lburn.f`, layer 10 in every scene but 6), all ours, a modern addition: no
+source we hold shows VIEW marking an engine firing. The firings are the main-engine burns of
+each scenario, from its TIMELINE rows: `tools/gen_data.py` `BURN_CUES` pairs SP-4029's
+ignition and cutoff rows by name and says whose engine each is (SPS, DPS, APS, the S-IVB's
+J-2) and from what source (the rows' names, MR Tables 7-III and 7-V via the BURN cards, or our
+reading of an Apollo 8 BURN card's rate); `/CBRN/` in BLOCK DATA. RCS firings and the S-IVB's
+APS slingshot burn are left out. While a vehicle burns, its placed model (`KCSPL`, `KLMPL`,
+`KSIV`) gets 8 exhaust lines out of its engine's exit rim along the model's -X, opening 10°
+each side, three model lengths long, hidden by placed solids like a free line (`LMSEG`); the
+SPS exit is CSMBLD's nozzle, the others ours. No burn attitude is modelled: the exhaust leaves
+-X of the model as the scene places it, so an external view starting behind the CSM looks up its
+exhaust. The text record (`IBRTX`, lettered by `TXALL`) is for the vehicle the camera rides
+(`IRIDE`; the S-IVB's while the CSM rides on it, before SEP; none for the LM station while the
+docked CSM fires). Exhaust and text are drawn only at `in_lablv` 1-3, so `in_lablv` 0 frames
+are unchanged. Of the scenes' defaults only
+scene 5's (102:42:00, the powered descent) falls in a burn: "DPS BURN" at `in_lablv` 1-3.
 
 Drawing conventions from TN D-6853 (Hyle & Lunde 1972): night sides are straight parallel
 "shading lines"; the 37 prime nav stars are named; the background catalog runs to V 4.5;

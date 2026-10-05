@@ -84,6 +84,15 @@ C              Names are in build/names.js only.
       INTEGER TLK(NTL), TLSN(NTL)
       COMMON /CTLN/ TLT
       COMMON /CTLNI/ TLK, TLSN
+C     /CBRN/   the burn cue's main-engine firings (BURN_CUES in
+C              tools/gen_data.py, from the TIMELINE rows): row K of
+C              scenario BRSN(K) burns from g.e.t. BRT1(K) to BRT2(K)
+C              (s), vehicle BRVH(K) (1 CSM, 2 LM, 3 S-IVB), engine
+C              BREN(K) (1 SPS, 2 DPS, 3 APS, 4 J-2); NBR used.
+      DOUBLE PRECISION BRT1(NBRN), BRT2(NBRN)
+      INTEGER BRSN(NBRN), BRVH(NBRN), BREN(NBRN), NBR
+      COMMON /CBRN/ BRT1, BRT2
+      COMMON /CBRNI/ BRSN, BRVH, BREN, NBR
       DATA (STX(IBD),IBD=1,95) /
      1 0.8732303D0,0.9339783D0,0.4741745D0,0.4927472D0,0.0100797D0,
      1 0.5432930D0,0.6981733D0,0.4048882D0,0.3437950D0,0.1949505D0,
@@ -9394,6 +9403,81 @@ C       velocity by 4.8 ft/sec
      1 2,2,2,2,2,2,2,2,2,2,
      1 2,2,2,2,2,2,2,2,2,2,
      1 2,2,2,2,2/
+C     BURN CUE 1
+C       S-IVB 1st burn ignition to S-IVB 1st burn cutoff: S-IVB J-2,
+C       the rows name the stage
+C     BURN CUE 2
+C       S-IVB 2nd burn ignition (STDV open) to S-IVB 2nd burn cutoff:
+C       S-IVB J-2, the rows name the stage
+C     BURN CUE 3
+C       CSM/LM evasive maneuver from S-IVB ignition to CSM/LM evasive
+C       maneuver from S-IVB cutoff: CSM SPS, MR Table 7-III p. 7-10,
+C       the scenario's BURN card
+C     BURN CUE 4
+C       Midcourse correction ignition to Midcourse correction cutoff:
+C       CSM SPS, MR Table 7-III p. 7-10, the scenario's BURN card (the
+C       first such pair, 26:44:58.64)
+C     BURN CUE 5
+C       Lunar orbit insertion ignition to Lunar orbit insertion cutoff:
+C       CSM SPS, MR Table 7-V p. 7-11, the scenario's BURN card
+C     BURN CUE 6
+C       Lunar orbit circularization ignition to Lunar orbit
+C       circularization cutoff: CSM SPS, MR Table 7-V p. 7-11, the
+C       scenario's BURN card
+C     BURN CUE 7
+C       LM descent orbit insertion ignition (LM SPS) to LM descent
+C       orbit insertion cutoff: LM DPS, the row's LM SPS, the descent
+C       stage's engine (SP p. 107)
+C     BURN CUE 8
+C       LM powered descent engine ignition to LM powered descent engine
+C       cutoff: LM DPS, the rows (SP p. 107)
+C     BURN CUE 9
+C       LM lunar liftoff ignition (LM APS) to LM orbit insertion
+C       cutoff: LM APS, the row's LM APS (SP p. 108)
+C     BURN CUE 10
+C       Transearth injection ignition (SPS) to Transearth injection
+C       cutoff: CSM SPS, the row's SPS (SP p. 109)
+C     BURN CUE 11
+C       S-IVB 1st burn ignition to S-IVB 1st burn cutoff: S-IVB J-2,
+C       the rows name the stage
+C     BURN CUE 12
+C       S-IVB 2nd burn ignition to S-IVB 2nd burn cutoff: S-IVB J-2,
+C       the rows name the stage
+C     BURN CUE 13
+C       Midcourse correction ignition to Midcourse correction cutoff:
+C       CSM SPS, ours: the BURN card's 20.4 ft/s in 2.4 s (SP p. 46) is
+C       beyond the SM RCS (the first such pair)
+C     BURN CUE 14
+C       Lunar orbit insertion ignition to Lunar orbit insertion cutoff:
+C       CSM SPS, ours: the BURN card's 2,997 ft/s (SP p. 46) is the
+C       SPS's
+C     BURN CUE 15
+C       Lunar orbit circularization ignition to Lunar orbit
+C       circularization cutoff: CSM SPS, ours: the BURN card's 134.8
+C       ft/s in 9.6 s (SP p. 46) is beyond the SM RCS
+C     BURN CUE 16
+C       Transearth injection ignition (SPS) to Transearth injection
+C       cutoff: CSM SPS, the row's SPS (SP p. 49)
+      DATA (BRT1(IBD),IBD=1,16) /
+     1 552.20D0,9856.20D0,16801.72D0,96298.64D0,
+     1 272990.37D0,288696.75D0,365774.00D0,369185.01D0,
+     1 447720.79D0,487422.28D0,528.29D0,10237.79D0,
+     1 39599.20D0,248900.40D0,264906.60D0,321556.60D0/
+      DATA (BRT2(IBD),IBD=1,16) /
+     1 699.33D0,10203.03D0,16804.65D0,96301.77D0,
+     1 273347.90D0,288713.63D0,365804.00D0,369941.40D0,
+     1 448155.67D0,487573.69D0,684.98D0,10555.51D0,
+     1 39601.60D0,249147.30D0,264916.20D0,321760.30D0/
+      DATA (BRSN(IBD),IBD=1,16) /
+     1 1,1,1,1,1,1,1,1,1,1,
+     1 2,2,2,2,2,2/
+      DATA (BRVH(IBD),IBD=1,16) /
+     1 3,3,1,1,1,1,2,2,2,1,
+     1 3,3,1,1,1,1/
+      DATA (BREN(IBD),IBD=1,16) /
+     1 4,4,1,1,1,1,2,2,3,1,
+     1 4,4,1,1,1,1/
+      DATA NBR / 16 /
       DATA NSTART, NRF, NBN / 2, 18, 11 /
       END
 C     RESTOMOD END

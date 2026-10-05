@@ -168,6 +168,18 @@ C     are the page's (build/names.js).
       COMMON /CTLN/ TLT
       COMMON /CTLNI/ TLK, TLSN
 C
+C     /CBRN/, /CBRNI/ the burn cue's main-engine firings (lburn.f; a
+C     modern addition), from the TIMELINE rows by tools/gen_data.py's
+C     BURN_CUES: row K of scenario BRSN(K) burns from g.e.t. BRT1(K)
+C     to BRT2(K) (s), vehicle BRVH(K) (1 CSM, 2 LM, 3 S-IVB), engine
+C     BREN(K) (1 SPS, 2 DPS, 3 APS, 4 J-2); NBR rows.  IBRTX: the
+C     engine whose BURN text TXALL letters this frame (DBURN), 0 none.
+      DOUBLE PRECISION BRT1(NBRN), BRT2(NBRN)
+      INTEGER BRSN(NBRN), BRVH(NBRN), BREN(NBRN), NBR, IBRTX
+      COMMON /CBRN/ BRT1, BRT2
+      COMMON /CBRNI/ BRSN, BRVH, BREN, NBR
+      COMMON /CBRNT/ IBRTX
+C
 C     /CTAPE/ the TAPE (tape.f): per vehicle channel C (1 = CSM; up to
 C     four, TN D-6853 p. 12), NTP(C) samples of g.e.t. TPT and state
 C     TPS (geocentric EQ r km, v km/s), in time order; a burn or a
