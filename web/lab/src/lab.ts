@@ -2,6 +2,11 @@
 // hover and picking, and the handover to the page. It renders only while shown; the page decides when that is
 // (web/src/room.js). While it is shown the keys are the walk's: a capture listener keeps them from the page.
 //
+// Looking, as in a first-person game (ours): a mouse click on the room away from a machine locks the pointer; the
+// mouse then turns the view, a crosshair marks the centre, what is under it is the hover target, and a click, E or
+// Enter uses it. Esc (taken by the browser) only releases the lock. A click on a machine while unlocked uses it as
+// before, so the room still works point-and-click; touch, pen, and a browser that refuses the lock drag to look.
+//
 // Handover: a flight into a terminal that opens a tab ends where the terminal's screen covers, on the lab canvas,
 // the rect the page's element will occupy (hooks.screenRect: #cv for the workbench, the Source workspace for
 // source), with the camera square to the screen. The page then crossfades from the lab to itself. Back out, the
@@ -20,6 +25,8 @@ import type { CameraPose, LabEvent, LabHooks, Placed, Quality, Room } from "./ty
 const FLY_S = 1.0;
 const ARC_M = 0.12;                 // the flight's rise at its middle, metres per 2 m flown (at most one unit)
 const CLICK_PX = 5;
+const LOOK_DEG = 0.12;              // turn per mouse count while the pointer is locked, deg
+const ESC_MS = 250;                 // an Esc this soon after the lock went is the one that released it
 const WHEEL_M = 0.0018;             // metres stepped per wheel pixel
 /** Keys the walk leaves to the page while the room is shown (modifier chords pass too). */
 const PASS = /^(Escape|Tab|F\d+|m|M)$/;
@@ -72,6 +79,12 @@ export class Lab {
   private pointer: { x: number; y: number } | null = null;
   private lifted = new Map<THREE.Mesh, [THREE.Material, THREE.Material]>();
   private labelEl: HTMLDivElement;
+  private crossEl: HTMLDivElement;
+  private lockHintEl: HTMLDivElement;
+  private locked = false;
+  private everLocked = false;
+  private lockFailed = false;
+  private unlockT = -Infinity;
   private qualEl: HTMLButtonElement;
   private raf = 0;
   private last = 0;
@@ -137,7 +150,12 @@ export class Lab {
     this.qualEl = document.createElement("button");
     this.qualEl.style.cssText = "position:absolute;right:10px;bottom:10px;z-index:2;padding:2px 8px;font:11px ui-monospace,monospace;color:#9fb8a5;background:rgba(4,10,6,.7);border:1px solid #2e4434;border-radius:3px;cursor:pointer";
     this.qualEl.onclick = () => this.setQuality(this.quality === "high" ? "low" : "high", true);
-    host.append(this.labelEl, this.qualEl);
+    this.crossEl = document.createElement("div");
+    this.crossEl.style.cssText = "position:absolute;left:50%;top:50%;width:15px;height:15px;margin:-7px 0 0 -7px;pointer-events:none;display:none;z-index:2";
+    this.crossEl.innerHTML = '<svg width="15" height="15" viewBox="0 0 15 15"><path d="M7.5 1.5v4M7.5 9.5v4M1.5 7.5h4M9.5 7.5h4" stroke="rgba(214,245,220,.65)" stroke-width="1" fill="none"/></svg>';
+    this.lockHintEl = document.createElement("div");
+    this.lockHintEl.style.cssText = `position:absolute;left:50%;bottom:14px;transform:translateX(-50%);pointer-events:none;display:none;padding:3px 10px 2px;font:10px/1.5 ${PLATE_FONT};letter-spacing:.12em;text-transform:uppercase;color:#9fb8a5;background:rgba(4,10,6,.6);border-radius:3px;white-space:nowrap;z-index:2;transition:opacity .8s`;
+    host.append(this.labelEl, this.qualEl, this.crossEl, this.lockHintEl);
     this.applyQuality();
 
     this.setShot(this.home);
@@ -154,6 +172,9 @@ export class Lab {
     window.addEventListener("keydown", this.onKeyCapture, true);
     window.addEventListener("keyup", this.onKeyCapture, true);
     window.addEventListener("blur", this.onBlur);
+    document.addEventListener("pointerlockchange", this.onLockChange);
+    document.addEventListener("pointerlockerror", this.onLockError);
+    document.addEventListener("mousemove", this.onLook);
   }
 
   /** Show the room. With `from`, the camera starts at that terminal: with `rect` (the page element's client rect)
@@ -172,11 +193,13 @@ export class Lab {
     this.draw();
     this.probe = this.qForced || this.slow || this.quality === "low" ? null : []; this.watch = null;
     if (!this.raf) { this.last = 0; this.raf = requestAnimationFrame(this.tick); }
+    this.lockUI();
   }
 
   /** Stop rendering; the canvas keeps its last picture. */
   hide(): void {
     this.shown = false; this.flight = null; this.clearHover(); this.walk.clearKeys();
+    this.unlock(); this.lockUI();
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
   }
@@ -192,6 +215,7 @@ export class Lab {
     const rect = opens ? this.hooks.screenRect?.(opens) ?? null : null;
     const s = (rect && this.matchShot(name, rect)) || this.anchorShot(name);
     if (!s) return false;
+    this.unlock();
     this.walk.disarm(name); this.walk.clearKeys();
     this.fly(s, 0, false, () => {
       this.mode = "hold";
@@ -270,7 +294,7 @@ export class Lab {
 
   get info() {
     const w = this.walk;
-    return { lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
+    return { locked: this.locked, hover: this.hover?.name ?? null, lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
       walk: { x: w.pos.x, z: w.pos.y, yaw: w.yaw / D2R, pitch: w.pitch / D2R, near: w.near?.name ?? null } };
   }
 
@@ -282,6 +306,9 @@ export class Lab {
     window.removeEventListener("keydown", this.onKeyCapture, true);
     window.removeEventListener("keyup", this.onKeyCapture, true);
     window.removeEventListener("blur", this.onBlur);
+    document.removeEventListener("pointerlockchange", this.onLockChange);
+    document.removeEventListener("pointerlockerror", this.onLockError);
+    document.removeEventListener("mousemove", this.onLook);
     for (const p of this.room.placed) p.equipment.dispose?.();
     this.room.dispose?.();
     for (const [, [, lift]] of this.lifted) lift.dispose();
@@ -293,7 +320,7 @@ export class Lab {
     this.renderer.dispose();
     this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
-    this.labelEl.remove(); this.qualEl.remove();
+    this.labelEl.remove(); this.qualEl.remove(); this.crossEl.remove(); this.lockHintEl.remove();
   }
 
   // ---- frame ----
@@ -313,7 +340,10 @@ export class Lab {
     let landed: (() => void) | undefined;
     if (this.flight) landed = this.stepFlight(now);
     else if (this.mode === "free") { this.walk.update(Math.min(0.25, raw)); if (this.mode === "free") this.applyWalk(); }
-    if (this.pointer && this.mode === "free" && !this.drag) this.pick(this.pointer.x, this.pointer.y, false);
+    if (this.mode === "free" && !this.drag) {
+      if (this.locked) { const r = this.renderer.domElement.getBoundingClientRect(); this.pick(r.left + r.width / 2, r.top + r.height / 2); }
+      else if (this.pointer) this.pick(this.pointer.x, this.pointer.y);
+    }
     this.hint();
     if (this.shown) this.draw();
     landed?.();   // after the final frame is drawn: the page crossfades from it
@@ -485,6 +515,7 @@ export class Lab {
   // ---- input ----
 
   private onDown = (e: PointerEvent) => {
+    if (this.locked) { if (e.button === 0 && this.hover) this.use(this.hover); return; }   // the crosshair's target
     if (e.pointerType === "touch") {
       this.pinch.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (this.pinch.size === 2) { const [a, b] = [...this.pinch.values()]; this.pinchD = Math.hypot(a.x - b.x, a.y - b.y); this.drag = null; return; }
@@ -495,6 +526,7 @@ export class Lab {
   };
 
   private onMove = (e: PointerEvent) => {
+    if (this.locked) return;   // onLook turns
     const r = this.renderer.domElement.getBoundingClientRect();
     this.pointer = { x: e.clientX, y: e.clientY };
     if (this.pinch.has(e.pointerId)) {
@@ -520,8 +552,53 @@ export class Lab {
     const g = this.drag;
     if (!g || g.id !== e.pointerId) return;
     this.drag = null;
-    if (!g.moved && e.type === "pointerup") this.pick(e.clientX, e.clientY, true);
+    if (g.moved || e.type !== "pointerup" || this.mode !== "free") return;
+    const p = this.hit(e.clientX, e.clientY);
+    if (p) this.use(p);
+    else if (e.pointerType === "mouse") this.lock();
   };
+
+  // ---- pointer lock ----
+
+  private lock(): void {
+    const c = this.renderer.domElement;
+    if (this.locked || !c.requestPointerLock) return;
+    const fail = () => { this.lockFailed = true; this.lockUI(); };
+    // Raw counts where the browser has them (no OS acceleration), else the plain lock; either may refuse.
+    const plain = () => { try { Promise.resolve(c.requestPointerLock()).catch(fail); } catch { fail(); } };
+    try { Promise.resolve(c.requestPointerLock({ unadjustedMovement: true })).catch(plain); } catch { plain(); }
+  }
+
+  private unlock(): void {
+    if (document.pointerLockElement === this.renderer.domElement) document.exitPointerLock();
+  }
+
+  private onLockChange = () => {
+    const on = document.pointerLockElement === this.renderer.domElement;
+    if (on === this.locked) return;
+    this.locked = on; this.drag = null; this.pointer = null; this.clearHover();
+    if (on) { this.everLocked = true; this.lockFailed = false; } else this.unlockT = performance.now();
+    this.lockUI();
+  };
+
+  private onLockError = () => { if (!this.locked) { this.lockFailed = true; this.lockUI(); } };
+
+  /** Locked: mouse right looks right, mouse down looks down. */
+  private onLook = (e: MouseEvent) => {
+    if (!this.locked || this.mode !== "free") return;
+    const k = LOOK_DEG * D2R;
+    this.walk.turn(-e.movementX * k, -e.movementY * k);
+  };
+
+  /** The crosshair while locked; unlocked, until the first lock, a line on how to look (dragging, when refused). */
+  private lockUI(): void {
+    this.crossEl.style.display = this.shown && this.locked ? "block" : "none";
+    const fine = matchMedia("(any-pointer: fine)").matches, h = this.lockHintEl;
+    h.textContent = this.lockFailed ? "Drag to look around · WASD to walk" : "Click to look around · WASD to walk · Esc to release";
+    if (!this.shown || !fine || (this.everLocked && !this.lockFailed)) h.style.opacity = "0";
+    else { h.style.display = "block"; h.style.opacity = this.locked ? "0" : "1"; }
+    if (!this.shown) h.style.display = "none";
+  }
 
   private onLeave = () => { this.pointer = null; this.clearHover(); };
 
@@ -530,9 +607,9 @@ export class Lab {
     if (this.mode === "free") this.walk.nudge(-e.deltaY * (e.deltaMode === 1 ? 28 : 1) * WHEEL_M);
   };
 
-  /** Esc, walked or turned away from the overview: back to it. */
+  /** Esc, walked or turned away from the overview: back to it (the Esc that releases the lock is taken earlier). */
   private onKey = (e: KeyboardEvent) => {
-    if (!this.shown || e.key !== "Escape" || this.mode !== "free") return;
+    if (!this.shown || e.key !== "Escape" || this.mode !== "free" || this.locked || performance.now() - this.unlockT < ESC_MS) return;
     const h = this.home.position;
     if (this.walk.pos.distanceTo(new THREE.Vector2(h.x, h.z)) > 0.05 || this.camera.quaternion.angleTo(this.home.quaternion) > 0.01) {
       e.preventDefault(); this.setTarget(null);
@@ -544,11 +621,14 @@ export class Lab {
   private onKeyCapture = (e: KeyboardEvent) => {
     if (!this.shown) return;
     if (e.type === "keyup") { this.walk.key(e.key, false, e.shiftKey); return; }
+    if (e.key === "Escape" && (this.locked || performance.now() - this.unlockT < ESC_MS)) {
+      e.stopImmediatePropagation(); e.preventDefault(); this.unlock(); return;
+    }
     if (e.ctrlKey || e.metaKey || e.altKey || PASS.test(e.key)) return;
     e.stopPropagation();
     if (this.mode !== "free") return;
     if (this.walk.key(e.key, true, e.shiftKey)) e.preventDefault();
-    else if ((e.key === "e" || e.key === "E" || e.key === "Enter") && this.walk.enter()) e.preventDefault();
+    else if ((e.key === "e" || e.key === "E" || e.key === "Enter") && (this.locked && this.hover ? this.use(this.hover) : this.walk.enter())) e.preventDefault();
     else if (e.key === "l" || e.key === "L") { e.preventDefault(); this.lights(!this.lighting.on); }
     else if (e.key === " ") e.preventDefault();
   };
@@ -571,11 +651,11 @@ export class Lab {
     return null;
   }
 
-  private pick(x: number, y: number, click: boolean): void {
+  /** Hover: lift and name the machine under (x, y). */
+  private pick(x: number, y: number): void {
     if (this.mode !== "free") return;
     const p = this.hit(x, y);
     this.renderer.domElement.style.cursor = p ? "pointer" : "";
-    if (click) { if (p?.equipment.use) p.equipment.use(); else if (p) this.setTarget(p.name); return; }
     if (p !== this.hover) { this.clearHover(); if (p) this.lift(p, true); this.hover = p; }
     const label = p && this.room.labels?.[p.name];
     if (label) {
@@ -584,6 +664,12 @@ export class Lab {
       this.labelEl.style.left = `${x - hr.left + 14}px`; this.labelEl.style.top = `${y - hr.top + 16}px`;
       this.labelEl.style.display = "block";
     } else this.labelEl.style.display = "none";
+  }
+
+  /** Use a machine: flip it in place (the switch) or fly into it. */
+  private use(p: Placed): true {
+    if (p.equipment.use) p.equipment.use(); else this.setTarget(p.name);
+    return true;
   }
 
   private clearHover(): void {

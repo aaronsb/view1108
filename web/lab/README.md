@@ -37,7 +37,7 @@ is chosen.
 | `hide()` | stop rendering (the page is shown) |
 | `setTarget(name)` | fly to a placed equipment (`null`: the overview); a terminal ends at its handover pose and calls `hooks.arrive` |
 | `event(e)` | pass a page event to every placed equipment |
-| `info()`, `project(name)` | for tests: quality, draw calls and triangles of the last frame, the last handover's mismatch, the walk (`x`, `z`, `yaw`, `pitch`, `near`); a placed equipment's screen in client px |
+| `info()`, `project(name)` | for tests: quality, draw calls and triangles of the last frame, the last handover's mismatch, the walk (`x`, `z`, `yaw`, `pitch`, `near`), `locked` (pointer lock) and `hover`; a placed equipment's screen in client px |
 | `plan(px?)`, `layout()`, `stand(x, z, yaw, pitch?)` | for tests: the room from above as a PNG data URL; the footprints, door and terminals; stand somewhere walking |
 | `lights(on?)` | the light switch: set the troffers on or off (omitted: leave them); returns the state |
 
@@ -62,8 +62,13 @@ mid-way); bloom eases out toward a screen so the last frame shows the plot as th
 ### Walking
 
 `src/walk.ts`: from the overview the viewer walks at its eye height, 1.4 m/s (2.6 with Shift) with eased starts and
-stops, on `W` `A` `S` `D` or the arrows; a drag turns (yaw free, pitch ±35°), the wheel or a pinch steps along the
-view. The body is a 0.25 m circle against the walls and every `footprint`, pushed out along the shallower side so it
+stops, on `W` `A` `S` `D` or the arrows; the wheel or a pinch steps along the view. Looking (yaw free, pitch ±35°) is a
+first-person game's: a mouse click on the room away from a machine requests pointer lock (`unadjustedMovement`, else
+plain); while locked the mouse turns 0.12° per count (right looks right, down looks down), a crosshair shows, the
+machine under it is the hover target, and a click, `E` or Enter uses it. A flight into a terminal, `hide()` and
+`stop()` release the lock; the browser's Esc releases it, and that Esc does nothing else. Unlocked, a click on a
+machine uses it, and a drag turns (touch, pen, or a refused lock). Until the first lock a line at the bottom says
+how ("Drag to look around" once a lock was refused). `info()` gives `locked` and `hover`. The body is a 0.25 m circle against the walls and every `footprint`, pushed out along the shallower side so it
 slides. While the room is shown a capture listener on `window` keeps every key from the page but Esc, Tab, `M`,
 function keys and modifier chords, so the plot's keys cannot act behind the room. Each terminal (`opens` and
 `anchors.screen`) has a zone: within 1.3 m of its screen, in front of it, facing it within 35°. There a hint names it,

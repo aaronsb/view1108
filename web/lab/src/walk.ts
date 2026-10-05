@@ -1,5 +1,5 @@
 // Walking the room (ours): the viewer stands at eye height and moves with WASD or the arrow keys (Shift walks
-// faster), turns by dragging, steps with the wheel, and collides with the walls and every floor-standing machine's
+// faster), turns (lab.ts: the locked mouse or a drag), steps with the wheel, and collides with the walls and every floor-standing machine's
 // footprint (a circle against rectangles: pushed out along the shallower side, so it slides along them). Near a
 // terminal that opens a tab, in front of its screen and facing it, a short dwell or E/Enter flies in; a terminal
 // re-arms only once the viewer has stepped back out of a slightly larger zone, so leaving one does not pull back in.
