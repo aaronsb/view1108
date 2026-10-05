@@ -41,7 +41,7 @@ C              lmoon.f 4 Moon and craters (lmoon6.f its whole-disc
 C              extras), learth.f 5 Earth, lvehic.f 6 vehicles
 C              (lvlab.f their labels and markers),
 C              lcoas.f 7 COAS reticle, lshad.f 8 LM shadow,
-C              llpd.f 9 LPD and LM window
+C              llpd.f 9 LPD and LM window, lburn.f 10 burn cue
 C       Data:  viewdata.f (BLOCK DATA, generated), viewcom.inc COMMON
 C
 C     THE ELEMENTS AGAINST TN D-6853, printed p. 3 (our reading).  "The
@@ -299,6 +299,8 @@ C     RESTOMOD END
       CALL MTXV(MMF, CB, CBMF)
 C
       ISTYLE = 1
+C     No burn text until the burn cue (lburn.f) asks for one.
+      IBRTX = 0
 C     The cabin's windows for the window mask (vmask.f).
       CALL WMSET
 C     The scene's layers, in order (vlayer.f).

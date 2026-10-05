@@ -23,6 +23,7 @@ C           their labels and markers    lvlab.f    VLABEL
 C        7  COAS reticle                lcoas.f    S7COAS
 C        8  LM shadow                   lshad.f    LMSHAD
 C        9  LPD and LM window           llpd.f     OVLPD
+C       10  burn cue (exhaust, text)    lburn.f    DBURN
 C
 C=======================================================================
       SUBROUTINE LAYERS(GET, VB, NV, SB, NS, LB, NL)
@@ -36,26 +37,28 @@ C     RESTOMOD END
 C     Layer lists, one column per scene, ended by 0.  Scene 8 (the
 C     stack in translunar coast) has the sky and the vehicles.  Scene 4
 C     (the LM pirouette) has no stars, as on the film (t22.png,
-C     t25.png).  Scene 9 (Apollo 8 Earthrise) has scene 1's.
-      DATA LL / 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0,
+C     t25.png).  Scene 9 (Apollo 8 Earthrise) has scene 1's.  The
+C     burn cue (10, ours) follows the vehicles in every scene but 6,
+C     whose camera rides no vehicle and places no model.
+      DATA LL / 1, 2, 3, 4, 5, 6,10, 0, 0, 0, 0, 0,
+     &          1, 2, 3, 4, 5, 6,10, 0, 0, 0, 0, 0,
+     &          1, 2, 3, 4, 5, 6,10, 0, 0, 0, 0, 0,
+     &          1, 3, 4, 5, 6,10, 0, 0, 0, 0, 0, 0,
+     &          1, 2, 3, 4, 5, 6,10, 8, 9, 0, 0, 0,
      &          1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0,
-     &          1, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6, 8, 9, 0, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0 /
+     &          1, 2, 3, 4, 5, 6,10, 7, 0, 0, 0, 0,
+     &          1, 2, 3, 4, 5, 6,10, 0, 0, 0, 0, 0,
+     &          1, 2, 3, 4, 5, 6,10, 0, 0, 0, 0, 0 /
       DO 90 K = 1, 12
         L = LL(K, ISCN)
-        IF (L .LT. 1 .OR. L .GT. 9) GO TO 95
+        IF (L .LT. 1 .OR. L .GT. 10) GO TO 95
 C       Window overlays (COAS, LPD) only in the scene's window view.
         IF (IVUSE .NE. 0 .AND. (L .EQ. 7 .OR. L .EQ. 9)) GO TO 90
 C       The window mask (vmask.f) is for the outside: not the frame
 C       and the window overlays.
         IMSK = IMSKON
         IF (L .EQ. 1 .OR. L .EQ. 7 .OR. L .EQ. 9) IMSK = 0
-        GO TO (11, 12, 13, 14, 15, 16, 17, 18, 19), L
+        GO TO (11, 12, 13, 14, 15, 16, 17, 18, 19, 20), L
    11   CALL DFRAME(GET, VB, NV, SB, NS, LB, NL)
         GO TO 90
    12   CALL DSTARS(GET, VB, NV, SB, NS, LB, NL)
@@ -73,6 +76,8 @@ C       and the window overlays.
    18   CALL LMSHAD(GET, VB, NV, SB, NS, LB, NL)
         GO TO 90
    19   CALL OVLPD(GET, VB, NV, SB, NS, LB, NL)
+        GO TO 90
+   20   CALL DBURN(GET, VB, NV, SB, NS, LB, NL)
    90 CONTINUE
 C     The LM station view (in_view 3) carries the LM window overlay.
    95 IMSK = 0

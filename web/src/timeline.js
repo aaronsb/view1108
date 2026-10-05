@@ -41,26 +41,42 @@ function airtRealTime() {
 // target are in_view and in_target (0, or absent: the scene's own); fov the field in degrees (absent: the scene's
 // default). [t, s, 1, 1, 20]: no scene's own camera has a state or draws anything useful then, so the scene's EXTERNAL
 // view looks at the Earth at a 20 deg field (ours), the disc with its LC-39A mark (learth.f DPAD); the CSM is marked
-// where VSTATE puts it. The spans are ours, from the scenarios' cards and the kernel's code (data/scenarios/*.scn, src/*.f):
+// where VSTATE puts it. The spans are ours, from the scenarios' cards and the kernel's code (data/scenarios/*.scn, src/*.f).
+// Burn spans (ignition to cutoff, the TIMELINE rows of SP-4029) follow MSC IN 69-FM-197's views of the same burn: its
+// CSM burn plots (figures 5.1-1, 6.1-1, 7.1-1) look along the CM's X axis through the left rendezvous window at a
+// 100 deg field, which is the CM station (in_view 2, vview.f STATCM; CMCAB reads that window off figure 9.0-3). A row
+// cannot turn the camera: those plots have the Earth or Moon at the top, heads down, where the station keeps the scene's
+// own up and puts it at the bottom (ours to model; a gap):
 const EXT_NOTE = "external view of the Earth";
 const WIN_NOTE = "the CSM window aimed at the Earth";
 const TL_SCENES = {
   1: [   // Apollo 11
     [709.33, 3, 1, 1, 20],  // before Earth orbit insertion (the first LEG card, CIRC FROM 0:11:49.33): LEGAT stretches the parking orbit back
-    [10800, 3],             // CIRC leg and the TLI conic: scene 3's forward horizon view (vdrive.f SCNCAM) loses the Earth near 3:00 (our run)
+    [9856.2, 3],            // CIRC leg to the S-IVB's 2nd burn ignition, 2:44:16.2 (TIMELINE row, SP p. 105): scene 3's forward horizon view (vdrive.f SCNCAM)
+    [10203.03, 3, 2, 0, 100], // TLI, to the 2nd burn cutoff 2:50:03.03 (SP p. 105): the CM station at 100 deg, the Earth's limb across
+                            // the frame and stars, as figure 5.1-1 (PDF pp. 53-55, printed 35-37; pre-flight 2:44:11 to 2:50:02)
+    [10800, 3],             // the TLI conic: scene 3's forward horizon view loses the Earth near 3:00 (our run)
     [11723, 3, 1, 1, 20],   // TLI coast to the CSM's separation from the S-IVB, 3:15:23 (TIMELINE row, SP p. 106)
     [12243.1, 7],           // S7POSE: 100 ft until APPR, closing to the DOCK event, 3:24:03.1 (MR Table 7-II p. 7-9)
     [15423, 7, 1, 5, 40],   // docked, seen from outside (S7POSE puts the CSM on the LM's axis) to the stack's ejection, 4:17:03 (TIMELINE row, SP p. 106); 40 deg ours
     [272990.37, 8],         // the docked stack (S8POSE) on the translunar conics to LOI ignition, 75:49:50.37 (TIMELINE row; LUNAR FROM 75:49:50.4)
+    [273347.9, 8, 2, 0, 100], // LOI, to its cutoff 75:55:47.90 (SP p. 106): from the CM station of the docked stack the LM fills the
+                            // middle of a 100 deg field, as figure 6.1-1 (PDF pp. 113-115, printed 95-97); the figure's Moon limb
+                            // at the top is not in ours (scene 8 holds its passive thermal control roll, S8ATT)
     [360720, 1],            // lunar orbit (LUNAR legs, LUNORB) to the UNDOCK event
     [362392.9, 4],          // LMPIRO's LM 300 ft out (traj.f LMSTAT), to the LMSEP event 100:39:52.9 (SP p. 104)
     [365774, 1, 0, 5, 20],  // the CSM's window aimed at the LM on its first leg, to DOI ignition 101:36:14.0 (MR Table 7-II); 20 deg ours
+    [365804, 4, 3, 0, 100], // DOI, to its cutoff 101:36:44.00 (SP p. 107): from the LM (the LM station, LMPIRO's attitude) the Moon
+                            // below a horizon near the middle at 100 deg, as figure 6.2.1-2 (PDF p. 128, printed 110), which is
+                            // the docking window's view; ours tilts with the pirouette
     [369339.9, 6],          // the descent orbit: CSM and LM marks on the disc, to LMDESC's last 600 s before the TOUCH event
     [447720.79, 5],         // the descent, then the landed LM (LMDESC holds TAU at 0), to the LIFT event 124:22:00.79 (SP p. 104)
     [448155.7, 1],          // the powered ascent (no LM state), to LM orbit insertion 124:29:15.7 (MR Table 7-II)
     [460980, 1, 0, 5, 20],  // the rendezvous, the CSM's window aimed at the LM, to the LMDOK event 128:03:00 (SP p. 104); 20 deg ours
                             // (MSC IN 69-FM-197's rendezvous views, figs. 6.3.2-1 to 6.3.4-1, printed pp. 169-177, are from the LM, 100 deg)
-    [487573.7, 1],          // lunar orbit to the transearth leg (CONIC FROM 135:26:13.7)
+    [487422.28, 1],         // lunar orbit to TEI ignition, 135:23:42.28 (TIMELINE row, SP p. 109)
+    [487573.7, 1, 2, 0, 100], // TEI, to the transearth leg (CONIC FROM 135:26:13.7; cutoff 135:26:13.69, SP p. 109): the CM station
+                            // at 100 deg, the Moon's limb across the frame, as figure 7.1-1 (PDF pp. 203-205, printed 185-187)
     [698400, 2],            // transearth coast: scene 2's held attitude (VINIT) keeps the Earth in frame to about 194:00 (our run)
     [702186.7, 3],          // the entry approach in scene 3's horizon view, to the EI event 195:03:05.7
     [Infinity, 3, 1, 1, 20] // the entry leg past EI is a conic without an atmosphere
@@ -70,10 +86,15 @@ const TL_SCENES = {
          // The 50 deg field of the window views is MSC IN 69-FM-197's for the CSM window aimed at the Earth on
          // Apollo 11's transearth coast (figure 7.3.2-1, "constant field of view (earth)", printed p. 207).
     [694.98, 9, 1, 1, 20],  // before the CIRC leg, FROM 0:11:34.98 (SP p. 45 ascent table)
-    [10565.5, 9, 0, 0, 70], // the CIRC leg (to 2:50:37.79, then stretched) to TLI, 2:56:05.5 (EVENT TLI, MR8 Table 5-II p. 5-7): the horizon view at scene 3's 70 deg (VINIT)
+    [10237.79, 9, 0, 0, 70],// the CIRC leg to the S-IVB's 2nd burn ignition, 2:50:37.79 (SP p. 48): the horizon view at scene 3's 70 deg (VINIT)
+    [10555.51, 9, 2, 0, 100],// TLI, to its cutoff 2:55:55.51 (SP p. 48): the CM station at 100 deg, the Apollo 11 note's TLI format (figure 5.1-1)
+    [10565.5, 9, 0, 0, 70], // the CIRC leg stretched to TLI, 2:56:05.5 (EVENT TLI, MR8 Table 5-II p. 5-7)
     [12420, 9, 1, 1, 20],   // the TLI conic while the Earth's disc overfills the window's 50 deg field: 50 deg across at about 8150 nmi, 3:27 (our run)
     [248900.4, 9, 0, 1, 50],// the translunar conics to LOI ignition, 69:08:20.4 (the first LUNAR leg's FROM; EVENT LOI1, MR8 Table 3-I p. 3-3)
+    [249147.3, 9, 2, 0, 100],// LOI, to its cutoff 69:12:27.3 (SP p. 49): the CM station at 100 deg, the Apollo 11 note's LOI format
+                            // (figure 6.1-1), the Moon's limb across the frame (no LM)
     [321556.6, 9],          // lunar orbit to TEI ignition, 89:19:16.6 (the last LUNAR leg's TO; EVENT TEI, MR8 Table 3-I p. 3-3)
+    [321760.3, 9, 2, 0, 100],// TEI, to its cutoff 89:22:40.3 (SP p. 49): the CM station at 100 deg, the Apollo 11 note's TEI format (figure 7.1-1)
     [528372.8, 9, 0, 1, 50],// the transearth conics to entry interface, 146:46:12.8 (EVENT EI, MR8 Table 3-I p. 3-4)
     [Infinity, 9, 1, 1, 20] // the entry leg past EI is a conic without an atmosphere
   ]
@@ -108,7 +129,8 @@ function tlJump(g) {
 }
 const tlTitle = g => {
   const [, s, v = 0, t = 0] = tlFor(g);
-  const note = v === 1 && t === 1 ? EXT_NOTE : v === 0 && t === 1 ? WIN_NOTE : v === 1 ? "external view" : "";
+  const note = v === 1 && t === 1 ? EXT_NOTE : v === 0 && t === 1 ? WIN_NOTE : v === 1 ? "external view"
+    : v === 2 ? "CM station" : v === 3 ? "LM station" : "";
   return `Jump to ${getStr(g)}: scene ${s} ${SCENES[s - 1]}` + (note ? ", " + note : "");
 };
 const tlSpan = () => mode === "live" ? [LIVE_MIN, LIVE_MAX] : [get0 - 7200, get0 + 7200];   // the scrubber's (loop.js)

@@ -24,8 +24,10 @@ C     the pad; secondary also nav stars and maria; all, everything.
 C     The labels (LB) themselves are not filtered.  Also vehicles (LB
 C     kind 8: CM, SM, LM, S-IVB, CSM by id) and the launch pad (kind 9,
 C     its name from the PAD card), both modern additions.  Crater
-C     names stay with the page (LB kind 2).  Character width 0.7 of
-C     the height, used for alignment: ours.
+C     names stay with the page (LB kind 2).  With a label level set
+C     (in_lablv 1-3), the burn cue's text (IBRTX, lburn.f; ours) in
+C     the box's top left corner, at the names' height.  Character
+C     width 0.7 of the height, used for alignment: ours.
 C=======================================================================
       SUBROUTINE TXALL(LB, NL, TB, NT, TC, NCH)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -35,10 +37,13 @@ C     RESTOMOD END
       DOUBLE PRECISION LB(4,MAXL), TB(4,MAXT)
       INTEGER NL, NT, TC(MAXTC), NCH
       DOUBLE PRECISION B, ST, TL, H, V, R
-      INTEGER I, J, K, N, ID, IC(24), VEHCH(25)
+      INTEGER I, J, K, N, ID, IC(24), VEHCH(25), ENGCH(20)
 C     Vehicle names, 5 codes each, zero padded: CM, SM, LM, S-IVB, CSM.
       DATA VEHCH / 67, 77, 0, 0, 0, 83, 77, 0, 0, 0, 76, 77, 0, 0, 0,
      &             83, 45, 73, 86, 66, 67, 83, 77, 0, 0 /
+C     Engine names, 5 codes each, zero padded: SPS, DPS, APS, S-IVB.
+      DATA ENGCH / 83, 80, 83, 0, 0, 68, 80, 83, 0, 0, 65, 80, 83, 0,
+     &             0, 83, 45, 73, 86, 66 /
       NT = 0
       NCH = 0
       B = BOXH
@@ -63,8 +68,23 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
    10   CONTINUE
       END IF
 C     RESTOMOD END
-      IF (MOD(IFLG, 2) .EQ. 0) RETURN
       H = 0.028D0 * B
+C     The burn cue's text: the engine's name and BURN.
+      IF (ILABL .LT. 1 .OR. IBRTX .LT. 1 .OR. IBRTX .GT. 4) GO TO 38
+      N = 0
+      DO 36 J = 1, 5
+        IF (ENGCH((IBRTX - 1) * 5 + J) .EQ. 0) GO TO 37
+        N = N + 1
+        IC(N) = ENGCH((IBRTX - 1) * 5 + J)
+   36 CONTINUE
+   37 IC(N + 1) = 32
+      IC(N + 2) = 66
+      IC(N + 3) = 85
+      IC(N + 4) = 82
+      IC(N + 5) = 78
+      CALL TXPUT(TB, NT, TC, NCH, -0.97D0 * B, 0.97D0 * B - H, H,
+     &           IC, N + 5)
+   38 IF (MOD(IFLG, 2) .EQ. 0) RETURN
       DO 40 I = 1, NL
         K = NINT(LB(3,I))
         ID = NINT(LB(4,I))
