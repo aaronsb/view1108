@@ -34,7 +34,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION LB(4,MAXL), TB(4,MAXT)
       INTEGER NL, NT, TC(MAXTC), NCH
-      DOUBLE PRECISION B, ST, TL, H, V
+      DOUBLE PRECISION B, ST, TL, H, V, R
       INTEGER I, J, K, N, ID, IC(24), VEHCH(25)
 C     Vehicle names, 5 codes each, zero padded: CM, SM, LM, S-IVB, CSM.
       DATA VEHCH / 67, 77, 0, 0, 0, 83, 77, 0, 0, 0, 76, 77, 0, 0, 0,
@@ -113,8 +113,16 @@ C         Mare names centred on the mare's centre.
    32     CONTINUE
         END IF
 C     RESTOMOD END
-   30   IF (N .GT. 0) CALL TXPUT(TB, NT, TC, NCH, LB(1,I) + 0.4D0 * H,
-     &                         LB(2,I) + 0.4D0 * H, H, IC, N)
+   30   IF (N .EQ. 0) GO TO 40
+C       The Sun's name centred under its ring of rays (DSUN), as MSC IN
+C       69-FM-197 letters it (PDF pp. 89, 137).
+        IF (K .NE. 3) GO TO 35
+        R = DMAX1(0.059D0 * B, 0.267D0 + 0.035D0 * B)
+        CALL TXPUT(TB, NT, TC, NCH, LB(1,I) - 0.35D0 * H * DBLE(N),
+     &             LB(2,I) - R - 1.3D0 * H, H, IC, N)
+        GO TO 40
+   35   CALL TXPUT(TB, NT, TC, NCH, LB(1,I) + 0.4D0 * H,
+     &             LB(2,I) + 0.4D0 * H, H, IC, N)
    40 CONTINUE
       RETURN
       END
