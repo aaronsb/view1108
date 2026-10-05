@@ -23,8 +23,8 @@
 *   SITE     LAT= LON= AZ=  (lunar landing site, deg, and descent azimuth)
 *   PAD      NAME= LAT= LON= (launch pad, deg; LATTYPE=GC geocentric, GD
 *            geodetic), NAME at most 7 characters, lettered beside its mark
-*   LEG      TYPE=CIRC|CONIC|LUNAR|LCONIC  FROM= TO=  (g.e.t. span it
-*            covers)  VEH=CSM|LM  (the vehicle on it; default CSM)
+*   LEG      TYPE=CIRC|CONIC|LUNAR|LCONIC|TABLE  FROM= TO=  (g.e.t. span
+*            it covers)  VEH=CSM|LM  (the vehicle on it; default CSM)
 *     CIRC   Earth circular orbit through a state: T= LAT= LON= HDG=, orbit
 *            altitude ALT= (n mi).  LATTYPE=GC geocentric, GD geodetic.
 *     CONIC  Earth-centred conic from a state: T= LAT= LON= ALT= V= (ft/s)
@@ -41,6 +41,14 @@
 *            use, as for the REF cards below).  Or, with DV= (ft/s) and
 *            P= R= N= (as a BURN card's) and no state: the same vehicle's
 *            previous leg at T (mid-burn) plus that impulse.
+*     TABLE  states listed by the ROW cards that follow it (no FROM= TO=;
+*            the rows' times give the span), LATTYPE= for all of them,
+*            joined by cubic Hermite arcs (traj.f TABRV).  Before the
+*            first row and after the last the vehicle stands at that
+*            row's place on the turning Earth.
+*   ROW      T= LAT= LON= ALT= (n mi above the ellipsoid) V= (ft/s) FPA=
+*            HDG= (deg): space-fixed, or with VEL=EF relative to the
+*            turning Earth.
 *   EVENT    KIND= T=  (an event the kernel keys on)
 *   TIMELINE T= KIND= NAME=  (a row of the mission's timeline; see TIMELINE below)
 *
@@ -49,9 +57,27 @@ EPOCH JD=2440419.063889 SRC="MR Table 3-I p. 3-4: range zero 13:32:00 G.m.t., Ju
 SITE LAT=0.67416 LON=23.47314 AZ=268.8 SRC="NSSDC Apollo Landing Site Coordinates, citing Wagner et al., Icarus 283 (2017), mean Earth/polar axis; MR p. 3-2 gives 0 41 15 N, 23 26 E on ORB-II-6 (1967). Azimuth 268.8: ours, near the 269.0 fitted to MR Table 7-II"
 PAD NAME="LC-39A" LATTYPE=GC LAT=28.4470 LON=-80.6041 SRC="SP p. 103, Apollo 11 ascent phase table, Liftoff 000:00:00.63: geocentric latitude 28.4470 deg N, longitude -80.6041 deg E; SP p. 92: Apollo 11 was launched from Kennedy Space Center Launch Complex 39, Pad A"
 *
+* The powered ascent: SP p. 103's ascent table, lift-off to S-IVB first
+* cutoff, where the parking orbit takes over (its T row).  Before lift-off
+* the CSM stands on the pad at the lift-off row's place (0.032 n mi up:
+* the table's).  The arcs between rows are ours (TABRV).
+LEG TYPE=TABLE LATTYPE=GC SRC="SP p. 103, Apollo 11 ascent phase table: geocentric latitude, altitude, space-fixed velocity, flight-path angle and heading"
+ROW T=0:00:00.63 LAT=28.4470 LON=-80.6041 ALT=0.032 V=1340.7 FPA=0.06 HDG=90.00 SRC="SP p. 103, liftoff"
+ROW T=0:01:06.30 LAT=28.4523 LON=-80.5853 ALT=4.236 V=2023.9 FPA=27.88 HDG=85.32 SRC="SP p. 103, Mach 1 achieved"
+ROW T=0:01:23.00 LAT=28.4624 LON=-80.5499 ALT=7.326 V=2671.9 FPA=29.23 HDG=82.41 SRC="SP p. 103, maximum dynamic pressure"
+ROW T=0:02:15.20 LAT=28.5739 LON=-80.1517 ALT=23.761 V=6492.8 FPA=22.957 HDG=76.315 SRC="SP p. 103, S-IC center engine cutoff; the book prints longitude -81.1517, which would put it 50 n mi west of the pad: -80.1517, ours, fits the row's range of 25.067 n mi"
+ROW T=0:02:41.63 LAT=28.7007 LON=-79.6908 ALT=35.701 V=9068.6 FPA=19.114 HDG=75.439 SRC="SP p. 103, S-IC outboard engine cutoff"
+ROW T=0:02:42.30 LAT=28.7046 LON=-79.6764 ALT=36.029 V=9100.6 FPA=19.020 HDG=75.436 SRC="SP p. 103, S-IC/S-II separation"
+ROW T=0:07:40.62 LAT=30.9513 LON=-69.4309 ALT=97.280 V=18725.5 FPA=0.897 HDG=79.646 SRC="SP p. 103, S-II center engine cutoff"
+ROW T=0:09:08.22 LAT=31.7089 LON=-64.1983 ALT=101.142 V=22690.8 FPA=0.619 HDG=82.396 SRC="SP p. 103, S-II outboard engine cutoff"
+ROW T=0:09:09.00 LAT=31.7152 LON=-64.1467 ALT=101.175 V=22699.6 FPA=0.611 HDG=82.426 SRC="SP p. 103, S-II/S-IVB separation"
+ROW T=0:11:39.33 LAT=32.4865 LON=-53.4588 ALT=103.202 V=25561.6 FPA=0.011 HDG=88.414 SRC="SP p. 103, S-IVB 1st burn cutoff"
+*
 * Earth parking orbit.  The S-IVB first cutoff state, geocentric latitude,
-* on a circle at the mean of the MR's 100.7 by 99.2 n mi (p. 3-1).
-LEG TYPE=CIRC FROM=0:11:49.33 TO=2:44:16.2 T=0:11:39.33 LATTYPE=GC LAT=32.4865 LON=-53.4588 V=25561.6 FPA=0.011 HDG=88.414 ALT=99.95 SRC="SP p. 103 ascent table, S-IVB 1st burn cutoff: geocentric 32.4865 N, -53.4588 E, space-fixed velocity 25,561.6, flight-path angle 0.011, heading 88.414; orbit MR p. 3-1"
+* on a circle at the mean of the MR's 100.7 by 99.2 n mi (p. 3-1), from
+* that cutoff on (Earth orbit insertion, 10 s later, has no position in
+* SP's table).
+LEG TYPE=CIRC FROM=0:11:39.33 TO=2:44:16.2 T=0:11:39.33 LATTYPE=GC LAT=32.4865 LON=-53.4588 V=25561.6 FPA=0.011 HDG=88.414 ALT=99.95 SRC="SP p. 103 ascent table, S-IVB 1st burn cutoff: geocentric 32.4865 N, -53.4588 E, space-fixed velocity 25,561.6, flight-path angle 0.011, heading 88.414; orbit MR p. 3-1"
 *
 * Translunar coast: two conics, from translunar injection and from the
 * first midcourse correction cutoff.  Earth only (no lunar gravity): ours.
@@ -102,11 +128,25 @@ LEG TYPE=LCONIC VEH=LM FROM=125:20:22.0 TO=126:17:49.6 T=125:20:22.0 LAT=-0.91 L
 LEG TYPE=LCONIC VEH=LM FROM=126:18:07.4 TO=127:03:51.8 T=127:03:51.8 LAT=-1.17 LON=-110.28 ALT=44.1 V=5391.5 FPA=-0.16 SRC="MR Table 7-II p. 7-9, terminal phase initiation ignition: 1.17 S, 110.28 W, 44.1 n mi, 5391.5 ft/s, -0.16 deg; from CDH cutoff 126:18:07.40, SP p. 104"
 LEG TYPE=LCONIC VEH=LM FROM=127:04:14.5 TO=127:46:09.8 T=127:04:14.5 LAT=-1.17 LON=-111.46 ALT=44.0 V=5413.2 FPA=-0.03 SRC="MR Table 7-II p. 7-9, terminal phase initiation cutoff: 1.17 S, 111.46 W, 44.0 n mi, 5413.2 ft/s, -0.03 deg; to TPF ignition 127:46:09.80, SP p. 104"
 *
-* Transearth coast: conics from the second midcourse correction, from
-* command module/service module separation, and from entry interface.
+* Transearth coast: conics from the second midcourse correction and from
+* command module/service module separation, to entry interface.
 LEG TYPE=CONIC FROM=135:26:13.7 TO=150:29:57.4 T=150:29:57.4 LATTYPE=GD LAT=-13.16 LON=-37.79 ALT=169087.2 V=4075.0 FPA=-80.34 HDG=129.30 SRC="MR Table 7-II p. 7-9, second midcourse correction ignition"
 LEG TYPE=CONIC FROM=150:30:07.4 TO=195:03:05.7 T=194:49:12.7 LATTYPE=GD LAT=-35.09 LON=122.54 ALT=1778.3 V=29615.5 FPA=-35.26 HDG=69.27 SRC="MR Table 7-II p. 7-9, command module/service module separation"
-LEG TYPE=CONIC FROM=195:03:05.7 TO=196:00:00 T=195:03:05.7 LATTYPE=GD LAT=-3.19 LON=171.96 ALT=65.8 V=36194.4 FPA=-6.48 HDG=50.18 SRC="MR Table 7-VII p. 7-12, entry interface (400 000 ft)"
+*
+* Entry, entry interface to splashdown.  The MR gives no state between
+* them; a single arc from entry interface to the drogues stays above the
+* ground (our run).  Under the parachutes the CM falls straight down
+* (ours); the main parachutes' row is ours: no time for it in the MR, so
+* the drogues' 24,000 ft plus Apollo 8's 51.1 s from drogue to main
+* deployment (MR8 Table 3-I p. 3-4), at about 10,000 ft (ours, from the
+* Apollo 8 crew's 10K call, Apollo 8 Flight Journal, day 6, 146:55:32).
+* After splashdown the CM rides at the splash point.  Table 7-VII prints
+* the drogue latitude as south; the landing was north (MR p. 7-5, 13-4).
+LEG TYPE=TABLE LATTYPE=GD SRC="Apollo 11 entry: MR Table 7-VII p. 7-12 and the landing point, MR pp. 7-5 and 13-4"
+ROW T=195:03:05.7 LAT=-3.19 LON=171.96 ALT=65.8 V=36194.4 FPA=-6.48 HDG=50.18 SRC="MR Table 7-VII p. 7-12, entry interface (400 000 ft)"
+ROW T=195:12:06.9 LAT=13.30 LON=-169.15 ALT=3.950 V=300 FPA=-90 HDG=0 VEL=EF SRC="MR Table 7-VII p. 7-12, drogue deployment, onboard guidance position; 24,000 ft (3.950 n mi), the forward heat shield's jettison height before the drogues (Apollo 11 press kit, printed p. 90); falling at 300 ft/s, ours"
+ROW T=195:12:58.0 LAT=13.30 LON=-169.15 ALT=1.646 V=30 FPA=-90 HDG=0 VEL=EF SRC="main parachute deployment, ours (see above): 10,000 ft (1.646 n mi), then about 30 ft/s, the mean fall from there to the water"
+ROW T=195:18:35 LAT=13.317 LON=-169.15 ALT=0 V=31 FPA=-90 HDG=0 VEL=EF SRC="MR Table 3-I p. 3-5, landing 195:18:35; MR p. 13-4, 13 deg 19 min N, 169 deg 9 min W (recovery forces); splashdown at 31 ft/s on three parachutes, Apollo 11 press kit printed p. 62"
 *
 * Events the kernel keys on.
 EVENT KIND=TDATT T=3:09:20 SRC="Apollo 11 Flight Journal 002:54:09: S-IVB manoeuvre to separation attitude to be completed at plus 09 plus 20"
