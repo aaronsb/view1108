@@ -59,6 +59,7 @@ export interface ScreenAnchor {
 export interface Anchors {
   screen?: ScreenAnchor;
   camera?: CameraPose;    // the zoom-in pose; with `opens`, clicking the equipment flies here
+  lamps?: Face & { center: THREE.Vector3 };   // a lamp panel's face, for its glow
   [name: string]: unknown;
 }
 
@@ -119,8 +120,13 @@ export interface Room {
   dispose?(): void;
 }
 
-/** A dim light standing for an equipment's glow (a screen, a lamp row, the EXIT sign) with the troffers off. */
-export interface Glow { pos: THREE.Vector3; color: number; intensity: number; distance: number }
+/** A flat lit face: its outward normal and its size, metres. */
+export interface Face { normal: THREE.Vector3; w: number; h: number }
+
+/** A dim light standing for an equipment's glow (a screen, a lamp row or panel, the EXIT sign): `pos` is the glowing
+ *  face's centre, `face` its facing and size where it has one (an area light at high quality). `always`: it shines
+ *  with the troffers on too (the lamp panels); the others only with them off. */
+export interface Glow { pos: THREE.Vector3; color: number; intensity: number; distance: number; face?: Face; always?: boolean }
 
 /** Rendering tier: "high" (shadows, ambient occlusion, bloom) or "low" (direct render, no post). */
 export type Quality = "high" | "low";

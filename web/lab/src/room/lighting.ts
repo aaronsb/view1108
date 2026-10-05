@@ -4,22 +4,24 @@
 // hemisphere and one unshadowed overhead light, nothing per-fragment heavy.
 //
 // The light switch (ours): off, the troffers go dark and the room is lit only by what stays on, the equipment's lamps
-// and screens and the EXIT sign: a few dim lights (`glows`, from the room) stand for their light on the floor and the
-// cabinets, the ambient drops to a faint blue, and the exposure rises so the room is dark but legible. Back on, the
+// and screens and the EXIT sign: a few dim soft lights (`glows`, from the room, each the size of what glows) stand for
+// their light on the floor and the cabinets, the ambient drops to a faint blue, and the exposure rises so the room is dark but legible. Back on, the
 // tubes strike unevenly, flickering a moment each, a couple of them late, then warm up. The glows are lights only
-// while the troffers are not all lit, so the lit room pays nothing for them.
+// while the troffers are not all lit, so the lit room pays nothing for them, but for the lamp panels' (`always`).
 import * as THREE from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { Glow, Quality } from "../types";
 import { ROOM, TROFFERS } from "./shell";
 
-const COOL = 0xeef3ff, WARM = 0xffb36a, NIGHT = 0x9aa8c8;
+const COOL = 0xeef3ff, NIGHT = 0x9aa8c8;
 /** Haze: the far wall fades a little toward the troffers' grey-white. */
 export const FOG = { color: 0x9a9d98, near: 7, far: 26 };
 /** Exposure with the troffers lit and dark. */
-const EXPOSE = { lit: 1.0, dark: 2.1 };
+const EXPOSE = { lit: 1.0, dark: 1.7 };
 let ltcReady = false;
+/** A glow's intensity to an area light's radiance times its face's area, and to a point light's intensity. */
+const GLOW = { area: 4, point: 0.4 };
 
 const TUBES = TROFFERS.rows.length * TROFFERS.xs.length;
 interface Strike { at: number; len: number; slot: number; v: number }
@@ -88,13 +90,8 @@ export class Lighting {
         this.rows.push(a);
       }
     }
-    // Warm accents by the CPU lamp panel and the operator console (the modules' lamps glow; this lets them colour
-    // the floor and the cabinets near them).
-    for (const [x, y, z, i] of [[-3.0, 1.5, 0, 0.45], [-1.2, 1.1, -0.45, 0.35]]) {
-      const p = new THREE.PointLight(WARM, i, 2.6, 2); p.position.set(x, y, z); add(p);
-    }
     this.glowLights = this.lit < 0.999;
-    if (this.glowLights) for (const g of this.glows) { const p = add(new THREE.PointLight(g.color, g.intensity, g.distance, 2)); p.position.copy(g.pos); }
+    for (const g of this.glows) if (g.always || this.glowLights) add(glowLight(g, q));
     this.apply();
     this.scene.traverse(o => { const m = (o as THREE.Mesh).material; if (m) (Array.isArray(m) ? m : [m]).forEach(x => { x.needsUpdate = true; }); });
   }
@@ -153,4 +150,19 @@ export class Lighting {
     this.scene.environment = null; this.scene.fog = null;
     this.env?.dispose(); this.env = null;
   }
+}
+
+/** A glow's light. High: an area light over its face, facing out, its radiance its intensity spread over the face, so
+ *  the light falls off softly and nothing reads as a bulb. Low (no area lights), or without a face: a point light a
+ *  little out from the face with linear decay over a long reach, for the same gentle falloff. */
+function glowLight(g: Glow, q: Quality): THREE.Light {
+  const f = g.face;
+  if (q === "high" && f) {
+    const a = new THREE.RectAreaLight(g.color, GLOW.area * g.intensity / (f.w * f.h), f.w, f.h);
+    a.position.copy(g.pos).addScaledVector(f.normal, 0.02); a.lookAt(g.pos.clone().add(f.normal));
+    return a;
+  }
+  const p = new THREE.PointLight(g.color, GLOW.point * g.intensity, g.distance, 1);
+  p.position.copy(g.pos); if (f) p.position.addScaledVector(f.normal, 0.35);
+  return p;
 }

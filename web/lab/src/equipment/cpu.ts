@@ -64,7 +64,10 @@ export function build(_ctx: BuildContext, opts: CpuOptions = {}): Equipment {
 
   return {
     object,
-    anchors: { camera: poseFrom(new THREE.Vector3(0, opts.lampPanel ? 1.5 : 1.1, 0.4), [0.1, 0.05, 1], opts.lampPanel ? 1.35 : 2.2, 40) },
+    anchors: {
+      camera: poseFrom(new THREE.Vector3(0, opts.lampPanel ? 1.5 : 1.1, 0.4), [0.1, 0.05, 1], opts.lampPanel ? 1.35 : 2.2, 40),
+      ...(opts.lampPanel ? { lamps: { center: new THREE.Vector3(0, 1.43, 0.414), normal: new THREE.Vector3(0, 0, 1), w: 0.76, h: 0.8 } } : {}),
+    },
     update(dt, s) {
       if (!lamps) return;
       if (s.frameNo !== lastFrame) { lastFrame = s.frameNo; busy = 0.5; }

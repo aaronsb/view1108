@@ -334,6 +334,7 @@ export function build(ctx: BuildContext): Equipment {
         target: crt.position.clone(), fov: 40,
       },
       overview: { position: new THREE.Vector3(-0.2, 1.7, 2.4), target: new THREE.Vector3(0, 0.9, 0), fov: 40 },
+      lamps: { center: new THREE.Vector3(icx, 0.955, 0.02), normal: new THREE.Vector3(0, Math.sin(tilt), Math.cos(tilt)), w: iw, h: Math.hypot(0.45, 0.12) },
     },
     update(dt, s) {
       drawClock(s); drawCrt(s);
