@@ -511,8 +511,8 @@ export class Lab {
     const dx = e.clientX - g.x, dy = e.clientY - g.y;
     if (!g.moved && Math.hypot(dx, dy) < CLICK_PX) return;
     if (!g.moved) { g.moved = true; this.clearHover(); }
-    const radPx = this.camera.fov * D2R / r.height;   // the scene follows the pointer
-    this.walk.turn(g.yaw + dx * radPx - this.walk.yaw, g.pitch + dy * radPx - this.walk.pitch);
+    const radPx = this.camera.fov * D2R / r.height;   // mouselook as in a first-person game: drag right looks right, drag down looks down
+    this.walk.turn(g.yaw - dx * radPx - this.walk.yaw, g.pitch - dy * radPx - this.walk.pitch);
   };
 
   private onUp = (e: PointerEvent) => {
