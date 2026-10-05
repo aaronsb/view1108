@@ -150,7 +150,7 @@ export class RoomSound {
     let panel: Graph["panel"] = null;
     const cabinets = this.room.placed.filter(p => /^(cpu|power|controller1557|filmrecorder)(-|$)/.test(p.name));
     cabinets.forEach((p, k) => {
-      const pos = this.at(p.equipment, 1.5), s = source(p.name, pos, 1.0, 1.0);
+      const pos = this.at(p.equipment, p.name === "power" ? 0.8 : 1.5), s = source(p.name, pos, 1.0, 1.0);
       const rpm = 3420 + this.r() * 60, t = osc(blade, rpm / 60 * 5), tg = gain(0.035); t.connect(tg).connect(s.input);
       wander(t.frequency, 0.4, k);
       const n = noise(N.pink, 1.2), bp = filt("bandpass", 1100 + this.r() * 400, 0.5), ng = gain(0.22); n.connect(bp).connect(ng).connect(s.input);

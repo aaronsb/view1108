@@ -80,7 +80,7 @@ export function build(ctx: BuildContext): Room {
   place("glass", [glassAt.x, glassAt.y, glassAt.z], -0.19, "glass");
   place("chair", [2.55, 0, -0.5], N - 0.19);
   const vector = place("vector", [1.2, 0, -1.0], 0.32, "vector");   // beside the desk, turned toward the overview's eye
-  // A drafting chair for the 1558's shelf (0.98 m up), off to its left so that the walk-up in front stays clear,
+  // A drafting chair for the 1558's shelf (0.92 m up), off to its left so that the walk-up in front stays clear,
   // turned toward the keyboard (ours).
   const stool = vector.object.localToWorld(new THREE.Vector3(-0.62, 0, 0.92)), keys = vector.object.localToWorld(new THREE.Vector3(0, 0, 0.5));
   place("chair", [stool.x, 0, stool.z], Math.atan2(keys.x - stool.x, keys.z - stool.z), undefined, { tall: true });

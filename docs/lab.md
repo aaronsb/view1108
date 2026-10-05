@@ -249,7 +249,7 @@ shown the room ducks 8 dB and its tape units keep turning, so an engine run is s
 | Source | Where | What it is | Sourced | Ours |
 |---|---|---|---|---|
 | Air handling | 3 ceiling diffusers, 2 perforated floor tiles | pink noise low-passed to a rumble (most of it under 120 Hz) and band-passed to a hiss (450 to 1000 Hz); slow drift | the raised floor and dropped ceiling (MSC photo) | everything else |
-| Cabinet fans | each 1108 cabinet, the power cabinet (its hum louder, 8 dB, for its transformers), the 1557 and the film recorder | a blade-pass tone over band-limited noise, and a faint mains hum (60 Hz and harmonics, 120 Hz strongest); the power cabinet's doors latch and creak as they open and shut, and its voltmeter selector clicks | US mains, 60 Hz | 3,420 to 3,480 rev/min, 5 blades (285 to 290 Hz, so neighbours beat); levels |
+| Cabinet fans | each 1108 cabinet, the power cabinet (its hum louder, 8 dB, for its transformers), the 1557 and the film recorder | a blade-pass tone over band-limited noise, and a faint mains hum (60 Hz and harmonics, 120 Hz strongest); the power cabinet's doors latch and creak as they open and shut, and its voltmeter selector clicks | US mains, 60 Hz | the power cabinet's latch, creak and selector click; 3,420 to 3,480 rev/min, 5 blades (285 to 290 Hz, so neighbours beat); levels |
 | FH-432 drums | inside the compute row's second cabinet (our placement; the MSC photo does not show the drums) | three drums at 120 Hz and harmonics, windage from the flying heads | 7,200 rev/min (UP-4046 p. 8-5); three FH-432 (or one FH-1782, 1,800 rev/min, p. 8-6) in the minimum system (p. 5-3) | that MSC had these, their place, the slight detune, the windage |
 | FASTRAND II | inside the compute row's fourth cabinet (our placement) | a rumble modulated at 14.7 Hz, low harmonics, head seeks (a knock and a click) | 880 rev/min (p. 8-10); 64 heads moved together in 30 to 86 ms (p. 8-8); one FASTRAND in the minimum system (p. 5-3) | the sound of a seek; seeks every 4 to 15 s, and a burst on each engine run |
 | Tape units | each UNISERVO | at rest a faint vacuum blower; moving, two reel-motor whines pitched at the reels' speed, the vacuum columns' air and the tape's hiss; a knock at start and stop | speeds (UP-4046 sec. 8.4.2); the reels' motion from the unit's model | 24 commutator bars (so the whine is 90 to 200 Hz reading, twice that on rewind); levels |
@@ -260,7 +260,7 @@ shown the room ducks 8 dB and its tape units keep turning, so an engine run is s
 
 The panners use the inverse distance law (1 m reference; rolloff 1 for the machines and the drums, 0.5 to 0.8 for the
 air and the ballasts). The drums are low-passed at 4.5 kHz as heard through their cabinets' doors. At the overview the
-mix is about -29 dBFS RMS (peaks -13 dBFS) with this spread (share of the power by octave band, dB): 20-63 Hz -7.5,
+mix measured about -29 dBFS RMS (on 2026-10-04, with the drums still behind the west wall; not re-measured since they moved into the compute row) (peaks -13 dBFS) with this spread (share of the power by octave band, dB): 20-63 Hz -7.5,
 63-125 -4.3, 125-250 -10.7, 250-500 -15.6, 500-1k -15.7, 1-2k -16.4, 2-4k -20.5, 4-8k -26.3, 8-16k -34.8. Standing at a
 tape unit raises its level about 10 dB over the overview, and its burst of reads lifts the mix there about 3 dB. The
 printer's sounds come from `web/src/sound.js`: printing the listing (a fresh copy, `web/src/printout.js`) plays a hammer
