@@ -189,13 +189,14 @@ the 1108's input voltage, phases or frequency, or says whether it ran from a mot
 other machines of the period (the UNIVAC 1218 military computer "required both 115VAC, one-phase, 60 Hz and 115VAC,
 three-phase, 400 Hz power", <https://en.wikipedia.org/wiki/UNIVAC_418>), but we found nothing that says so of the 1108, so the
 cabinet shows a 60-cycle feed only. Ours, all of it: 208 V three-phase four-wire 60 cycles (US building power), the
-legends, the readings (about 78, 84 and 71 A, half scale; the voltmeter near 208 V; the frequency at 60), the
+legends, the readings (about 78, 84 and 71 A, half scale; the line voltages; the frequency at 60), the
 elapsed-hours count, the branch names. "Cycles" rather than "hertz" is the US usage
 of the time on our reading.
 
 Its shape is that of a desk-height switchgear console: a vertical front 0.68 m high, then the instrument panel sloped
 back 40 degrees from vertical so that it faces a standing viewer, then a flat top at 1.13 m. The sloped panel: three
-round ammeters (phase A, B, C), a line-to-line voltmeter with its selector (A-B, B-C, C-A, OFF; it rests on A-B), a
+round ammeters (phase A, B, C), a line-to-line voltmeter with its selector (OFF, A-B, B-C, C-A; clicking the knob turns
+it to the next, and the voltmeter reads 0 at OFF and 207.5, 209 or 208.2 V on the pairs), a
 frequency meter, an elapsed-hours counter, a control-power key switch, a guarded emergency-off button, a status row
 lit (POWER ON and MAIN BKR CLOSED white, PHASE A to C green) and an alarm row dark (OVER TEMP, OVER CURRENT, PHASE
 LOSS, GROUND FAULT, UNDER VOLTAGE). The faces and legends are one canvas texture; the needles are springs (a 0.65 s
@@ -249,7 +250,7 @@ shown the room ducks 8 dB and its tape units keep turning, so an engine run is s
 | Source | Where | What it is | Sourced | Ours |
 |---|---|---|---|---|
 | Air handling | 3 ceiling diffusers, 2 perforated floor tiles | pink noise low-passed to a rumble (most of it under 120 Hz) and band-passed to a hiss (450 to 1000 Hz); slow drift | the raised floor and dropped ceiling (MSC photo) | everything else |
-| Cabinet fans | each 1108 cabinet, the power cabinet (its hum louder, 8 dB, for its transformers), the 1557 and the film recorder | a blade-pass tone over band-limited noise, and a faint mains hum (60 Hz and harmonics, 120 Hz strongest); the power cabinet's doors latch and creak as they open and shut | US mains, 60 Hz | 3,420 to 3,480 rev/min, 5 blades (285 to 290 Hz, so neighbours beat); levels |
+| Cabinet fans | each 1108 cabinet, the power cabinet (its hum louder, 8 dB, for its transformers), the 1557 and the film recorder | a blade-pass tone over band-limited noise, and a faint mains hum (60 Hz and harmonics, 120 Hz strongest); the power cabinet's doors latch and creak as they open and shut, and its voltmeter selector clicks | US mains, 60 Hz | 3,420 to 3,480 rev/min, 5 blades (285 to 290 Hz, so neighbours beat); levels |
 | FH-432 drums | behind the west wall | three drums at 120 Hz and harmonics, windage from the flying heads | 7,200 rev/min (UP-4046 p. 8-5); three FH-432 (or one FH-1782, 1,800 rev/min, p. 8-6) in the minimum system (p. 5-3) | that MSC had these, their place, the slight detune, the windage |
 | FASTRAND II | behind the west wall | a rumble modulated at 14.7 Hz, low harmonics, head seeks (a knock and a click) | 880 rev/min (p. 8-10); 64 heads moved together in 30 to 86 ms (p. 8-8); one FASTRAND in the minimum system (p. 5-3) | the sound of a seek; seeks every 4 to 15 s, and a burst on each engine run |
 | Tape units | each UNISERVO | at rest a faint vacuum blower; moving, two reel-motor whines pitched at the reels' speed, the vacuum columns' air and the tape's hiss; a knock at start and stop | speeds (UP-4046 sec. 8.4.2); the reels' motion from the unit's model | 24 commutator bars (so the whine is 90 to 200 Hz reading, twice that on rewind); levels |

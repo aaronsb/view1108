@@ -80,7 +80,11 @@ export function build(ctx: BuildContext): Room {
   place("filmrecorder", [wW - 0.47, 0, 0.85], W, "filmrecorder");
   place("printer", [wW - 0.4, 0, 2.75], W, "printer");
   place("cardreader", [-wW + 0.37, 0, nW - 0.65], E);
-  place("powercab", [-2.3, 0, nW - 0.37], N, "power");   // clear of the card reader's front aisle and the door's swing
+  // The power cabinet, clear of the card reader's front aisle and the door's swing; its voltmeter selector is a piece
+  // of its own, picked and turned apart from the cabinet's doors.
+  const power = place("powercab", [-2.3, 0, nW - 0.37], N, "power");
+  const selector = power.anchors.selector as Equipment;
+  selector.object.userData.placed = "power:selector"; placed.push({ name: "power:selector", equipment: selector });
   // The bookcase; each of its binders is placed under its own name, so it is picked, labelled and flown to alone.
   const library = place("bookcase", [wW - 0.19, 0, -2.2], W, "library");
   const binders = library.anchors.binders as Binder[];
@@ -135,7 +139,7 @@ export function build(ctx: BuildContext): Room {
     door: { x: DOOR.x, z: nW, w: DOOR.w },
     overview: { position: new THREE.Vector3(2.4, 1.62, 3.15), target: new THREE.Vector3(0.1, 1.0, -1.6), fov: 55 },
     labels: { vector: "UNIVAC 1558 — workbench", glass: "UNISCOPE 100 — source", filmrecorder: "Microfilm recorder (S-C 4020, hypothetical) — print",
-      printer: "Line printer — listing", switch: "Lights", power: "Power distribution — click to open/close the doors", door: "Exit — github.com/aaronsb/view1108", library: "Reference library",
+      printer: "Line printer — listing", switch: "Lights", power: "Power distribution — click to open/close the doors", "power:selector": "Voltmeter selector — click to turn", door: "Exit — github.com/aaronsb/view1108", library: "Reference library",
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
       ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },
     lightsOn: true,

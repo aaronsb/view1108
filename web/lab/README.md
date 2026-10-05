@@ -181,7 +181,7 @@ The registry (`EQUIPMENT`, with sizes in `FOOTPRINT`, W x H x D in metres; sourc
 | `glass` | | UNISCOPE 100, 0.46 x 0.33 x 0.69, standing on a desk top; shows the kernel source; opens Source |
 | `uniservo` | `number` (head plate, 60, 61, ...), `index` (top strip) | UNISERVO VIII-C tape unit, 0.75 x 1.8 x 0.75 |
 | `cpu` | `lampPanel` | 1108 cabinet, 0.8 x 1.9 x 0.8; with the lamp panel, the processor's maintenance panel |
-| `powercab` | | the power distribution cabinet (HYPOTHETICAL), low, 1.0 x 1.13 x 0.7: a sloped meter panel over a pair of doors with breakers and bus bars behind; placed as `"power"`, named on hover; `use` opens and shuts its doors (`anchors.doors.open`, which the soundscape hears) |
+| `powercab` | | the power distribution cabinet (HYPOTHETICAL), low, 1.0 x 1.13 x 0.7: a sloped meter panel over a pair of doors with breakers and bus bars behind; placed as `"power"`, named on hover; `use` opens and shuts its doors; `anchors.selector`, placed as `"power:selector"`, turns the voltmeter selector (`anchors.panel` holds both states for the soundscape) |
 | `console4009` | | 1108 Display Console with Day Clock, CRT and PAGEWRITER, 2.8 x 1.25 x 0.95 |
 | `controller1557` | | 1557 display controller, 1.2 x 1.6 x 0.6 |
 | `printer` | | line printer with fanfold paper, 1.4 x 1.2 x 0.8; the page on its hood is its screen (`fit: "width"`); `print` events feed its paper; opens `"listing"` |

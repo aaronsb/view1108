@@ -1,13 +1,13 @@
 // The 1108's power distribution unit, HYPOTHETICAL (docs/lab.md, "The power cabinet"): a low floor-standing cabinet,
 // 1.0 x 1.13 x 0.7 m, with an instrument panel sloped up toward a standing viewer over a pair of side-hinged doors.
 //
-// The sloped panel: three round ammeters (phase A, B, C), a line-to-line voltmeter with its phase selector (fixed on
-// A-B), a frequency meter in cycles, an elapsed-hours counter, a key switch and a guarded emergency-off button, a
+// The sloped panel: three round ammeters (phase A, B, C), a line-to-line voltmeter with its phase selector, a frequency meter in cycles, an elapsed-hours counter, a key switch and a guarded emergency-off button, a
 // status row lit and an alarm row dark. The dial faces, scales and legends are one canvas texture in the panel; the
 // needles are one instanced mesh, turned each frame; the loads wander slowly, rise and flicker while the page is busy
 // or the tape units run. Behind the doors: copper bus bars on standoffs, the main and branch breakers with their
 // directory strip, a dry transformer, a terminal strip, cable bundles and a ground bar. Using the cabinet (E, or a
-// click) swings the doors open, and again shut.
+// click) swings the doors open, and again shut. The selector knob is a piece of its own (`anchors.selector`, which the
+// room places under its own name): using it steps it OFF, A-B, B-C, C-A, and the voltmeter follows.
 import * as THREE from "three";
 import type { BuildContext, Equipment, LabEvent, LabState } from "../types";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -33,7 +33,10 @@ const METERS: Meter[] = [
   { x: 0.075, y: MY, min: 0, max: 300, major: 50, minor: 10, nums: [0, 100, 200, 300], unit: "AC VOLTS", red: 208 },
   { x: 0.375, y: MY, min: 55, max: 65, major: 1, minor: 0.5, nums: [55, 60, 65], unit: "CYCLES", red: 60 },
 ];
+// The selector's positions: OFF, then the three pairs; its angle from straight up (positive clockwise) and the line
+// voltage it reads there (ours: a little unbalanced).
 const SEL = { x: 0.225, y: MY + 0.005 }, PAIRS = ["A-B", "B-C", "C-A"], PAIR_ANGLE = [-45, 0, 45].map(d => d * Math.PI / 180);
+const SEL_ANGLE = [-103 * Math.PI / 180, ...PAIR_ANGLE], SEL_VOLTS = [0, 207.5, 209, 208.2];
 const KEY = { x: -0.3, y: 0.215 }, HOURS = { x: 0, y: 0.215 }, EPO = { x: 0.3, y: 0.22 };
 const LAMPX = [-0.24, -0.12, 0, 0.12, 0.24], STATUS_Y = 0.1, ALARM_Y = 0.05, LW = 0.09, LH = 0.038, LTOP = 0.13;
 const STATUS = [["POWER", "ON"], ["PHASE A", ""], ["PHASE B", ""], ["PHASE C", ""], ["MAIN BKR", "CLOSED"]];
@@ -42,8 +45,8 @@ const ALARMS = [["OVER", "TEMP"], ["OVER", "CURRENT"], ["PHASE", "LOSS"], ["GROU
 const BAY = 0.28, BKR_Y = 0.43, BRANCH = ["CPU", "STOR 1", "STOR 2", "DRUMS", "TAPES", "CONSOLE", "PRINTER", "SPARE"];
 const branchX = (k: number) => -0.19 + k * 0.077;
 const DIR = { x0: -0.44, x1: 0.44, y: 0.31, h: 0.03 }, DPX = 1400;
-// The loads, ours: phase currents a little unbalanced, about half scale; the line voltage on A-B.
-const BASE_A = [78, 84, 71], VOLTS = 208.4;
+// The loads, ours: phase currents a little unbalanced, about half scale.
+const BASE_A = [78, 84, 71];
 
 /** A point on a meter's scale circle `r` from its pivot at value `v`, in metres. */
 function scalePt(m: Meter, v: number, r: number): [number, number] {
@@ -231,10 +234,20 @@ export function build(_ctx: BuildContext): Equipment {
   Q.outline(circle(EPO.x, EPO.y, 0.04), Z, Z + 0.028, plastic(0xd9b21c, 0.4), 0, [circle(EPO.x, EPO.y, 0.032)]);
   Q.cyl(0.011, 0.011, 0.02, black, EPO.x, EPO.y, Z + 0.01, 16, true);
   Q.cyl(0.027, 0.028, 0.015, plastic(0xc0231a, 0.35), EPO.x, EPO.y, Z + 0.024, 28, true);
-  // The selector's pointer knob, on A-B.
-  const knob = mergeGeometries([new THREE.CylinderGeometry(0.014, 0.016, 0.016, 24).rotateX(Math.PI / 2), new THREE.BoxGeometry(0.008, 0.044, 0.012).translate(0, 0.007, 0.002)])!;
-  Q.add(knob, black, at(SEL.x, SEL.y, Z + 0.014, 0, 0, -PAIR_ANGLE[0]));
   Q.bake(slope).forEach(m => mine.push(m.geometry));
+
+  // The selector's pointer knob, with an unseen disc around it that is easier to point at; it starts on A-B.
+  const knobGeo = mergeGeometries([new THREE.CylinderGeometry(0.014, 0.016, 0.016, 24).rotateX(Math.PI / 2), new THREE.BoxGeometry(0.008, 0.044, 0.012).translate(0, 0.007, 0.002)])!;
+  const pickGeo = new THREE.CircleGeometry(0.05, 24).translate(0, 0, 0.02), pickMat = new THREE.MeshBasicMaterial({ visible: false });
+  const knob = new THREE.Group(); knob.position.set(SEL.x, SEL.y, Z + 0.014); slope.add(knob);
+  knob.add(new THREE.Mesh(knobGeo, black), new THREE.Mesh(pickGeo, pickMat));
+  mine.push(knobGeo, pickGeo, pickMat);
+  const panel = { open: false, sel: 1 };   // the doors' goal and the selector's position; the soundscape listens to both
+  knob.rotation.z = -SEL_ANGLE[panel.sel];
+  const selector: Equipment = {
+    object: knob, anchors: {},
+    use() { panel.sel = (panel.sel + 1) % SEL_ANGLE.length; knob.rotation.z = -SEL_ANGLE[panel.sel]; },
+  };
 
   // The plate face: the panel and the dial faces raised in their bezels, one texture.
   const tex = fontTex(CW, CH, drawPanel, 8);
@@ -282,14 +295,13 @@ export function build(_ctx: BuildContext): Equipment {
   };
   const target = (i: number, load: number) => {
     if (i < 3) return BASE_A[i] + 2.2 * Math.sin(t * 0.11 * (i + 1) + i * 2.1) + 1.1 * Math.sin(t * 0.37 + i) + 10 * load + jitter[i];
-    if (i === 3) return VOLTS + 0.6 * Math.sin(t * 0.07) - 2.5 * load + jitter[3];
+    if (i === 3) return panel.sel ? SEL_VOLTS[panel.sel] + 0.6 * Math.sin(t * 0.07) - 2.5 * load + jitter[3] : 0;
     return 60 + 0.04 * Math.sin(t * 0.05) + 0.1 * jitter[4];
   };
   METERS.forEach((_m, i) => { pos[i] = target(i, 0); });
   place();
 
-  // The doors' swing: `open` the goal, `swing` 0 (shut) to 1 (open), eased.
-  const doorState = { open: false };
+  // The doors' swing toward `panel.open`: 0 (shut) to 1 (open), eased.
   let swing = 0;
   const hang = () => {
     const e = swing * swing * (3 - 2 * swing);
@@ -303,14 +315,15 @@ export function build(_ctx: BuildContext): Equipment {
     anchors: {
       camera: poseFrom(mid, [0.06, Math.sin(TILT), Math.cos(TILT)], fitDist(Y1 - Y0, 40, 1.25), 40),
       screen: { mesh: face, uvRect: [0, 0, 1, 1] },
-      doors: doorState,   // the soundscape listens for the latch (audio/roomsound.ts)
+      selector,
+      panel,   // audio/roomsound.ts: the doors' latch and the selector's detent
     },
-    use() { doorState.open = !doorState.open; },
+    use() { panel.open = !panel.open; },
     event(e: LabEvent) { if (e.type === "tape") tape = 6; else if (e.type === "beamFrame") busy = Math.max(busy, 0.4); },
     update(dt: number, s: LabState) {
       dt = Math.min(dt, 0.1);
       t += dt;
-      const goal = doorState.open ? 1 : 0;
+      const goal = panel.open ? 1 : 0;
       if (swing !== goal) { swing = goal > swing ? Math.min(1, swing + dt / SWING_S) : Math.max(0, swing - dt / SWING_S); hang(); }
       if (s.frameNo !== lastFrame) { lastFrame = s.frameNo; busy = Math.max(busy, 0.5); }
       busy = Math.max(0, busy - dt); tape = Math.max(0, tape - dt);
