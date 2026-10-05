@@ -51,7 +51,8 @@ export function build(ctx: BuildContext): Equipment {
   P.box(W - 0.04, 0.08, D - 0.06, black, 0, 0.04, 0);
   P.box(W - 0.02, hb, back, body, 0, yb + hb / 2, -D / 2 + back / 2);
   for (const s of [-1, 1]) P.box(0.01, hb, D, body, s * (W / 2 - 0.005), yb + hb / 2, 0);
-  P.outline([[-W / 2, yb], [W / 2, yb], [W / 2, yb + hb], [-W / 2, yb + hb]], ZF - 0.006, ZF, black, 0, win());
+  const fw = W / 2 - 0.01;   // the front plate fits between the side panels, so no faces share a plane at the front edges
+  P.outline([[-fw, yb], [fw, yb], [fw, yb + hb], [-fw, yb + hb]], ZF - 0.006, ZF, black, 0, win());
   P.rbox(W + 0.01, 0.03, D + 0.01, 0.008, paint(0xcac6ba), 0, H - 0.015, 0);
 
   // Doors: each section a lower and an upper door with a recessed handle where they meet (brochure p. 1).
