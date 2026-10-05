@@ -129,9 +129,8 @@ What comes from where:
   slatted grille at the right, the small UNIVAC plate under the screen and the brushed strip across the top. That the
   4009's display unit is a UNISCOPE 300 is our reading of the console photo and the shared screen; Fig. 2-1 shows a
   light strip at the top of the face too small to read, and lettering it "U N I S C O P E  3 0 0" follows that
-  reading (HYPOTHETICAL). The keyboard is the 4009's, not the 300's: four banks of 47 keys and the space bar, a row of
-  8 interrupt keys and 2 function keys (UP-7604 sec. 2.3.1; the text's "7 keys" is read as 47, which with the space
-  bar gives four banks of about 12), with a red key and two lamps at the deck's back left (Fig. 2-1).
+  reading (HYPOTHETICAL). The keyboard is the UNISCOPE 100's (below; our choice): UP-7604's four-bank keyboard (sec.
+  2.3.1) is not reproduced. A red key and two lamps stand at the deck's back left (Fig. 2-1).
 - **PAGEWRITER** (Fig. 2-4): a low wedge with the platen under its top and a control strip on its sloping front, on a
   light grey pedestal with a white top. The pedestal's place at the desk's left end is ours.
 - **Back** (seen from the overview; no source shows it): the modesty panel with a cable cut-out at its foot and the
