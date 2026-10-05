@@ -206,6 +206,9 @@ C         (SIVST), half its 61.3 ft below the IU's top (SIVBMD).
    70     CONTINUE
         ELSE
           CALL VSTATE(GET, 3, 1, R, V, IOK)
+C         Only while it flies on its own: with the CSM before SEP or
+C         docked to it, there is no separate S-IVB to aim at.
+          IF (IOK .NE. 1) IOK = 0
           DO 75 I = 1, 3
             TG(I) = R(I)
    75     CONTINUE

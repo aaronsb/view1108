@@ -245,7 +245,8 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     LEGAT: the current scenario's leg of vehicle IVEH (1 CSM, 2 LM)
+C     LEGAT: the current scenario's leg of vehicle IVEH (1 CSM, 2 LM,
+C     3 S-IVB)
 C     about the Earth (ICLS = 1: CIRC, CONIC or TABLE) or the Moon
 C     (ICLS = 2: LUNAR or LCONIC) whose span holds GET, else the one
 C     whose span ends nearest it; 0 if there is none.
