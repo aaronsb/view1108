@@ -15,8 +15,14 @@ C       CIRC   Earth circular orbit through a state (parking orbit);
 C       CONIC  Earth-centred Kepler conic from a state, no lunar
 C              gravity (translunar and transearth coast);
 C       LUNAR  circle about the Moon through two states, its plane
-C              and mean motion from those states (lunar orbit).
-C     A g.e.t. outside every leg takes the nearest leg.
+C              and mean motion from those states (lunar orbit); its
+C              radius may change steadily from the one to the other;
+C       LCONIC Moon-centred Kepler conic from a state, or from the
+C              vehicle's leg before it plus an impulse (the LM's
+C              descent orbit and rendezvous).
+C     Each leg carries one vehicle, the CSM or the LM.  For the CSM a
+C     g.e.t. outside every leg takes the nearest leg; the LM has a
+C     state only where LMSTAT's rules give it one.
 C       LM descent: P64 approach from 7200 ft altitude and 25600 ft
 C         range at GET 102:41:30 down to the site at touchdown.
 C
@@ -25,7 +31,9 @@ C
 C-----------------------------------------------------------------------
 C     SNSET: make scenario IM current: its epoch TJD0 (the ephemeris
 C     keys on it), the elements of each of its legs (LGEL), and the
-C     event times the scenes use.
+C     event times the scenes use.  The LCONIC legs go last, as they
+C     take their plane from the CSM's lunar legs and, with an impulse,
+C     their start from the LM's leg before them.
 C-----------------------------------------------------------------------
       SUBROUTINE SNSET(IM)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -34,13 +42,16 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       INTEGER IM
       DOUBLE PRECISION R(3), V(3), A(3), B(3), H(3), Y(3), M(3,3)
-      DOUBLE PRECISION S(3), E(3), EV, AX, RR, VV, CN, SN, NU, EA, AN
-      DOUBLE PRECISION EVGET, VDOT, VNRM, ANG
-      INTEGER K, I
+      DOUBLE PRECISION S(3)
+      DOUBLE PRECISION EVGET, VDOT, ANG
+      INTEGER K, I, IP, KP
       ISN = IM
       TJD0 = SNJD0(IM)
+      DO 95 IP = 1, 2
       DO 90 K = 1, NLEG
         IF (LGSN(K) .NE. IM) GO TO 90
+        IF (IP .EQ. 1 .AND. LGTYP(K) .EQ. KLCON) GO TO 90
+        IF (IP .EQ. 2 .AND. LGTYP(K) .NE. KLCON) GO TO 90
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         IF (LGTYP(K) .EQ. KCIRC) THEN
 C         Circle through the state's position, along its heading.
@@ -55,35 +66,27 @@ C         Circle through the state's position, along its heading.
           LGEL(10,K) = RE + LGP(6,K) * 1.852D0
           LGEL(11,K) = DSQRT(GME / LGEL(10,K)**3)
         ELSE IF (LGTYP(K) .EQ. KCONIC) THEN
-C         Conic elements from the state: perigee unit P (1-3), Q 90
-C         deg ahead (4-6), eccentricity (7), semi-major axis (8),
-C         perigee time (9).
           CALL STATEV(LGP(1,K), LGGC(K), R, V)
-          CALL VCRS(R, V, H)
-          RR = VNRM(R)
-          VV = VDOT(V, V)
-          CALL VCRS(V, H, E)
-          DO 20 I = 1, 3
-            E(I) = E(I) / GME - R(I) / RR
+          CALL CONEL(R, V, GME, LGP(3,K), LGEL(1,K))
+        ELSE IF (LGTYP(K) .EQ. KLCON) THEN
+C         A Moon-centred conic: from the same vehicle's leg before
+C         this one at T with the impulse DV, or from a selenographic
+C         state at T (LCST).
+          KP = 0
+          DO 20 I = 1, K - 1
+            IF (LGSN(I) .EQ. IM .AND. LGVEH(I) .EQ. LGVEH(K)) KP = I
    20     CONTINUE
-          EV = VNRM(E)
-          AX = 1.0D0 / (2.0D0 / RR - VV / GME)
-          CALL VUNIT(H)
-          CALL VUNIT(E)
-          CALL VCRS(H, E, Y)
-          CN = VDOT(R, E) / RR
-          SN = VDOT(R, Y) / RR
-          NU = DATAN2(SN, CN)
-          EA = 2.0D0 * DATAN(DSQRT((1.0D0 - EV) / (1.0D0 + EV))
-     &       * DTAN(0.5D0 * NU))
-          AN = DSQRT(GME / AX**3)
-          DO 30 I = 1, 3
-            LGEL(I,K) = E(I)
-            LGEL(I+3,K) = Y(I)
-   30     CONTINUE
-          LGEL(7,K) = EV
-          LGEL(8,K) = AX
-          LGEL(9,K) = LGP(3,K) - (EA - EV * DSIN(EA)) / AN
+          IF (LGP(13,K) .NE. 0.0D0 .AND. KP .GT. 0) THEN
+            CALL LEGRV(KP, LGP(3,K), R, A)
+            DO 25 I = 1, 3
+              V(I) = A(I)
+   25       CONTINUE
+            CALL IMPULS(R, A, LGP(13,K), LGP(14,K), LGP(15,K),
+     &                  LGP(16,K), V)
+          ELSE
+            CALL LCST(LGP(1,K), R, V)
+          END IF
+          CALL CONEL(R, V, GMM, LGP(3,K), LGEL(1,K))
         ELSE
 C         Lunar circle through state A at T and state B at TB, both
 C         selenographic, carried to EQ by the Moon's orientation at
@@ -116,11 +119,105 @@ C         motion of MR Table 7-II's lunar rows, or prograde (1).
           LGEL(10,K) = RM + LGP(6,K) * 1.852D0
           LGEL(11,K) = (ANG + 2.0D0 * PI * DBLE(LGN(K)))
      &               / (LGP(10,K) - LGP(3,K))
+C         Radius changing at a steady rate from ALT at T to ALTB at TB
+C         (km/s; 0 for a circle).
+          LGEL(7,K) = (LGP(17,K) - LGP(6,K)) * 1.852D0
+     &              / (LGP(10,K) - LGP(3,K))
         END IF
 C     RESTOMOD END
    90 CONTINUE
+   95 CONTINUE
       LUT0 = EVGET(KETD)
       TETP = EVGET(KEEI)
+      RETURN
+      END
+C
+C     CONEL: conic elements EL of the state R, V (km, km/s, about a
+C     body of GM) at time T: perigee unit P (1-3), Q 90 deg ahead
+C     (4-6), eccentricity (7), semi-major axis (8), perigee time (9).
+      SUBROUTINE CONEL(R, V, GM, T, EL)
+      DOUBLE PRECISION R(3), V(3), GM, T, EL(11)
+      DOUBLE PRECISION H(3), E(3), Y(3), EV, AX, RR, VV, CN, SN, NU
+      DOUBLE PRECISION EA, AN, VDOT, VNRM
+      INTEGER I
+      CALL VCRS(R, V, H)
+      RR = VNRM(R)
+      VV = VDOT(V, V)
+      CALL VCRS(V, H, E)
+      DO 20 I = 1, 3
+        E(I) = E(I) / GM - R(I) / RR
+   20 CONTINUE
+      EV = VNRM(E)
+      AX = 1.0D0 / (2.0D0 / RR - VV / GM)
+      CALL VUNIT(H)
+      CALL VUNIT(E)
+      CALL VCRS(H, E, Y)
+      CN = VDOT(R, E) / RR
+      SN = VDOT(R, Y) / RR
+      NU = DATAN2(SN, CN)
+      EA = 2.0D0 * DATAN(DSQRT((1.0D0 - EV) / (1.0D0 + EV))
+     &   * DTAN(0.5D0 * NU))
+      AN = DSQRT(GM / AX**3)
+      DO 30 I = 1, 3
+        EL(I) = E(I)
+        EL(I+3) = Y(I)
+   30 CONTINUE
+      EL(7) = EV
+      EL(8) = AX
+      EL(9) = T - (EA - EV * DSIN(EA)) / AN
+      RETURN
+      END
+C
+C     LCST: an LCONIC card's state (P, the layout of LGP) about the
+C     Moon, EQ km and km/s: its selenographic position at its altitude
+C     above the mean radius RM, its speed and flight-path angle, and
+C     the horizontal direction of the CSM's lunar leg's plane at that
+C     time (our choice; REFST, sim.f, puts the lunar REF rows so too).
+      SUBROUTINE LCST(P, R, V)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION P(NLGP), R(3), V(3), S(3), U(3), M(3,3), HN(3)
+      DOUBLE PRECISION W(3), RA, SP, G
+      INTEGER K, I, LEGAT
+      CALL LLUNIT(P(4), P(5), S)
+      CALL MOONRT(P(3), M)
+      CALL MXV(M, S, U)
+      K = LEGAT(P(3), 2, 1)
+      CALL VCRS(LGEL(1,K), LGEL(4,K), HN)
+      CALL VCRS(HN, U, W)
+      CALL VUNIT(W)
+      RA = RM + P(6) * 1.852D0
+      SP = P(7) * 0.3048D-3
+      G = P(8) * DR
+      DO 10 I = 1, 3
+        R(I) = RA * U(I)
+        V(I) = SP * (DSIN(G) * U(I) + DCOS(G) * W(I))
+   10 CONTINUE
+      RETURN
+      END
+C
+C     IMPULS: add DV (ft/s) to VO along P, RD, N: the components
+C     along the velocity, the in-plane radial and the orbit normal of
+C     the state R, V (relative to the body whose frame they are in).
+      SUBROUTINE IMPULS(R, V, DV, P, RD, N, VO)
+      DOUBLE PRECISION R(3), V(3), DV, P, RD, N, VO(3)
+      DOUBLE PRECISION X(3), Y(3), Z(3), DN, D
+      INTEGER I
+      DO 10 I = 1, 3
+        X(I) = V(I)
+   10 CONTINUE
+      CALL VUNIT(X)
+      CALL VCRS(R, V, Z)
+      CALL VUNIT(Z)
+      CALL VCRS(Z, X, Y)
+      DN = DSQRT(P * P + RD * RD + N * N)
+      IF (DN .LE. 0.0D0) RETURN
+      D = DV * 0.3048D-3 / DN
+      DO 20 I = 1, 3
+        VO(I) = VO(I) + D * (P * X(I) + RD * Y(I) + N * Z(I))
+   20 CONTINUE
       RETURN
       END
 C
@@ -139,22 +236,23 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     LEGAT: the current scenario's leg about the Earth (ICLS = 1: CIRC
-C     or CONIC) or the Moon (ICLS = 2: LUNAR) whose span holds GET,
-C     else the one whose span ends nearest it; 0 if there is none.
-      INTEGER FUNCTION LEGAT(GET, ICLS)
+C     LEGAT: the current scenario's leg of vehicle IVEH (1 CSM, 2 LM)
+C     about the Earth (ICLS = 1: CIRC or CONIC) or the Moon (ICLS = 2:
+C     LUNAR or LCONIC) whose span holds GET, else the one whose span
+C     ends nearest it; 0 if there is none.
+      INTEGER FUNCTION LEGAT(GET, ICLS, IVEH)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION GET, D, DBEST
-      INTEGER ICLS, K, IC
+      INTEGER ICLS, IVEH, K, IC
       LEGAT = 0
       DBEST = 1.0D30
       DO 10 K = 1, NLEG
-        IF (LGSN(K) .NE. ISN) GO TO 10
+        IF (LGSN(K) .NE. ISN .OR. LGVEH(K) .NE. IVEH) GO TO 10
         IC = 1
-        IF (LGTYP(K) .EQ. KLUNAR) IC = 2
+        IF (LGTYP(K) .EQ. KLUNAR .OR. LGTYP(K) .EQ. KLCON) IC = 2
         IF (IC .NE. ICLS) GO TO 10
         D = 0.0D0
         IF (GET .LT. LGP(1,K)) D = LGP(1,K) - GET
@@ -166,7 +264,7 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     LUNIN: 1 if a LUNAR leg of the current scenario holds GET in its
+C     LUNIN: 1 if a CSM lunar leg of the current scenario holds GET in its
 C     span, else 0 (between the lunar legs, or before or after them,
 C     LEGAT still gives the nearest circle; a scene that rides the
 C     CSM only in lunar orbit asks this first).  It follows the legs
@@ -181,7 +279,7 @@ C     RESTOMOD END
       DOUBLE PRECISION GET
       INTEGER K, LEGAT
       LUNIN = 0
-      K = LEGAT(GET, 2)
+      K = LEGAT(GET, 2, 1)
       IF (K .EQ. 0) RETURN
       IF (GET .GE. LGP(1,K) .AND. GET .LE. LGP(2,K)) LUNIN = 1
       RETURN
@@ -261,22 +359,47 @@ C     Equator of date to J2000.
       END
 C
 C-----------------------------------------------------------------------
-C     ERTORB: spacecraft about the Earth, geocentric EQ km and km/s,
-C     on the current scenario's Earth leg for GET.
+C     ERTORB: the CSM about the Earth, geocentric EQ km and km/s, on
+C     the current scenario's Earth leg for GET.
 C-----------------------------------------------------------------------
       SUBROUTINE ERTORB(GET, R, V)
+      DOUBLE PRECISION GET, R(3), V(3)
+      INTEGER LEGAT
+      CALL LEGRV(LEGAT(GET, 1, 1), GET, R, V)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     LUNORB: vehicle IVEH (1 CSM, 2 LM) relative to the Moon, EQ km
+C     and km/s, on the current scenario's lunar leg of that vehicle
+C     for GET (the nearest one: LMSTAT decides where the LM has one).
+C-----------------------------------------------------------------------
+      SUBROUTINE LUNORB(GET, IVEH, R, V)
+      DOUBLE PRECISION GET, R(3), V(3)
+      INTEGER IVEH, LEGAT
+      CALL LEGRV(LEGAT(GET, 2, IVEH), GET, R, V)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     LEGRV: position and velocity on leg K at GET, about its body (the
+C     Earth for CIRC and CONIC, the Moon for LUNAR and LCONIC), EQ km
+C     and km/s.
+C-----------------------------------------------------------------------
+      SUBROUTINE LEGRV(K, GET, R, V)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION GET, R(3), V(3), TH, C, S
-      INTEGER K, I, LEGAT
-      K = LEGAT(GET, 1)
+      DOUBLE PRECISION GET, R(3), V(3), TH, C, S, GM, RA
+      INTEGER K, I
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (LGTYP(K) .EQ. KCONIC) THEN
+      IF (LGTYP(K) .EQ. KCONIC .OR. LGTYP(K) .EQ. KLCON) THEN
+        GM = GME
+        IF (LGTYP(K) .EQ. KLCON) GM = GMM
         CALL KEPLER(LGEL(1,K), LGEL(4,K), LGEL(7,K), LGEL(8,K),
-     &              LGEL(9,K), GET, R, V)
-      ELSE
+     &              LGEL(9,K), GM, GET, R, V)
+      ELSE IF (LGTYP(K) .EQ. KCIRC) THEN
         TH = LGEL(11,K) * (GET - LGEL(9,K))
         C = DCOS(TH)
         S = DSIN(TH)
@@ -285,47 +408,36 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
           V(I) = LGEL(10,K) * LGEL(11,K)
      &         * (C * LGEL(I+3,K) - S * LGEL(I,K))
    10   CONTINUE
+      ELSE
+C       LUNAR: the radius RA moves at LGEL(7) km/s.
+        TH = LGEL(11,K) * (GET - LGEL(9,K))
+        C = DCOS(TH)
+        S = DSIN(TH)
+        RA = LGEL(10,K) + LGEL(7,K) * (GET - LGEL(9,K))
+        DO 20 I = 1, 3
+          R(I) = RA * (C * LGEL(I,K) + S * LGEL(I+3,K))
+          V(I) = RA * LGEL(11,K)
+     &         * (C * LGEL(I+3,K) - S * LGEL(I,K))
+     &         + LGEL(7,K) * (C * LGEL(I,K) + S * LGEL(I+3,K))
+   20   CONTINUE
       END IF
 C     RESTOMOD END
       RETURN
       END
 C
 C-----------------------------------------------------------------------
-C     LUNORB: CSM relative to the Moon, EQ km and km/s, on the current
-C     scenario's lunar leg for GET.
-C-----------------------------------------------------------------------
-      SUBROUTINE LUNORB(GET, R, V)
-C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
-      INCLUDE 'viewdims.inc'
-      INCLUDE 'viewcom.inc'
-C     RESTOMOD END
-      DOUBLE PRECISION GET, R(3), V(3), TH, C, S
-      INTEGER K, I, LEGAT
-      K = LEGAT(GET, 2)
-      TH = LGEL(11,K) * (GET - LGEL(9,K))
-      C = DCOS(TH)
-      S = DSIN(TH)
-      DO 10 I = 1, 3
-        R(I) = LGEL(10,K) * (C * LGEL(I,K) + S * LGEL(I+3,K))
-        V(I) = LGEL(10,K) * LGEL(11,K)
-     &       * (C * LGEL(I+3,K) - S * LGEL(I,K))
-   10 CONTINUE
-      RETURN
-      END
-C
-C-----------------------------------------------------------------------
 C     KEPLER: position and velocity at GET on the ellipse P, Q, E, A
-C     with perigee at time TP.
+C     about a body of GM, with perigee at time TP.
 C-----------------------------------------------------------------------
-      SUBROUTINE KEPLER(P, Q, E, A, TP, GET, R, V)
+      SUBROUTINE KEPLER(P, Q, E, A, TP, GM, GET, R, V)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION P(3), Q(3), E, A, TP, GET, R(3), V(3)
+      DOUBLE PRECISION P(3), Q(3), E, A, TP, GM, GET, R(3), V(3)
       DOUBLE PRECISION AM, EA, F, RR, B, C, S, VF
       INTEGER I, IT
-      AM = DSQRT(GME / A**3) * (GET - TP)
+      AM = DSQRT(GM / A**3) * (GET - TP)
       EA = AM
       IF (E .GT. 0.8D0) EA = PI * DSIGN(1.0D0, AM)
       IF (DABS(AM) .GT. PI) EA = AM
@@ -338,7 +450,7 @@ C     RESTOMOD END
       S = DSIN(EA)
       B = DSQRT(1.0D0 - E * E)
       RR = A * (1.0D0 - E * C)
-      VF = DSQRT(GME * A) / RR
+      VF = DSQRT(GM * A) / RR
       DO 30 I = 1, 3
         R(I) = A * ((C - E) * P(I) + B * S * Q(I))
         V(I) = VF * (-S * P(I) + B * C * Q(I))
@@ -434,6 +546,162 @@ C       The eye, LMEYE above the footpads along the LM's up axis.
       END
 C
 C-----------------------------------------------------------------------
+C     LMSTAT: the LM at GET relative to the Moon, EQ km and km/s: the
+C     point of its body axes 2.3 m up the thrust axis from the descent
+C     stage's base, the stage joint MPLACE centres it on (LMLOC, ours).
+C     IOK = 0 where we have no state for it, 1 its own state, 2 docked
+C     (the CSM's state).  The rules, in the scenario's events (ours
+C     where marked):
+C       before UNDOCK, and from LMDOK to JETT: docked;
+C       UNDOCK to LMSEP: 300 ft from the CSM along the orbit normal,
+C         the pirouette's distance (scene 4; ours);
+C       TOUCH - 600 s to TOUCH: the modelled descent (LMDESC);
+C       TOUCH to LIFT: landed at the site;
+C       TPF to LMDOK: the CSM plus the LM's offset from it at TPF on
+C         its last leg, closing linearly to nothing at docking (ours);
+C       otherwise on a VEH=LM leg whose span holds GET, or across a
+C         gap of 60 s or less between two of them (a burn; ours);
+C       else none: the powered descent before LMDESC, the powered
+C         ascent, after JETT, and a scenario without an UNDOCK event.
+C     The CSM's state comes from the state source (CSMSL, VSTATE:
+C     replay or tape); the LM's own legs from the replay only.
+C-----------------------------------------------------------------------
+      SUBROUTINE LMSTAT(GET, R, V, IOK)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, R(3), V(3)
+      INTEGER IOK
+      DOUBLE PRECISION TU, TS, TF, TD, TJ, TL, F, D(3), DV(3), H(3)
+      DOUBLE PRECISION PMF(3), P2(3), XB(3), YB(3), ZB(3), M(3,3)
+      DOUBLE PRECISION SALT, SEYE, W, LMLOC, EVGET
+      INTEGER I, K, LMLEG
+C     Body point of the state above the footpads (km): the stage joint
+C     at X = 2.3 m, the gear's pads at X = -1.1 m (LMGEAR).
+      LMLOC = 3.4D-3
+      IOK = 0
+      TU = EVGET(KEUND)
+      IF (TU .LT. 0.0D0) RETURN
+      TS = EVGET(KELMS)
+      TF = EVGET(KETPF)
+      TD = EVGET(KELDK)
+      TJ = EVGET(KEJET)
+      TL = EVGET(KELFT)
+      IF (TJ .GE. 0.0D0 .AND. GET .GE. TJ) RETURN
+      IF (GET .LT. TU .OR. (TD .GE. 0.0D0 .AND. GET .GE. TD)) GO TO 10
+      IF (TS .GE. 0.0D0 .AND. GET .LT. TS) GO TO 20
+      IF (TF .GE. 0.0D0 .AND. TD .GT. TF .AND. GET .GE. TF) GO TO 30
+      IF (LUT0 .GT. 0.0D0 .AND. GET .GE. LUT0 - 600.0D0
+     &    .AND. GET .LT. LUT0) GO TO 40
+      IF (LUT0 .GT. 0.0D0 .AND. GET .GE. LUT0
+     &    .AND. (TL .LT. 0.0D0 .OR. GET .LT. TL)) GO TO 50
+      K = LMLEG(GET)
+      IF (K .EQ. 0) RETURN
+      CALL LEGRV(K, GET, R, V)
+      IOK = 1
+      RETURN
+C     Docked: the CSM.
+   10 CALL CSMSL(GET, R, V)
+      IOK = 2
+      RETURN
+C     Undocked, before the separation burn.
+   20 CALL CSMSL(GET, R, V)
+      CALL VCRS(R, V, H)
+      CALL VUNIT(H)
+      DO 25 I = 1, 3
+        R(I) = R(I) + 300.0D0 * 0.3048D-3 * H(I)
+   25 CONTINUE
+      IOK = 1
+      RETURN
+C     Braking to docking: the offset at TPF, closing.
+   30 K = LMLEG(TF)
+      IF (K .EQ. 0) RETURN
+      CALL LEGRV(K, TF, D, DV)
+      CALL CSMSL(TF, H, XB)
+      DO 32 I = 1, 3
+        D(I) = D(I) - H(I)
+   32 CONTINUE
+      F = (TD - GET) / (TD - TF)
+      CALL CSMSL(GET, R, V)
+      DO 35 I = 1, 3
+        R(I) = R(I) + F * D(I)
+        V(I) = V(I) - D(I) / (TD - TF)
+   35 CONTINUE
+      IOK = 1
+      RETURN
+C     The modelled descent: LMDESC's eye less its height above the
+C     state's point; velocity over one second, as scene 5 takes it.
+C     LMDESC's LMALT and LMEYE belong to scene 5's frame: kept.
+   40 SALT = LMALT
+      SEYE = LMEYE
+      CALL LMDESC(GET, PMF, XB, YB, ZB)
+      CALL LMDESC(GET + 1.0D0, P2, YB, ZB, H)
+      DO 42 I = 1, 3
+        PMF(I) = PMF(I) - (LMEYE - LMLOC) * XB(I)
+        P2(I) = P2(I) - (LMEYE - LMLOC) * YB(I)
+   42 CONTINUE
+      LMALT = SALT
+      LMEYE = SEYE
+      CALL MOONRT(GET, M)
+      CALL MXV(M, PMF, R)
+      CALL MXV(M, P2, H)
+      DO 45 I = 1, 3
+        V(I) = H(I) - R(I)
+   45 CONTINUE
+      IOK = 1
+      RETURN
+C     Landed: the site, LMLOC above the mean radius, carried by the
+C     Moon's turning (the IAU rate MOONRT uses, 13.17635815 deg/day).
+   50 CALL LLUNIT(SNSLA(ISN), SNSLO(ISN), H)
+      CALL MOONRT(GET, M)
+      CALL MXV(M, H, PMF)
+      W = 13.17635815D0 * DR / 86400.0D0
+      DO 55 I = 1, 3
+        R(I) = (RM + LMLOC) * PMF(I)
+        XB(I) = M(I,3)
+   55 CONTINUE
+      CALL VCRS(XB, R, V)
+      DO 58 I = 1, 3
+        V(I) = W * V(I)
+   58 CONTINUE
+      IOK = 1
+      RETURN
+      END
+C
+C     LMLEG: the LM leg (VEH=LM) of the current scenario whose span
+C     holds GET, or, in a gap of 60 s or less between two of them (a
+C     burn), the nearer of the two; 0 if none.
+      INTEGER FUNCTION LMLEG(GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, DA, DB
+      INTEGER K, KA, KB
+      LMLEG = 0
+      KA = 0
+      KB = 0
+      DA = 61.0D0
+      DB = 61.0D0
+      DO 10 K = 1, NLEG
+        IF (LGSN(K) .NE. ISN .OR. LGVEH(K) .NE. 2) GO TO 10
+        IF (GET .GE. LGP(1,K) .AND. GET .LE. LGP(2,K)) LMLEG = K
+        IF (GET .GT. LGP(2,K) .AND. GET - LGP(2,K) .LT. DA) KA = K
+        IF (GET .GT. LGP(2,K) .AND. GET - LGP(2,K) .LT. DA)
+     &    DA = GET - LGP(2,K)
+        IF (GET .LT. LGP(1,K) .AND. LGP(1,K) - GET .LT. DB) KB = K
+        IF (GET .LT. LGP(1,K) .AND. LGP(1,K) - GET .LT. DB)
+     &    DB = LGP(1,K) - GET
+   10 CONTINUE
+      IF (LMLEG .NE. 0 .OR. KA .EQ. 0 .OR. KB .EQ. 0) RETURN
+      IF (DA + DB .GT. 60.0D0) RETURN
+      LMLEG = KA
+      IF (DB .LT. DA) LMLEG = KB
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
 C     ERFIND: time TERISE at which the Earth's disc clears the lunar
 C     horizon, on the revolution ending at touchdown (the scenario's
 C     TOUCH event), or at its PHOTO event if it has no landing.
@@ -449,7 +717,7 @@ C     The revolution ends at touchdown, or, in a scenario with no
 C     landing (Apollo 8), at its PHOTO event.
       TR = LUT0
       IF (TR .LE. 0.0D0) TR = EVGET(KEPHO)
-      P = 2.0D0 * PI / LGEL(11, LEGAT(TR, 2))
+      P = 2.0D0 * PI / LGEL(11, LEGAT(TR, 2, 1))
       T1 = TR - P
       F1 = ERCLR(T1)
       DO 10 I = 1, 720
@@ -486,7 +754,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION T, R(3), V(3), PM(3), E(3), DN(3), DE, VDOT
       INTEGER I
-      CALL VSTATE(T, 2, R, V)
+      CALL VSTATE(T, 1, 2, R, V, I)
       CALL MOONG(T, PM)
       DO 10 I = 1, 3
         E(I) = -PM(I) - R(I)

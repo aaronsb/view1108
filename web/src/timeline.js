@@ -53,9 +53,13 @@ const TL_SCENES = {
     [15423, 7, 1, 5, 40],   // docked, seen from outside (S7POSE puts the CSM on the LM's axis) to the stack's ejection, 4:17:03 (TIMELINE row, SP p. 106); 40 deg ours
     [272990.37, 8],         // the docked stack (S8POSE) on the translunar conics to LOI ignition, 75:49:50.37 (TIMELINE row; LUNAR FROM 75:49:50.4)
     [360720, 1],            // lunar orbit (LUNAR legs, LUNORB) to the UNDOCK event
-    [362401.9, 4],          // LMPIRO's LM 300 ft away, to the separation cutoff 100:40:01.9 (third LUNAR leg's T)
-    [369339.9, 1],          // to the modelled descent: LMDESC's last 600 s before the TOUCH event
-    [447720.79, 5],         // the descent, then the landed LM (LMDESC holds TAU at 0), to lunar liftoff 124:22:00.79 (TIMELINE row)
+    [362392.9, 4],          // LMPIRO's LM 300 ft out (traj.f LMSTAT), to the LMSEP event 100:39:52.9 (SP p. 104)
+    [365774, 1, 0, 5, 20],  // the CSM's window aimed at the LM on its first leg, to DOI ignition 101:36:14.0 (MR Table 7-II); 20 deg ours
+    [369339.9, 6],          // the descent orbit: CSM and LM marks on the disc, to LMDESC's last 600 s before the TOUCH event
+    [447720.79, 5],         // the descent, then the landed LM (LMDESC holds TAU at 0), to the LIFT event 124:22:00.79 (SP p. 104)
+    [448155.7, 1],          // the powered ascent (no LM state), to LM orbit insertion 124:29:15.7 (MR Table 7-II)
+    [460980, 1, 0, 5, 20],  // the rendezvous, the CSM's window aimed at the LM, to the LMDOK event 128:03:00 (SP p. 104); 20 deg ours
+                            // (MSC IN 69-FM-197's rendezvous views, figs. 6.3.2-1 to 6.3.4-1, printed pp. 169-177, are from the LM, 100 deg)
     [487573.7, 1],          // lunar orbit to the transearth leg (CONIC FROM 135:26:13.7)
     [698400, 2],            // transearth coast: scene 2's held attitude (VINIT) keeps the Earth in frame to about 194:00 (our run)
     [702186.7, 3],          // the entry approach in scene 3's horizon view, to the EI event 195:03:05.7

@@ -2,7 +2,8 @@ C=======================================================================
 C
 C     V I E W - 1 1 0 8          STATE SOURCE
 C
-C     The one place the display side gets the CSM's state.  It reads
+C     The one place the display side gets the CSM's and the LM's
+C     states.  It reads
 C     the replay (the scenario's legs, traj.f) or, when the frame asks
 C     for it (in_src, which the chassis passes as in_flags bit 3) and
 C     the tape covers the time, the tape
@@ -12,21 +13,27 @@ C     vdrive.f for the list.
 C
 C=======================================================================
 C
-C     VSTATE: the CSM at GET, about the Earth (IBODY = 1, geocentric
-C     EQ) or the Moon (IBODY = 2, selenocentric EQ), km and km/s.
-C     ISRCU records the source used: 0 replay, 1 sim with state
-C     vector updates, 2 sim without.
-      SUBROUTINE VSTATE(GET, IBODY, R, V)
+C     VSTATE: vehicle IVEH (1 the CSM, 2 the LM) at GET, about the
+C     Earth (IBODY = 1, geocentric EQ) or the Moon (IBODY = 2,
+C     selenocentric EQ), km and km/s.  IOK = 0 if there is no state
+C     for it (the LM outside LMSTAT's rules), 1 if there is, 2 for the
+C     LM docked to the CSM (the CSM's state).  The CSM always has one.
+C     ISRCU records the source used for the CSM: 0 replay, 1 sim with
+C     state vector updates, 2 sim without.  The LM's own legs are
+C     read from the replay only (the tape carries the CSM).
+      SUBROUTINE VSTATE(GET, IVEH, IBODY, R, V, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION GET, R(3), V(3), PM(3), VM(3)
-      INTEGER IBODY, IOK, I
+      INTEGER IVEH, IBODY, IOK, I, ITP
+      IOK = 1
+      IF (IVEH .EQ. 2) GO TO 30
       ISRCU = 0
       IF (ISRC .NE. 1 .OR. ITPSN .NE. ISN) GO TO 20
-      CALL TPGET(1, GET, R, V, IOK)
-      IF (IOK .EQ. 0) GO TO 20
+      CALL TPGET(1, GET, R, V, ITP)
+      IF (ITP .EQ. 0) GO TO 20
       ISRCU = 2 - MOD(ISIMF, 2)
       IF (IBODY .EQ. 1) RETURN
       CALL MOONV(GET, PM, VM)
@@ -36,7 +43,35 @@ C     RESTOMOD END
    10 CONTINUE
       RETURN
    20 IF (IBODY .EQ. 1) CALL ERTORB(GET, R, V)
-      IF (IBODY .EQ. 2) CALL LUNORB(GET, R, V)
+      IF (IBODY .EQ. 2) CALL LUNORB(GET, 1, R, V)
+      RETURN
+C     The LM: relative to the Moon (LMSTAT), then geocentric if asked.
+   30 CALL LMSTAT(GET, R, V, IOK)
+      IF (IOK .EQ. 0 .OR. IBODY .EQ. 2) RETURN
+      CALL MOONV(GET, PM, VM)
+      DO 40 I = 1, 3
+        R(I) = R(I) + PM(I)
+        V(I) = V(I) + VM(I)
+   40 CONTINUE
+      RETURN
+      END
+C
+C     CSMSL: the CSM relative to the Moon (EQ km, km/s) on whichever leg
+C     holds GET: a lunar one (LUNIN), else from its state about the
+C     Earth less the Moon's (VSTATE about the Moon alone would take the
+C     nearest lunar leg).  For the LM's CSM-relative states and ranges.
+      SUBROUTINE CSMSL(GET, R, V)
+      DOUBLE PRECISION GET, R(3), V(3), PM(3), VM(3)
+      INTEGER I, IOK, LUNIN
+      IF (LUNIN(GET) .EQ. 0) GO TO 10
+      CALL VSTATE(GET, 1, 2, R, V, IOK)
+      RETURN
+   10 CALL VSTATE(GET, 1, 1, R, V, IOK)
+      CALL MOONV(GET, PM, VM)
+      DO 20 I = 1, 3
+        R(I) = R(I) - PM(I)
+        V(I) = V(I) - VM(I)
+   20 CONTINUE
       RETURN
       END
 C

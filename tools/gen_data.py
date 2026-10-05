@@ -150,18 +150,21 @@ def craters():
 
 
 # Scenarios (run decks).  Codes shared with the kernel through viewdims.inc.
-LEG_TYPES = {"CIRC": 1, "CONIC": 2, "LUNAR": 3}
+LEG_TYPES = {"CIRC": 1, "CONIC": 2, "LUNAR": 3, "LCONIC": 4}
+LEG_VEH = {"CSM": 1, "LM": 2}
 EVENT_KINDS = {"TDATT": 1, "SEP": 2, "APPR": 3, "DOCK": 4, "UNDOCK": 5, "TOUCH": 6, "EI": 7,
-               "PTC": 8, "TLI": 9, "LOI1": 10, "LOI2": 11, "PHOTO": 12, "TEI": 13}
+               "PTC": 8, "TLI": 9, "LOI1": 10, "LOI2": 11, "PHOTO": 12, "TEI": 13,
+               "LMSEP": 14, "PDI": 15, "LIFT": 16, "TPF": 17, "LMDOK": 18, "JETT": 19}
 EVENT_PARAMS = {"TDATT": "KETDA", "SEP": "KESEP", "APPR": "KEAPR", "DOCK": "KEDOK",
                 "UNDOCK": "KEUND", "TOUCH": "KETD", "EI": "KEEI", "PTC": "KEPTC",
                 "TLI": "KETLI", "LOI1": "KELOI1", "LOI2": "KELOI2", "PHOTO": "KEPHO",
-                "TEI": "KETEI"}
+                "TEI": "KETEI", "LMSEP": "KELMS", "PDI": "KEPDI", "LIFT": "KELFT",
+                "TPF": "KETPF", "LMDOK": "KELDK", "JETT": "KEJET"}
 # Timeline card kinds (TIMELINE KIND=): a small enum shared with the kernel (/CTLN/) and the
 # page (build/names.js); see CLAUDE.md, "Scenario timeline".
 TL_KINDS = {"LAUNCH": 1, "BURN": 2, "STAGING": 3, "ORBIT": 4, "SEP": 5, "SURFACE": 6, "TV": 7,
             "CREW": 8, "PHOTO": 9, "ENTRY": 10, "MARK": 11}
-NLGP = 12   # leg parameters, see scenarios()
+NLGP = 17   # leg parameters, see scenarios()
 # Keys each card type reads.  Other keys are ignored with a warning, so cards can grow
 # (a BURN's TRIGGER= and TARGET= are planned, docs/simulation.md) without breaking old decks.
 CARD_KEYS = {
@@ -170,7 +173,7 @@ CARD_KEYS = {
     "SITE": {"LAT", "LON", "AZ", "SRC"},
     "PAD": {"NAME", "LAT", "LON", "LATTYPE", "SRC"},
     "LEG": {"TYPE", "FROM", "TO", "T", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG",
-            "TB", "LATB", "LONB", "N", "SRC"},
+            "TB", "LATB", "LONB", "N", "VEH", "DV", "P", "R", "ALTB", "SRC"},
     "EVENT": {"KIND", "T", "SRC"},
     "TIMELINE": {"T", "KIND", "NAME", "SRC"},
     "START": {"T", "END", "BODY", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG", "SRC"},
@@ -222,16 +225,28 @@ def scenarios():
             elif kind == "LEG":
                 t = kv["TYPE"]
                 p = [get_s(kv["FROM"]), get_s(kv["TO"]), get_s(kv["T"]),
-                     float(kv["LAT"]), float(kv["LON"]), float(kv["ALT"]),
+                     float(kv.get("LAT", 0)), float(kv.get("LON", 0)), float(kv.get("ALT", 0)),
                      float(kv.get("V", 0)), float(kv.get("FPA", 0)), float(kv.get("HDG", 0)),
                      get_s(kv.get("TB", "0")), float(kv.get("LATB", 0)), float(kv.get("LONB", 0))]
+                # LCONIC: DV= (ft/s) and its direction P= R= N= at T (mid-burn) on the
+                # vehicle's previous leg, or (no DV=) a state T= LAT= LON= ALT= V= FPA=.
+                lc = t == "LCONIC"
+                p += [float(kv.get("DV", 0)), float(kv.get("P", 0)), float(kv.get("R", 0)),
+                      float(kv.get("N", 0)) if lc else 0.0,
+                      float(kv.get("ALTB", kv.get("ALT", 0)))]
+                if lc and "DV" not in kv:
+                    for k in ("LAT", "LON", "ALT", "V", "FPA"):
+                        assert k in kv, f"{path.name}: LCONIC state needs {k}="
                 legs.append({"m": cur["n"], "type": LEG_TYPES[t], "p": p,
                              "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
-                             "n": int(kv.get("N", 0)), "src": f"{t}: " + kv.get("SRC", "")})
+                             "veh": LEG_VEH[kv.get("VEH", "CSM")],
+                             "n": 0 if lc else int(kv.get("N", 0)),
+                             "src": f"{t}: " + kv.get("SRC", "")})
             elif kind in ("START", "REF"):
                 p = [get_s(kv["T"]), get_s(kv.get("END", "0")), get_s(kv["T"]),
                      float(kv["LAT"]), float(kv["LON"]), float(kv["ALT"]),
                      float(kv["V"]), float(kv["FPA"]), float(kv.get("HDG", 0)), 0.0, 0.0, 0.0]
+                p += [0.0] * (NLGP - len(p))
                 sim["start" if kind == "START" else "ref"].append(
                     {"m": cur["n"], "p": p, "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
                      "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
@@ -371,7 +386,7 @@ def main():
            "C     Scenarios (data/scenarios): scenarios, trajectory legs of",
            "C     NLGP parameters, events; leg types and event kinds.",
            "      INTEGER NSN, NLEG, NEVT, NLGP",
-           "      INTEGER KCIRC, KCONIC, KLUNAR",
+           "      INTEGER KCIRC, KCONIC, KLUNAR, KLCON",
            *["      INTEGER " + ", ".join(list(EVENT_PARAMS.values())[i:i + 8])
              for i in range(0, len(EVENT_PARAMS), 8)],
            "C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77",
@@ -383,7 +398,8 @@ def main():
            "      INTEGER NTL",
            f"      PARAMETER (NTL={max(1, len(sim['tl']))})",
            "      PARAMETER (" + ", ".join(f"K{k}={v}" for k, v in
-                                        (("CIRC", 1), ("CONIC", 2), ("LUNAR", 3))) + ")",
+                                        (("CIRC", 1), ("CONIC", 2), ("LUNAR", 3),
+                                         ("LCON", 4))) + ")",
            *["      PARAMETER (" + ", ".join(f"{EVENT_PARAMS[k]}={v}" for k, v in
                                          list(EVENT_KINDS.items())[i:i + 4]) + ")"
              for i in range(0, len(EVENT_KINDS), 4)],
@@ -433,7 +449,9 @@ def main():
          "C              LGN (LUNAR), latitude geocentric if LGGC = 1, and LGP:",
          "C              1 FROM, 2 TO, 3 T (g.e.t. s), 4 LAT, 5 LON (deg),",
          "C              6 ALT (n mi), 7 V (ft/s), 8 FPA, 9 HDG (deg),",
-         "C              10 TB (s), 11 LATB, 12 LONB (deg).",
+         "C              10 TB (s), 11 LATB, 12 LONB (deg), LCONIC 13 DV",
+         "C              (ft/s), 14 P, 15 R, 16 N, 17 ALTB (n mi; LUNAR, the",
+         "C              altitude at TB).  Vehicle LGVEH: 1 CSM, 2 LM.",
          "C              Event J of scenario EVSN(J), kind EVKND, g.e.t. EVT (s).",
          "      DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)",
          "      DOUBLE PRECISION SNSAZ(NSN)",
@@ -443,8 +461,9 @@ def main():
          "      INTEGER EVSN(NEVT), EVKND(NEVT), SNPGC(NSN), PADCH(8*NSN)",
          "      COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT,",
          "     &               SNPLA, SNPLO",
+         "      INTEGER LGVEH(NLEG)",
          "      COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND,",
-         "     &                SNPGC, PADCH",
+         "     &                SNPGC, PADCH, LGVEH",
          "C     /CSIM/   simulation cards.  START of scenario STSN (one at most),",
          "C              REF rows: state STP / RFP as LGP (2 = END for START),",
          "C              body STBOD / RFBOD (1 Earth, 2 Moon), geocentric",
@@ -523,6 +542,7 @@ def main():
     body += fdata("LGTYP", [lg["type"] for lg in legs], "%d", 10)
     body += fdata("LGN", [lg["n"] for lg in legs], "%d", 10)
     body += fdata("LGGC", [lg["gc"] for lg in legs], "%d", 10)
+    body += fdata("LGVEH", [lg["veh"] for lg in legs], "%d", 10)
     for j, ev in enumerate(evs):
         body += "\n".join([f"C     EVENT {j + 1}"] + comment_wrap(ev["src"])) + "\n"
     body += fdata("EVT", [ev["t"] for ev in evs], F(dfmt(1)), 4)
