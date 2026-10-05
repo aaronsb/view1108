@@ -7,7 +7,8 @@
 // centre), the 4009 operator console facing the tapes, the reel table at the centre, and in the east half a desk
 // with the UNISCOPE 100 beside the 1558 graphic console, turned toward the viewer, with its 1557 controller behind
 // them. Along the east wall the microfilm recorder, downstream of the computer as the film was, then the printer;
-// the card reader in the south-west corner. The door is in the south wall, west of centre, with nothing in its
+// the card reader in the south-west corner; behind the UNISCOPE's desk, against the east wall between the 1557 and the
+// film recorder, the reference library's bookcase, facing the room across the desk's back aisle. The door is in the south wall, west of centre, with nothing in its
 // swing and a clear aisle from it into the room, and the light switch on its latch side; every front has an aisle of
 // at least 0.9 m (the plan's check, `footprints`, is what the walk collides with).
 //
@@ -18,6 +19,7 @@ import { EQUIPMENT, FOOTPRINT } from "../equipment";
 import type { BuildContext, Equipment, Footprint, Glow, Placed, Room } from "../types";
 import { DOOR, ROOM, buildShell } from "./shell";
 import { batch } from "./batch";
+import type { Binder } from "../equipment/bookcase";
 
 /** A builder with the options some modules take (a tape drive's number, the CPU cabinet with the lamp panel). */
 type Builder = (ctx: BuildContext, opts?: Record<string, unknown>) => Equipment;
@@ -78,6 +80,10 @@ export function build(ctx: BuildContext): Room {
   place("filmrecorder", [wW - 0.47, 0, 0.85], W, "filmrecorder");
   place("printer", [wW - 0.4, 0, 2.75], W, "printer");
   place("cardreader", [-wW + 0.37, 0, nW - 0.65], E);
+  // The bookcase; each of its binders is placed under its own name, so it is picked, labelled and flown to alone.
+  const library = place("bookcase", [wW - 0.19, 0, -2.2], W, "library");
+  const binders = library.anchors.binders as Binder[];
+  for (const b of binders) { b.object.userData.placed = `binder:${b.doc.id}`; placed.push({ name: b.object.userData.placed, equipment: b }); }
 
   // The light switch (ours): a period toggle plate on the door's latch side; Lab gives it its `use`.
   const sw = lightSwitch();
@@ -110,7 +116,8 @@ export function build(ctx: BuildContext): Room {
     door: { x: DOOR.x, z: nW, w: DOOR.w },
     overview: { position: new THREE.Vector3(2.4, 1.62, 3.15), target: new THREE.Vector3(0.1, 1.0, -1.6), fov: 55 },
     labels: { vector: "UNIVAC 1558 — workbench", glass: "UNISCOPE 100 — source", filmrecorder: "Microfilm recorder (S-C 4020, hypothetical) — print",
-      printer: "Line printer — listing", switch: "Lights" },
+      printer: "Line printer — listing", switch: "Lights", library: "Reference library",
+      ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])) },
     lightsOn: true,
     setLights(on) { room.lightsOn = on; sw.set(on); },
     tubes: level => shell.tubes(level),

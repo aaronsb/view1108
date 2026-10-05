@@ -41,7 +41,7 @@
   <div id="wrap"><canvas id="cv" tabindex="0" aria-label="VIEW-1108 plot"></canvas></div>
   <div id="status" role="status" aria-live="off"></div>
   <!-- The kernel's code browser (web/src/srcindex.js, srcview.js; its theme srctheme.js), built on first entry. -->
-  <section id="srcws" hidden aria-label="Kernel source"><button id="bsrc">Print listing</button></section>
+  <section id="srcws" hidden aria-label="Kernel source"><button id="bsrc">Print listing</button><button id="blib" title="The manuals and reports this reconstruction is built from, as PDFs">Library</button></section>
 </div>
 <div id="dock">
 <div id="ctl">
@@ -147,8 +147,12 @@
 <div id="labhost"></div>
 
 <div id="list"><h2><span>VIEW KERNEL - our reconstruction; we know of no surviving source code</span><span class="btns"><button id="bfresh" title="Clear the paper and print the listing again, line by line (any click, Esc or scroll skips to the end)">Print fresh copy</button><button id="bpspeed" title="Print speed: REAL, 1,200 lines a minute (UP-4046 sec. 8.5), or FAST, ten times that">Real</button><button id="bpdf" title="The listing as a PDF of 14 7/8 x 11 in greenbar pages">Download PDF</button><button id="blist">Light</button><button id="blroom" hidden title="Return to the room (Esc)">← Room</button><button id="bclose">Close</button></span></h2><pre id="lst"></pre><div id="paper"></div></div>
+<!-- The reference library (web/src/library.js): the list of web/library/'s documents and the browser's PDF viewer. -->
+<div id="libr" role="dialog" aria-label="Reference library"><h2><span>REFERENCE LIBRARY</span><span class="btns"><a id="libnew" class="libbtn" target="_blank" rel="noopener">Open in new tab</a><a id="libsrc" class="libbtn" target="_blank" rel="noopener">Source</a><button id="blibroom" hidden title="Return to the room (Esc)">← Room</button><button id="blibclose">Close</button></span></h2>
+<div id="libbody"><ul id="liblist"></ul><div id="libview"><div id="libtitle"></div><iframe id="libframe" title="The document"></iframe><p id="libnote" hidden></p></div></div></div>
 <pre id="fsrc" hidden>__FORTRAN_SRC__</pre>
 <script type="application/json" id="photos">__PHOTOS_JSON__</script>
+<script type="application/json" id="flib">__LIBRARY_JSON__</script>
 <script>var __FALLBACK_JS__, __NAMES_JS__, __LAB_JS__;</script>
 <script>__NAMES_JS__</script>
 <script>__FALLBACK_JS__</script>
@@ -173,6 +177,7 @@
 <script src="src/shades.js"></script>
 <script src="src/listing.js"></script>
 <script src="src/printout.js"></script>
+<script src="src/library.js"></script>
 <script src="src/link.js"></script>
 <script src="src/sound.js"></script>
 <script src="src/whine.js"></script>

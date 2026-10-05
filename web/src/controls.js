@@ -92,6 +92,7 @@ const typingIn = () => { const a = document.activeElement; return !!a && (a.tagN
 window.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if ($("list").classList.contains("open")) { if (e.key === "Escape") $("list").classList.remove("open"); return; }
+  if (libraryIsOpen()) return;   // its own Esc (library.js)
   if (!canvasTab() || typingIn()) return;
   const k = e.key;
   if (k === "j" || k === "J") { toggle("jitter"); e.preventDefault(); return; }

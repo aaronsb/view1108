@@ -41,6 +41,8 @@ jobs:
           mkdir -p _site
           cp web/view1108.html _site/index.html
           cp docs/media/og-earthrise.png _site/og-earthrise.png
+          # The reference library: -L copies the files behind web/library/'s symlinks into reference/.
+          cp -rL web/library _site/library
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

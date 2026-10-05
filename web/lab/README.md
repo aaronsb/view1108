@@ -43,8 +43,10 @@ is chosen.
 
 `hooks` (`LabHooks` in `src/types.ts`): `screens.vector` is the plot canvas `#cv`; `state()` returns the
 `LabState` below, read once per rendered frame; `screenRect(opens)` lays the page out for that tab behind the room
-and returns the client rect of the element the terminal's screen becomes; `arrive(opens)` hands over to the page,
-which shows the tab (`"workbench"`: the last plot tab, `"source"`: Source), fades the lab out and calls `hide()`.
+and returns the client rect of the element the terminal's screen becomes (null for the library: the flight ends at the
+piece's `anchors.camera`); `arrive(opens, name)` hands over to the page, which shows the tab (`"workbench"`: the last
+plot tab, `"source"`: Source) or the overlay (`"listing"`, `"library"`; `name` "binder:<id>" picks that document),
+fades the lab out and calls `hide()`.
 
 ### Handover
 
@@ -144,7 +146,8 @@ and registered by kind in `src/equipment/index.ts`. `BuildContext` gives `vector
 | `anchors.screen` | `{ mesh, uvRect }`: the face that carries a picture and the part of its UV square in use |
 | `anchors.camera` | `{ position, target, fov }` in the equipment's frame: the zoom-in pose, framing the screen |
 | `anchors.*` | anything else a room needs, e.g. the desk's `top` (a `Vector3`: where things stand on it) |
-| `opens` | `"workbench"` or `"source"`: clicking the equipment flies to `anchors.camera`, then the page opens that |
+| `opens` | `"workbench"`, `"source"`, `"print"`, `"listing"` or `"library"`: clicking the equipment flies to `anchors.camera` (or the handover pose), then the page opens that |
+| `select(on)` | called with true on the piece a flight is going to, false on every piece when the room is shown (a binder slides out and back) |
 | `update(dt, state)` | per rendered frame (blinking lamps, spinning reels) |
 | `event(e, state)` | page events (a tape drive reacting to `tape`, a recorder to `beamFrame`) |
 | `dispose()` | free what `build` made (geometry, materials, textures) |
@@ -170,6 +173,7 @@ The registry (`EQUIPMENT`, with sizes in `FOOTPRINT`, W x H x D in metres; sourc
 | `reeltable` | | table with reels and a desk clock, 1.6 x 0.75 x 0.8 |
 | `desk` | | desk, 1.5 x 0.73 x 0.75; anchor `top` |
 | `chair` | | swivel chair, 0.6 x 0.88 x 0.6 |
+| `bookcase` | | steel bookcase, 1.0 x 1.1 x 0.36, holding a ring binder per document of `web/library/library.json` (imported; JSON modules via `resolveJsonModule`); `anchors.binders` are pieces of their own the room places as `"binder:<id>"`; the bookcase and every binder open `"library"` |
 | `filmrecorder` | | S-C 4020 microfilm recorder (HYPOTHETICAL as MSC's), 2.24 x 1.88 x 0.94; its viewing port shows the plot dimmed; `beamFrame` steps its frame counter; opens `"print"` (the Print tab) |
 
 `vector-terminal` and `glass-terminal` are phase A's names for `vector` and `glass`. Every piece but the desk and the
@@ -185,8 +189,9 @@ two rows under three-point lighting, with a stand-in plot. The flags are `?view=
 (`{ name, equipment }` for each piece it placed, `equipment.object.userData.placed` set to the name for picking),
 `footprints` (each floor-standing piece's own bounding box seen from above, placed and turned: what the plan's
 checks and walking use), `door`, `overview` (the zoomed-out `CameraPose`), `labels` (hover text by name), `air` (the
-dust's box), `update` and `dispose`. The page addresses three names: `"vector"` (the 1558, which opens the
-workbench), `"glass"` (the UNISCOPE 100, which opens Source) and `"filmrecorder"` (which opens Print).
+dust's box), `update` and `dispose`. The page addresses these names: `"vector"` (the 1558, which opens the
+workbench), `"glass"` (the UNISCOPE 100, which opens Source), `"filmrecorder"` (which opens Print), `"printer"` (the
+listing) and `"library"` (the bookcase, which opens the library; its binders are `"binder:<id>"`).
 `src/room/shell.ts` builds the 9 m × 7 m × 2.75 m shell: one textured plane for the raised floor's 0.6 m tiles
 (`surfaces.ts`), an acoustic-tile ceiling, two instanced meshes for the 20 troffers, walls, a door in the south wall
 with an EXIT sign over it, and a wall clock. `room.ts` places by registry name, with options where a module takes

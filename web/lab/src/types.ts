@@ -1,9 +1,9 @@
 // The lab's interfaces: the page <-> lab contract, and the contract between the room and its equipment.
 import type * as THREE from "three";
 
-/** What a terminal opens when the camera arrives at it: the plot tabs, the Source tab, the Print tab, or the kernel
- *  listing on greenbar (the line printer). */
-export type Opens = "workbench" | "source" | "print" | "listing";
+/** What a terminal opens when the camera arrives at it: the plot tabs, the Source tab, the Print tab, the kernel
+ *  listing on greenbar (the line printer), or the reference library (the bookcase and its binders). */
+export type Opens = "workbench" | "source" | "print" | "listing" | "library";
 
 /** The page's state, read by the lab once per rendered frame (web/src/room.js labState()). */
 export interface LabState {
@@ -31,8 +31,9 @@ export interface LabEvent {
 export interface LabHooks {
   screens: { vector: HTMLCanvasElement };   // #cv, the plot
   state(): LabState;
-  /** The camera reached a terminal: the page shows the tab it opens, fades the lab out and asks it to hide. */
-  arrive(opens: Opens): void;
+  /** The camera reached a terminal: the page shows the tab it opens, fades the lab out and asks it to hide. `name` is
+   *  the placed name flown to ("binder:<id>" picks that document in the library). */
+  arrive(opens: Opens, name: string): void;
   /** Lay the page out for `opens` behind the room, without showing it, and give the client rect of the element the
    *  terminal's screen becomes (#cv for the workbench, the Source workspace for source). The lab ends its flight
    *  where the screen covers that rect, so the crossfade lines up. */
@@ -68,6 +69,8 @@ export interface Equipment {
   opens?: Opens;
   /** Something done in place when clicked or used on foot (E), instead of opening a tab: the light switch. */
   use?(): void;
+  /** The camera is flying to this piece (true) or the room is shown again (false): a binder slides out and back. */
+  select?(on: boolean): void;
   update?(dt: number, state: LabState): void;
   event?(e: LabEvent, state: LabState): void;
   dispose?(): void;

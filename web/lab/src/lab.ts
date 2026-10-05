@@ -184,6 +184,7 @@ export class Lab {
     this.shown = true;
     this.resize();
     this.flight = null; this.clearHover();
+    for (const p of this.room.placed) p.equipment.select?.(false);
     this.renderer.shadowMap.needsUpdate = true;   // the static shadow map (lighting.ts)
     const s = from ? (rect && this.matchShot(from, rect)) || this.anchorShot(from) : null;
     if (s) {
@@ -217,9 +218,10 @@ export class Lab {
     if (!s) return false;
     this.unlock();
     this.walk.disarm(name); this.walk.clearKeys();
+    for (const q of this.room.placed) q.equipment.select?.(q === p);
     this.fly(s, 0, false, () => {
       this.mode = "hold";
-      if (opens) this.hooks.arrive(opens);
+      if (opens) this.hooks.arrive(opens, name);
     });
     return true;
   }
