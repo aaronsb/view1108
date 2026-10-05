@@ -73,8 +73,13 @@ export interface Equipment {
   opens?: Opens;
   /** Something done in place when clicked or used on foot (E), instead of opening a tab: the light switch. */
   use?(): void;
-  /** For looks only (the props on the bookcase): named on hover, and a click on it does nothing. */
+  /** For looks only (the props on the bookcase): named on hover, nothing to fly to or open. */
   inert?: boolean;
+  /** Something on a shelf at a close-up (equipment/pullable.ts): a click pulls it out (and puts the last one back);
+   *  true when it was already out and opens, so the lab opens it under its placed name. */
+  pull?(): boolean;
+  /** The close-up's line when it depends on the piece's state (a shelf: what is pulled out); else the lab's own. */
+  hint?(): string;
   /** The camera is flying to this piece (true) or the room is shown again (false): a binder slides out and back. */
   select?(on: boolean): void;
   update?(dt: number, state: LabState): void;

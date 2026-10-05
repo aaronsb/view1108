@@ -48,7 +48,7 @@ const QKEY = "view1108.labq", LKEY = "view1108.lights";
 /** The line at a terminal's close-up, by what it opens. */
 const AT_HINT: Record<Opens, string> = {
   workbench: "Click the screen to open", source: "Click the screen to open", print: "Click the viewing port to open",
-  listing: "Click the paper to open", library: "Click a binder to open",
+  listing: "Click the paper to open", library: "Click a binder to pull it out · click again to open",
 };
 const ease = (t: number) => t * t * (3 - 2 * t);
 const D2R = Math.PI / 180;
@@ -610,11 +610,11 @@ export class Lab {
     if (!g || g.id !== e.pointerId) return;
     this.drag = null;
     if (g.moved || e.type !== "pointerup") return;
-    if (this.at) {   // a click anywhere at a close-up opens it; at the bookcase a binder clicked picks its document
+    if (this.at) {   // a click anywhere at a close-up opens it; on a shelf it pulls a thing out, again opens it
       if (Math.hypot(e.clientX - g.x, e.clientY - g.y) >= CLICK_PX) return;
-      const p = this.at.opens === "library" ? this.hit(e.clientX, e.clientY) : null;
-      if (p?.equipment.inert) return;   // a prop on the shelf: nothing to open
-      this.open(p?.name.startsWith("binder:") ? p.name : undefined);
+      const p = this.hit(e.clientX, e.clientY);
+      if (p?.equipment.pull) { if (p.equipment.pull()) this.open(p.name); else this.lockUI(); }
+      else this.open();
       return;
     }
     if (this.mode !== "free") return;
@@ -664,7 +664,8 @@ export class Lab {
     else { h.style.display = "block"; h.style.opacity = this.locked ? "0" : "1"; }
     if (!this.shown) h.style.display = "none";
     this.atEl.style.display = this.shown && this.at ? "block" : "none";
-    if (this.at) this.atEl.textContent = `${AT_HINT[this.at.opens]} · Esc to step back`;
+    const at = this.at && this.room.placed.find(q => q.name === this.at!.name);
+    if (this.at) this.atEl.textContent = `${at?.equipment.hint?.() ?? AT_HINT[this.at.opens]} · Esc to step back`;
   }
 
   private onLeave = () => { this.pointer = null; this.clearHover(); };
@@ -727,7 +728,7 @@ export class Lab {
   private pick(x: number, y: number): void {
     if (this.mode !== "free" && !this.at) return;
     let p = this.hit(x, y);
-    if (this.at && !(this.at.opens === "library" && (p?.name.startsWith("binder:") || p?.equipment.inert))) p = null;   // at a close-up only binders and props
+    if (this.at && !p?.equipment.pull) p = null;   // at a close-up only what pulls out
     this.renderer.domElement.style.cursor = p || this.at ? "pointer" : "";
     if (p !== this.hover) { this.clearHover(); if (p) this.lift(p, true); this.hover = p; }
     const label = p && this.room.labels?.[p.name];

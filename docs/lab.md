@@ -180,10 +180,12 @@ desk, its front 0.9 m clear) and everything on it are ours. Each binder's thickn
 rings for the thinnest up to 2 1/2 in for 330 pages), its spine card gives the number and a short title in the
 nameplate face, and the colours are ours too: grey and blue vinyl for the UNIVAC manuals, black and oxblood for the
 Stromberg-Carlson ones, buff for the NASA reports. The bookends are olive enamel. A binder is picked on its own (its
-title on hover); asked for, it slides 7 cm out of the row while the camera flies to its spine, and back when the room
-returns.
+title on hover). At the bookcase's close-up a click pulls a binder 9 cm out of the row, its top tipped toward you, and
+puts back the one that was out; a second click on it opens it, and stepping back puts it back. A binder asked for from
+across the room comes out while the camera flies to its spine.
 
-After the binders, for looks only (named on hover; a click opens nothing), stand things someone left there while waiting
+After the binders, for looks only (named on hover; they pull out like the binders but open nothing; the card comes up
+off the back panel and turns to face you), stand things someone left there while waiting
 for a batch run (the idea and the choice of things are ours):
 
 - A Houston telephone directory for 1969, 6.5 cm thick. Southwestern Bell Telephone Company was the Bell System's

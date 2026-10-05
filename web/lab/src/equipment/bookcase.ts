@@ -3,12 +3,14 @@
 // No source shows a bookcase or binders in MSC's machine room; the bookcase, the binders, their colours (grey and blue
 // for the UNIVAC manuals, black and oxblood for Stromberg-Carlson's, buff for the NASA reports) and the bookends are
 // ours. Each binder is its own pickable piece (`anchors.binders`, placed by the room as "binder:<id>"); the bookcase
-// and every binder open "library", and a binder asked for slides out a little (select). After the binders, for looks
-// only (`anchors.props`, placed as "prop:<id>", inert: named on hover, nothing on a click): a 1969 Houston telephone
-// directory, two paperbacks, and an index card of places to eat leaning on the back panel (docs/lab.md).
+// and every binder open "library". After the binders, for looks only (`anchors.props`, placed as "prop:<id>", inert:
+// named on hover, nothing to open): a 1969 Houston telephone directory, two paperbacks, and an index card of places to
+// eat leaning on the back panel (docs/lab.md). Everything on the shelf pulls out (pullable.ts): a click at the close-up
+// brings one out and puts the last back, a second click on a binder that is out opens it, and leaving puts all back.
 import * as THREE from "three";
 import type { BuildContext, Equipment } from "../types";
 import { Parts, canvasTex, fontTex, nameplate, paint, plastic, plateText } from "./kit";
+import { Shelf } from "./pullable";
 import LIBRARY from "../../../library/library.json";
 
 export interface LibraryDoc { id: string; num: string; spine: string; title: string; year: number; publisher: string; pages: number; colour: string; file: string; source: string }
@@ -18,7 +20,7 @@ const W = 1.0, H = 1.1, D = 0.36, T = 0.018;
 const SHELF = 0.55;                        // the upper shelf's top
 const BH = 0.295, BD = 0.26;               // a binder's height and depth (letter-size sheets, 11 x 8 1/2 in, in their covers)
 const FRONT = D / 2 - 0.035;               // the spines' line
-const SLIDE = 0.07, SLIDE_S = 0.35;        // how far a selected binder comes out, m; its time constant, s
+const PULL = 0.09, TIP = 0.05;              // how far a pulled book comes out, m, and its top tipped toward you, rad
 
 /** Thickness by page count: a 1 in ring for a thin document up to a 2 1/2 in one for 330 pages (ours). */
 const thick = (pages: number) => 0.028 + 0.036 * Math.min(1, pages / 330);
@@ -52,19 +54,11 @@ function binder(doc: LibraryDoc, aniso: number): Binder {
   const card = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7 }));
   card.position.set(0, BH * 0.54, 0.0004);
   object.add(card); mine.push(card.geometry, card.material as THREE.Material, tex);
-  let want = 0, at = 0;
   const target = new THREE.Vector3(0, BH * 0.5, 0);
   return {
     object, doc,
     anchors: { camera: { position: new THREE.Vector3(0, 0.36, 0.42), target, fov: 34 } },
     opens: "library",
-    select(on) { want = on ? SLIDE : 0; },
-    update(dt) {
-      if (at === want) return;
-      at += (want - at) * (1 - Math.exp(-dt / SLIDE_S));
-      if (Math.abs(at - want) < 1e-4) at = want;
-      object.position.z = FRONT + at;
-    },
     dispose() { mine.forEach(d => d.dispose()); },
   };
 }
@@ -213,6 +207,18 @@ export function build(ctx: BuildContext): Equipment & { anchors: { binders: Bind
   note.object.rotation.set(-lean, -0.08, 0, "YXZ");
   object.add(note.object); props.push(note);
   mine.push(...props);
+
+  // Pulling: every book comes 9 cm out with its top tipped toward you; a binder opens on a second click. The card comes
+  // up off the back and forward, turned to face the close-up's eye, so it can be read.
+  const shelf = new Shelf({
+    idle: "Click a binder to pull it out · click again to open",
+    open: "Click the binder again to open · another to pull that one out",
+    out: "Click a binder to pull it out",
+  });
+  const book = { offset: new THREE.Vector3(0, 0, PULL), turn: new THREE.Euler(TIP, 0, 0) };
+  for (const b of binders) Object.assign(b, shelf.member(shelf.add(b.object, { ...book, opens: true })));
+  for (const p of props) Object.assign(p, shelf.member(shelf.add(p.object, p === note
+    ? { offset: new THREE.Vector3(-0.15, 0.25, 0.44), turn: new THREE.Euler(-0.2, -0.25, 0) } : book)));
   mine.push(...P.bake(object).map(m => m.geometry));
 
   // A label on the top's front edge (ours); it is also the bookcase's screen anchor, what the walk's zone faces.
@@ -229,6 +235,8 @@ export function build(ctx: BuildContext): Equipment & { anchors: { binders: Bind
       props,
     },
     opens: "library",
+    hint: () => shelf.hint(),
+    update: dt => shelf.update(dt),
     dispose() { mine.forEach(d => d.dispose()); },
   };
 }
