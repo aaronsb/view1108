@@ -3,7 +3,7 @@
 // scene 8 only when view_init accepts it; an older kernel runs as before.
 "use strict";
 const VIEWS = ["window", "external", "cm", "lm"];          // in_view: 0 WINDOW, 1 EXTERNAL, 2 CM station, 3 LM station
-const TARGETS = ["default", "earth", "moon", "sun", "csm", "lm"];   // in_target: 0 the scene's own
+const TARGETS = ["default", "earth", "moon", "sun", "csm", "lm", "sivb"];   // in_target: 0 the scene's own
 const LAB_LEVELS = ["off", "primary", "secondary", "all"];  // in_lablv
 const STATION_FOV = 100;
 let stFov = null;   // [the field before a station, the station's]: restored on leaving it
@@ -71,7 +71,7 @@ function featInit() {
   }; });
   document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); tlManual(); targetId = i; syncUI(); }; });
 }
-// ?view=window|external|cm|lm and ?target=default|earth|moon|sun|csm|lm (or their numbers).
+// ?view=window|external|cm|lm and ?target=default|earth|moon|sun|csm|lm|sivb (or their numbers).
 function featParams() {
   const pick = (k, names) => { const v = UP.get(k); if (v === null) return null; const i = names.indexOf(v.toLowerCase()); return i >= 0 ? i : /^\d$/.test(v) && +v < names.length ? +v : null; };
   const v = pick("view", VIEWS), t = pick("target", TARGETS);

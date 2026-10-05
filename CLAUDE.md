@@ -43,11 +43,11 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Driver | `vdrive.f` | `VINIT`, `VFRAME`, scene cameras (`SCNCAM`, `LOOK`), table setup, per-scene model placement (`SCNMOD`, scene 7's pose and attitude; `VEHPL`, the LM at its state near the camera) |
 | Dispatcher | `vlayer.f` | `LAYERS`: each scene's layer list and a computed `GO TO` over layer ids |
 | Core | `ephem.f` | time, Sun, Moon, Moon orientation |
-| Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon, `LEGRV` one leg), events (`EVGET`), the LM's state rules (`LMSTAT`), the LM descent, the Earthrise search |
+| Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon, `LEGRV` one leg), events (`EVGET`), the LM's and the S-IVB's state rules (`LMSTAT`, `SIVST`), the LM descent, the Earthrise search |
 | Core | `sim.f` | the engine: flies the CSM from the scenario's START through its score (BURN cards), with state vector updates at its REF rows (optional), and writes the tape (`SIMRUN`) |
 | Core | `tape.f` | the tape: time-tagged states, 4 vehicle channels, event marks; cubic Hermite reads (`TPGET`) |
 | Core | `vview.f` | camera pointing: the target and the external view (`VIEWPT`), applied after the scene's camera and models |
-| Core | `vsrc.f` | the state source: the one entry point (`VSTATE(GET, IVEH, IBODY, R, V, IOK)`) scenes use for the CSM's state (replay or tape) and the LM's (`LMSTAT`; `IOK` 0 none, 1 its own, 2 docked) |
+| Core | `vsrc.f` | the state source: the one entry point (`VSTATE(GET, IVEH, IBODY, R, V, IOK)`) scenes use for the CSM's state (`CSMST`: replay or tape), the LM's (`LMSTAT`) and the S-IVB's (`SIVST`), `IVEH` 1, 2, 3; `IOK` 0 none, 1 its own, 2 docked or with the CSM. `LMSTAT` and `SIVST` read the CSM through `CSMST`, not `VSTATE` (no recursion) |
 | Core | `pen.f` | projection (`PROJ`), clipping (`EMIT0`, `SEG0`, `MSEG0`), visibility (`PEN`, `ISVIS`), labels, circles, shading, vehicle-fixed overlay lines |
 | Core | `vmask.f` | the window mask (in_flags bit 5): the pen's entry points `EMIT`, `SEG`, `MSEG` cut the outside to the cabin's windows (`WMSET`, `WMCUT`, `WMIN`) |
 | Core | `vtext.f` | text records for the character generator |
@@ -170,7 +170,8 @@ Inputs (written by JS):
   Moon; `in_fov` zooms), 2 CM STATION (the eye at the CM design eye, the cabin around it), 3 LM
   STATION.
 - `in_target` int32: the camera target, 0 the scene's default, 1 Earth, 2 Moon, 3 Sun, 4 CSM,
-  5 LM. In window and station views the boresight points at the target and yaw, pitch and roll
+  5 LM, 6 S-IVB (its centre; where it has a state, `SIVST`; 60 m off in the external view). In
+  window and station views the boresight points at the target and yaw, pitch and roll
   are offsets from it.
 - `in_lablv` int32: label level, 0 off, 1 primary, 2 secondary, 3 all. It filters only what
   the kernel letters and the new marks, never the `lbuf` labels of kinds 1-7, which stay as
@@ -234,7 +235,8 @@ Outputs (written by the kernel):
   and velocity (ft/s) error at the reference row nearest the frame's GET, 20 that row's GET
   (s; 18-20 are 0 before any run), 21 the vehicles in this frame's world, a bitmask: 1 the
   CSM, 2 the LM, 4 the S-IVB, each set if it is placed as a model or known by its state
-  (`VSTATE`; the LM docked too); the vehicle the camera rides (`IRIDE` in `vview.f`: the CSM in
+  (`VSTATE`; the LM docked too, the S-IVB docked to the stack too, but not before SEP, while it
+  carries the CSM); the vehicle the camera rides (`IRIDE` in `vview.f`: the CSM in
   the window views of scenes 1-4, 7, 9 and the CM station, the LM in scene 5 and the LM station,
   none in scenes 6, 8 and external views) is not counted. Set at every label level. 22 the crew
   stations the scene offers, a bitmask: 1 the CM station (not scenes 5 and 6), 2 the LM station
@@ -384,6 +386,25 @@ ridden by the camera, `IRIDE`), gets the small boxed X of scene 6's landing site
 centre and its name at the first free corner of the box, hidden behind the Earth or Moon. The
 LM is not marked while docked (the CSM stands for both), nor where it has no state, nor in
 scene 6 while landed (TOUCH to LIFT: the landing site's boxed X stands for it; ours).
+The S-IVB's state (`SIVST` in `traj.f`, keyed to the scenario's SEP, DOCK, EJECT and SLING
+events; geocentric, its point the stage's centre on its axis): with the CSM (`IOK` 2, the
+CSM's state) before SEP; from SEP to EJECT the CSM plus scene 7's geometry (`S7SIV` at
+`S7RF`'s range, as `S7POSE` places it), `IOK` 1 to DOCK and 2 from it; from EJECT (Apollo 11
+4:16:59.1, MR Table 7-II p. 7-9) to SLING (4:51:07.7, the slingshot's LH2 venting, SP-4029 p.
+106) the CSM plus its offset at EJECT less the separation the CSM made: the ejection springs'
+"about one fps" (Apollo 11 press kit, printed p. 30) down the stack's axis and the scenario's
+BURN cards about the Earth in the span (the 19.7 ft/s evasive manoeuvre, MR Table 7-III p.
+7-10), on straight lines (ours). Relative to the CSM, so the range is the same from the replay
+and the tape (57 ft docked, 1,440 ft at the evasive ignition, 12,900 ft at SLING); none after
+SLING (MR p. 15-1 gives the slingshot's means and its 1,825-mile closest approach at 78:42:00,
+no velocity change), nor after SEP in a scenario without an EJECT event (Apollo 8: the crew's
+ranges do not follow from its two sourced RCS separation burns; see its scenario). A `VEH=SIVB`
+leg would give it a state where these rules give none (no scenario has one). `SIVPL`
+(`vdrive.f`) places the S-IVB model (`KSIV`) on a state of its own (`IOK` 1) within 5 km of the
+camera and not already placed (scene 7 places its own), in the stack's attitude (`S7ATT`; the
+turn to the slingshot attitude is not modelled), with the LM (`KLMS`) standing in it before
+EJECT; elsewhere it is a marker, S-IVB, never while with the CSM. Scenes 1-9 at their defaults
+are unchanged (scene 8's 11:28:19 is after SLING).
 The LM's state (`LMSTAT` in `traj.f`, keyed to the scenario's events; ours where marked):
 docked (the CSM's) before UNDOCK and from LMDOK to JETT; from UNDOCK to LMSEP 300 ft from the
 CSM along the orbit normal (ours), that offset from its first leg dying away over the 300 s
@@ -456,7 +477,7 @@ Apollo 11 MR Table 7-VII and the landing point; Apollo 8 MR8 Tables 5-V and 6.9-
 best-estimate states turned onto the drogue position as the scenario explains, and Table 3-I's
 parachute times; the CM at the splash point after). From entry interface (the EI event) on,
 `VSTATE` takes the CSM from the replay even when the tape is the source: the engine flies in a
-vacuum. `VEH=CSM|LM` names the vehicle a leg carries (default CSM); the Apollo 11
+vacuum. `VEH=CSM|LM|SIVB` names the vehicle a leg carries (default CSM); the Apollo 11
 scenario has six LM legs from separation to TPF (MR Table 7-II p. 7-9 rows, SP-4029 p. 104
 burns). The Apollo 11 as-flown scenario uses the Mission Report's Table 7-II and
 7-VII states and SP-4029's ascent table; the Apollo 8 one the Apollo 8 Mission Report's

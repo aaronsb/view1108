@@ -629,7 +629,7 @@ C-----------------------------------------------------------------------
 C     SCNMOD: place this frame's models (after SCNCAM, before the sky
 C     is drawn, since placed solids hide stars and bodies): the
 C     scene's own, then the vehicles near the camera at their states
-C     (VEHPL).  PM the Moon, CG the camera (geocentric, km).
+C     (VEHPL, SIVPL).  PM the Moon, CG the camera (geocentric, km).
 C-----------------------------------------------------------------------
       SUBROUTINE SCNMOD(GET, PM, CG)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -642,6 +642,7 @@ C     RESTOMOD END
       IF (ISCN .EQ. 7) CALL S7POSE(GET)
       IF (ISCN .EQ. 8) CALL S8POSE
       CALL VEHPL(GET, PM, CG)
+      CALL SIVPL(GET, CG)
       RETURN
       END
 C
@@ -722,6 +723,52 @@ C     source used, ISRCU, kept as the camera's).
       CALL VCRS(AT(1,3), AT(1,1), AT(1,2))
       CALL SETV(BO, 2.3D0, 0.0D0, 0.0D0)
       CALL MPLACE(K, AT, LP, BO)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     SIVPL: the S-IVB at its state (traj.f SIVST), placed as the LM is
+C     (VEHPL): within 5 km of the camera, not within 15 m of it, not
+C     already placed by the scene (scene 7), and only on a state of its
+C     own (IOK 1: not with the CSM before separation, nor docked to the
+C     stack, as the docked LM).  Attitude: the stack's, held inertially
+C     for the docking (S7ATT); the S-IVB's turn to its slingshot
+C     attitude from 4:41:07.6 (SP p. 106) is not modelled (ours).
+C     Before the ejection (EJECT) the LM, gear stowed (KLMS), stands in
+C     it as S7POSE puts it.  The source used, ISRCU, kept as the
+C     camera's (S7ATT reads a state).
+C-----------------------------------------------------------------------
+      SUBROUTINE SIVPL(GET, CG)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, CG(3), R(3), V(3), LP(3), BO(3), D, VNRM
+      DOUBLE PRECISION EVGET
+      INTEGER IOK, I, J, KLMPL
+      IF (MDON(KSIV) .EQ. 1) RETURN
+      CALL VSTATE(GET, 3, 1, R, V, IOK)
+      IF (IOK .NE. 1) RETURN
+      DO 10 I = 1, 3
+        LP(I) = R(I) - CG(I)
+   10 CONTINUE
+      D = VNRM(LP)
+      IF (D .GT. 5.0D0 .OR. D .LT. 15.0D-6) RETURN
+      J = ISRCU
+      CALL S7ATT
+      ISRCU = J
+C     The state's point: the stage's centre (S7SIV).
+      CALL SETV(BO, -0.5D0 * (58.3D0 + 3.0D0) * 0.3048D0, 0.0D0,
+     &          0.0D0)
+      CALL MPLACE(KSIV, S7AT, LP, BO)
+      IF (GET .GE. EVGET(KEEJC) .OR. KLMPL() .NE. 0) RETURN
+C     The LM's tunnel top 1.5 + 4.51 m above the IU's top (S7POSE).
+      D = (1.5D0 + 4.51D0 - BO(1)) * 1.0D-3
+      DO 20 I = 1, 3
+        LP(I) = LP(I) + D * S7AT(I,1)
+   20 CONTINUE
+      CALL SETV(BO, 4.51D0, 0.0D0, 0.0D0)
+      CALL MPLACE(KLMS, S7AT, LP, BO)
       RETURN
       END
 C
@@ -808,17 +855,10 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION GET, TCLS, TDOK, U, A, D, V(3), W(3), Z(3)
-      DOUBLE PRECISION PS(3), AC(3,3), EVGET
+      DOUBLE PRECISION GET, D, V(3), W(3), Z(3)
+      DOUBLE PRECISION PS(3), AC(3,3), S7RF
       INTEGER I
-C     Approach start and docking from the scenario (APPR, DOCK).
-      TCLS = EVGET(KEAPR)
-      TDOK = EVGET(KEDOK)
-      U = (TDOK - GET) / (TDOK - TCLS)
-      IF (U .GT. 1.0D0) U = 1.0D0
-      IF (U .LT. 0.0D0) U = 0.0D0
-      A = 0.1D0 * (TDOK - TCLS) / 100.0D0
-      S7RNG = 100.0D0 * (A * U + (1.0D0 - A) * U * U)
+      S7RNG = S7RF(GET)
 C     The camera is the COAS in the CSM's left rendezvous window,
 C     looking parallel to the docking axis 0.72 m to the LM's -Y side
 C     of it and 2 m behind the CSM's docking ring (our guesses; the
@@ -864,6 +904,48 @@ C     and draws no CSM (ours).
       RETURN
       END
 C
+C     S7RF: scene 7's range (ft) from the CSM's docking ring to the
+C     LM's at GET, S7POSE's closing law, between the approach start and
+C     the docking from the scenario (APPR, DOCK); 100 without them.
+      DOUBLE PRECISION FUNCTION S7RF(GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, TCLS, TDOK, U, A, EVGET
+      TCLS = EVGET(KEAPR)
+      TDOK = EVGET(KEDOK)
+      S7RF = 100.0D0
+      IF (TDOK .LE. TCLS) RETURN
+      U = (TDOK - GET) / (TDOK - TCLS)
+      IF (U .GT. 1.0D0) U = 1.0D0
+      IF (U .LT. 0.0D0) U = 0.0D0
+      A = 0.1D0 * (TDOK - TCLS) / 100.0D0
+      S7RF = 100.0D0 * (A * U + (1.0D0 - A) * U * U)
+      RETURN
+      END
+C
+C     S7SIV: the S-IVB's centre, the point of its state (traj.f SIVST),
+C     from the CSM's eye in scene 7's geometry at range RNG (ft), EQ km:
+C     S7POSE's LM tunnel top RNG ft plus 2 m down the docking axis and
+C     0.72 m to the LM's -Y side, the IU's top 6.01 m below that, the
+C     centre half the stage's 61.3 ft (SIVBMD) below the IU's top, on
+C     the axes S7AT (S7ATT must have set them).
+      SUBROUTINE S7SIV(RNG, P)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION RNG, P(3), D
+      INTEGER I
+      D = (RNG * 0.3048D0 + 2.0D0 + 1.5D0 + 4.51D0
+     &  + 0.5D0 * (58.3D0 + 3.0D0) * 0.3048D0) * 1.0D-3
+      DO 10 I = 1, 3
+        P(I) = -D * S7AT(I,1) + 0.72D-3 * S7AT(I,2)
+   10 CONTINUE
+      RETURN
+      END
+C
 C     S7ATT: the stack's attitude, LM (and S-IVB) body axes in S7AT.
 C     The S-IVB held "a fixed inertial attitude to provide a stable
 C     docking platform" (MPR-SAT-FE-69-9, printed p. 11-1), reached by
@@ -880,10 +962,10 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION T, R(3), V(3), S(3), H(3), X(3), Y(3), VDOT
       DOUBLE PRECISION EVGET
-      INTEGER I, IVS
+      INTEGER I
 C     The attitude time from the scenario (TDATT).
       T = EVGET(KETDA)
-      CALL VSTATE(T, 1, 1, R, V, IVS)
+      CALL CSMST(T, 1, R, V)
       CALL SUNG(T, S)
       CALL VCRS(R, V, H)
       CALL VUNIT(H)
@@ -912,7 +994,7 @@ C     RESTOMOD END
       ITARG = IT
       ILABL = IL
       IF (IVIEW .LT. 0 .OR. IVIEW .GT. 3) IVIEW = 0
-      IF (ITARG .LT. 0 .OR. ITARG .GT. 5) ITARG = 0
+      IF (ITARG .LT. 0 .OR. ITARG .GT. 6) ITARG = 0
       IF (ILABL .LT. 0 .OR. ILABL .GT. 3) ILABL = 0
       RETURN
       END

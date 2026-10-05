@@ -151,17 +151,17 @@ def craters():
 
 # Scenarios (run decks).  Codes shared with the kernel through viewdims.inc.
 LEG_TYPES = {"CIRC": 1, "CONIC": 2, "LUNAR": 3, "LCONIC": 4, "TABLE": 5}
-LEG_VEH = {"CSM": 1, "LM": 2}
+LEG_VEH = {"CSM": 1, "LM": 2, "SIVB": 3}   # 3: as the burn cue's BURN_VEH below
 EVENT_KINDS = {"TDATT": 1, "SEP": 2, "APPR": 3, "DOCK": 4, "UNDOCK": 5, "TOUCH": 6, "EI": 7,
                "PTC": 8, "TLI": 9, "LOI1": 10, "LOI2": 11, "PHOTO": 12, "TEI": 13,
                "LMSEP": 14, "PDI": 15, "LIFT": 16, "TPF": 17, "LMDOK": 18, "JETT": 19,
-               "CMSEP": 20}
+               "CMSEP": 20, "EJECT": 21, "SLING": 22}
 EVENT_PARAMS = {"TDATT": "KETDA", "SEP": "KESEP", "APPR": "KEAPR", "DOCK": "KEDOK",
                 "UNDOCK": "KEUND", "TOUCH": "KETD", "EI": "KEEI", "PTC": "KEPTC",
                 "TLI": "KETLI", "LOI1": "KELOI1", "LOI2": "KELOI2", "PHOTO": "KEPHO",
                 "TEI": "KETEI", "LMSEP": "KELMS", "PDI": "KEPDI", "LIFT": "KELFT",
                 "TPF": "KETPF", "LMDOK": "KELDK", "JETT": "KEJET",
-                "CMSEP": "KECMS"}
+                "CMSEP": "KECMS", "EJECT": "KEEJC", "SLING": "KESLG"}
 # Timeline card kinds (TIMELINE KIND=): a small enum shared with the kernel (/CTLN/) and the
 # page (build/names.js); see CLAUDE.md, "Scenario timeline".
 TL_KINDS = {"LAUNCH": 1, "BURN": 2, "STAGING": 3, "ORBIT": 4, "SEP": 5, "SURFACE": 6, "TV": 7,
@@ -553,7 +553,7 @@ def main():
          "C              altitude at TB).  TABLE (one leg per pair of rows):",
          "C              3-9 row A, 10-12 row B's T LAT LON, 13-15 its V FPA",
          "C              HDG, 17 its ALT; LGN 1 A's, 2 B's velocity Earth",
-         "C              fixed.  Vehicle LGVEH: 1 CSM, 2 LM.",
+         "C              fixed.  Vehicle LGVEH: 1 CSM, 2 LM, 3 S-IVB.",
          "C              Event J of scenario EVSN(J), kind EVKND, g.e.t. EVT (s).",
          "      DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)",
          "      DOUBLE PRECISION SNSAZ(NSN)",
