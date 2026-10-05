@@ -373,7 +373,7 @@ C     LMDOCK, which count back from LMBODY's last solid).  "The four
 C     reaction control engine clusters are mounted on truss members
 C     extending from both sides of the crew compartment (two forward
 C     clusters) and both sides of the midsection (two aft clusters)"
-C     (SG p. 7).  The forward ones on "tubular truss members bolted to
+C     (SG p. 8).  The forward ones on "tubular truss members bolted to
 C     both sides of the front face assembly.  A truss member extends
 C     aft and is secured to a longeron located at the compartment's
 C     maximum breadth" (SG p. 10); the aft ones on "truss members
@@ -603,6 +603,9 @@ C     RESTOMOD END
       DOUBLE PRECISION P(2,NP), O(3), A1(3), A2(3), AN(3), H
       DOUBLE PRECISION CEN(3), E1(3), E2(3), N(3), D, VDOT
       INTEGER I, K, K2, IS, IA, IB, IC, NE
+C     A full model table takes no more solids (as XLINE takes no more
+C     lines).
+      IF (NSOL .GE. MSOL) RETURN
       NSOL = NSOL + 1
       IS = NSOL
       NLV(IS) = 2 * NP
@@ -692,6 +695,9 @@ C     RESTOMOD END
       DOUBLE PRECISION P(2,NP), O(3), A1(3), A2(3), AN(3), H, SC
       DOUBLE PRECISION CEN(3), E1(3), E2(3), N(3), D, VDOT
       INTEGER I, K, K2, IS, IA, IB, IC, NE
+C     A full model table takes no more solids (as XLINE takes no more
+C     lines).
+      IF (NSOL .GE. MSOL) RETURN
       NSOL = NSOL + 1
       IS = NSOL
       NLV(IS) = 2 * NP
@@ -769,6 +775,7 @@ C     RESTOMOD END
       DOUBLE PRECISION P(2,NP), O(3), A1(3), A2(3), AN(3), H, G
       DOUBLE PRECISION E1(3), E2(3), N(3), VDOT
       INTEGER I, K, IS
+      IF (NSOL .GE. MSOL) RETURN
       CALL MKPRS(NP, P, O, A1, A2, AN, H)
       IS = NSOL
       DO 20 K = 1, NP
