@@ -1,8 +1,8 @@
 // Room and Tiled: the workbench inside a 3D machine room (web/lab, inlined from build/lab.js as VIEW_LAB), or the
 // plain page. The lab is started only when Room is chosen: in Tiled there is no WebGL context and no extra frame loop.
 // In the room the vector terminal's screen is the plot (#cv), the glass terminal opens Source, the microfilm recorder
-// opens Print, the line printer the kernel listing on greenbar and the bookcase (or one of its binders) the library; clicking one flies the camera to it, and on arrival
-// the page shows that tab (or the listing, over it). The Room button, or Esc on a plot tab or in Source (once
+// opens Print, the line printer the kernel listing on greenbar and the bookcase (or one of its binders) the library; clicking one flies the camera to its
+// close-up, and a click there shows that tab (or the listing, over it). The Room button, or Esc on a plot tab or in Source (once
 // Source has closed its own overlays), flies back out.
 "use strict";
 const LAB = typeof VIEW_LAB !== "undefined" ? VIEW_LAB : null;
@@ -79,6 +79,8 @@ function roomScreenRect(opens) {
   if (opens === "listing") { roomListingOpen(); $("list").style.visibility = "hidden"; }   // laid out, unseen until arrival
   return roomRect(opens);
 }
+// Stepped back from a terminal's close-up: the listing laid out unseen for the printer closes again.
+function roomLeave(opens) { if (opens === "listing" && roomListing) roomListingClose(); }
 let roomFadeT = 0;
 function roomFade(into, done) {
   const h = $("labhost");
@@ -139,7 +141,7 @@ function roomArrive(opens, name = "") {
 function roomApply() {
   const want = roomAvail && WIDE.matches && roomWant === "room";
   if (want && !roomIn) {
-    if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive, screenRect: roomScreenRect })) { roomAvail = false; roomSync(); return; }
+    if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive, screenRect: roomScreenRect, leave: roomLeave })) { roomAvail = false; roomSync(); return; }
     roomIn = true; roomShowLab(null);
   } else if (!want && roomIn) {
     LAB.stop(); roomIn = roomShown = false; document.body.classList.remove("room"); resize();
@@ -148,6 +150,7 @@ function roomApply() {
 }
 function roomChoose(v) {
   if (roomBusy()) return;
+  if (v === "room" && roomShown && LAB.back()) return;   // at a terminal's close-up: step back out
   roomWant = v; try { localStorage.setItem(ROOM_KEY, v); } catch (e) { /* ignore */ }
   if (v === "room" && roomIn && !roomShown) roomShowLab(roomTermOf(tab));
   else roomApply();
@@ -161,7 +164,7 @@ $("tabs").addEventListener("click", e => {
   e.stopImmediatePropagation();
   const t = b.dataset.tab;
   if (t !== "source" && t !== "print") roomCanvasTab = t;
-  LAB.setTarget(roomTermOf(t));
+  LAB.setTarget(roomTermOf(t), true);   // a tab picked opens on arrival
 }, true);
 window.addEventListener("keydown", e => {
   if (e.key !== "Escape" || e.defaultPrevented || !roomIn || roomShown || typingIn() || $("list").classList.contains("open")) return;

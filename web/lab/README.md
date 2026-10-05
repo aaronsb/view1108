@@ -35,7 +35,8 @@ is chosen.
 | `stop()` | dispose of everything, the WebGL context included (Tiled) |
 | `show(from?, rect?, holdMs?)` | render the room; with a placed name the camera starts at that terminal (with `rect`, at the handover pose for it), holds `holdMs`, and flies out |
 | `hide()` | stop rendering (the page is shown) |
-| `setTarget(name)` | fly to a placed equipment (`null`: the overview); a terminal ends at its handover pose and calls `hooks.arrive` |
+| `setTarget(name, open?)` | fly to a placed equipment (`null`: the overview); a terminal ends at its handover pose and holds there until a click, `E` or Enter calls `hooks.arrive` (with `open`, on arrival) |
+| `back()` | at a terminal's close-up, step back out in front of it, as Esc or a walking key does there (calls `hooks.leave`); `false` when not at one |
 | `event(e)` | pass a page event to every placed equipment |
 | `info()`, `project(name)` | for tests: quality, draw calls and triangles of the last frame, the last handover's mismatch, the walk (`x`, `z`, `yaw`, `pitch`, `near`), `locked` (pointer lock) and `hover`; a placed equipment's screen in client px |
 | `plan(px?)`, `layout()`, `stand(x, z, yaw, pitch?)` | for tests: the room from above as a PNG data URL; the footprints, door and terminals; stand somewhere walking |
@@ -46,7 +47,7 @@ is chosen.
 and returns the client rect of the element the terminal's screen becomes (null for the library: the flight ends at the
 piece's `anchors.camera`); `arrive(opens, name)` hands over to the page, which shows the tab (`"workbench"`: the last
 plot tab, `"source"`: Source) or the overlay (`"listing"`, `"library"`; `name` "binder:<id>" picks that document),
-fades the lab out and calls `hide()`.
+fades the lab out and calls `hide()`; `leave(opens)` undoes what `screenRect` laid out when the viewer steps back from the close-up instead (the printer's hidden listing).
 
 ### Handover
 

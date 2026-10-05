@@ -19,7 +19,10 @@ const VIEW_LAB = {
   /** Show the room; with a terminal name and the page element's rect, start where its screen covers that rect. */
   show(from?: string, rect?: DOMRect | null, holdMs?: number): void { lab?.show(from, rect, holdMs); },
   hide(): void { lab?.hide(); },
-  setTarget(name: string | null): boolean { return lab ? lab.setTarget(name) : false; },
+  /** Fly to a placed equipment (null: the overview); a terminal holds at its close-up, or with `open` opens at once. */
+  setTarget(name: string | null, open?: boolean): boolean { return lab ? lab.setTarget(name, open) : false; },
+  /** At a terminal's close-up: step back out in front of it (false when not at one). */
+  back(): boolean { return lab ? lab.back() : false; },
   event(e: LabEvent): void { lab?.event(e); },
   get running(): boolean { return !!lab; },
   /** Quality tier, draw calls and triangles of the last frame, the last handover's mismatch (px): for tests. */

@@ -31,13 +31,15 @@ export interface LabEvent {
 export interface LabHooks {
   screens: { vector: HTMLCanvasElement };   // #cv, the plot
   state(): LabState;
-  /** The camera reached a terminal: the page shows the tab it opens, fades the lab out and asks it to hide. `name` is
+  /** The terminal was opened at its close-up: the page shows the tab it opens, fades the lab out and asks it to hide. `name` is
    *  the placed name flown to ("binder:<id>" picks that document in the library). */
   arrive(opens: Opens, name: string): void;
   /** Lay the page out for `opens` behind the room, without showing it, and give the client rect of the element the
    *  terminal's screen becomes (#cv for the workbench, the Source workspace for source). The lab ends its flight
    *  where the screen covers that rect, so the crossfade lines up. */
   screenRect?(opens: Opens): DOMRect | null;
+  /** The camera stepped back from a terminal's close-up without opening it: undo what screenRect laid out. */
+  leave?(opens: Opens): void;
 }
 
 /** A camera pose: where the eye is, what it looks at, its vertical field of view (deg). */

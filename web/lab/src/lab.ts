@@ -7,6 +7,10 @@
 // Enter uses it. Esc (taken by the browser) only releases the lock. A click on a machine while unlocked uses it as
 // before, so the room still works point-and-click; touch, pen, and a browser that refuses the lock drag to look.
 //
+// Arrival: a flight into a terminal (a click, E, or the walk's dwell) ends at its close-up and stays in the room, live,
+// with a line on how to go on; a click there (anywhere: the machine fills the view, so any click means it; at the
+// bookcase a binder picks its document), E or Enter opens it, and Esc, the Room button or a walking key steps back.
+//
 // Handover: a flight into a terminal that opens a tab ends where the terminal's screen covers, on the lab canvas,
 // the rect the page's element will occupy (hooks.screenRect: #cv for the workbench, the Source workspace for
 // source), with the camera square to the screen. The page then crossfades from the lab to itself. Back out, the
@@ -20,7 +24,7 @@ import { RoomSound } from "./audio/roomsound";
 import { ROOM } from "./room/shell";
 import { PLATE_FONT } from "./equipment/kit";
 import { Walk, type Terminal } from "./walk";
-import type { CameraPose, LabEvent, LabHooks, Placed, Quality, Room } from "./types";
+import type { CameraPose, LabEvent, LabHooks, Opens, Placed, Quality, Room } from "./types";
 
 const FLY_S = 1.0;
 const ARC_M = 0.12;                 // the flight's rise at its middle, metres per 2 m flown (at most one unit)
@@ -38,6 +42,11 @@ const PASS = /^(Escape|Tab|F\d+|m|M)$/;
 const PROBE = { skip: 4, frames: 24, budget: 1500, ms: 24 };
 const WATCH = { span: 2000, ms: 22 };
 const QKEY = "view1108.labq", LKEY = "view1108.lights";
+/** The line at a terminal's close-up, by what it opens. */
+const AT_HINT: Record<Opens, string> = {
+  workbench: "Click the screen to open", source: "Click the screen to open", print: "Click the viewing port to open",
+  listing: "Click the paper to open", library: "Click a binder to open",
+};
 const ease = (t: number) => t * t * (3 - 2 * t);
 const D2R = Math.PI / 180;
 
@@ -81,6 +90,9 @@ export class Lab {
   private labelEl: HTMLDivElement;
   private crossEl: HTMLDivElement;
   private lockHintEl: HTMLDivElement;
+  private atEl: HTMLDivElement;
+  /** The terminal the camera has arrived at and holds, not yet opened. */
+  private at: { name: string; opens: Opens } | null = null;
   private locked = false;
   private everLocked = false;
   private lockFailed = false;
@@ -155,7 +167,9 @@ export class Lab {
     this.crossEl.innerHTML = '<svg width="15" height="15" viewBox="0 0 15 15"><path d="M7.5 1.5v4M7.5 9.5v4M1.5 7.5h4M9.5 7.5h4" stroke="rgba(214,245,220,.65)" stroke-width="1" fill="none"/></svg>';
     this.lockHintEl = document.createElement("div");
     this.lockHintEl.style.cssText = `position:absolute;left:50%;bottom:14px;transform:translateX(-50%);pointer-events:none;display:none;padding:3px 10px 2px;font:10px/1.5 ${PLATE_FONT};letter-spacing:.12em;text-transform:uppercase;color:#9fb8a5;background:rgba(4,10,6,.6);border-radius:3px;white-space:nowrap;z-index:2;transition:opacity .8s`;
-    host.append(this.labelEl, this.qualEl, this.crossEl, this.lockHintEl);
+    this.atEl = document.createElement("div");
+    this.atEl.style.cssText = `position:absolute;left:50%;bottom:14px;transform:translateX(-50%);pointer-events:none;display:none;padding:3px 10px 2px;font:10px/1.5 ${PLATE_FONT};letter-spacing:.12em;text-transform:uppercase;color:#d6f5dc;background:rgba(4,10,6,.82);border:1px solid #3d5c45;border-radius:3px;white-space:nowrap;z-index:2`;
+    host.append(this.labelEl, this.qualEl, this.crossEl, this.lockHintEl, this.atEl);
     this.applyQuality();
 
     this.setShot(this.home);
@@ -181,7 +195,7 @@ export class Lab {
    *  at the pose where the screen covers it, held `holdMs` while the page fades the lab in; then it flies back to
    *  stand in front of it, outside its zone (walk.ts), so the walk does not pull straight back in. */
   show(from?: string, rect?: DOMRect | null, holdMs = 0): void {
-    this.shown = true;
+    this.shown = true; this.at = null;
     this.resize();
     this.flight = null; this.clearHover();
     for (const p of this.room.placed) p.equipment.select?.(false);
@@ -199,31 +213,68 @@ export class Lab {
 
   /** Stop rendering; the canvas keeps its last picture. */
   hide(): void {
+    this.drop(true);
     this.shown = false; this.flight = null; this.clearHover(); this.walk.clearKeys();
     this.unlock(); this.lockUI();
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
   }
 
-  /** Fly to a placed equipment (null: the overview). A terminal that opens a tab ends at the handover pose and
-   *  calls hooks.arrive. */
-  setTarget(name: string | null): boolean {
+  /** Fly to a placed equipment (null: the overview). A terminal that opens a tab ends at the handover pose and holds
+   *  there until it is opened (open(); with `open`, at once: a tab picked on the page). */
+  setTarget(name: string | null, open = false): boolean {
     this.clearHover();
-    if (name === null) { this.fly(this.home, 0, true); return true; }
+    if (open && this.at?.name === name) { this.open(); return true; }
+    if (name === null) { this.drop(true); this.fly(this.home, 0, true); return true; }
     const p = this.room.placed.find(q => q.name === name);
     if (!p) return false;
     const opens = p.equipment.opens;
     const rect = opens ? this.hooks.screenRect?.(opens) ?? null : null;
     const s = (rect && this.matchShot(name, rect)) || this.anchorShot(name);
     if (!s) return false;
+    this.drop(true);
     this.unlock();
     this.walk.disarm(name); this.walk.clearKeys();
     for (const q of this.room.placed) q.equipment.select?.(q === p);
     this.fly(s, 0, false, () => {
       this.mode = "hold";
-      if (opens) this.hooks.arrive(opens, name);
+      if (!opens) return;
+      this.at = { name, opens };
+      if (open) this.open(); else this.lockUI();
     });
     return true;
+  }
+
+  /** At a terminal's close-up: step back to stand in front of it, walking (it re-arms once you are out of its zone). */
+  back(): boolean {
+    const a = this.at;
+    if (!a || this.mode !== "hold") return false;
+    this.drop(true); this.clearHover();
+    for (const p of this.room.placed) p.equipment.select?.(false);
+    this.fly(this.standBack(a.name) ?? this.home, 0, true);
+    return true;
+  }
+
+  /** At a terminal's close-up: hand over to the page (a binder's name: that document, from the bookcase). The pose is
+   *  matched again first, in case the page moved since the flight. */
+  private open(binder?: string): void {
+    const a = this.at;
+    if (!a || this.mode !== "hold") return;
+    if (binder) for (const q of this.room.placed) q.equipment.select?.(q.name === binder);
+    else {
+      const rect = this.hooks.screenRect?.(a.opens) ?? null, s = rect && this.matchShot(a.name, rect);
+      if (s) { this.setShot(s); this.draw(); }
+    }
+    this.drop(false); this.clearHover();
+    this.hooks.arrive(a.opens, binder ?? a.name);
+  }
+
+  /** No longer at a close-up; `leave`: tell the page, which undoes what screenRect laid out for it. */
+  private drop(leave: boolean): void {
+    const a = this.at;
+    if (!a) return;
+    this.at = null; this.lockUI();
+    if (leave) this.hooks.leave?.(a.opens);
   }
 
   /** The light switch: the troffers on (striking one by one) or off; remembered. Returns the state. */
@@ -296,7 +347,7 @@ export class Lab {
 
   get info() {
     const w = this.walk;
-    return { locked: this.locked, hover: this.hover?.name ?? null, lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
+    return { locked: this.locked, at: this.at?.name ?? null, hover: this.hover?.name ?? null, lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
       walk: { x: w.pos.x, z: w.pos.y, yaw: w.yaw / D2R, pitch: w.pitch / D2R, near: w.near?.name ?? null } };
   }
 
@@ -322,7 +373,7 @@ export class Lab {
     this.renderer.dispose();
     this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
-    this.labelEl.remove(); this.qualEl.remove(); this.crossEl.remove(); this.lockHintEl.remove();
+    this.labelEl.remove(); this.qualEl.remove(); this.crossEl.remove(); this.lockHintEl.remove(); this.atEl.remove();
   }
 
   // ---- frame ----
@@ -342,7 +393,7 @@ export class Lab {
     let landed: (() => void) | undefined;
     if (this.flight) landed = this.stepFlight(now);
     else if (this.mode === "free") { this.walk.update(Math.min(0.25, raw)); if (this.mode === "free") this.applyWalk(); }
-    if (this.mode === "free" && !this.drag) {
+    if ((this.mode === "free" || this.at) && !this.drag) {
       if (this.locked) { const r = this.renderer.domElement.getBoundingClientRect(); this.pick(r.left + r.width / 2, r.top + r.height / 2); }
       else if (this.pointer) this.pick(this.pointer.x, this.pointer.y);
     }
@@ -554,7 +605,14 @@ export class Lab {
     const g = this.drag;
     if (!g || g.id !== e.pointerId) return;
     this.drag = null;
-    if (g.moved || e.type !== "pointerup" || this.mode !== "free") return;
+    if (g.moved || e.type !== "pointerup") return;
+    if (this.at) {   // a click anywhere at a close-up opens it; at the bookcase a binder clicked picks its document
+      if (Math.hypot(e.clientX - g.x, e.clientY - g.y) >= CLICK_PX) return;
+      const p = this.at.opens === "library" ? this.hit(e.clientX, e.clientY) : null;
+      this.open(p?.name.startsWith("binder:") ? p.name : undefined);
+      return;
+    }
+    if (this.mode !== "free") return;
     const p = this.hit(e.clientX, e.clientY);
     if (p) this.use(p);
     else if (e.pointerType === "mouse") this.lock();
@@ -597,9 +655,11 @@ export class Lab {
     this.crossEl.style.display = this.shown && this.locked ? "block" : "none";
     const fine = matchMedia("(any-pointer: fine)").matches, h = this.lockHintEl;
     h.textContent = this.lockFailed ? "Drag to look around · WASD to walk" : "Click to look around · WASD to walk · Esc to release";
-    if (!this.shown || !fine || (this.everLocked && !this.lockFailed)) h.style.opacity = "0";
+    if (!this.shown || !fine || this.at || (this.everLocked && !this.lockFailed)) h.style.opacity = "0";
     else { h.style.display = "block"; h.style.opacity = this.locked ? "0" : "1"; }
     if (!this.shown) h.style.display = "none";
+    this.atEl.style.display = this.shown && this.at ? "block" : "none";
+    if (this.at) this.atEl.textContent = `${AT_HINT[this.at.opens]} · Esc to step back`;
   }
 
   private onLeave = () => { this.pointer = null; this.clearHover(); };
@@ -623,6 +683,11 @@ export class Lab {
   private onKeyCapture = (e: KeyboardEvent) => {
     if (!this.shown) return;
     if (e.type === "keyup") { this.walk.key(e.key, false, e.shiftKey); return; }
+    if (this.at && this.mode === "hold" && !e.ctrlKey && !e.metaKey && !e.altKey) {   // at a close-up
+      const k = e.key;
+      if (k === "Escape" || this.walk.key(k, true, e.shiftKey)) { e.stopImmediatePropagation(); e.preventDefault(); this.back(); return; }
+      if (k === "e" || k === "E" || k === "Enter") { e.stopImmediatePropagation(); e.preventDefault(); this.open(); return; }
+    }
     if (e.key === "Escape" && (this.locked || performance.now() - this.unlockT < ESC_MS)) {
       e.stopImmediatePropagation(); e.preventDefault(); this.unlock(); return;
     }
@@ -655,9 +720,10 @@ export class Lab {
 
   /** Hover: lift and name the machine under (x, y). */
   private pick(x: number, y: number): void {
-    if (this.mode !== "free") return;
-    const p = this.hit(x, y);
-    this.renderer.domElement.style.cursor = p ? "pointer" : "";
+    if (this.mode !== "free" && !this.at) return;
+    let p = this.hit(x, y);
+    if (this.at && !(this.at.opens === "library" && p?.name.startsWith("binder:"))) p = null;   // at a close-up only binders
+    this.renderer.domElement.style.cursor = p || this.at ? "pointer" : "";
     if (p !== this.hover) { this.clearHover(); if (p) this.lift(p, true); this.hover = p; }
     const label = p && this.room.labels?.[p.name];
     if (label) {
