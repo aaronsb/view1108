@@ -13,7 +13,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { BuildContext, Equipment } from "../types";
-import { Parts, at, canvasTex, chrome, fitDist, fontTex, glowMat, own, paint, plastic, plateText, rng, roundRect, satinMetal, sharedGeo, tubeGlass, viewPose } from "./kit";
+import { Parts, at, canvasTex, chrome, fitDist, fontTex, glowMat, keyLegends, own, paint, plastic, plateText, rng, roundRect, satinMetal, sharedGeo, tubeGlass, viewPose } from "./kit";
 
 const FOV = 40, COLS = 64, ROWS = 16;
 const SW = 0.254, SH = 0.127;              // the picture: 10 x 5 in
@@ -88,32 +88,6 @@ function layout(): Key[] {
   return K;
 }
 const KEYS_WIDE = 3.5 + 16.95 + 1.1 + 3 * 1.05;   // the layout's width in units
-
-/** One canvas for every key's legend, cells packed on shelves; returns the texture and each key's UV rectangle. */
-function legendAtlas(keys: Key[], dims: (k: Key) => [number, number], aniso: number) {
-  const AW = 2048, AH = 1024, CH = 88;
-  const cells: [number, number, number, number][] = [];
-  let x = 0, y = 0;
-  for (const k of keys) {
-    const [w, d] = dims(k), cw = Math.min(AW, Math.ceil(CH * w / d));
-    if (x + cw > AW) { x = 0; y += CH; }
-    cells.push([x, y, cw, CH]); x += cw + 2;
-  }
-  const tex = canvasTex(AW, AH, g => {
-    keys.forEach((k, i) => {
-      const [cx, cy, cw, ch] = cells[i], lines = k.t.split("\n");
-      if (!k.t) return;
-      const single = lines.length === 1 && [...lines[0]].length <= 2;
-      let fs = single ? ch * 0.44 : lines.length === 1 ? ch * 0.3 : lines.length === 2 && lines.every(l => [...l].length <= 2) ? ch * 0.34 : ch * 0.82 / lines.length * 0.9;
-      g.font = `600 ${fs}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
-      const wid = Math.max(...lines.map(l => g.measureText(l).width));
-      if (wid > cw * 0.86) { fs *= cw * 0.86 / wid; g.font = `600 ${fs}px "Helvetica Neue", Helvetica, Arial, sans-serif`; }
-      g.fillStyle = k.ink; g.textAlign = "center"; g.textBaseline = "middle";
-      lines.forEach((l, j) => g.fillText(l, cx + cw / 2, cy + ch / 2 + (j - (lines.length - 1) / 2) * fs * 1.08));
-    });
-  }, aniso);
-  return { tex, uv: cells.map(([cx, cy, cw, ch]) => [cx / AW, 1 - (cy + ch) / AH, (cx + cw) / AW, 1 - cy / AH] as const) };
-}
 
 export function build(ctx: BuildContext): Equipment {
   const object = new THREE.Group(), mine: { dispose(): void }[] = [];
@@ -219,7 +193,7 @@ export function build(ctx: BuildContext): Equipment {
     const c = ptex.image as HTMLCanvasElement; drawPanel(c.getContext("2d")!, c.width, c.height); ptex.needsUpdate = true;
   }, () => {});
 
-  // Keys: dark skirts and cream caps (two instanced meshes), legends on one atlas (one merged mesh). The keyboard
+  // Keys: dark skirts and cream caps (two instanced meshes), legends on one atlas (one merged mesh, kit.ts keyLegends). The keyboard
   // lies on the base's slope, its back row 24 mm in front of the face, leaving a palm rest of about 7 cm.
   const keys = layout(), U = 0.0178, gap = 0.0026, skH = 0.011, capH = 0.0052, step = 0.0028;   // the cap's top is `step` narrower than its skirt
   const slope = Math.atan2(FY0 - 0.036, 0.337 - FZ - 0.004), s0 = 0.024;
@@ -239,23 +213,10 @@ export function build(ctx: BuildContext): Equipment {
     caps.setMatrixAt(i, c.clone().multiply(at(0, skH - 0.0005, 0, -Math.PI / 2, 0, 0, cw, cd, capH / 0.55))); caps.setColorAt(i, col.set(k.cap));
   });
   object.add(skirts, caps); mine.push(skirts, caps);
-  const atlas = legendAtlas(keys, capDims, ctx.maxAnisotropy); mine.push(atlas.tex);
-  const pos: number[] = [], nor: number[] = [], uvs: number[] = [], idx: number[] = [];
-  const v = new THREE.Vector3(), n = new THREE.Vector3(), nm = new THREE.Matrix3();
-  keys.forEach((k, i) => {
-    if (!k.t) return;
-    const [w, d] = capDims(k), c = centre(k), [u0, v0, u1, v1] = atlas.uv[i], b = pos.length / 3;
-    const lw = w * 0.88 / 2, ld = d * 0.88 / 2, y = skH + capH - 0.0004;
-    nm.getNormalMatrix(c); n.set(0, 1, 0).applyMatrix3(nm).normalize();
-    for (const [x, z, uu, vv] of [[-lw, -ld, u0, v1], [lw, -ld, u1, v1], [lw, ld, u1, v0], [-lw, ld, u0, v0]]) {
-      v.set(x, y, z).applyMatrix4(c); pos.push(v.x, v.y, v.z); nor.push(n.x, n.y, n.z); uvs.push(uu, vv);
-    }
-    idx.push(b, b + 3, b + 2, b, b + 2, b + 1);
-  });
-  const lg = new THREE.BufferGeometry();
-  lg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); lg.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
-  lg.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2)); lg.setIndex(idx);
-  const legends = own(new THREE.Mesh(lg, new THREE.MeshStandardMaterial({ map: atlas.tex, transparent: true, depthWrite: false, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2 })), mine);
+  const legends = keyLegends(keys.map(k => {
+    const [w, d] = capDims(k);
+    return { t: k.t, ink: k.ink, w: w * 0.88, d: d * 0.88, m: centre(k).multiply(at(0, skH + capH - 0.0004, 0, -Math.PI / 2)) };
+  }), ctx.maxAnisotropy, mine);
   object.add(legends);
 
   // The screen: a canvas of 64 x 16 cells (16 x 32 px), green on dark, flat just in front of the dome's crown.
