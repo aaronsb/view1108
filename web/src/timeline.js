@@ -80,7 +80,7 @@ const TL_SCENES = {
     [487573.7, 1, 2, 0, 100], // TEI, to the transearth leg (CONIC FROM 135:26:13.7; cutoff 135:26:13.69, SP p. 109): the CM station
                             // at 100 deg, the Moon's limb across the frame, as figure 7.1-1 (PDF pp. 203-205, printed 185-187)
     [698400, 2],            // transearth coast: scene 2's held attitude (VINIT) keeps the Earth in frame to about 194:00 (our run)
-    [702186.7, 3],          // the entry approach in scene 3's horizon view, to the EI event 195:03:05.7
+    [702185.7, 3],          // the entry approach in scene 3's horizon view, to the EI event 195:03:05.7
     [Infinity, 3, 1, 1, 20] // the entry (TABLE leg, MR Table 7-VII p. 7-12) to splashdown, 195:18:35, then the splash point
   ],
   2: [   // Apollo 8 (data/scenarios/apollo8-asflown.scn): scene 9 rides its LUNAR legs (LUNORB) with the Earthrise
