@@ -96,6 +96,9 @@ export class Lab {
   private atEl: HTMLDivElement;
   /** The terminal the camera has arrived at and holds, not yet opened. */
   private at: { name: string; opens: Opens } | null = null;
+  /** What the page laid out for a flight (screenRect) and has not been told to leave: set at take-off, so a flight
+   *  replaced or ended before it lands still undoes it. */
+  private laid: Opens | null = null;
   private locked = false;
   private everLocked = false;
   private lockFailed = false;
@@ -232,10 +235,14 @@ export class Lab {
     const p = this.room.placed.find(q => q.name === name);
     if (!p) return false;
     const opens = p.equipment.opens;
-    const rect = opens ? this.hooks.screenRect?.(opens) ?? null : null;
+    const prev = this.laid, lay = opens && this.hooks.screenRect ? opens : null;
+    const rect = lay ? this.hooks.screenRect!(lay) : null;
     const s = (!open && this.anchorShot(name, "view")) || (rect && this.matchShot(name, rect)) || this.anchorShot(name);
+    // Leave the last layout unless this flight laid out the same one again.
+    this.laid = lay;
+    if (prev && prev !== lay) this.hooks.leave?.(prev);
     if (!s) return false;
-    this.drop(true);
+    if (this.at) { this.at = null; this.lockUI(); }
     this.unlock();
     this.walk.disarm(name); this.walk.clearKeys();
     for (const q of this.room.placed) q.equipment.select?.(q === p);
@@ -263,6 +270,7 @@ export class Lab {
   private open(binder?: string): void {
     const a = this.at;
     if (!a || this.mode !== "hold") return;
+    binder ??= this.room.placed.find(q => q.equipment.pulled?.())?.name;   // E or Enter: what is pulled out, if anything
     const go = () => this.hooks.arrive(a.opens, binder ?? a.name);
     let s: Shot | null = null;
     if (binder) for (const q of this.room.placed) q.equipment.select?.(q.name === binder);
@@ -272,12 +280,13 @@ export class Lab {
     else { if (s) { this.setShot(s); this.draw(); } go(); }
   }
 
-  /** No longer at a close-up; `leave`: tell the page, which undoes what screenRect laid out for it. */
+  /** No longer at a close-up or flying to one; `leave`: tell the page, which undoes what screenRect laid out for it
+   *  (without: the page has taken it over). */
   private drop(leave: boolean): void {
-    const a = this.at;
-    if (!a) return;
-    this.at = null; this.lockUI();
-    if (leave) this.hooks.leave?.(a.opens);
+    const a = this.at, l = this.laid;
+    this.at = null; this.laid = null;
+    if (a) this.lockUI();
+    if (leave && l) this.hooks.leave?.(l);
   }
 
   /** The light switch: the troffers on (striking one by one) or off; remembered. Returns the state. */
@@ -643,6 +652,8 @@ export class Lab {
 
   private onLockChange = () => {
     const on = document.pointerLockElement === this.renderer.domElement;
+    // A lock granted after a flight took off (asked for just before it) would leave the camera locked at a close-up.
+    if (on && this.mode !== "free") { this.unlock(); return; }
     if (on === this.locked) return;
     this.locked = on; this.drag = null; this.pointer = null; this.clearHover();
     if (on) { this.everLocked = true; this.lockFailed = false; } else this.unlockT = performance.now();

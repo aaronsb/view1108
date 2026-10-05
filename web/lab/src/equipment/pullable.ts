@@ -74,11 +74,12 @@ export class Shelf {
   update(dt: number): void { for (const p of this.items) p.update(dt, this.tau); }
 
   /** The Equipment members for one item on this shelf: `select` (the camera flies to it: out; leaves: back),
-   *  `pull` and `hint`. */
-  member(item: Pullable): { select(on: boolean): void; pull(): boolean; hint(): string } {
+   *  `pull`, `pulled` and `hint`. */
+  member(item: Pullable): { select(on: boolean): void; pull(): boolean; pulled(): boolean; hint(): string } {
     return {
       select: on => on ? this.set(item) : this.back(item),
       pull: () => this.pull(item),
+      pulled: () => this.outItem === item && item.opens,
       hint: () => this.hint(),
     };
   }

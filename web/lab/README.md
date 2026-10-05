@@ -153,6 +153,7 @@ and registered by kind in `src/equipment/index.ts`. `BuildContext` gives `vector
 | `opens` | `"workbench"`, `"source"`, `"print"`, `"listing"` or `"library"`: clicking the equipment flies to `anchors.view`, the handover pose or `anchors.camera`, then a click there opens that |
 | `select(on)` | called with true on the piece a flight is going to, false on every piece when the room is shown or the camera steps back (a binder comes out and goes back) |
 | `pull()` | at a close-up, a click on the piece: it comes out of its shelf; true when it was already out and opens (the lab then opens it under its placed name) |
+| `pulled()` | it is out and opens: E or Enter at the close-up opens it, as a second click would |
 | `hint()` | the close-up's line, when it depends on the piece's state |
 | `inert` | for looks: named on hover, nothing to fly to or open (the bookcase's props) |
 | `update(dt, state)` | per rendered frame (blinking lamps, spinning reels) |
@@ -167,7 +168,7 @@ piece. An equipment's `dispose()` frees only what it made for itself. Lamps and 
 Things on a shelf that come out when clicked use `src/equipment/pullable.ts`. A `Shelf` (constructed with its three
 hint lines) takes each item with `add(object, { offset, turn?, opens? })` once the object is placed: its rest pose is
 taken then, and its out pose is the offset (in the parent's frame) and the turn (in its own axes) from there. One item
-is out at a time; `Object.assign(piece, shelf.member(item))` gives a placed piece its `select`, `pull` and `hint`, and
+is out at a time; `Object.assign(piece, shelf.member(item))` gives a placed piece its `select`, `pull`, `pulled` and `hint`, and
 the shelf's owner calls `shelf.update(dt)` from its own `update`. The bookcase is the first user: every binder (opens
 on the second click), the telephone directory and paperbacks (only come out) and the index card (lifts up and forward,
 turned to the viewer).
