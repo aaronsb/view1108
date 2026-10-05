@@ -73,6 +73,7 @@ const TOUR8 = [
 const LEN = { attract: ATTRACT.reduce((a, s) => a + s.dur, 0), tour: TOUR.reduce((a, s) => a + s.dur, 0) };
 const val = (x, u) => typeof x === "function" ? x(u) : x;
 let autoCap = false;   // caption an unframed Attract shot (the added, non-film ones)
+let follow = false;   // Following (timeline.js): the scene tracks the g.e.t. while the replay plays alongside Apollo in Real Time
 let mode = "attract", autoT = filmQ ? +filmQ[1] : 0, autoShot = -1, fadeA = 0, capName = "", livePin = null, liveIdx = 0;
 
 function shotGet(sh, u) {
@@ -129,7 +130,7 @@ function liveJump(j) {
 
 // ---- modes: attract -> tour (loops), live, free ----
 function startMode(m) {
-  const prev = mode; mode = m; autoT = (m === "attract" && filmQ) ? +filmQ[1] : 0; autoShot = -1; fadeA = 0; playing = true;
+  const prev = mode; mode = m; follow = false; autoT = (m === "attract" && filmQ) ? +filmQ[1] : 0; autoShot = -1; fadeA = 0; playing = true;
   if (m === "live") {
     get = Math.max(LIVE_MIN, Math.min(LIVE_MAX, get)); livePin = null;
     scene = livePhase(get).scene; viewInit(scene); const g = get; readDefaults(); get = g; get0 = g; frame = true; labLv = 3; liveSync(); aimAtBody();
@@ -153,6 +154,7 @@ function readDefaults() {
   get = get0 = rd("in_get"); yaw = rd("in_yaw"); pitch = rd("in_pitch"); roll = rd("in_roll"); fov = fov0 = rd("in_fov");
 }
 function setScene(s) {
+  follow = false;
   if (mode === "live" && s === 6) {   // Moon view is not a mission phase: in Live it is pinned until the viewer scrubs or types a time
     const g = get; livePin = { scene: 6, from: -Infinity, until: Infinity, name: SCENE_CAPTION[6] };
     scene = 6; viewInit(6); readDefaults(); get = g; get0 = g; capName = SCENE_CAPTION[6]; syncUI(); return;
