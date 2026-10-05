@@ -12,6 +12,7 @@ plan of MSC's 1108 room survives in our sources.
 | UP-4046 | UNIVAC 1108 Multi-Processor System, System Description, rev. 3: <https://fourmilab.ch/documents/univac/manuals/pdf/1108/UP-4046_1108mpSysDescr.pdf> |
 | UP-7604 | UNIVAC 1108 Display Console, Component Description (1968): <https://fourmilab.ch/documents/univac/manuals/pdf/1108/UP-7604_1108_Display_Console_Component_Description_1968.pdf> |
 | UP-7701 | UNISCOPE 100 Display Terminal, General Description, rev. 2 (1973): <https://fourmilab.ch/documents/univac/manuals/pdf/Uniscope/UP-7701r2_Uniscope_100_Display_Terminal_General_Description_1973.pdf> |
+| UNISCOPE photo | "Sperry-rand-univac-uniscope-100-0a.jpg", Adamantios, 2008, CC BY-SA 3.0 (<https://creativecommons.org/licenses/by-sa/3.0>): <https://commons.wikimedia.org/wiki/File:Sperry-rand-univac-uniscope-100-0a.jpg> |
 | UP-7789 | UNIVAC Advanced Graphic System Type 1557/1558, General Description (1970): <https://fourmilab.ch/documents/univac/manuals/pdf/Peripherals/UP-7789_Advanced_Graphic_System_Type_1557_1558_General_Description_1970.pdf> |
 | Brochure | UNIVAC 1108 II brochure, Computer History Museum 102646105: <https://www.computerhistory.org/brochures/doc-4372956ec8276/> |
 | MSC photo | "UNIVAC 1108 at NASA Manned Spacecraft Center", Sperry Rand, 15 July 1969: `docs/media/UNIVAC1108-NASA.png` |
@@ -21,7 +22,8 @@ plan of MSC's 1108 room survives in our sources.
 | IN 66-FM-79 | W. R. Pruett, MSC Internal Note 66-FM-79, Aug 1966 (NTRS 19700025047): <https://ntrs.nasa.gov/citations/19700025047> |
 | HEPCAT | TRW Systems for MSC, Users Manual for Computer Program HEPCAT, June 1970 (NTRS 19700027062): <https://ntrs.nasa.gov/citations/19700027062> |
 
-The manuals and the brochure are © Sperry Rand. We studied them but do not keep them in the repository.
+The manuals and the brochure are © Sperry Rand. We studied them but do not keep them in the repository, nor the UNISCOPE
+photo.
 
 Palette, read off the brochure's colour plates (approximate): cabinets `#c9ccc8`, the CPU row's warmer grey
 `#cfcbc0`, panels charcoal `#3a3f44`, accent orange `#c8642a`, desk tops `#eeeeea`. The lamps are warm white and
@@ -35,7 +37,7 @@ Sizes are W x H x D in metres.
 | Registry name | What it is | Source | Size | Confidence |
 |---|---|---|---|---|
 | `vector` | UNIVAC 1558 Graphic Display Console, showing the plot | UP-7789 Fig. 1-1 (p. 1), Fig. 2-5 (p. 11), Fig. 2-7 (p. 14), light pen p. 15, function keys p. 16, size p. 27 | 0.9 x 1.5 x 1.25 (35 x 60 x 50 in, read as W x H x D: inferred) | Shape good (below). Its use at MSC is not documented; we chose it as the 1108's own vector display |
-| `glass` | UNISCOPE 100 Display Terminal, showing the kernel source | UP-7701 Fig. 1-1 and p. 1 (10 x 5 in viewing area, 16 x 64 or 12 x 80, green on dark), size p. 30 | 0.46 x 0.33 x 0.69 | Good. Delivered from 1970, a year after the film (an anachronism we keep for Source) |
+| `glass` | UNISCOPE 100 Display Terminal, showing the kernel source | UP-7701 Fig. 1-1 and p. 1 (10 x 5 in viewing area, 16 x 64 or 12 x 80, green on dark), size p. 30; UNISCOPE photo (below) | 0.46 x 0.33 x 0.69 | Good. Delivered from 1970, a year after the film (an anachronism we keep for Source) |
 | `uniservo` | UNISERVO VIII-C tape unit | UP-4046 sec. 8.4.2 (120 in/s, 240 in/s rewind, 2400 ft reels); brochure p. 7; MSC photo (numbers 60, 61, ...) | 0.75 x 1.8 x 0.75 (inferred) | Good on look; vacuum columns not shown |
 | `cpu` | 1108 cabinet; `{lampPanel: true}` is the processor's maintenance panel | Brochure p. 3 (colour) | 0.8 x 1.9 x 0.8 (inferred) | Good on look; the lamp count is ours |
 | `console4009` | 1108 Display Console: indicator panel with Day Clock, CRT and keyboard, PAGEWRITER on a pedestal | UP-7604 Fig. 2-1 (p. 2-1), Table 2-1 (p. 2-2), secs. 2.3.2 to 2.3.4 (pp. 2-5, 2-6); UP-4046 Fig. 1-1; brochure pp. 6, 7 | 2.8 x 1.25 x 0.95 (ours) | Fair: parts sourced, layout and sizes ours |
@@ -84,6 +86,27 @@ keys are plain white with printed legends, as the figures show (no backlight).
 - **Microfilm recorder.** A finished beam frame exposes a frame: the shutter lamp and a lamp at the camera's lens flash,
   the advance lamp lights for the pull-down (about 100 ms, 4060 description p. 20) and the frame counter steps on.
   The viewing port shows the plot, dimmed. The other lamps hold steady.
+
+## The UNISCOPE 100
+
+The model follows the UNISCOPE photo, a front-left view of a surviving terminal; UP-7701 gives the size, the viewing
+area and the hood's top falling toward the back (Fig. 1-1). Read off the photo: a charcoal face over a cream keyboard
+base that projects well forward, dark sides, a thin light trim along the hood's top edge; the screen at the face's left
+in a dark recess, and to its right a panel lettered "Uniscope 100" in blue script; under them a brushed-aluminium strip
+with a dark UNIVAC label, the red Sperry Rand mark and a dark window, rising at the right behind three push buttons
+headed WAIT, INTENSITY and POWER. The face's layout is measured on the photo in pixels and scaled to the face.
+
+The keyboard is counted from the photo: an edit cluster of six wide keys (ERASE TO END OF DISPL, ERASE TO END OF LINE,
+IN DISPL DELETE IN LINE, IN DISPL INSERT IN LINE, CURSOR TO HOME, CYCLE) over four cursor arrows; a main block topped by
+SOE, TAB SET, F1 to F4, PRINT, MESSAGE WAITING and a red TRANSMIT key, with CHAR ERASE, a back arrow, SHIFT LOCK, two
+SHIFTs, a dark RETURN, a forward arrow and a long space bar around the typewriter rows; and a cream keypad of +, -, the
+digits and TAB. Caps are cream on dark grey skirts (the keypad's skirts cream). Where the photo's legends are not legible
+(the keypad's lowest row, a few punctuation keys) they are our guesses.
+
+Ours: the depths, the face's 8 degree lean, the screen glass's slight dome, the key pitch (17.8 mm) and heights. The
+POWER lamp lit amber is HYPOTHETICAL (the photographed terminal is off). The script is drawn in a system script face
+where one is installed ("Snell Roundhand", "Brush Script MT", "URW Chancery L"), else the browser's cursive or italic;
+no font is bundled for it.
 
 ## The microfilm recorder
 
