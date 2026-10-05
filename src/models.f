@@ -44,6 +44,8 @@ C     LM, landing gear deployed (scene 4).
       CALL MODBEG(KLMD)
       CALL LMBODY
       CALL LMGEAR(0)
+      CALL LMRCS
+      CALL LMANT
       CALL MODEND(KLMD)
 C     LM, landing gear stowed, with drogue and docking target, in its
 C     place on the S-IVB (scene 7).
@@ -51,6 +53,8 @@ C     place on the S-IVB (scene 7).
       CALL LMBODY
       CALL LMGEAR(1)
       CALL LMDOCK
+      CALL LMRCS
+      CALL LMANT
       CALL MODEND(KLMS)
 C     S-IVB with the instrument unit and the stub of the SLA.
       CALL MODBEG(KSIV)
@@ -364,6 +368,135 @@ C     RESTOMOD END
       END
 C
 C-----------------------------------------------------------------------
+C     LMRCS: the four RCS thruster clusters, after LMBODY (and LMGEAR,
+C     LMDOCK, which count back from LMBODY's last solid).  "The four
+C     reaction control engine clusters are mounted on truss members
+C     extending from both sides of the crew compartment (two forward
+C     clusters) and both sides of the midsection (two aft clusters)"
+C     (SG p. 8).  The forward ones on "tubular truss members bolted to
+C     both sides of the front face assembly.  A truss member extends
+C     aft and is secured to a longeron located at the compartment's
+C     maximum breadth" (SG p. 10); the aft ones on "truss members
+C     bolted to the upper and lower corners of the equipment rack
+C     assembly and to the -Z27 bulkhead" (SG p. 16).  Each cluster
+C     has four nozzles, up, down, outboard and fore (forward pair) or
+C     aft (aft pair): our reading of SG Fig. 1 (p. 2), "RCS thruster
+C     assembly", and of MSC IN 69-FM-197, fig. 6.1-1(c) (printed p.
+C     97), where each cluster is a circle (a nozzle seen end on) and
+C     two horns.  Cluster centres, heights read off SG Fig. 1 (about
+C     the cabin's axis), the housing (a 0.3 m block) and the nozzles
+C     (0.35 m long, 0.09 to 0.22 m across) are ours; so are the truss
+C     ends, put on our LMBODY solids where the text puts them.
+C     Solids: a housing and four frusta per cluster, 20 in all.
+C-----------------------------------------------------------------------
+      SUBROUTINE LMRCS
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,8)
+      DOUBLE PRECISION CX(4), CY(4), CZ(4), SY, SZ, HB, YI
+      INTEGER J
+      DATA CX / 3.0D0, 3.0D0, 3.1D0, 3.1D0 /
+      DATA CY / 1.55D0, -1.55D0, 1.85D0, -1.85D0 /
+      DATA CZ / 1.30D0, 1.30D0, -1.25D0, -1.25D0 /
+      HB = 0.15D0
+      CALL OCTAG(HB, HB, 0.03D0, P)
+      CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
+      CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
+      CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
+      DO 40 J = 1, 4
+        SY = DSIGN(1.0D0, CY(J))
+        SZ = DSIGN(1.0D0, CZ(J))
+        CALL SETV(O, CX(J) - HB, CY(J), CZ(J))
+        CALL MKPRS(8, P, O, A1, A2, AN, 2.0D0 * HB)
+        CALL RCSNZ(CX(J), CY(J), CZ(J), 1, 1.0D0, HB)
+        CALL RCSNZ(CX(J), CY(J), CZ(J), 1, -1.0D0, HB)
+        CALL RCSNZ(CX(J), CY(J), CZ(J), 2, SY, HB)
+        CALL RCSNZ(CX(J), CY(J), CZ(J), 3, SZ, HB)
+C       Trusses from the housing's inboard face.
+        YI = CY(J) - SY * HB
+        IF (J .GT. 2) GO TO 30
+        CALL XLINE(YI, CX(J), CZ(J), SY * 1.168D0, 2.8D0, 1.6D0, 0)
+        CALL XLINE(YI, CX(J), CZ(J), SY * 1.168D0, 3.2D0, 1.6D0, 0)
+        CALL XLINE(YI, CX(J), CZ(J), SY * 1.168D0, 3.0D0, 0.7D0, 0)
+        GO TO 40
+   30   CALL XLINE(YI, CX(J), CZ(J), SY * 1.55D0, 3.6D0, -1.664D0, 0)
+        CALL XLINE(YI, CX(J), CZ(J), SY * 1.55D0, 2.6D0, -1.664D0, 0)
+        CALL XLINE(YI, CX(J), CZ(J), SY * 1.2D0, 3.1D0, -0.686D0, 0)
+   40 CONTINUE
+      RETURN
+      END
+C
+C     RCSNZ: one RCS nozzle, an 8-sided frustum from the face of the
+C     cluster housing (half size HB) about X, Y, Z (m), firing along
+C     body axis IA (1 X, 2 Y, 3 Z) with sign SG.  Sizes: ours.
+      SUBROUTINE RCSNZ(X, Y, Z, IA, SG, HB)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION X, Y, Z, SG, HB
+      INTEGER IA
+      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), Q(2,8)
+      INTEGER K, I1, I2
+      DO 10 K = 1, 8
+        Q(1,K) = 0.045D0 * DCOS(DBLE(K) * PI / 4.0D0)
+        Q(2,K) = 0.045D0 * DSIN(DBLE(K) * PI / 4.0D0)
+   10 CONTINUE
+      CALL SETV(AN, 0.0D0, 0.0D0, 0.0D0)
+      CALL SETV(A1, 0.0D0, 0.0D0, 0.0D0)
+      CALL SETV(A2, 0.0D0, 0.0D0, 0.0D0)
+      I1 = MOD(IA, 3) + 1
+      I2 = MOD(IA + 1, 3) + 1
+      AN(IA) = SG
+      A1(I1) = 1.0D0
+      A2(I2) = 1.0D0
+      CALL SETV(O, X, Y, Z)
+      O(IA) = O(IA) + SG * (HB - 0.01D0)
+      CALL MKFRU(8, Q, O, A1, A2, AN, 0.35D0, 0.11D0 / 0.045D0)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     LMANT: the ascent stage's two dish antennas as free lines, each a
+C     rim and a hub ring facing +X on a post, as MSC IN 69-FM-197 draws
+C     them from above (fig. 6.1-1(c), printed p. 97: a circle in a
+C     circle).  Rendezvous radar: "Attached to a movable mounting
+C     secured to the curved bulkhead top side of the crew compartment
+C     just above the front face assembly" (SG p. 44), "on the upper
+C     structural beams of the crew compartment" (LMNR p. LV-3); a
+C     little right of the centreline, our reading of SG Fig. 1 (p. 2).
+C     S-band steerable: "On extended truss members secured to the
+C     upper right structure of the Midsection" (SG p. 44).  Dish sizes
+C     (0.6 and 0.66 m), heights, the trusses' ends and the dishes
+C     facing +X (stowed, or turned to the CSM) are ours.
+C-----------------------------------------------------------------------
+      SUBROUTINE LMANT
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION C(3)
+C     Rendezvous radar on a post from the cabin top.
+      CALL XLINE(0.3D0, 4.168D0, 1.85D0, 0.3D0, 4.45D0, 1.85D0, 0)
+      CALL SETV(C, 4.55D0, 0.3D0, 1.85D0)
+      CALL XRING(C, 1, 0.3D0, 16)
+      CALL SETV(C, 4.45D0, 0.3D0, 1.85D0)
+      CALL XRING(C, 1, 0.08D0, 8)
+C     S-band steerable: three truss members to a gimbal, a post, dish.
+      CALL XLINE(1.2D0, 3.804D0, 0.0D0, 1.45D0, 4.35D0, -0.3D0, 0)
+      CALL XLINE(1.2D0, 3.804D0, -0.6D0, 1.45D0, 4.35D0, -0.3D0, 0)
+      CALL XLINE(0.9D0, 4.104D0, -0.3D0, 1.45D0, 4.35D0, -0.3D0, 0)
+      CALL XLINE(1.45D0, 4.35D0, -0.3D0, 1.45D0, 4.5D0, -0.3D0, 0)
+      CALL SETV(C, 4.6D0, 1.45D0, -0.3D0)
+      CALL XRING(C, 1, 0.33D0, 16)
+      CALL SETV(C, 4.5D0, 1.45D0, -0.3D0)
+      CALL XRING(C, 1, 0.08D0, 8)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
 C     SIVBMD: S-IVB with the instrument unit on top, body axes X
 C     forward along the stage, origin at the centre of the top of the
 C     IU.  One prism of 24 sides: both 21.7 ft across, 58.3 ft and
@@ -470,6 +603,9 @@ C     RESTOMOD END
       DOUBLE PRECISION P(2,NP), O(3), A1(3), A2(3), AN(3), H
       DOUBLE PRECISION CEN(3), E1(3), E2(3), N(3), D, VDOT
       INTEGER I, K, K2, IS, IA, IB, IC, NE
+C     A full model table takes no more solids (as XLINE takes no more
+C     lines).
+      IF (NSOL .GE. MSOL) RETURN
       NSOL = NSOL + 1
       IS = NSOL
       NLV(IS) = 2 * NP
@@ -559,6 +695,9 @@ C     RESTOMOD END
       DOUBLE PRECISION P(2,NP), O(3), A1(3), A2(3), AN(3), H, SC
       DOUBLE PRECISION CEN(3), E1(3), E2(3), N(3), D, VDOT
       INTEGER I, K, K2, IS, IA, IB, IC, NE
+C     A full model table takes no more solids (as XLINE takes no more
+C     lines).
+      IF (NSOL .GE. MSOL) RETURN
       NSOL = NSOL + 1
       IS = NSOL
       NLV(IS) = 2 * NP
@@ -636,6 +775,7 @@ C     RESTOMOD END
       DOUBLE PRECISION P(2,NP), O(3), A1(3), A2(3), AN(3), H, G
       DOUBLE PRECISION E1(3), E2(3), N(3), VDOT
       INTEGER I, K, IS
+      IF (NSOL .GE. MSOL) RETURN
       CALL MKPRS(NP, P, O, A1, A2, AN, H)
       IS = NSOL
       DO 20 K = 1, NP

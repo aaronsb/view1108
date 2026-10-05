@@ -360,6 +360,16 @@ C     GET: position (km), velocity (ft/s), that row's g.e.t. (s).
 C     The vehicles in this frame's world (VPRES): 1 CSM, 2 LM, 4 S-IVB.
       CALL VPRES(GET)
       HD(21) = DBLE(IVBIT)
+C     The crew stations this scene offers (STATCM, STATLM): 1 the CM,
+C     2 the LM (scene 5 is the LM station already; in the LM station
+C     the LM is not placed, the camera being inside it), and 4 always,
+C     so the page can tell this from a kernel without HD(22).  The page
+C     enables its station buttons from these; HD(21) leaves out the
+C     vehicle the camera rides, so it cannot.
+      HD(22) = 4.0D0
+      IF (ISCN .NE. 5 .AND. ISCN .NE. 6) HD(22) = HD(22) + 1.0D0
+      IF (MDON(KLMD) .EQ. 1 .OR. MDON(KLMS) .EQ. 1 .OR. ISCN .EQ. 5
+     &  .OR. IVUSE .EQ. 3) HD(22) = HD(22) + 2.0D0
 C     Text for the recorder's character generator.
       CALL TXALL(LB, NL, TB, NT, TC, NCH)
       RETURN
