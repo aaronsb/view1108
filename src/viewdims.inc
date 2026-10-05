@@ -21,6 +21,9 @@ C     Simulation cards (START, BURN, REF): array sizes, at least 1.
 C     Timeline rows (TIMELINE cards, all scenarios): at least 1.
       INTEGER NTL
       PARAMETER (NTL=435)
+C     Burn cue rows (BURN_CUES in tools/gen_data.py): at least 1.
+      INTEGER NBRN
+      PARAMETER (NBRN=16)
       PARAMETER (KCIRC=1, KCONIC=2, KLUNAR=3, KLCON=4)
       PARAMETER (KETDA=1, KESEP=2, KEAPR=3, KEDOK=4)
       PARAMETER (KEUND=5, KETD=6, KEEI=7, KEPTC=8)
