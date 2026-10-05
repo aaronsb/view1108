@@ -17,14 +17,17 @@ C         each placed model: off the model's projected X axis by the
 C         model's projected half-width across that axis plus a gap,
 C         so the name clears the model's lines.  The CSM gets CM and SM
 C         labels beside its two modules, on the same side, or one CSM
-C         label when those two would touch.
+C         label when those two would touch.  The CM alone (after CM/SM
+C         separation) is CM, the ascent stage alone (after lunar
+C         lift-off) LM.
 C       Markers: a placed model whose picture spans less than 0.2
 C         percent of the field (under about one plot pixel) gets the
 C         small boxed X of the Moon view's landing site (DMOON6, BOXX)
 C         at its centre instead, with its label beside the box.  So do
 C         vehicles known only by their state (VSTATE): one not placed
 C         as a model, which the camera does not ride (IRIDE), where it
-C         has a state.  The LM has one only where LMSTAT's rules (traj.f)
+C         has a state; the CSM's is CM from CM/SM separation on.  The
+C         LM has one only where LMSTAT's rules (traj.f)
 C         give it one; docked to the CSM it is not marked (the CSM's
 C         mark or model stands for both), nor in the Moon view (scene
 C         6) while landed (the landing site's box stands for it).
@@ -47,11 +50,11 @@ C     RESTOMOD END
       DOUBLE PRECISION XA(64), XB(64), YA(64)
       DOUBLE PRECISION YB(64), XM(8), YM(8), H, TINY, C(3), P(3), Q(3)
       DOUBLE PRECISION R(3), V(3), XMN, XMX, YMN, YMX, X1, Y1, X2, Y2
-      DOUBLE PRECISION TL, EVGET
-      INTEGER KORD(4), IDM(4), NCH(5), M, K, N, J, NP, NP0, NM, IOK
-      INTEGER ISD, IRIDE
-      DATA KORD / KCSM, KLMD, KLMS, KSIV /
-      DATA IDM / 5, 3, 3, 4 /
+      INTEGER KORD(6), IDM(6), NCH(5), M, K, N, J, NP, NP0, NM, IOK
+      INTEGER ISD, IRIDE, KCSPL, KLMPL, ID
+      DOUBLE PRECISION TS, TL, EVGET
+      DATA KORD / KCSM, KCMO, KLMD, KLMS, KLMA, KSIV /
+      DATA IDM / 5, 1, 3, 3, 3, 4 /
       DATA NCH / 2, 2, 2, 5, 3 /
       NM = 0
 C     The name height TXALL letters at, and 0.2 percent of the field.
@@ -59,7 +62,7 @@ C     The name height TXALL letters at, and 0.2 percent of the field.
       TINY = 0.004D0 * BOXH
 C     The names already placed by the other layers are kept clear of.
       CALL VLSEED(LB, NL, H, XA, XB, YA, YB, NP)
-      DO 50 M = 1, 4
+      DO 50 M = 1, 6
         K = KORD(M)
         IF (MDON(K) .EQ. 0) GO TO 50
         CALL VLPTS(K, VLPX, VLPY, N)
@@ -108,14 +111,17 @@ C     The CSM and the LM from their states, where they are not placed
 C     and the camera does not ride them; the LM not while docked, nor
 C     in the Moon view while it stands at the landing site, whose boxed
 C     X (DMOON6) stands for it there.
-      IF (MDON(KCSM) .EQ. 1 .OR. IRIDE() .EQ. 1) GO TO 60
+      IF (KCSPL() .NE. 0 .OR. IRIDE() .EQ. 1) GO TO 60
       CALL VSTATE(GET, 1, 2, R, V, IOK)
       DO 55 J = 1, 3
         P(J) = MPOS(J) + R(J)
    55 CONTINUE
-      CALL VLMARK(VB, NV, LB, NL, P, 5, 3, 1, H, XA, XB, YA, YB, NP,
-     &            XM, YM, NM)
-   60 IF (MDON(KLMD) .EQ. 1 .OR. MDON(KLMS) .EQ. 1) RETURN
+      ID = 5
+      TS = EVGET(KECMS)
+      IF (TS .GE. 0.0D0 .AND. GET .GE. TS) ID = 1
+      CALL VLMARK(VB, NV, LB, NL, P, ID, NCH(ID), 1, H, XA, XB, YA, YB,
+     &            NP, XM, YM, NM)
+   60 IF (KLMPL() .NE. 0) RETURN
       IF (IRIDE() .EQ. 2) RETURN
       TL = EVGET(KELFT)
       IF (ISCN .EQ. 6 .AND. LUT0 .GT. 0.0D0 .AND. GET .GE. LUT0
@@ -140,13 +146,12 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION GET, R(3), V(3)
-      INTEGER IRIDE, IOK
+      INTEGER IRIDE, IOK, KCSPL, KLMPL
       IVBIT = 0
-      IF (MDON(KCSM) .EQ. 1 .OR. IRIDE() .NE. 1) IVBIT = 1
+      IF (KCSPL() .NE. 0 .OR. IRIDE() .NE. 1) IVBIT = 1
       IOK = 0
       IF (IRIDE() .NE. 2) CALL VSTATE(GET, 2, 2, R, V, IOK)
-      IF (MDON(KLMD) .EQ. 1 .OR. MDON(KLMS) .EQ. 1 .OR. IOK .NE. 0)
-     &  IVBIT = IVBIT + 2
+      IF (KLMPL() .NE. 0 .OR. IOK .NE. 0) IVBIT = IVBIT + 2
       IF (MDON(KSIV) .EQ. 1) IVBIT = IVBIT + 4
       RETURN
       END

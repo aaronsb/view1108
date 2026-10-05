@@ -274,8 +274,9 @@ outline as ρ = θ. The film's descent LPD marks fit a scaled tangent law (`src/
 
 Spacecraft models (`src/models.f`, drawn by `src/lvehic.f`): a library built once by `MLIB`, each
 model a range of convex solids (`MKPRS` prisms) and free lines or face marks (`XLINE`) in its own
-body frame in metres, listed in the model table `/CMODI/` (numbers `KLMD`, `KLMS`, `KSIV` in
-`viewcom.inc`). Per frame `SCNMOD` places models with `MPLACE(K, axes, position, body point)`,
+body frame in metres, listed in the model table `/CMODI/` (numbers `KLMD`, `KLMS`, `KSIV`,
+`KCSM`, `KLMA`, `KCMO` and the cabins in `viewcom.inc`; 9 of `MMOD` 10, 94 solids of `MSOL` 96,
+1033 free lines of `MXL` 1200). Per frame `SCNMOD` places models with `MPLACE(K, axes, position, body point)`,
 and `MDRALL` draws every placed model after the sky, with hidden-line removal against all placed
 solids; placed solids also hide stars, Sun, Earth and Moon. A model can ride on the observer's
 vehicle (position 0, body point = the eye); a solid with the camera inside hides nothing. Model
@@ -284,7 +285,12 @@ the projection limit, and catches pieces whose ends are both outside the limit b
 the view. To add a model: a builder between `MODBEG(K)` and `MODEND(K)` in `MLIB`, a number in
 `viewcom.inc`, one `MPLACE` in `SCNMOD`. The LM's ascent stage sits on Grumman's LM inch stations
 (station X200 at the descent stage's top, 1.7 m; Y and Z 0 on the thrust axis), so its tunnel
-is on the descent stage's axis; see LMBODY. The cabin interiors (KCMI, KLMI) are free lines only,
+is on the descent stage's axis; see LMBODY, which builds the descent stage (LMDSC) and then the
+ascent stage (LMASC). `KLMA` is the ascent stage alone after lunar lift-off: LMASC with the
+drogue and docking target (LMDOCK, kept for the lunar-orbit docking; ours), the RCS clusters and
+the antennas, in the same body frame. `KCMO` is the CM alone after CM/SM separation: CMBLD, the
+cone and tunnel that CSMBLD builds first, an outline like the CSM. The SM after separation is not
+modelled. Code that asks which LM or CSM model is placed uses `KLMPL()` and `KCSPL()`. The cabin interiors (KCMI, KLMI) are free lines only,
 placed about the eye by the station views (`vview.f`); their windows are also kept as polygons in
 `/CWIN/` (`XWIN`) for the window mask. Each window outline is convex as seen from its eye (our
 check), which the mask's plane test needs; a new window outline must be too, or be split.
@@ -368,7 +374,8 @@ Vehicle labels and markers (`src/lvlab.f`, `src/learth.f` DPAD), all ours, drawn
 its projected half-width (to the right of the whole model when it is seen within 30° of end
 on), trying the other side when the text would leave the frame or meet a name already placed,
 else dropped. The CSM gets CM and SM labels beside its two modules, on one side, or a single
-CSM label when those two would touch. A placed model spanning less than 0.2% of the field
+CSM label when those two would touch; the CM alone (`KCMO`) is labelled CM and the ascent stage
+alone (`KLMA`) LM, and the CSM's state marker reads CM from the scenario's CMSEP event on. A placed model spanning less than 0.2% of the field
 (about one plot pixel), and a vehicle known only by its state (`VSTATE`: not placed, not
 ridden by the camera, `IRIDE`), gets the small boxed X of scene 6's landing site at its
 centre and its name at the first free corner of the box, hidden behind the Earth or Moon. The
@@ -382,9 +389,13 @@ burns; ours); LMDESC from 600 s before TOUCH to TOUCH; the landing site from TOU
 TPF to LMDOK the CSM plus the LM's offset from it at TPF, closing linearly to nothing (ours);
 none during the powered descent before LMDESC, the powered ascent, after JETT, or in a scenario
 without an UNDOCK event (Apollo 8). Its own legs come from the replay only (the tape carries the
-CSM). Within 5 km of the camera (ours), before touchdown and not ridden, `VEHPL` places the
-gear-down LM model (`KLMD`) at its state, +X up the local vertical and +Z along its motion
-(ours); after LIFT it is a marker only (no ascent-stage model yet). The launch pad (the
+CSM). Within 5 km of the camera (ours) and not ridden, `VEHPL` places an LM model at its
+state: before touchdown the gear-down LM (`KLMD`), from LIFT the ascent stage alone (`KLMA`);
++X up the local vertical and +Z along its motion, but from TPF the ascent stage's +X (its
+tunnel) toward the CSM (all ours). Landed, from TOUCH to LIFT, it is a marker only. Scene 4's
+pirouette (`LMPIRO`) places `KLMA` too after LIFT. From the CMSEP event (Apollo 11
+194:49:12.7, MR Table 7-II p. 7-9; Apollo 8 146:28:48.0, SP-4029 p. 50) the CSM drawn around an
+external view's camera (`CSMCAM`) is the CM alone (`KCMO`). The launch pad (the
 scenario's PAD card, LC-39A for Apollo 11: SP-4029 printed p. 103, geocentric 28.4470 N,
 -80.6041 E, made geodetic to sit on the coastlines' footing) is the same boxed X on the
 Earth, turned with it like the coastlines, hidden on the far side, drawn once the Earth's disc
