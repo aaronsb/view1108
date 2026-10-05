@@ -43,7 +43,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       INTEGER K
-      DOUBLE PRECISION AT(3,3), P(3), BO(3), V(3), W(3)
+      DOUBLE PRECISION AT(3,3), P(3), BO(3), V(3), W(3), R
       INTEGER I, J, IS
       DO 10 I = 1, 3
         MDP(I,K) = P(I)
@@ -64,6 +64,22 @@ C     RESTOMOD END
             LWV(I,J,IS) = P(I) + W(I)
    35     CONTINUE
    40   CONTINUE
+C       Its bounding sphere, for LMOCC.
+        DO 42 I = 1, 3
+          LWC(I,IS) = 0.0D0
+   42   CONTINUE
+        DO 44 J = 1, NLV(IS)
+          DO 43 I = 1, 3
+            LWC(I,IS) = LWC(I,IS) + LWV(I,J,IS) / DBLE(NLV(IS))
+   43     CONTINUE
+   44   CONTINUE
+        LWR(IS) = 0.0D0
+        DO 46 J = 1, NLV(IS)
+          R = (LWV(1,J,IS) - LWC(1,IS))**2 + (LWV(2,J,IS)
+     &      - LWC(2,IS))**2 + (LWV(3,J,IS) - LWC(3,IS))**2
+          IF (R .GT. LWR(IS)) LWR(IS) = R
+   46   CONTINUE
+        LWR(IS) = DSQRT(LWR(IS))
         LINS(IS) = 1
         DO 50 J = 1, NLF(IS)
           CALL MXV(AT, LMN(1,J,IS), W)
@@ -117,19 +133,26 @@ C     RESTOMOD END
       DOUBLE PRECISION VB(5,MAXV)
       INTEGER NV, K
       DOUBLE PRECISION V(3), W(3), A(3), B(3)
-      INTEGER I, J, L, IS, IH
+      INTEGER I, J, L, IS, IH, IA, IB, NS
 C     Solid edges.  Hidden when both faces are turned away, unless
-C     the camera is inside the solid.
+C     the camera is inside the solid.  Between two sides of a smooth
+C     solid (LSMO) only where it is the outline: one side turned
+C     toward the camera, the other away.
       IF (MDS2(K) .LT. MDS1(K)) GO TO 90
       DO 80 IS = MDS1(K), MDS2(K)
+        NS = NLF(IS) - 2
         DO 70 J = 1, NLE(IS)
           DO 65 I = 1, 3
             A(I) = LWV(I,LME(1,J,IS),IS)
             B(I) = LWV(I,LME(2,J,IS),IS)
    65     CONTINUE
-          IH = 0
-          IF (LWD(LME(3,J,IS),IS) .GE. 0.0D0 .AND.
-     &        LWD(LME(4,J,IS),IS) .GE. 0.0D0) IH = 1
+          IA = 0
+          IF (LWD(LME(3,J,IS),IS) .GE. 0.0D0) IA = 1
+          IB = 0
+          IF (LWD(LME(4,J,IS),IS) .GE. 0.0D0) IB = 1
+          IF (LSMO(IS) .EQ. 1 .AND. LME(3,J,IS) .LE. NS .AND.
+     &        LME(4,J,IS) .LE. NS .AND. IA .EQ. IB) GO TO 70
+          IH = IA * IB
           IF (LINS(IS) .EQ. 1) IH = 0
 C         An outline model (MDHL = 0): every edge, nothing hidden.
           IF (MDHL(K) .EQ. 0) GO TO 68
@@ -170,8 +193,10 @@ C     RESTOMOD END
       END
 C
 C     LMSEG: edge A-B of solid IS (0 for a free line) in 12 pieces,
-C     each tested against the other solids.  IHID = 1: the whole edge
-C     is known hidden.
+C     each tested against the other solids, then against the Earth and
+C     the Moon (MBODY).  IHID = 1: the whole edge is known hidden.
+C     Hidden by a solid: dropped, or dashed (IFLG bit 2); behind a
+C     body: dropped.
       SUBROUTINE LMSEG(VB, NV, A, B, IS, IHID)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -180,7 +205,7 @@ C     RESTOMOD END
       DOUBLE PRECISION VB(5,MAXV), A(3), B(3)
       INTEGER NV, IS, IHID
       DOUBLE PRECISION P0(3), P1(3), M(3), F0, F1
-      INTEGER I, K, NP, IV, IV0, LMOCC
+      INTEGER I, K, NP, IV, IV0, LMOCC, MBODY
       INTEGER IDSH
       NP = 12
       IDSH = MOD(IFLG / 4, 2)
@@ -203,6 +228,7 @@ C     Runs of equal visibility are merged into one vector.
           M(I) = A(I) + 0.5D0 * (F0 + F1) * (B(I) - A(I))
    10   CONTINUE
         IV = 1 - LMOCC(M, IS)
+        IF (MBODY(M) .EQ. 1) IV = 2
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         IF (IV .NE. IV0) THEN
           IF (IV0 .GE. 0) CALL LMRUN(VB, NV, P0, P1, IV0, IDSH)
@@ -231,12 +257,38 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (IV .EQ. 1) THEN
         ISTYLE = 1
         CALL MSEG(VB, NV, P0, P1)
-      ELSE IF (IDSH .EQ. 1) THEN
+      ELSE IF (IV .EQ. 0 .AND. IDSH .EQ. 1) THEN
         ISTYLE = 2
         CALL MSEG(VB, NV, P0, P1)
         ISTYLE = 1
       END IF
 C     RESTOMOD END
+      RETURN
+      END
+C
+C     MBODY: 1 if the sight line to camera-relative P (km) passes
+C     through the Earth or the Moon (OCCL).  A point inside a body's
+C     sphere (on ground below its mean radius) is tested against the
+C     sphere through it, so its own ground does not hide it.
+      INTEGER FUNCTION MBODY(P)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION P(3), D(3), R, OCCL, VNRM
+      INTEGER I
+      MBODY = 1
+      DO 10 I = 1, 3
+        D(I) = P(I) - EPOS(I)
+   10 CONTINUE
+      R = DMIN1(RE, 0.999999D0 * VNRM(D))
+      IF (OCCL(P, EPOS, R) .GT. 0.0D0) RETURN
+      DO 20 I = 1, 3
+        D(I) = P(I) - MPOS(I)
+   20 CONTINUE
+      R = DMIN1(RM, 0.999999D0 * VNRM(D))
+      IF (OCCL(P, MPOS, R) .GT. 0.0D0) RETURN
+      MBODY = 0
       RETURN
       END
 C
@@ -248,13 +300,20 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION P(3), T0, T1, DEN, T
+      DOUBLE PRECISION P(3), T0, T1, DEN, T, PP
       INTEGER IS, K, J
 C     RESTOMOD BEGIN: Cyrus-Beck ray/convex test, published 1978
       LMOCC = 0
       DO 20 K = 1, NSOL
         IF (K .EQ. IS) GO TO 20
         IF (LACT(K) .EQ. 0 .OR. LINS(K) .EQ. 1) GO TO 20
+C       Not if the sight line misses the solid's bounding sphere.
+        PP = P(1)*P(1) + P(2)*P(2) + P(3)*P(3)
+        T = (P(1)*LWC(1,K) + P(2)*LWC(2,K) + P(3)*LWC(3,K)) / PP
+        IF (T .LT. 0.0D0) T = 0.0D0
+        IF (T .GT. 1.0D0) T = 1.0D0
+        IF ((T*P(1) - LWC(1,K))**2 + (T*P(2) - LWC(2,K))**2
+     &    + (T*P(3) - LWC(3,K))**2 .GT. LWR(K)**2) GO TO 20
         T0 = 0.0D0
         T1 = 0.999D0
         DO 10 J = 1, NLF(K)
@@ -280,12 +339,12 @@ C     RESTOMOD END
 C
 C-----------------------------------------------------------------------
 C     STKPL: place the docked CSM and LM.  AT: the CSM's body axes in
-C     EQ; P (km, camera relative): where the centre of the CM's base
-C     is.  The LM (model KL: KLMD gear down, KLMS stowed) faces it,
-C     its X axis against the CSM's and its Z axis along the CSM's (a
+C     EQ; P (km, camera relative): where the CSM's body origin is
+C     (the CM's axis at its widest, CSMBLD).  The LM (model KL: KLMD
+C     gear down, KLMS stowed) faces it, its X axis against the CSM's and its Z axis along the CSM's (a
 C     half turn about Z; the roll between them is ours), tunnel top
-C     to tunnel top on the CSM's axis.  The two tunnels' tops meet at
-C     the CSM tunnel's top, 10 ft 7 in above the CM's base (CSMBLD).
+C     to tunnel top on the CSM's axis: the LM's at the top of the CM's
+C     docking ring (CMTOP).
 C-----------------------------------------------------------------------
       SUBROUTINE STKPL(AT, P, KL)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -293,6 +352,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION AT(3,3), P(3), AL(3,3), PL(3), BO(3), Z(3)
+      DOUBLE PRECISION CMTOP
       INTEGER KL, I
       CALL SETV(Z, 0.0D0, 0.0D0, 0.0D0)
       CALL MPLACE(KCSM, AT, P, Z)
@@ -300,7 +360,7 @@ C     RESTOMOD END
         AL(I,1) = -AT(I,1)
         AL(I,2) = -AT(I,2)
         AL(I,3) = AT(I,3)
-        PL(I) = P(I) + (10.0D0 + 7.0D0 / 12.0D0) * 0.3048D-3 * AT(I,1)
+        PL(I) = P(I) + CMTOP() * 1.0D-3 * AT(I,1)
    10 CONTINUE
       CALL SETV(BO, 4.51D0, 0.0D0, 0.0D0)
       CALL MPLACE(KL, AL, PL, BO)

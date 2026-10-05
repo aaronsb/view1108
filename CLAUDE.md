@@ -198,7 +198,8 @@ Inputs (written by JS):
   LMINT), drawn as an outline model: no hidden lines, and the sky shows through its walls unless
   bit 5 masks it to the windows. Elsewhere a station falls back to the window view.
   Scene 6 ignores both view and target. In an external view of a scene whose camera rides the
-  CSM (1, 2, 3, 4, 7, 9) the CSM is drawn as an outline around the camera. Window overlays (COAS,
+  CSM (1, 2, 3, 4, 7, 9) the CSM is drawn around the camera (its solids, with the camera inside,
+  hide nothing). Window overlays (COAS,
   LPD) and the LM window sill apply only in the window view.
 
 Outputs (written by the kernel):
@@ -294,8 +295,13 @@ is on the descent stage's axis; see LMBODY, which builds the descent stage (LMDS
 ascent stage (LMASC). `KLMA` is the ascent stage alone after lunar lift-off: LMASC with the
 drogue and docking target (LMDOCK, kept for the lunar-orbit docking; ours), the RCS clusters and
 the antennas, in the same body frame. `KCMO` is the CM alone after CM/SM separation: CMBLD, the
-cone and tunnel that CSMBLD builds first, an outline like the CSM. The SM after separation is not
-modelled. Code that asks which LM or CSM model is placed uses `KLMPL()` and `KCSPL()`. The cabin interiors (KCMI, KLMI) are free lines only,
+cone and tunnel that CSMBLD builds first, with its windows and hatch. The SM after separation is not
+modelled. Code that asks which LM or CSM model is placed uses `KLMPL()` and `KCSPL()`. The CSM and the lone CM are hidden-line
+models like the LM: the CM cone, SM and SPS nozzle are 24-sided solids flagged smooth (`LSMO`),
+whose side edges `lvehic.f` draws only where they are the outline, so curved surfaces read as
+silhouettes; the CM's five windows and side hatch are face marks carried out from CMINT's window
+outlines (CMWIN); the docking ring's top is `CMTOP`, where the LM docks (STKPL, S7POSE). Model
+lines behind the Earth or Moon are dropped (MBODY). The cabin interiors (KCMI, KLMI) are free lines only,
 placed about the eye by the station views (`vview.f`); their windows are also kept as polygons in
 `/CWIN/` (`XWIN`) for the window mask. Each window outline is convex as seen from its eye (our
 check), which the mask's plane test needs; a new window outline must be too, or be split.
@@ -338,14 +344,14 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
    vehicle outlines of the CSM, LM and S-IVB at apparent size and hidden-line models of the LM
    and S-IVB; the contents and OCR of MSC IN 69-FM-197 list no transposition-and-docking views,
    so this scene has no answer key. In the external view (`in_view` 1) the CSM itself is
-   placed on the LM's axis, its CM base 10 ft 7 in plus the range behind the LM's tunnel top
-   (as the docked stack, `lvehic.f` STKPL), instead of the outline around the camera. We do not think the film's leg-less LM shot (`t22.png`,
+   placed on the LM's axis, its docking ring's top (`CMTOP`) the range behind the LM's tunnel top
+   (as the docked stack, `lvehic.f` STKPL), instead of the CSM around the camera. We do not think the film's leg-less LM shot (`t22.png`,
    `t25.png`) is this view; see the note under Scenes in `docs/modes.md`.
 8. **Docked stack in translunar coast** — a modern addition (VIEW drew vehicles as seen from a
    vehicle, TN D-6853 p. 12, not from outside both). Default GET 11:28:19, half an hour into
    passive thermal control ("PTC is started now", Apollo 11 Flight Journal 010:58:19), after LM
-   extraction and before the first midcourse correction: our choice of moment. The CSM (an
-   outline, `models.f` CSMBLD) docked to the LM with its gear stowed, rolling about the CSM's X
+   extraction and before the first midcourse correction: our choice of moment. The CSM
+   (`models.f` CSMBLD) docked to the LM with its gear stowed, rolling about the CSM's X
    axis at 3 revolutions per hour (Flight Journal commentary after 008:11:00); the roll axis,
    square to the ecliptic, is ours. The scene's own view is external: 60 m from the stack,
    starting on its far side from the Earth; yaw and pitch carry the camera around it.

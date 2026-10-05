@@ -68,7 +68,7 @@ C     The external view's default target is the scene's subject.
       IF (IVUSE .EQ. 1 .AND. (IT .EQ. 0 .OR. IT .EQ. 3))
      &  CALL TGTDEF(GET, IT)
 C     Seen from outside, a camera riding the CSM (scenes 1, 2, 3, 4,
-C     7, 9) shows the CSM: its outline with the CM's base 1.2 m behind
+C     7, 9) shows the CSM: its origin (CSMBLD) 1.2 m behind
 C     the eye along the scene's boresight, its X axis along that
 C     boresight (ours); after CM/SM separation the CM alone.
       IF (IVUSE .EQ. 1 .AND. KCSPL() .EQ. 0 .AND. ISCN .NE. 5
@@ -242,8 +242,8 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     CSMCAM: place the CSM outline around the scene's camera, the CM's
-C     base 1.2 m behind the eye, X along the reference boresight, Z
+C     CSMCAM: place the CSM around the scene's camera, its origin
+C     (CSMBLD) 1.2 m behind the eye, X along the reference boresight, Z
 C     along its up (ours).  From CM/SM separation (the scenario's
 C     CMSEP event) the CM alone (KCMO).
       SUBROUTINE CSMCAM(GET)
