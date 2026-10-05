@@ -26,8 +26,9 @@ const WHINE_ROLLOFF = 4;       // the 1558's whine: -22 dB at the overview (4.1 
 
 // The drums (UP-4046 rev. 3): FH-432 7,200 rev/min (p. 8-5), FH-1782 1,800 rev/min (p. 8-6), FASTRAND II 880 rev/min
 // (p. 8-10), its 64 heads moved together in 30 to 86 ms (p. 8-8). The minimum 1108 system has three FH-432 drums (or
-// one FH-1782) and one FASTRAND (sec. 5, p. 5-3); we give the room that: three FH-432 and a FASTRAND II, behind the
-// west wall (no source places MSC's drums; we cannot find them in the MSC photograph).
+// one FH-1782) and one FASTRAND (sec. 5, p. 5-3); we give the room that: three FH-432 and a FASTRAND II, heard from
+// inside the compute row, the FH-432s in its second cabinet and the FASTRAND in its fourth (our placement: no source
+// places MSC's drums, and we cannot find them in the MSC photograph).
 const FH432_HZ = 7200 / 60, FASTRAND_HZ = 880 / 60;
 const SEEK_MS: [number, number] = [30, 86];
 
@@ -158,15 +159,20 @@ export class RoomSound {
       if (state) panel = { src: s, state, open: state.open, sel: state.sel };
     });
 
-    // Drums behind the west wall (heard through it: low-passed). FH-432: three drums at 120 Hz (slip, ours, detunes
-    // them a little) with windage from the heads flying over the surface. FASTRAND: its two big drums at 14.7 Hz, a
-    // rumble the rotation modulates, low harmonics, and the head carriage's seeks.
-    const wallX = -ROOM.w / 2 - 0.6;
-    const fh = source("fh432", new THREE.Vector3(wallX, 1.0, -1.6), 0.8, 0.55, 1400);
+    // Drums in the compute row (the cpu cabinets, north to south), at cabinet height just inside the front, heard
+    // through the door panel (a mild low-pass, ours). FH-432: three drums at 120 Hz (slip, ours, detunes them a little)
+    // with windage from the heads flying over the surface. FASTRAND: its two big drums at 14.7 Hz, a rumble the
+    // rotation modulates, low harmonics, and the head carriage's seeks.
+    const row = this.room.placed.filter(p => /^cpu-\d+$/.test(p.name))
+      .map(p => (p.equipment.object.updateMatrixWorld(), p.equipment.object.localToWorld(new THREE.Vector3(0, 1.0, 0.3))))
+      .sort((a, b) => a.z - b.z);
+    const inRow = (k: number, dflt: THREE.Vector3) => row[Math.min(k, row.length - 1)] ?? dflt;
+    const PANEL = 4500;
+    const fh = source("fh432", inRow(1, new THREE.Vector3(-3.7, 1.0, -0.8)), 1.0, 0.55, PANEL);
     const drumWave = wave(ctx, [1, 0.4, 0.25, 0.1]);
     for (const hz of [FH432_HZ * 0.9996, FH432_HZ, FH432_HZ * 1.0005]) { const o = osc(drumWave, hz), og = gain(0.03); o.connect(og).connect(fh.input); }
-    { const n = noise(N.pink, 1.5), bp = filt("bandpass", 2200, 0.8), ng = gain(0.35); n.connect(bp).connect(ng).connect(fh.input); }
-    const fastrand = source("fastrand", new THREE.Vector3(wallX, 0.8, 1.4), 0.8, 0.6, 1100);
+    { const n = noise(N.pink, 1.5), bp = filt("bandpass", 2200, 0.8), ng = gain(0.16); n.connect(bp).connect(ng).connect(fh.input); }
+    const fastrand = source("fastrand", inRow(3, new THREE.Vector3(-3.7, 1.0, 0.8)), 1.0, 0.6, PANEL);
     {
       const n = noise(N.brown, 1), lp = filt("lowpass", 180, 0.6), am = gain(0.7); n.connect(lp).connect(am).connect(fastrand.input);
       const rot = osc("sine", FASTRAND_HZ), depth = gain(0.3); rot.connect(depth).connect(am.gain);
