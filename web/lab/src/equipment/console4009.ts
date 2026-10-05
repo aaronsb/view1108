@@ -334,7 +334,8 @@ export function build(ctx: BuildContext): Equipment {
         target: crt.position.clone(), fov: 40,
       },
       overview: { position: new THREE.Vector3(-0.2, 1.7, 2.4), target: new THREE.Vector3(0, 0.9, 0), fov: 40 },
-      lamps: { center: new THREE.Vector3(icx, 0.955, 0.02), normal: new THREE.Vector3(0, Math.sin(tilt), Math.cos(tilt)), w: iw, h: Math.hypot(0.45, 0.12) },
+      // The indicator panel's face, for its glow: leaned back by PANEL.lean about its foot.
+      lamps: { center: new THREE.Vector3(PANEL.x, PANEL.y + PANEL.h / 2 * Math.cos(PANEL.lean), PANEL.z - PANEL.h / 2 * Math.sin(PANEL.lean) + 0.007), normal: new THREE.Vector3(0, Math.sin(PANEL.lean), Math.cos(PANEL.lean)), w: PANEL.w, h: PANEL.h },
     },
     update(dt, s) {
       drawClock(s); drawCrt(s);

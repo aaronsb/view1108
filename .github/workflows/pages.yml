@@ -46,6 +46,9 @@ jobs:
           grep -q 'data:image/jpeg;base64' web/view1108.html
           grep -q 'id="fsym"' web/view1108.html
           test -s web/library/library.json
+      # esbuild bundles without type-checking; a name lost in a merge would only fail in the visitor's browser.
+      - name: Type-check the machine room
+        run: npm --prefix web/lab exec -- tsc --noEmit -p web/lab
       - name: Stage site
         run: |
           mkdir -p _site
