@@ -65,7 +65,7 @@ C     the reference frame, OVLPD).
       IF (IVUSE .NE. 1 .AND. IT .EQ. 0) RETURN
 C     The external view's default target is the scene's subject.
       IF (IVUSE .EQ. 1 .AND. (IT .EQ. 0 .OR. IT .EQ. 3))
-     &  CALL TGTDEF(IT)
+     &  CALL TGTDEF(GET, IT)
 C     Seen from outside, a camera riding the CSM (scenes 1, 2, 3, 4,
 C     7, 9) shows the CSM: its outline with the CM's base 1.2 m behind
 C     the eye along the scene's boresight, its X axis along that
@@ -109,17 +109,19 @@ C     Carry the placed models, shifted by DS.
       RETURN
       END
 C
-C     TGTDEF: the scene's default external target: the reference body
-C     (Moon in scenes 1, 5, 6, 9; Earth in 2, 3), the LM (4, 7), the
-C     CSM (8).
-      SUBROUTINE TGTDEF(IT)
+C     TGTDEF: the scene's default external target at GET: the
+C     reference body (Moon in scenes 1, 5, 6, 9; Earth in 2, 3, and in
+C     9 away from lunar orbit, LUNIN), the LM (4, 7), the CSM (8).
+      SUBROUTINE TGTDEF(GET, IT)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      INTEGER IT, ID(9)
+      DOUBLE PRECISION GET
+      INTEGER IT, ID(9), LUNIN
       DATA ID / 2, 1, 1, 5, 2, 2, 5, 4, 2 /
       IT = ID(ISCN)
+      IF (ISCN .EQ. 9 .AND. LUNIN(GET) .EQ. 0) IT = 1
       RETURN
       END
 C

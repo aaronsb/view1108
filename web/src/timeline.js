@@ -37,17 +37,20 @@ function airtRealTime() {
 }
 
 // The camera for a g.e.t., outside Live (whose PHASES are coarser and pin the windowed scenes through JUMPS): each
-// scenario's time cut into spans [until, scene, ext], the span applying while g.e.t. < until. ext: no scene's own
-// camera has a state or draws anything then, so the scene's EXTERNAL view (in_view 1) looks at the Earth (in_target 1)
-// at a 20 deg field, the disc with its LC-39A mark (learth.f DPAD); the CSM is marked where VSTATE puts it.
-// The spans are ours, from the scenarios' cards and the kernel's code (data/scenarios/*.scn, src/*.f):
-const EXT_NOTE = "external view of the Earth: no spacecraft state from the kernel at this time";
+// scenario's time cut into spans [until, scene, view, target, fov], the span applying while g.e.t. < until. view and
+// target are in_view and in_target (0, or absent: the scene's own); fov the field in degrees (absent: the scene's
+// default). [t, s, 1, 1, 20]: no scene's own camera has a state or draws anything useful then, so the scene's EXTERNAL
+// view looks at the Earth at a 20 deg field (ours), the disc with its LC-39A mark (learth.f DPAD); the CSM is marked
+// where VSTATE puts it. The spans are ours, from the scenarios' cards and the kernel's code (data/scenarios/*.scn, src/*.f):
+const EXT_NOTE = "external view of the Earth";
+const WIN_NOTE = "the CSM window aimed at the Earth";
 const TL_SCENES = {
   1: [   // Apollo 11
-    [709.33, 3, true],      // before Earth orbit insertion (the first LEG card, CIRC FROM 0:11:49.33): LEGAT stretches the parking orbit back
+    [709.33, 3, 1, 1, 20],  // before Earth orbit insertion (the first LEG card, CIRC FROM 0:11:49.33): LEGAT stretches the parking orbit back
     [10800, 3],             // CIRC leg and the TLI conic: scene 3's forward horizon view (vdrive.f SCNCAM) loses the Earth near 3:00 (our run)
-    [11723, 3, true],       // TLI coast to the CSM's separation from the S-IVB, 3:15:23 (TIMELINE row, SP p. 106)
-    [15423, 7],             // S7POSE: 100 ft until APPR, closing to DOCK, then 0 until the stack's ejection, 4:17:03 (TIMELINE row, SP p. 106)
+    [11723, 3, 1, 1, 20],   // TLI coast to the CSM's separation from the S-IVB, 3:15:23 (TIMELINE row, SP p. 106)
+    [12243.1, 7],           // S7POSE: 100 ft until APPR, closing to the DOCK event, 3:24:03.1 (MR Table 7-II p. 7-9)
+    [15423, 7, 1, 5, 40],   // docked, seen from outside (S7POSE puts the CSM on the LM's axis) to the stack's ejection, 4:17:03 (TIMELINE row, SP p. 106); 40 deg ours
     [272990.37, 8],         // the docked stack (S8POSE) on the translunar conics to LOI ignition, 75:49:50.37 (TIMELINE row; LUNAR FROM 75:49:50.4)
     [360720, 1],            // lunar orbit (LUNAR legs, LUNORB) to the UNDOCK event
     [362401.9, 4],          // LMPIRO's LM 300 ft away, to the separation cutoff 100:40:01.9 (third LUNAR leg's T)
@@ -56,24 +59,39 @@ const TL_SCENES = {
     [487573.7, 1],          // lunar orbit to the transearth leg (CONIC FROM 135:26:13.7)
     [698400, 2],            // transearth coast: scene 2's held attitude (VINIT) keeps the Earth in frame to about 194:00 (our run)
     [702186.7, 3],          // the entry approach in scene 3's horizon view, to the EI event 195:03:05.7
-    [Infinity, 3, true]     // the entry leg past EI is a conic without an atmosphere
+    [Infinity, 3, 1, 1, 20] // the entry leg past EI is a conic without an atmosphere
   ],
-  2: [   // Apollo 8: scene 9 rides only its LUNAR legs (LUNORB)
-    [248900.4, 9, true],    // to LOI ignition, 69:08:20.4 (the first LUNAR leg's FROM)
-    [321557.6, 9],          // to TEI ignition, 89:19:16.6 (the last LUNAR leg's TO)
-    [Infinity, 9, true]
+  2: [   // Apollo 8 (data/scenarios/apollo8-asflown.scn): scene 9 rides its LUNAR legs (LUNORB) with the Earthrise
+         // camera, and the Earth legs with scene 3's forward view above the horizon (vdrive.f SCNCAM, traj.f LUNIN).
+         // The 50 deg field of the window views is MSC IN 69-FM-197's for the CSM window aimed at the Earth on
+         // Apollo 11's transearth coast (figure 7.3.2-1, "constant field of view (earth)", printed p. 207).
+    [694.98, 9, 1, 1, 20],  // before the CIRC leg, FROM 0:11:34.98 (SP p. 45 ascent table)
+    [10565.5, 9, 0, 0, 70], // the CIRC leg (to 2:50:37.79, then stretched) to TLI, 2:56:05.5 (EVENT TLI, MR8 Table 5-II p. 5-7): the horizon view at scene 3's 70 deg (VINIT)
+    [14400, 9, 1, 1, 20],   // the TLI conic while the Earth's disc overfills the window's 50 deg field, to about 4:00 (our run)
+    [248900.4, 9, 0, 1, 50],// the translunar conics to LOI ignition, 69:08:20.4 (the first LUNAR leg's FROM; EVENT LOI1, MR8 Table 3-I p. 3-3)
+    [321556.6, 9],          // lunar orbit to TEI ignition, 89:19:16.6 (the last LUNAR leg's TO; EVENT TEI, MR8 Table 3-I p. 3-3)
+    [528372.8, 9, 0, 1, 50],// the transearth conics to entry interface, 146:46:12.8 (EVENT EI, MR8 Table 3-I p. 3-4)
+    [Infinity, 9, 1, 1, 20] // the entry leg past EI is a conic without an atmosphere
   ]
 };
 const tlFor = g => { const t = TL_SCENES[tlScenario()]; return t.find(s => g < s[0]) || t[t.length - 1]; };
-// The current view suits g if it is the span's scene, in the external Earth view where the span needs that and, where
-// it does not, out of the one tlFit put; a station or external view the viewer chose in a suitable scene is kept.
-let tlExt = false;   // tlFit put the external Earth view
-const tlEarth = () => FEAT.view && viewMode === 1 && targetId === 1;
-const tlSuits = g => { const [, s, ext] = tlFor(g); return s === scene && (ext ? !FEAT.view || tlEarth() : !(tlExt && tlEarth())); };
-function tlFit(g) {   // put the scene and look for g.e.t. g, the scene's defaults with the time at g
-  const [, s, ext] = tlFor(g), f = follow;
-  setScene(s); follow = f; tlExt = ext && FEAT.view;
-  if (tlExt) { viewMode = 1; targetId = 1; fov = fov0 = 20; } else { viewMode = 0; targetId = 0; }
+// The current view suits g if it is the span's scene, in the view and target the span names (where FEAT.view offers
+// them) and, where the span leaves one to the scene, not still in the one tlFit put for an earlier span; a station or
+// external view the viewer chose where the span leaves the view to the scene is kept.
+let tlPut = null;   // [view, target] tlFit put, where it put either
+const tlSuits = g => {
+  const [, s, v = 0, t = 0] = tlFor(g);
+  if (s !== scene) return false;
+  if (!FEAT.view) return true;
+  if ((v && viewMode !== v) || (t && targetId !== t)) return false;
+  return !(tlPut && ((!v && tlPut[0] && viewMode === tlPut[0]) || (!t && tlPut[1] && targetId === tlPut[1])));
+};
+function tlFit(g) {   // put the scene and look for g.e.t. g: the span's view, target and field, else the scene's
+  const [, s, v = 0, t = 0, w = null] = tlFor(g), f = follow;
+  setScene(s); follow = f;
+  const named = FEAT.view && (v || t);
+  viewMode = named ? v : 0; targetId = named ? t : 0; tlPut = named ? [v, t] : null;
+  if (w != null && (named || (!v && !t))) fov = fov0 = w;
   get = get0 = g; syncUI();
 }
 // A jump to an event: the scene that suits its time (tlFit), else only the time, with the scrubber re-centred on it.
@@ -84,7 +102,11 @@ function tlJump(g) {
   else get = get0 = g;
   airtSync();
 }
-const tlTitle = g => { const [, s, ext] = tlFor(g); return `Jump to ${getStr(g)}: scene ${s} ${SCENES[s - 1]}` + (ext ? ", " + EXT_NOTE : ""); };
+const tlTitle = g => {
+  const [, s, v = 0, t = 0] = tlFor(g);
+  const note = v === 1 && t === 1 ? EXT_NOTE : v === 0 && t === 1 ? WIN_NOTE : v === 1 ? "external view" : "";
+  return `Jump to ${getStr(g)}: scene ${s} ${SCENES[s - 1]}` + (note ? ", " + note : "");
+};
 const tlSpan = () => mode === "live" ? [LIVE_MIN, LIVE_MAX] : [get0 - 7200, get0 + 7200];   // the scrubber's (loop.js)
 
 function tlChips() {
