@@ -334,7 +334,7 @@ C     Scene 4: the LM.  Scene 7: the LM's docking target (S7POSE).
         IF (IREF .EQ. 2) PB(I) = MPOS(I)
         IF (ISCN .EQ. 4 .AND. KLMPL() .NE. 0) PB(I) = MDP(I,KLMPL())
         IF (ISCN .EQ. 7) PB(I) = S7LP(I) - 0.72D-3 * S7AT(I,2)
-        IF (ISCN .EQ. 8) PB(I) = MDP(I,KCSM) + 3.2D-3 * MDAT(I,1,KCSM)
+        IF (ISCN .EQ. 8) PB(I) = MDP(I,KCSM) + 2.743D-3 * MDAT(I,1,KCSM)
    40 CONTINUE
       RR = RE
       IF (IREF .EQ. 2) RR = RM

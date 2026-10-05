@@ -98,8 +98,11 @@ C     as it can be.
       IF (IVUSE .NE. 1) RETURN
 C
 C     External: free-look sets the direction, the camera backs off
-C     along it to DIST from the target.
-      CALL LOOK(YAW, PIT, ROL)
+C     along it to DIST from the target.  Scene 7's reference looks
+C     down the docking axis, where the CSM's solids hide the LM it
+C     docks with: it starts 60 deg round and 25 deg up (ours).
+      IF (ISCN .EQ. 7) CALL LOOK(YAW + 60.0D0, PIT + 25.0D0, ROL)
+      IF (ISCN .NE. 7) CALL LOOK(YAW, PIT, ROL)
       LOOKD = 1
       DO 30 I = 1, 3
         CG(I) = TG(I) - DIST * CB(I)

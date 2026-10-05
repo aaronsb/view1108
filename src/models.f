@@ -633,7 +633,9 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION Y1, X1, Z1, Y2, X2, Z2
       INTEGER IS
+      LXOK = 0
       IF (NXL .GE. MXL) RETURN
+      LXOK = 1
       NXL = NXL + 1
       LXL(1,NXL) = X1
       LXL(2,NXL) = Y1
@@ -672,7 +674,8 @@ C
 C     MKPRS: prism over polygon P (NP points in axes A1, A2 about O),
 C     extruded H along AN.  Faces 1..NP sides, NP+1 base, NP+2 cap.
 C     Its edges are all real (LSMO = 0); a caller building a curved
-C     surface sets LSMO(NSOL) = 1 after the call (as MKFRU's).
+C     surface sets LSMO(NSOL) = 1 after the call (as MKFRU's), if
+C     the call added it (LBOK).
       SUBROUTINE MKPRS(NP, P, O, A1, A2, AN, H)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -684,7 +687,9 @@ C     RESTOMOD END
       INTEGER I, K, K2, IS, IA, IB, IC, NE
 C     A full model table takes no more solids (as XLINE takes no more
 C     lines).
+      LBOK = 0
       IF (NSOL .GE. MSOL) RETURN
+      LBOK = 1
       NSOL = NSOL + 1
       IS = NSOL
       NLV(IS) = 2 * NP
@@ -777,7 +782,9 @@ C     RESTOMOD END
       INTEGER I, K, K2, IS, IA, IB, IC, NE
 C     A full model table takes no more solids (as XLINE takes no more
 C     lines).
+      LBOK = 0
       IF (NSOL .GE. MSOL) RETURN
+      LBOK = 1
       NSOL = NSOL + 1
       IS = NSOL
       NLV(IS) = 2 * NP
@@ -856,7 +863,9 @@ C     RESTOMOD END
       DOUBLE PRECISION P(2,NP), O(3), A1(3), A2(3), AN(3), H, G
       DOUBLE PRECISION E1(3), E2(3), N(3), VDOT
       INTEGER I, K, IS
+      LBOK = 0
       IF (NSOL .GE. MSOL) RETURN
+      LBOK = 1
       CALL MKPRS(NP, P, O, A1, A2, AN, H)
       IS = NSOL
       DO 20 K = 1, NP
@@ -973,7 +982,7 @@ C     Docking probe and its three arms.
       CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
       CALL SETV(O, XT, 0.0D0, 0.0D0)
       CALL MKFRU(8, Q, O, A1, A2, AN, 0.3D0, 0.5D0)
-      LSMO(NSOL) = 1
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
       DO 12 K = 0, 2
         C = DCOS(DBLE(K) * 2.0D0 * PI / 3.0D0)
         S = DSIN(DBLE(K) * 2.0D0 * PI / 3.0D0)
@@ -991,8 +1000,8 @@ C     SM and fairing.
    14 CONTINUE
       CALL SETV(O, XS, 0.0D0, 0.0D0)
       CALL MKPRS(24, P, O, A1, A2, AN, HS + XF)
-      LSMO(NSOL) = 1
-      ISM = NSOL
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
+      IF (LBOK .EQ. 1) ISM = NSOL
 C     The fairing's joint to the SM and its 16 pieces.
       CALL XARC(-XF, RB, 0.0D0, 360.0D0, ISM, 24)
       DO 16 K = 0, 15
@@ -1031,7 +1040,7 @@ C     SPS nozzle extension, from its throat end at the aft bulkhead.
       CALL SETV(O, XS, 0.0D0, 0.0D0)
       CALL SETV(AN, -1.0D0, 0.0D0, 0.0D0)
       CALL MKFRU(24, P, O, A1, A2, AN, XN, RN / 0.5D0)
-      LSMO(NSOL) = 1
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
       CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
 C
 C     RCS quads: panel marks, housing, four nozzles.
@@ -1067,7 +1076,7 @@ C     RCS quads: panel marks, housing, four nozzles.
    26     CONTINUE
           CALL PERP(U, W, BU)
           CALL RCSNV(XQ, R * C, R * S, U, W, BU, HB)
-          LSMO(NSOL) = 1
+          IF (LBOK .EQ. 1) LSMO(NSOL) = 1
    28   CONTINUE
    30 CONTINUE
 C
@@ -1176,7 +1185,7 @@ C     RESTOMOD END
       CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
       CALL SETV(O, 0.0D0, 0.0D0, 0.0D0)
       CALL MKFRU(24, P, O, A1, A2, AN, XK, RK / RB)
-      LSMO(NSOL) = 1
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
       IC = NSOL
       DO 12 K = 1, 24
         P(1,K) = RK * DCOS(DBLE(K) * PI / 12.0D0)
@@ -1184,14 +1193,14 @@ C     RESTOMOD END
    12 CONTINUE
       CALL SETV(O, XK, 0.0D0, 0.0D0)
       CALL MKFRU(24, P, O, A1, A2, AN, 0.25D0, 0.43D0 / RK)
-      LSMO(NSOL) = 1
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
       DO 14 K = 1, 16
         P(1,K) = 0.40D0 * DCOS(DBLE(K) * PI / 8.0D0)
         P(2,K) = 0.40D0 * DSIN(DBLE(K) * PI / 8.0D0)
    14 CONTINUE
       CALL SETV(O, XK + 0.25D0, 0.0D0, 0.0D0)
       CALL MKPRS(16, P, O, A1, A2, AN, CMTOP() - XK - 0.25D0)
-      LSMO(NSOL) = 1
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
 C     Forward heat shield seam.
       CALL XARC(1.75D0, RB - TC * 1.75D0, 0.0D0, 360.0D0, IC, 24)
 C     Windows 1, 2 (and mirrored 5, 4), 3, then the side hatch.
@@ -1339,7 +1348,7 @@ C     RESTOMOD END
      &    X1 + F1 * (X2 - X1), Z1 + F1 * (Z2 - Z1), IS)
         YM = Y1 + 0.5D0 * (F0 + F1) * (Y2 - Y1)
         ZM = Z1 + 0.5D0 * (F0 + F1) * (Z2 - Z1)
-        LXF(NXL) = KFACE(YM, ZM, N)
+        IF (LXOK .EQ. 1) LXF(NXL) = KFACE(YM, ZM, N)
    10 CONTINUE
       RETURN
       END
@@ -1362,7 +1371,7 @@ C     RESTOMOD END
         A1 = (D1 + (D2 - D1) * DBLE(K) / DBLE(M)) * DR
         CALL XLINE(R * DCOS(A0), X, R * DSIN(A0),
      &             R * DCOS(A1), X, R * DSIN(A1), IS)
-        LXF(NXL) = KFACE(DCOS(0.5D0 * (A0 + A1)),
+        IF (LXOK .EQ. 1) LXF(NXL) = KFACE(DCOS(0.5D0 * (A0 + A1)),
      &                   DSIN(0.5D0 * (A0 + A1)), N)
    10 CONTINUE
       RETURN

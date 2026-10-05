@@ -299,6 +299,11 @@ C     names hidden-line models of the LM and S-IVB only; the CSM's is
 C     ours.
       INTEGER MDHL(MMOD)
       COMMON /CMODH/ MDHL
+C     LBOK 1 if the last solid builder (MKPRS, MKFRU, MKWDG) added a
+C     solid, 0 if the table was full; LXOK the same for XLINE.  Code
+C     that marks the solid or line just built tests them first.
+      INTEGER LBOK, LXOK
+      COMMON /CMOK/ LBOK, LXOK
       COMMON /CMOD/ MDAT, MDP, MDBO
 C
 C     /CWIN/ the cabin windows, for the window mask (vmask.f): window
