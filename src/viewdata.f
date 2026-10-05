@@ -8155,15 +8155,16 @@ C       jettison; altitude the mean of the two rows
       DATA LGP(17,6) / 62.000D0 /
 C     LEG 7
 C       LUNAR: MR Table 7-II p. 7-9, separation cutoff (1.05 N, 31.41
-C       E, 62.5 n mi; the CSM's, taken for the LM: ours) and descent
-C       orbit insertion ignition (1.12 S, 140.20 W, 56.4 n mi); from
-C       the CSM/LM separation ignition, SP p. 104 100:39:52.90
+C       E; the CSM's, taken for the LM, at the CSM leg's 62.0 n mi, not
+C       the row's 62.5: ours) and descent orbit insertion ignition
+C       (1.12 S, 140.20 W, 56.4 n mi); from the CSM/LM separation
+C       ignition, SP p. 104 100:39:52.90
       DATA LGP(1,7) / 362392.900D0 /
       DATA LGP(2,7) / 365774.000D0 /
       DATA LGP(3,7) / 362401.900D0 /
       DATA LGP(4,7) / 1.050D0 /
       DATA LGP(5,7) / 31.410D0 /
-      DATA LGP(6,7) / 62.500D0 /
+      DATA LGP(6,7) / 62.000D0 /
       DATA LGP(7,7) / 0.000D0 /
       DATA LGP(8,7) / 0.000D0 /
       DATA LGP(9,7) / 0.000D0 /
@@ -8218,27 +8219,26 @@ C       125:19:35.00, SP p. 104
       DATA LGP(16,9) / 0.000D0 /
       DATA LGP(17,9) / 10.000D0 /
 C     LEG 10
-C       LCONIC: SP p. 104, coelliptic sequence initiation: ignition
-C       125:19:35.00, 47.0 s, 51.5 ft/s (mid-burn 125:19:58.5);
-C       direction along the velocity: our assumption; to CDH ignition
-C       126:17:49.60
-      DATA LGP(1,10) / 451175.000D0 /
+C       LCONIC: MR Table 7-II p. 7-9, coelliptic sequence initiation
+C       cutoff: 0.91 S, 149.57 W, 48.4 n mi, 5376.6 ft/s, 0.09 deg; to
+C       CDH ignition 126:17:49.6, MR Table 7-V p. 7-11
+      DATA LGP(1,10) / 451222.000D0 /
       DATA LGP(2,10) / 454669.600D0 /
-      DATA LGP(3,10) / 451198.500D0 /
-      DATA LGP(4,10) / 0.000D0 /
-      DATA LGP(5,10) / 0.000D0 /
-      DATA LGP(6,10) / 0.000D0 /
-      DATA LGP(7,10) / 0.000D0 /
-      DATA LGP(8,10) / 0.000D0 /
+      DATA LGP(3,10) / 451222.000D0 /
+      DATA LGP(4,10) / -0.910D0 /
+      DATA LGP(5,10) / -149.570D0 /
+      DATA LGP(6,10) / 48.400D0 /
+      DATA LGP(7,10) / 5376.600D0 /
+      DATA LGP(8,10) / 0.090D0 /
       DATA LGP(9,10) / 0.000D0 /
       DATA LGP(10,10) / 0.000D0 /
       DATA LGP(11,10) / 0.000D0 /
       DATA LGP(12,10) / 0.000D0 /
-      DATA LGP(13,10) / 51.500D0 /
-      DATA LGP(14,10) / 1.000D0 /
+      DATA LGP(13,10) / 0.000D0 /
+      DATA LGP(14,10) / 0.000D0 /
       DATA LGP(15,10) / 0.000D0 /
       DATA LGP(16,10) / 0.000D0 /
-      DATA LGP(17,10) / 0.000D0 /
+      DATA LGP(17,10) / 48.400D0 /
 C     LEG 11
 C       LCONIC: MR Table 7-II p. 7-9, terminal phase initiation
 C       ignition: 1.17 S, 110.28 W, 44.1 n mi, 5391.5 ft/s, -0.16 deg;
@@ -8261,27 +8261,26 @@ C       from CDH cutoff 126:18:07.40, SP p. 104
       DATA LGP(16,11) / 0.000D0 /
       DATA LGP(17,11) / 44.100D0 /
 C     LEG 12
-C       LCONIC: SP p. 104, terminal phase initiation: ignition
-C       127:03:51.80, 22.7 s, 25.3 ft/s (mid-burn 127:04:03.15);
-C       direction along the velocity: our assumption; to TPF ignition
-C       127:46:09.80
+C       LCONIC: MR Table 7-II p. 7-9, terminal phase initiation cutoff:
+C       1.17 S, 111.46 W, 44.0 n mi, 5413.2 ft/s, -0.03 deg; to TPF
+C       ignition 127:46:09.80, SP p. 104
       DATA LGP(1,12) / 457454.500D0 /
       DATA LGP(2,12) / 459969.800D0 /
-      DATA LGP(3,12) / 457443.150D0 /
-      DATA LGP(4,12) / 0.000D0 /
-      DATA LGP(5,12) / 0.000D0 /
-      DATA LGP(6,12) / 0.000D0 /
-      DATA LGP(7,12) / 0.000D0 /
-      DATA LGP(8,12) / 0.000D0 /
+      DATA LGP(3,12) / 457454.500D0 /
+      DATA LGP(4,12) / -1.170D0 /
+      DATA LGP(5,12) / -111.460D0 /
+      DATA LGP(6,12) / 44.000D0 /
+      DATA LGP(7,12) / 5413.200D0 /
+      DATA LGP(8,12) / -0.030D0 /
       DATA LGP(9,12) / 0.000D0 /
       DATA LGP(10,12) / 0.000D0 /
       DATA LGP(11,12) / 0.000D0 /
       DATA LGP(12,12) / 0.000D0 /
-      DATA LGP(13,12) / 25.300D0 /
-      DATA LGP(14,12) / 1.000D0 /
+      DATA LGP(13,12) / 0.000D0 /
+      DATA LGP(14,12) / 0.000D0 /
       DATA LGP(15,12) / 0.000D0 /
       DATA LGP(16,12) / 0.000D0 /
-      DATA LGP(17,12) / 0.000D0 /
+      DATA LGP(17,12) / 44.000D0 /
 C     LEG 13
 C       CONIC: MR Table 7-II p. 7-9, second midcourse correction
 C       ignition
