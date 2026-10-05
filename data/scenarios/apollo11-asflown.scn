@@ -113,6 +113,7 @@ EVENT KIND=LIFT T=124:22:00.79 SRC="SP p. 104, LM lunar liftoff ignition 124:22:
 EVENT KIND=TPF T=127:46:09.8 SRC="SP p. 104, LM terminal phase finalize ignition 127:46:09.80"
 EVENT KIND=LMDOK T=128:03:00.0 SRC="SP p. 104, CSM/LM docked 128:03:00.00; MR Table 7-II p. 7-9"
 EVENT KIND=JETT T=130:09:31.2 SRC="SP p. 104, LM ascent stage jettisoned 130:09:31.20; MR Table 7-II p. 7-9"
+EVENT KIND=CMSEP T=194:49:12.7 SRC="MR Table 7-II p. 7-9, command module/service module separation; SP p. 109 has 194:49:12.70"
 *
 * ---------------------------------------------------------------------
 * TIMELINE: the mission's sequence of events as SP-4029 prints it (printed pp. 105-110, "Apollo 11 Timeline"),

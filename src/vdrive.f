@@ -217,7 +217,7 @@ C     RESTOMOD END
       INTEGER NT, TC(MAXTC), NCH
       DOUBLE PRECISION PM(3), CG(3), CV(3), RB, RNG, D1, D2, D3, D4
       DOUBLE PRECISION PB(3), RR, VNRM, VDOT, RHO, RC(3), RL(3), VX(3)
-      INTEGER I, IREF, IWIN, IOK, J, LOOKD
+      INTEGER I, IREF, IWIN, IOK, J, LOOKD, KLMPL
       DOUBLE PRECISION MR1(3,3), MR2(3,3)
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
@@ -330,13 +330,13 @@ C     Scene 4: the LM.  Scene 7: the LM's docking target (S7POSE).
       DO 40 I = 1, 3
         PB(I) = EPOS(I)
         IF (IREF .EQ. 2) PB(I) = MPOS(I)
-        IF (ISCN .EQ. 4 .AND. MDON(KLMD) .EQ. 1) PB(I) = MDP(I,KLMD)
+        IF (ISCN .EQ. 4 .AND. KLMPL() .NE. 0) PB(I) = MDP(I,KLMPL())
         IF (ISCN .EQ. 7) PB(I) = S7LP(I) - 0.72D-3 * S7AT(I,2)
         IF (ISCN .EQ. 8) PB(I) = MDP(I,KCSM) + 3.2D-3 * MDAT(I,1,KCSM)
    40 CONTINUE
       RR = RE
       IF (IREF .EQ. 2) RR = RM
-      IF (ISCN .EQ. 4 .AND. MDON(KLMD) .EQ. 1) RR = 4.5D-3
+      IF (ISCN .EQ. 4 .AND. KLMPL() .NE. 0) RR = 4.5D-3
 C     Scene 7: the LM, half its 14 ft 1 in width (Apollo 11 press kit,
 C     printed p. 96).
       IF (ISCN .EQ. 7) RR = 2.15D-3
@@ -376,7 +376,7 @@ C     enables its station buttons from these; HD(21) leaves out the
 C     vehicle the camera rides, so it cannot.
       HD(22) = 4.0D0
       IF (ISCN .NE. 5 .AND. ISCN .NE. 6) HD(22) = HD(22) + 1.0D0
-      IF (MDON(KLMD) .EQ. 1 .OR. MDON(KLMS) .EQ. 1 .OR. ISCN .EQ. 5
+      IF (KLMPL() .NE. 0 .OR. ISCN .EQ. 5
      &  .OR. IVUSE .EQ. 3) HD(22) = HD(22) + 2.0D0
 C     Text for the recorder's character generator.
       CALL TXALL(LB, NL, TB, NT, TC, NCH)
@@ -667,13 +667,16 @@ C     RESTOMOD END
       END
 C
 C-----------------------------------------------------------------------
-C     VEHPL: the LM at its state (LMSTAT), placed as the gear-down model
-C     (KLMD) when it is within 5 km of the camera (where its model
-C     spans more than about 0.1 deg; ours), not already placed by the
-C     scene, not carrying the camera (scene 5), and still with its
-C     descent stage (before touchdown; the ascent stage alone has no
-C     model yet).  Attitude ours: +X along the local vertical, +Z along
-C     the motion.
+C     VEHPL: the LM at its state (LMSTAT), placed when it is within 5
+C     km of the camera (where its model spans more than about 0.1 deg;
+C     ours), not already placed by the scene and not carrying the
+C     camera (scene 5): before touchdown with its descent stage, the
+C     gear-down model (KLMD); from lift-off (the LIFT event) the ascent
+C     stage alone (KLMA).  Landed, from touchdown to lift-off, it is
+C     not placed (the marker of lvlab.f stands for it).  Attitude ours:
+C     +X along the local vertical, +Z along the motion; the ascent
+C     stage from TPF (terminal phase finalize) on, braking to the CSM,
+C     turns its +X, the docking tunnel's axis, toward the CSM.
 C-----------------------------------------------------------------------
       SUBROUTINE VEHPL(GET, PM, CG)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -681,11 +684,15 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION GET, PM(3), CG(3), LP(3), V(3), AT(3,3), BO(3)
-      DOUBLE PRECISION C, VDOT, VNRM
-      INTEGER IOK, I
-      IF (ISCN .EQ. 5 .OR. MDON(KLMD) .EQ. 1 .OR. MDON(KLMS) .EQ. 1)
+      DOUBLE PRECISION RL(3), RC(3), VC(3), TL, TF, C, VDOT, VNRM
+      DOUBLE PRECISION EVGET
+      INTEGER IOK, I, J, K, KLMPL
+      IF (ISCN .EQ. 5 .OR. KLMPL() .NE. 0) RETURN
+      K = KLMD
+      TL = EVGET(KELFT)
+      IF (TL .GE. 0.0D0 .AND. GET .GE. TL) K = KLMA
+      IF (K .EQ. KLMD .AND. LUT0 .GT. 0.0D0 .AND. GET .GE. LUT0)
      &  RETURN
-      IF (LUT0 .GT. 0.0D0 .AND. GET .GE. LUT0) RETURN
       CALL LMREL(GET, PM, CG, LP, V, IOK)
       IF (IOK .EQ. 0) RETURN
       IF (VNRM(LP) .GT. 5.0D0) RETURN
@@ -693,7 +700,18 @@ C     Up: from the Moon's centre to the LM.
       DO 10 I = 1, 3
         AT(I,1) = CG(I) + LP(I) - PM(I)
    10 CONTINUE
-      CALL VUNIT(AT(1,1))
+      TF = EVGET(KETPF)
+      IF (K .NE. KLMA .OR. TF .LT. 0.0D0 .OR. GET .LT. TF) GO TO 15
+C     The ascent stage braking to docking: up toward the CSM (the
+C     source used, ISRCU, kept as the camera's).
+      J = ISRCU
+      CALL VSTATE(GET, 2, 2, RL, V, IOK)
+      CALL VSTATE(GET, 1, 2, RC, VC, IOK)
+      ISRCU = J
+      DO 12 I = 1, 3
+        AT(I,1) = RC(I) - RL(I)
+   12 CONTINUE
+   15 CALL VUNIT(AT(1,1))
       C = VDOT(V, AT(1,1))
       DO 20 I = 1, 3
         AT(I,3) = V(I) - C * AT(I,1)
@@ -701,7 +719,7 @@ C     Up: from the Moon's centre to the LM.
       CALL VUNIT(AT(1,3))
       CALL VCRS(AT(1,3), AT(1,1), AT(1,2))
       CALL SETV(BO, 2.3D0, 0.0D0, 0.0D0)
-      CALL MPLACE(KLMD, AT, LP, BO)
+      CALL MPLACE(K, AT, LP, BO)
       RETURN
       END
 C
@@ -720,7 +738,7 @@ C     RESTOMOD END
       DOUBLE PRECISION AT(3,3), R1(3,3), R2(3,3), R3(3,3), R4(3,3)
       DOUBLE PRECISION BX(3,3), LP(3), BO(3), V(3), T, PS, TH, PH, C
       DOUBLE PRECISION EVGET, VDOT
-      INTEGER I, IOK
+      INTEGER I, IOK, K
       CALL LMREL(GET, PM, CG, LP, V, IOK)
       IF (IOK .EQ. 0) RETURN
 C     Body axes: X up (the reference up made square to the line of
@@ -747,9 +765,12 @@ C     turn in the picture about body Z (toward the camera).
       CALL MXM(R3, R2, R4)
       CALL MXM(R4, R1, R2)
       CALL MXM(BX, R2, AT)
-C     Centred on the stage joint, the state's point (LMSTAT).
+C     Centred on the stage joint, the state's point (LMSTAT).  From
+C     lift-off (the LIFT event) the ascent stage alone (KLMA).
       CALL SETV(BO, 2.3D0, 0.0D0, 0.0D0)
-      CALL MPLACE(KLMD, AT, LP, BO)
+      K = KLMD
+      IF (EVGET(KELFT) .GE. 0.0D0 .AND. GET .GE. EVGET(KELFT)) K = KLMA
+      CALL MPLACE(K, AT, LP, BO)
       RETURN
       END
 C

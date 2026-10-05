@@ -27,20 +27,21 @@ C     Also the parenthesised PARAMETER list (FORTRAN 77, 1978).
       PARAMETER (MAXT=300, MAXTC=6000)
 C     RESTOMOD END
       INTEGER MSOL, MVX, MFC, MED, MXL, MMOD, KLMD, KLMS, KSIV, KCSM
-      INTEGER KCMC, KCMI, KLMI
+      INTEGER KCMC, KCMI, KLMI, KLMA, KCMO
 C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
 C     (1978); FORTRAN V wrote PARAMETER I = 2 (UP-4046 Rev 3, sec.
-C     10.4.1).  And 72 solids (the LM's RCS clusters are 20 a model)
-C     make /CLM/ and /CLMI/ about 109K words (our count), over a
-C     third of the 1108's 262,144 (docs/univac-1108.md).
-      PARAMETER (MSOL=72, MVX=48, MFC=26, MED=72, MXL=1200, MMOD=8)
+C     10.4.1).  And 96 solids (the LM's RCS clusters are 20 a model,
+C     in three LM models) make /CLM/ and /CLMI/ about 140K words (our
+C     count), over half the 1108's 262,144 (docs/univac-1108.md).
+      PARAMETER (MSOL=96, MVX=48, MFC=26, MED=72, MXL=1200, MMOD=10)
 C     RESTOMOD END
 C     Model numbers (MLIB): LM gear down, LM gear stowed with docking
 C     aids, S-IVB with IU and SLA ring, CSM, CM cabin (window), CM
-C     interior, LM interior (in_flags bit 4).
+C     interior, LM interior (in_flags bit 4), LM ascent stage alone
+C     (after lunar lift-off), CM alone (after CM/SM separation).
 C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)
       PARAMETER (KLMD=1, KLMS=2, KSIV=3, KCSM=4, KCMC=5, KCMI=6,
-     &           KLMI=7)
+     &           KLMI=7, KLMA=8, KCMO=9)
 C
 C     Tables loaded by BLOCK DATA VIEWBD (viewdata.f)
 C     RESTOMOD BEGIN: post-1969 data: Natural Earth coast (2009),
