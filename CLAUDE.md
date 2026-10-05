@@ -16,8 +16,7 @@ plausibly run on a restomodded 1108 with a multi-gigahertz clock and a gigabyte 
 browser is only the film recorder.
 
 History and sources from the earlier claude.ai session are in `README.md` and the tail of this
-file. The earlier build (a flyable LM lander) was scope drift and has been removed. It is still
-in `../view1108-handoff.zip`.
+file. The earlier build (a flyable LM lander) was scope drift and has been removed.
 
 ## Architecture: period engine, modern chassis
 
