@@ -70,8 +70,8 @@ export function buildShell(aniso: number): Shell {
     box(bt, base, D, -W / 2 + bt / 2, base / 2, 0), box(bt, base, D, W / 2 - bt / 2, base / 2, 0),
   ])!, new THREE.MeshStandardMaterial({ color: 0x2c2b29, roughness: 0.6 }));
 
-  // Door: a painted steel leaf in a frame, with a kick plate and a lever on its latch (east) side (ours). Built in
-  // the door's frame (x along the wall, z out of it into the room), then turned onto the south wall.
+  // Door: a painted steel leaf in a frame, with a kick plate (ours; its lever is room.ts's handle). Built in the door's
+  // frame (x along the wall, z out of it into the room), then turned onto the south wall.
   const onWall = new THREE.Matrix4().makeRotationY(Math.PI).premultiply(new THREE.Matrix4().makeTranslation(DOOR.x, 0, D / 2));
   const door = (list: THREE.BufferGeometry[]) => mergeGeometries(list)!.applyMatrix4(onWall);
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x8c9088, roughness: 0.5, metalness: 0.3 });
@@ -82,13 +82,7 @@ export function buildShell(aniso: number): Shell {
     box(DOOR.w + 2 * fw, fw, 0.03, 0, DOOR.h + fw / 2, 0.015),
   ]), frameMat);
   mesh(door([box(DOOR.w - 0.01, DOOR.h - 0.01, 0.045, 0, DOOR.h / 2, -0.01)]), new THREE.MeshStandardMaterial({ color: 0x6f7a72, roughness: 0.55, metalness: 0.15 }));
-  const steel = new THREE.MeshStandardMaterial({ color: 0xc8c8c4, roughness: 0.25, metalness: 0.9 });
-  // Turned onto the wall the door's -x is east: the latch side, where the lever goes.
-  mesh(door([
-    box(DOOR.w - 0.08, 0.25, 0.004, 0, 0.14, 0.014),
-    box(0.02, 0.02, 0.05, -hw + 0.09, 1.02, 0.04),
-    box(0.13, 0.02, 0.02, -hw + 0.14, 1.02, 0.06),
-  ]), steel);
+  mesh(door([box(DOOR.w - 0.08, 0.25, 0.004, 0, 0.14, 0.014)]), new THREE.MeshStandardMaterial({ color: 0xc8c8c4, roughness: 0.25, metalness: 0.9 }));
 
   // EXIT sign over the door (ours; red letters lit from inside, as US codes asked of the period's exit signs).
   const exitTex = exitSign(aniso); texs.push(exitTex);

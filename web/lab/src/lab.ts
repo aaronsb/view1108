@@ -115,7 +115,7 @@ export class Lab {
     if (this.room.air) { this.dust = new Dust({ box: this.room.air, count: 420, size: 0.006, opacity: 0.22 }); this.scene.add(this.dust.object); }
     this.home = shotOf(this.room.overview);
     this.sound = new RoomSound(this.room, this.camera, hooks.state, () => this.shown);
-    const terminals: Terminal[] = this.room.placed.filter(p => (p.equipment.opens || p.name === "switch") && p.equipment.anchors.screen).map(p => {
+    const terminals: Terminal[] = this.room.placed.filter(p => (p.equipment.opens || p.equipment.use || p.name === "switch") && p.equipment.anchors.screen).map(p => {
       // A screen lying flat (the printer's sheet) faces the way its machine does.
       const m = p.equipment.anchors.screen!.mesh, n = new THREE.Vector3(0, 0, 1).transformDirection(m.matrixWorld);
       if (Math.abs(n.y) > 0.7) n.set(0, 0, 1).transformDirection(p.equipment.object.matrixWorld);
@@ -124,7 +124,7 @@ export class Lab {
     this.walk = new Walk(this.room.footprints ?? [], { x: ROOM.w / 2, z: ROOM.d / 2 }, terminals, {
       step: fast => this.sound.footstep(fast),
       enter: name => { this.setTarget(name); },
-      use: name => this.room.placed.find(p => p.name === name)?.equipment.use?.(),
+      use: name => { const p = this.room.placed.find(q => q.name === name); if (p) this.use(p); },
     });
     this.walk.setFrom(this.home.position, this.home.quaternion);
 
@@ -465,7 +465,7 @@ export class Lab {
     if (!t) { if (this.labelEl.dataset.hint) { this.labelEl.style.display = "none"; delete this.labelEl.dataset.hint; } return; }
     if (this.hover) return;
     const v = t.screen.clone().project(this.camera), r = this.renderer.domElement.getBoundingClientRect(), hr = this.host.getBoundingClientRect();
-    this.labelEl.textContent = `${this.room.labels?.[t.name] ?? t.name} · ${t.use ? "press E or L" : "approach or press E"}`;
+    this.labelEl.textContent = `${this.room.labels?.[t.name] ?? t.name} · ${t.name === "switch" ? "press E or L" : t.use ? "press E" : "approach or press E"}`;
     this.labelEl.style.left = `${r.left - hr.left + (v.x + 1) / 2 * r.width}px`;
     this.labelEl.style.top = `${r.top - hr.top + (1 - v.y) / 2 * r.height + 24}px`;
     this.labelEl.style.display = "block"; this.labelEl.dataset.hint = t.name;
@@ -668,8 +668,10 @@ export class Lab {
     } else this.labelEl.style.display = "none";
   }
 
-  /** Use a machine: flip it in place (the switch) or fly into it. */
+  /** Use a machine: flip it in place (the switch), follow its link (the door; out of pointer lock first, so the new
+   *  tab is not opened under a captured mouse), or fly into it. */
   private use(p: Placed): true {
+    if (p.equipment.anchors.href) this.unlock();
     if (p.equipment.use) p.equipment.use(); else this.setTarget(p.name);
     return true;
   }

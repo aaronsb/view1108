@@ -90,6 +90,11 @@ export function build(ctx: BuildContext): Room {
   sw.object.position.set(DOOR.x + DOOR.w / 2 + 0.22, 1.2, nW - 0.004); sw.object.rotation.y = Math.PI;
   sw.object.userData.placed = "switch"; object.add(sw.object);
   placed.push({ name: "switch", equipment: sw });
+  // The door's lever handle on its latch (east) side, 1.02 m up on the leaf's face: the way out, to the repository.
+  const handle = doorHandle();
+  handle.object.position.set(DOOR.x + DOOR.w / 2 - 0.09, 1.02, nW - 0.0125); handle.object.rotation.y = Math.PI;
+  handle.object.userData.placed = "door"; object.add(handle.object);
+  placed.push({ name: "door", equipment: handle });
 
   // What glows, as dim soft lights: with the troffers off the screens, the tape units' lamp row and the EXIT sign;
   // always the lamp panels (the CPU's and the console's). Each is a face the size of what glows: a screen's own face
@@ -127,7 +132,7 @@ export function build(ctx: BuildContext): Room {
     door: { x: DOOR.x, z: nW, w: DOOR.w },
     overview: { position: new THREE.Vector3(2.4, 1.62, 3.15), target: new THREE.Vector3(0.1, 1.0, -1.6), fov: 55 },
     labels: { vector: "UNIVAC 1558 — workbench", glass: "UNISCOPE 100 — source", filmrecorder: "Microfilm recorder (S-C 4020, hypothetical) — print",
-      printer: "Line printer — listing", switch: "Lights", library: "Reference library",
+      printer: "Line printer — listing", switch: "Lights", door: "Exit — github.com/aaronsb/view1108", library: "Reference library",
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])) },
     lightsOn: true,
     setLights(on) { room.lightsOn = on; sw.set(on); },
@@ -135,7 +140,7 @@ export function build(ctx: BuildContext): Room {
     glows,
     air: new THREE.Box3(new THREE.Vector3(-4, 0.3, -2.9), new THREE.Vector3(4, 2.5, 3.1)),
     update() { shell.update(); batches.update(); },
-    dispose() { shell.dispose(); batches.dispose(); sw.dispose?.(); STANDIN.dispose(); },
+    dispose() { shell.dispose(); batches.dispose(); sw.dispose?.(); handle.dispose?.(); STANDIN.dispose(); },
   };
   return room;
 }
@@ -153,6 +158,34 @@ function lightSwitch(): Equipment & { set(on: boolean): void } {
     object,
     anchors: { screen: { mesh: plate, uvRect: [0, 0, 1, 1] } },
     set(on) { lever.rotation.x = on ? -0.45 : -Math.PI + 0.45; },
+    dispose() { mine.forEach(d => d.dispose()); },
+  };
+}
+
+/** The door's lever handle on a steel rose plate (ours). Using it presses the lever and opens the repository in a new
+ *  tab (`anchors.href`; lab.ts releases the pointer lock first). The plate is its screen anchor (walking up to it); an
+ *  unseen box around it makes it easier to point at. */
+function doorHandle(): Equipment {
+  const object = new THREE.Group(), mine: { dispose(): void }[] = [], href = "https://github.com/aaronsb/view1108";
+  const steel = new THREE.MeshStandardMaterial({ color: 0xc8c8c4, roughness: 0.25, metalness: 0.9 });
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.17, 0.006), steel); plate.position.set(0, -0.03, 0.003);
+  const spindle = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.04), steel); spindle.position.z = 0.026;
+  const lever = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.02, 0.02).translate(0.05, 0, 0), steel); lever.position.z = 0.05;
+  const pickMat = new THREE.MeshBasicMaterial({ visible: false });
+  const pick = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.3, 0.08), pickMat); pick.position.set(0.04, -0.03, 0.04);
+  for (const m of [plate, spindle, lever, pick]) { mine.push(m.geometry); object.add(m); }
+  mine.push(steel, pickMat);
+  let t = -1;   // seconds into a press
+  return {
+    object,
+    anchors: { screen: { mesh: plate, uvRect: [0, 0, 1, 1] }, href },
+    use() { t = 0; window.open(href, "_blank", "noopener"); },
+    update(dt) {
+      if (t < 0) return;
+      t += dt;
+      lever.rotation.z = t < 0.5 ? -0.6 * Math.sin(Math.PI * t / 0.5) : 0;
+      if (t >= 0.5) t = -1;
+    },
     dispose() { mine.forEach(d => d.dispose()); },
   };
 }
