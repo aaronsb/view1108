@@ -429,3 +429,26 @@ export function poseFrom(target: THREE.Vector3, dir: [number, number, number], d
 
 /** Distance at which a height `h` fills a vertical field `fov` (deg), with a margin. */
 export const fitDist = (h: number, fov: number, margin = 1.04) => h / 2 / Math.tan(fov / 2 * Math.PI / 180) * margin;
+
+/** An operator's view of a console (ours): from in front (+Z), looking `down` degrees below level, centred on and
+ *  just containing every corner of `boxes` (the screen and the keyboard, in the equipment's frame) in a vertical
+ *  field `fov` (deg) and a horizontal one at `aspect`, with a margin. */
+export function viewPose(boxes: THREE.Box3[], fov = 40, down = 25, aspect = 4 / 3, margin = 1.3) {
+  const a = down * Math.PI / 180, tv = Math.tan(fov / 2 * Math.PI / 180) / margin, th = tv * aspect;
+  const r = new THREE.Vector3(1, 0, 0), u = new THREE.Vector3(0, Math.cos(a), -Math.sin(a)), n = new THREE.Vector3(0, Math.sin(a), Math.cos(a));
+  const all = new THREE.Box3(), corners: THREE.Vector3[] = [];
+  for (const b of boxes) {
+    all.union(b);
+    for (let i = 0; i < 8; i++) corners.push(new THREE.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z));
+  }
+  const target = all.getCenter(new THREE.Vector3());
+  let d = 0;
+  // Fit, then re-aim at the middle of what is seen (the nearer keyboard looks larger than the screen); a few rounds.
+  for (let k = 0; k < 4; k++) {
+    const rel = corners.map(c => c.clone().sub(target));
+    d = Math.max(...rel.map(c => c.dot(n) + Math.max(Math.abs(c.dot(u)) / tv, Math.abs(c.dot(r)) / th)));
+    const ys = rel.map(c => c.dot(u) / (d - c.dot(n))), xs = rel.map(c => c.dot(r) / (d - c.dot(n)));
+    target.addScaledVector(u, (Math.max(...ys) + Math.min(...ys)) / 2 * d).addScaledVector(r, (Math.max(...xs) + Math.min(...xs)) / 2 * d);
+  }
+  return { position: target.clone().addScaledVector(n, d), target, fov };
+}

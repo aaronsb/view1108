@@ -13,7 +13,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { BuildContext, Equipment } from "../types";
-import { Parts, at, canvasTex, chrome, fitDist, fontTex, glowMat, own, paint, plastic, plateText, rng, roundRect, satinMetal, sharedGeo, tubeGlass } from "./kit";
+import { Parts, at, canvasTex, chrome, fitDist, fontTex, glowMat, own, paint, plastic, plateText, rng, roundRect, satinMetal, sharedGeo, tubeGlass, viewPose } from "./kit";
 
 const FOV = 40, COLS = 64, ROWS = 16;
 const SW = 0.254, SH = 0.127;              // the picture: 10 x 5 in
@@ -301,6 +301,7 @@ export function build(ctx: BuildContext): Equipment {
     anchors: {
       screen: { mesh: screen, uvRect: [0, 0, 1, 1] },
       camera: { position: target.clone().addScaledVector(normal, fitDist(SH * 1.5, FOV)), target, fov: FOV },
+      view: viewPose([new THREE.Box3().setFromObject(screen), new THREE.Box3().setFromObject(caps)], FOV),
     },
     update(dt) {
       t += dt; poll += dt;

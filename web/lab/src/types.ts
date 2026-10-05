@@ -60,7 +60,8 @@ export interface ScreenAnchor {
 /** Named points on a piece of equipment, in its own frame (the room's placement transforms them). */
 export interface Anchors {
   screen?: ScreenAnchor;
-  camera?: CameraPose;    // the zoom-in pose; with `opens`, clicking the equipment flies here
+  camera?: CameraPose;    // the zoom-in pose; with `opens`, clicking the equipment flies here (or to `view`)
+  view?: CameraPose;      // the arrival pose of a console: its screen and keyboard together, as its operator sees them
   lamps?: Face & { center: THREE.Vector3 };   // a lamp panel's face, for its glow
   [name: string]: unknown;
 }
