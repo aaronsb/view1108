@@ -153,8 +153,17 @@ if (W.in_lablv) {
 }
 // Every situation as its cards say: hdr(7) its id, hdr(1) its default g.e.t. where the cards fix
 // it (an EVENT plus an offset, or a g.e.t.; not ERISE, which ERFIND computes), hdr(16) its
-// scenario's epoch offset from scenario 1's (Apollo 8: -17,887,260 s); and the first again
-// afterwards, unchanged by the scenarios after it.
+// scenario's epoch offset from scenario 1's; and the first again afterwards, unchanged by the
+// scenarios after it.  Those expected values come from the same cards, so two facts are also held
+// here as literals, independent of the cards: Apollo 8's epoch offset, -17,887,260 s (its range
+// zero 1968-12-21 12:51:00 UTC, MR8 p. 2-1, less Apollo 11's; CLAUDE.md, hdr(16)), and its
+// Earthrise photograph's g.e.t., 75:48:39.7 = 272,919.7 s (SVS 4129, the PHOTO event).
+{
+  const a = run(W, OTHER), b = run(F, OTHER);
+  const good = Math.abs(a.hdr[15] + 17887260) < 0.1 && a.hdr[0] === 272919.7 && maxdiff(a.vbuf, b.vbuf) === 0;
+  console.log(`Apollo 8 (scene ${OTHER}): g.e.t. ${a.hdr[0]} s, epoch offset ${a.hdr[15].toFixed(2)} s  ${good ? 'ok' : 'WRONG'}`);
+  if (!good) ok = false;
+}
 {
   const bad = [];
   for (const s of [...SIT, SIT[0]]) {
