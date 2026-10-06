@@ -83,16 +83,7 @@ the UNISCOPE 100, from one atlas shared with it (`kit.ts` keyLegends): one more 
 - **UNISCOPE 100.** 64 x 16 green characters in the IBM 3270 face when the page has it. The screen shows the Source
   tab's marked line or current unit, or VFRAME from `vdrive.f` in the embedded listing, and is redrawn only when that
   text changes. The cursor blinks.
-- **4009 console.** The Day Clock shows hours, minutes and hundredths of a minute (UP-7604 sec. 2.3.3), written
-  HH:MM.hh as in UP-4046 Fig. 1-1. It runs on the replay's UTC: Apollo 11's range zero, 1969-07-16 13:32:00 UTC, plus
-  the g.e.t. In scene 9 the clock is offset by hdr(16), -17,887,260 s, to Apollo 8's epoch. At the touchdown g.e.t.
-  102:45:40 it reads 20:17.66, that is 20:17:40 UTC. Its orange digits are HYPOTHETICAL. The CRT shows a console log
-  (ours): the run's tape assignments and mounts and its two `@XQT` steps in the style of the sample run in
-  `docs/batch-pipeline.md`, a line per 16 frames, the run's state, and a blinking prompt; the PAGEWRITER's sheet
-  carries the same log, as UP-7604 sec. 2.3.2 says it logs the CRT's traffic. The lamps follow Fig. 4-1's sections:
-  the Program Address Counter changes about 14 times a second while the page plays or after a `tape` event and once
-  a second otherwise, GUARD mode is lit, and SELECT STOPS 0 and RELEASE STOPS 0 light on hold. UP-7604 says the
-  address counter's indicators are disabled while a program runs, so a running counter is ours.
+- **4009 console.** The Day Clock shows hours, minutes and hundredths of a minute (UP-7604 sec. 2.3.3), written HH:MM.hh as in UP-4046 Fig. 1-1. It runs on the replay's UTC: the loaded scenario's range zero (its MISSION's EPOCH card, to the second; `LabState.zero`), plus the g.e.t. For Apollo 11 that is 1969-07-16 13:32:00 UTC; Apollo 8's scene 9 runs from 1968-12-21 12:51:00 UTC. At the touchdown g.e.t. 102:45:40 it reads 20:17.66, that is 20:17:40 UTC. Its orange digits are HYPOTHETICAL. The CRT shows a console log (ours), run VIEW and the loaded mission's number (VIEW11, VIEW08): the run's tape assignments and mounts and its two `@XQT` steps in the style of the sample run in `docs/batch-pipeline.md`, a line per 16 frames, the run's state, and a blinking prompt; the PAGEWRITER's sheet carries the same log, as UP-7604 sec. 2.3.2 says it logs the CRT's traffic. The lamps follow Fig. 4-1's sections: the Program Address Counter changes about 14 times a second while the page plays or after a `tape` event and once a second otherwise, GUARD mode is lit, and SELECT STOPS 0 and RELEASE STOPS 0 light on hold. UP-7604 says the address counter's indicators are disabled while a program runs, so a running counter is ours.
 - **Printer.** A finished beam frame advances the paper four lines, at most twice a second, and a lamp blinks. The
   stack grows by one sheet every 11 in.
 - **Desk clock.** It shows Houston time for the replay's moment: Central time, with daylight time from the last Sunday

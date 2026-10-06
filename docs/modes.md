@@ -8,13 +8,17 @@ Base URL: https://aaronsb.github.io/view1108/
 
 The tab bar across the top, after the title, picks the workspace and the control groups in the dock (below the plot on a narrow screen, beside it on a screen 1000 px wide or more). Link, at the right end of the bar, copies a link to the current view. Sound, beside it (key `M`), plays a synthesized machine room of our own invention: air handling and a cooling fan, a frame-advance clunk per Beam frame, a tape whir when the engine runs, and key clicks. It is off by default and remembered.
 
-| Tab | Workspace | Dock | On entering |
+Choosing a tab, here or by walking up to a terminal in the Room, changes only what is shown: the mode, the scene and the time stay as they were (docs/systems-model.md, section 4, rule 2). Each tab's own controls change them; the last column says which.
+
+| Tab | Workspace | Dock | Controls that change the mode |
 |---|---|---|---|
-| **Review** | the plot | Mode (Attract, Tour, Free-look), Scene, Time, Timeline, Look, Display | keeps Attract, Tour or Free-look; from any other mode, starts Tour. The page opens here, in Attract |
-| **Simulate** | the plot | Mission clock (Live, Free-look, the jumps), Simulation, Scene, Time, Look, Display | starts Live |
-| **Print** | the plot | Beam (the trace and its speed), Film (with Print SVG and Paper SVG: the frame as an SVG file, white on black or black on white), Scene, Time, Look, Display | stops Attract or Tour for Free-look; film effects default on. Beam runs only here: leaving Print leaves Beam for Free-look |
-| **Fusion** | the plot, with a crew photograph over it | Fusion (the photographs, the overlay and its alignment), Look, Display | stops Attract or Tour for Free-look |
-| **Source** | its own: the kernel's code browser (below) | none | keeps the mode; the plot stops drawing and time holds until you return. The plot's keys do nothing here |
+| **Review** | the plot | Mode (Attract, Tour, Free-look), Scene, Time, Timeline, Look, Display | the Mode group's Attract, Tour and Free-look. The page opens here, in Attract |
+| **Simulate** | the plot | Mission clock (Live, Free-look, the jumps), Simulation, Scene, Time, Look, Display | the Mission clock's Live (or a jump button) starts Live; its Free-look stops it |
+| **Print** | the plot | Beam (the trace and its speed), Film (with Print SVG and Paper SVG: the frame as an SVG file, white on black or black on white), Scene, Time, Look, Display | Beam trace (or `T`) starts and stops Beam; film effects default on |
+| **Fusion** | the plot, with a crew photograph over it | Fusion (the photographs, the overlay and its alignment), Look, Display | picking a photograph opens its scene in Free-look (from Attract, Tour or Beam too) |
+| **Source** | its own: the kernel's code browser (below) | none | none; the plot stops drawing and time holds until you return. The plot's keys do nothing here |
+
+Attract and Tour keep playing on every tab until you take control (any drag, wheel, key or time control, as in Review); Live keeps its clock and Beam keeps tracing on every plot tab until you stop them where they started.
 
 **Timeline** (Review) lists the scene's scenario's events (its TIMELINE cards, from SP-4029's mission timelines): g.e.t., kind and name, filtered by kind or by Noteworthy, our own short list of milestones (lift-off, Earth orbit insertion, TLI, transposition docking, LOI, undocking, powered descent, landing, lunar lift-off, docking, TEI, entry, splashdown). Clicking an event sets the time as the g.e.t. box does and re-centres the Free-look scrubber on it; where the current scene's camera does not suit that moment, the page switches to one that does: each scenario's time is cut into spans (our own: the FOLLOW `SPAN` cards in the scenario's deck, which carry their sources; generated into `build/names.js`), each naming a scene and, where it needs them, a view, target and field of view. For Apollo 11, the docked span after transposition (3:24:03.1 to 4:17:03) is scene 7 from outside, aimed at the LM. For Apollo 8, scene 9 is the Earthrise camera only in lunar orbit; before the Earth parking orbit and after entry interface it is the external view of the Earth, on the parking orbit the forward horizon view at 70°, and from TLI to about 3:27 (while the disc overfills a 50° field) the external view again, then on the translunar and transearth coasts the CSM window aimed at the Earth at 50°, the field of MSC IN 69-FM-197's transearth-coast Earth views (figure 7.3.2-1, printed p. 207). **Follow** keeps doing so as the time runs. The event at or before the current time is highlighted, and the shown events within the scrubber's span are marked under it. For Apollo 11, **Companion** opens [Apollo in Real Time](https://apolloinrealtime.org/11/) (Ben Feist) at the current g.e.t. in a window of its own; each discrete jump (an event, a scene, a released scrub, a Live jump, the g.e.t. box) re-points it, and **Resync** does so on demand. It plays in real time on its own; its pause and rate are independent. Each event's ↗ opens that moment in the same window.
 
@@ -38,7 +42,7 @@ The room renders at one of two qualities, shown and switched by the button at it
 | **Tour** | A slow loop through every scene, a few minutes each, with a caption naming the shot and its g.e.t. With scene 8 it ends by orbiting the stack from outside, then looking out of the CM's left rendezvous window. Loops forever. | [?mode=tour](https://aaronsb.github.io/view1108/?mode=tour) |
 | **Live** | The Apollo 11 mission clock at 1× (or 10×, 60×, 300×, 1000×). The scene follows the mission phase from the g.e.t.: Earth parking orbit until 2:50:00, translunar coast until 75:50:00, lunar orbit until 135:24:00, then transearth coast. The transposition and docking, the LM rendezvous and the descent are jump windows. Phases and jumps are the LIVE and JUMP `SPAN` cards of the Apollo 11 deck. | [Live at touchdown](https://aaronsb.github.io/view1108/?mode=live&get=102:45:40) |
 | **Free-look** | Time paused or running at a chosen speed; look anywhere at the current moment. Any drag, wheel or key in Attract or Tour switches to Free-look and keeps the view. | [A frozen Earthrise](https://aaronsb.github.io/view1108/?mode=free&scene=1&get=102:20:06&fov=8) |
-| **Beam** | In the Print tab. Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades, with a beam spot on the pen. The mission clock advances one frame at a time, by however long the frame took to draw. | [Slow trace of the Earth](https://aaronsb.github.io/view1108/?mode=beam&scene=2&bspeed=3) |
+| **Beam** | Started from the Print tab (Beam trace, or `T`). Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades, with a beam spot on the pen. The mission clock advances one frame at a time, by however long the frame took to draw. | [Slow trace of the Earth](https://aaronsb.github.io/view1108/?mode=beam&scene=2&bspeed=3) |
 
 ### Beam speeds (`bspeed`)
 
@@ -161,7 +165,7 @@ Each control group in the dock has a header: `[-]` shows the group is open, `[+]
 | Parameter | Values | Example |
 |---|---|---|
 | `mode` | `attract`, `tour`, `live`, `free`, `beam` | `?mode=live` |
-| `tab` | `review`, `simulate`, `print`, `fusion`, `source`. Without it, the mode's tab (Live: Simulate, Beam: Print, else Review); with no `mode`, the tab's mode on entering. Beam is always in Print | `?tab=simulate` |
+| `tab` | `review`, `simulate`, `print`, `fusion`, `source`. Without it, the mode's tab (Live: Simulate, Beam: Print, else Review). With no `mode`, the link loads that tab's mode at the first scene (Simulate: Live; Print and Fusion: Free-look; Review and Source: Attract) and its other view keys are ignored. Beam is always in Print | `?tab=simulate` |
 | `scene` | `1`–`9` (in Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase; `9` opens in Free-look) | `?mode=free&scene=7` |
 | `photo` | a frame in `data/photos.tsv` with a scene: opens it in Fusion, then `get`, `fov`, `yaw`, `pitch` and `roll` apply on top | `?tab=fusion&photo=AS08-14-2383` |
 | `get` | g.e.t. as `h:mm:ss` or seconds | `?get=102:45:40` |
