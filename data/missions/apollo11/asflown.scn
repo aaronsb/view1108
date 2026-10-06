@@ -669,13 +669,16 @@ HDRREF OBJ=CSMTUNNEL OFFSET=2.743E-3 RADIUS=1.0E-2 SRC="ours"
 * the tables are generated; END is the end of the scenario.  SIT= names a
 * situation of this deck.
 *
-*   SPAN TRACK=FOLLOW SIT= UNTIL= [VIEW=] [TARGET=] [FOV=]
+*   SPAN TRACK=FOLLOW SIT= UNTIL= [VIEW=] [TARGET=] [FOV=] [CAPTION=]
 *     The timeline's camera (Review: an event jump, and Following as the
 *     g.e.t. runs) while the g.e.t. is before UNTIL; FOLLOW cards in g.e.t.
 *     order, the last UNTIL=END.  VIEW= WINDOW|EXTERNAL|CM|LM and TARGET=
 *     EARTH|MOON|SUN|CSM|LM|SIVB as on the VIEWS card (in_view, in_target);
 *     absent, the situation's own.  FOV= the field (deg); absent, the
-*     situation's default.
+*     situation's default.  CAPTION= the caption while the situation shown
+*     is the span's, outside Live and the reels (which caption their own);
+*     absent, the situation's.  For a situation that spans several phases
+*     (Apollo 8's scene 9).
 *   SPAN TRACK=LIVE SIT= UNTIL= NAME=
 *     Live's mission phase while the g.e.t. is before UNTIL, NAME its
 *     caption; LIVE cards in g.e.t. order, the last UNTIL=END.  Live follows

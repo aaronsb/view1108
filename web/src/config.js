@@ -20,6 +20,12 @@ const hasScene = s => !!SITS[s - 1];
 const sitOf = s => SITS[s - 1] || {};
 const sitCaption = s => sitOf(s).caption;   // caption text where a situation needs more than its title
 const spansOf = scn => (SCNS[scn] || { spans: { follow: [], live: [], jump: [], pin: [] } }).spans;
+// Scenario scn's FOLLOW span at g.e.t. g, [until, situation, in_view, in_target, field] and its CAPTION= where it has
+// one: the first whose until (null: END) is after g.
+const followAt = (scn, g) => { const t = spansOf(scn).follow; return t.find(s => s[0] === null || g < s[0]) || t[t.length - 1]; };
+// The caption a FOLLOW span gives situation s at g.e.t. g, where the span is s's (#35: a situation that spans several
+// phases, Apollo 8's scene 9).
+const spanCaption = (s, g) => { const sp = followAt(sitOf(s).scenario, g); return sp && sp[1] === s ? sp[5] : undefined; };
 // Live follows the one scenario with LIVE spans; its jumps and pinned situations are that scenario's.
 const LIVE_SCN = Object.keys(SCNS).find(k => spansOf(k).live.length);
 const SPEEDS = [0, 1, 2, 4, 10, 30, 100, 300, 1000];

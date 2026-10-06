@@ -386,36 +386,47 @@ VIEWS VIEW=WINDOW TARGET=MOON OFFTARGET=EARTH RIDES=CSM CM=ALWAYS LM=PLACED
 * aimed at the Earth on Apollo 11's transearth coast (figure 7.3.2-1,
 * "constant field of view (earth)", printed p. 207).
 *
+* Captions (#35; ours): scene 9 is the Earthrise camera only in lunar orbit,
+* so each span outside it names its phase (CAPTION=), else the page would
+* caption the parking orbit or the entry "Apollo 8 Earthrise".  The phase
+* names are MR8's section 5 headings (its contents): 5.1 Launch phase
+* (p. 5-1), 5.2 Earth parking orbit (p. 5-1), 5.3 Translunar injection
+* (p. 5-2), 5.5 Lunar orbit insertion (p. 5-3), 5.6 Transearth injection
+* (p. 5-3), 5.8 Entry (p. 5-3); and its summary's "translunar and
+* transearth coast phases" (section 1.0).  Which span gets
+* which name is ours.  The lunar orbit span keeps the situation's own
+* title, Apollo 8 Earthrise.
+*
 * The pad and the ascent (TABLE leg, SP p. 45) to S-IVB cutoff, where the
 * CIRC leg begins (FROM 0:11:24.98).
-SPAN TRACK=FOLLOW SIT=9 UNTIL=0:11:24.98 VIEW=EXTERNAL TARGET=EARTH FOV=20
+SPAN TRACK=FOLLOW SIT=9 UNTIL=0:11:24.98 VIEW=EXTERNAL TARGET=EARTH FOV=20 CAPTION="Apollo 8 launch phase"
 * The CIRC leg to the S-IVB's 2nd burn ignition, 2:50:37.79 (SP p. 48): the
 * horizon view at situation 3's 70 deg.
-SPAN TRACK=FOLLOW SIT=9 UNTIL=2:50:37.79 FOV=70
+SPAN TRACK=FOLLOW SIT=9 UNTIL=2:50:37.79 FOV=70 CAPTION="Apollo 8 Earth parking orbit"
 * TLI, to its cutoff 2:55:55.51 (SP p. 48): the CM station at 100 deg, the
 * Apollo 11 note's TLI format (figure 5.1-1).
-SPAN TRACK=FOLLOW SIT=9 UNTIL=2:55:55.51 VIEW=CM FOV=100
+SPAN TRACK=FOLLOW SIT=9 UNTIL=2:55:55.51 VIEW=CM FOV=100 CAPTION="Apollo 8 translunar injection"
 * The CIRC leg stretched to TLI (the TLI event, MR8 Table 5-II p. 5-7).
-SPAN TRACK=FOLLOW SIT=9 UNTIL=TLI FOV=70
+SPAN TRACK=FOLLOW SIT=9 UNTIL=TLI FOV=70 CAPTION="Apollo 8 translunar injection"
 * The TLI conic while the Earth's disc overfills the window's 50 deg field:
 * 50 deg across at about 8150 nmi, 3:27 (our run).
-SPAN TRACK=FOLLOW SIT=9 UNTIL=3:27:00 VIEW=EXTERNAL TARGET=EARTH FOV=20
+SPAN TRACK=FOLLOW SIT=9 UNTIL=3:27:00 VIEW=EXTERNAL TARGET=EARTH FOV=20 CAPTION="Apollo 8 translunar coast"
 * The translunar conics to LOI ignition (the first LUNAR leg's FROM; the
 * LOI1 event, MR8 Table 3-I p. 3-3).
-SPAN TRACK=FOLLOW SIT=9 UNTIL=LOI1 TARGET=EARTH FOV=50
+SPAN TRACK=FOLLOW SIT=9 UNTIL=LOI1 TARGET=EARTH FOV=50 CAPTION="Apollo 8 translunar coast"
 * LOI, to its cutoff 69:12:27.3 (SP p. 49): the CM station at 100 deg, the
 * Apollo 11 note's LOI format (figure 6.1-1), the Moon's limb across the
 * frame (no LM).
-SPAN TRACK=FOLLOW SIT=9 UNTIL=69:12:27.3 VIEW=CM FOV=100
+SPAN TRACK=FOLLOW SIT=9 UNTIL=69:12:27.3 VIEW=CM FOV=100 CAPTION="Apollo 8 lunar orbit insertion"
 * Lunar orbit to TEI ignition (the last LUNAR leg's TO; the TEI event, MR8
 * Table 3-I p. 3-3).
 SPAN TRACK=FOLLOW SIT=9 UNTIL=TEI
 * TEI, to its cutoff 89:22:40.3 (SP p. 49): the CM station at 100 deg, the
 * Apollo 11 note's TEI format (figure 7.1-1).
-SPAN TRACK=FOLLOW SIT=9 UNTIL=89:22:40.3 VIEW=CM FOV=100
+SPAN TRACK=FOLLOW SIT=9 UNTIL=89:22:40.3 VIEW=CM FOV=100 CAPTION="Apollo 8 transearth injection"
 * The transearth conics to entry interface (the EI event, MR8 Table 3-I p.
 * 3-4).
-SPAN TRACK=FOLLOW SIT=9 UNTIL=EI TARGET=EARTH FOV=50
+SPAN TRACK=FOLLOW SIT=9 UNTIL=EI TARGET=EARTH FOV=50 CAPTION="Apollo 8 transearth coast"
 * The entry (TABLE leg, MR8 Tables 5-V and 6.9-IV) to splashdown, 147:00:42,
 * then the splash point.
-SPAN TRACK=FOLLOW SIT=9 UNTIL=END VIEW=EXTERNAL TARGET=EARTH FOV=20
+SPAN TRACK=FOLLOW SIT=9 UNTIL=END VIEW=EXTERNAL TARGET=EARTH FOV=20 CAPTION="Apollo 8 entry"
