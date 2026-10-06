@@ -9,7 +9,8 @@ Inputs (all in data/):
   missions/<id>/mission.scn     a mission's identity: name, epoch (range zero), landing site, pad
   missions/<id>/*.scn           its scenarios (run decks): trajectory legs, events, timeline
   meeus47.txt                   Meeus ch. 47 lunar periodic terms (tables 47.A and 47.B)
-  scenes.scn                    each scene and its scenario -> build/scenes.json (Makefile, selftest)
+  missions/<id>/*.scn           also each scenario's situations (SITUATION, RECIPE, VIEWS, HDRREF
+                                cards) -> src/viewsit.f, src/viewsit.inc and build/scenes.json
 
 Everything is written in the J2000 equatorial frame. AGC star vectors are precessed
 from 1969.5 to J2000 so they share a frame with the catalog.
@@ -210,7 +211,11 @@ CARD_KEYS = {
     "REF": {"T", "BODY", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG", "SRC"},
     "BURN": {"T", "DV", "BODY", "P", "R", "N", "SRC"},
     "BURNCUE": {"IGN", "CUT", "VEH", "ENG", "SRC"},
-    "SCENE": {"ID", "SCENARIO"},
+    "SITUATION": {"ID", "NAME", "GET", "FOV", "LOOK", "WINDOW", "LAYERS", "POSE", "DRAW", "SRC"},
+    "RECIPE": {"NAME", "BODY", "MODE", "AZ", "ELEV", "TURN", "OFFLEG", "OFFELEV", "ATT", "AT",
+               "FIX", "DRIFT", "ELOFF", "VEH", "ALT", "DIST", "SRC"},
+    "VIEWS": {"VIEW", "TARGET", "OFFTARGET", "RIDES", "CM", "LM", "FIXED", "XSTART", "SRC"},
+    "HDRREF": {"OBJ", "OFFSET", "RADIUS", "SRC"},
 }
 
 
@@ -296,7 +301,8 @@ def scenarios():
     and files in name order.  Returns scenarios (dicts with id, mission, name, jd, site, pad,
     sources; the mission's cards are copied into each of its scenarios), legs and events, each
     carrying its scenario id and source string."""
-    mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": [], "tl": [], "cue": []}
+    mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": [], "tl": [], "cue": [],
+                                       "sit": []}
     for mdir in sorted(p for p in (D / "missions").iterdir() if p.is_dir()):
         mpath = mdir / "mission.scn"
         assert mpath.is_file(), f"{mdir.relative_to(D)}: no mission.scn (the mission's cards)"
@@ -384,6 +390,8 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
         assert kv["VEH"] in BURN_VEH and kv["ENG"] in BURN_ENG, f"{name}: BURNCUE VEH= or ENG="
         sim["cue"].append({"m": cur["n"], "ign": kv["IGN"], "cut": kv["CUT"], "veh": kv["VEH"],
                            "eng": kv["ENG"], "src": kv.get("SRC", "")})
+    elif kind in SIT_CARDS:
+        situation_card(name, kind, kv, cur, sim["sit"])
     elif kind == "EVENT":
         evs.append({"m": cur["n"], "kind": EVENT_KINDS[kv["KIND"]], "t": get_s(kv["T"]),
                     "src": kv["KIND"] + ": " + kv.get("SRC", "")})
@@ -392,22 +400,279 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
     return tab
 
 
-def scenes(mis):
-    """data/scenes.scn: each scene's scenario, scenes 1..N, checked against the scenarios and
-    against the kernel's own copy, DATA ISNSC in src/vdrive.f (until #17 retires both)."""
-    scn = {}
-    for kind, kv in cards(D / "scenes.scn"):
-        if kind == "*END":
-            break
-        assert kind == "SCENE", f"scenes.scn: {kind} card"
-        scn[int(kv["ID"])] = int(kv["SCENARIO"])
-    ids = sorted(scn)
-    assert ids == list(range(1, len(ids) + 1)), "scenes.scn: scene ids must be 1..N"
-    assert set(scn.values()) <= {m["n"] for m in mis}, "scenes.scn: unknown SCENARIO="
-    m = re.search(r"^\s+DATA ISNSC /([^/]*)/", (R / "src" / "vdrive.f").read_text(), re.M)
-    assert m and [int(v) for v in m.group(1).split(",")] == [scn[k] for k in ids], \
-        "scenes.scn and DATA ISNSC in src/vdrive.f disagree"
-    return {"scenes": ids, "scenario": {str(k): scn[k] for k in ids}}
+# Situations (#17): SITUATION cards in a scenario deck, each followed by its RECIPE and VIEWS cards
+# and, optionally, an HDRREF card.  A situation's ID is global (1..N across all decks) and is the
+# kernel's scene number (view_init(scene)); its scenario is the deck it sits in.  The codes below are
+# shared with the kernel through src/viewsit.inc (the tables) and src/viewcom.inc (the current
+# situation, /CSITU/, copied from the tables by SITSET in src/vdrive.f).
+SIT_CARDS = {"SITUATION", "RECIPE", "VIEWS", "HDRREF"}
+LAYER_IDS = {"FRAME": 1, "STARS": 2, "SUN": 3, "MOON": 4, "EARTH": 5, "VEHICLES": 6, "COAS": 7,
+             "SHADOW": 8, "LPD": 9, "BURN": 10}
+MAXLAY = 12                                   # SILY(MAXLAY, NSIT), ended by 0 when shorter
+GET_RULES = {"ERISE": 3}                      # named computed default times: ERFIND's TERISE
+WINDOWS = {"CSM": 1, "LM": 2}                 # hdr(8): 1 CSM window, 2 LM front window
+POSES = {"LMPIRO": 1, "S7POSE": 2, "S8POSE": 3}
+DRAW_BITS = {"NOSHADE": 1, "MOONDISC": 2, "NOLMMARK": 4}
+RECIPES = {"LOCALVERT": 1, "INERTIAL": 2, "CREWSTN": 3, "BODYCTR": 4, "EXTSEED": 5}
+BODIES = {"EARTH": 1, "MOON": 2}
+MODES = {"FORWARD": 1, "NORMAL": 2}
+ATTS = {"SIGHTLINE": 1, "S7ATT": 2, "S8ATT": 3}
+CREW_VEH = {"CM": 1, "LM": 2}
+VIEWS_ = {"WINDOW": 0, "EXTERNAL": 1, "CM": 2, "LM": 3}
+TARGETS = {"EARTH": 1, "MOON": 2, "SUN": 3, "CSM": 4, "LM": 5, "SIVB": 6}
+RIDES = {"NONE": 0, "CSM": 1, "LM": 2}
+STATION_RULES = {"NO": 0, "PLACED": 1, "ALWAYS": 2}
+HDR_OBJS = {"BODY": 0, "LM": 1, "LMDOCK": 2, "CSMTUNNEL": 3}
+
+
+def dlit(tok):
+    """A card's decimal number as a FORTRAN double precision literal with the same digits (E
+    exponent to D, D0 added), so the BLOCK DATA holds exactly the constant the code had."""
+    float(tok)
+    t = tok.upper().replace("E", "D")
+    if "D" not in t:
+        t += "D0"
+    m, e = t.split("D")
+    if "." not in m:
+        m += ".0"
+    return m + "D" + e
+
+
+def tlit(v):
+    """A g.e.t. or interval in seconds (from get_s) as a literal; card times are whole or tenths."""
+    assert abs(v * 1000 - round(v * 1000)) < 1e-6, v
+    return f"{v:.3f}D0"
+
+
+def situation_card(name, kind, kv, cur, sits):
+    """One SITUATION, RECIPE, VIEWS or HDRREF card of scenario cur into sits."""
+    assert cur is not None, f"{name}: {kind} card before the SCENARIO card"
+    if kind == "SITUATION":
+        sits.append({"id": int(kv["ID"]), "m": cur["n"], "deck": str(name), "kv": kv})
+        return
+    assert sits and sits[-1]["m"] == cur["n"], f"{name}: {kind} card before its SITUATION card"
+    assert kind not in sits[-1], f"{name}: situation {sits[-1]['id']}: a second {kind} card"
+    sits[-1][kind] = kv
+
+
+def get_rule(txt, evkinds):
+    """GET= of a SITUATION card: a g.e.t. (literal), EVENT+offset or EVENT-offset (an EVENT card
+    of the scenario), or a named rule (GET_RULES) with an offset.  Returns (kind, event code,
+    seconds): kind 1 literal, 2 event, 3 Earthrise (ERFIND)."""
+    m = re.fullmatch(r"([A-Z][A-Z0-9]*)(?:([+-])(.+))?", txt)
+    if not m:
+        return 1, 0, get_s(txt)
+    off = get_s(m.group(3)) if m.group(3) else 0.0
+    off = -off if m.group(2) == "-" else off
+    if m.group(1) in GET_RULES:
+        return GET_RULES[m.group(1)], 0, off
+    assert m.group(1) in EVENT_KINDS, f"GET={txt}: no event or rule {m.group(1)}"
+    return 2, EVENT_KINDS[m.group(1)], off
+
+
+def situations(mis, evs, sits):
+    """Check the situation cards and lay out their table rows, situations 1..N."""
+    out = []
+    for t in sits:
+        kv, where = t["kv"], f"{t['deck']}: situation {t['id']}"
+        assert "RECIPE" in t and "VIEWS" in t, f"{where}: needs a RECIPE and a VIEWS card"
+        rc, vw, hr = t["RECIPE"], t["VIEWS"], t.get("HDRREF", {"OBJ": "BODY"})
+        evk = {e["kind"] for e in evs if e["m"] == t["m"]}
+        r = {"id": t["id"], "m": t["m"], "name": kv["NAME"],
+             "src": [f"{kv['NAME']}, recipe {rc['NAME']}: " + kv.get("SRC", "")]
+             + [f"{c}: {d['SRC']}" for c, d in (("RECIPE", rc), ("VIEWS", vw), ("HDRREF", hr))
+                if "SRC" in d]}
+        gk, ge, gt = get_rule(kv["GET"], EVENT_KINDS)
+        assert gk != 2 or ge in evk, f"{where}: GET={kv['GET']}: the scenario has no such EVENT"
+        r["get"] = (gk, ge, tlit(gt))
+        fov = kv["FOV"]
+        r["fov"] = (2, dlit(fov.split(":")[1])) if fov.startswith("DISC:") else (1, dlit(fov))
+        look = kv.get("LOOK", "0,0,0").split(",")
+        assert len(look) == 3, f"{where}: LOOK=yaw,pitch,roll"
+        r["look"] = [dlit(x) for x in look]
+        r["win"] = WINDOWS[kv["WINDOW"]]
+        lay = [LAYER_IDS[x] for x in kv["LAYERS"].split(",")]
+        assert len(lay) <= MAXLAY and len(set(lay)) == len(lay), f"{where}: LAYERS"
+        r["lay"] = lay + [0] * (MAXLAY - len(lay))
+        r["pose"] = POSES[kv["POSE"]] if "POSE" in kv else 0
+        r["draw"] = sum(DRAW_BITS[x] for x in kv["DRAW"].split(",")) if "DRAW" in kv else 0
+        # The recipe and its parameters.  Each recipe takes only the parameter values the kernel
+        # has a code path for; anything else is refused here rather than drawn wrongly.
+        rcp = RECIPES[rc["NAME"]]
+        p = {"rcp": rcp, "bod": 0, "mod": 0, "az": 0, "elv": "0.0D0", "trn": 0,
+             "tn": ["0.0D0"] * 3, "fb": 0, "fel": "0.0D0", "att": 0, "fe": 0, "fix": "0.0D0",
+             "drf": "0.0D0", "elo": "0.0D0", "veh": 0, "alt": "0.0D0", "dst": "0.0D0"}
+        if rcp == 1:
+            p["bod"], p["mod"] = BODIES[rc["BODY"]], MODES[rc["MODE"]]
+            p["az"] = {"NONE": 0, "EARTH": 1}[rc.get("AZ", "NONE")]
+            p["elv"] = dlit(rc.get("ELEV", "0"))
+            if p["bod"] == 2:
+                assert float(rc.get("ELEV", "0")) == 0, f"{where}: LOCALVERT about the Moon: ELEV=0 only"
+                assert p["mod"] == 1 or p["az"] == 0, f"{where}: NORMAL takes no AZ="
+            else:
+                assert p["mod"] == 1 and p["az"] == 0, f"{where}: LOCALVERT about the Earth: FORWARD, no AZ="
+            if "TURN" in rc:
+                assert p["bod"] == 2 and p["mod"] == 1, f"{where}: TURN= on the Moon's FORWARD view only"
+                p["trn"], p["tn"] = 1, [dlit(x) for x in rc["TURN"].split(",")]
+                assert len(p["tn"]) == 3, f"{where}: TURN=yaw,pitch,roll"
+            if "OFFLEG" in rc:
+                assert p["bod"] == 2 and rc["OFFLEG"] == "EARTH", f"{where}: OFFLEG=EARTH from the Moon only"
+                p["fb"], p["fel"] = 1, dlit(rc["OFFELEV"])
+        elif rcp == 2:
+            p["att"] = ATTS[rc["ATT"]]
+            assert p["att"] in (1, 2), f"{where}: INERTIAL: ATT=SIGHTLINE or S7ATT"
+            if p["att"] == 1:
+                assert rc["BODY"] == "EARTH", f"{where}: INERTIAL SIGHTLINE: BODY=EARTH only"
+                p["bod"], p["fe"] = 1, EVENT_KINDS[rc["AT"]]
+                assert p["fe"] in evk, f"{where}: AT={rc['AT']}: the scenario has no such EVENT"
+                p["fix"], p["drf"] = tlit(get_s(rc["FIX"])), tlit(get_s(rc["DRIFT"]))
+                p["elo"] = dlit(rc["ELOFF"])
+        elif rcp == 3:
+            p["veh"] = CREW_VEH[rc["VEH"]]
+            assert p["veh"] == 2, f"{where}: CREWSTN VEH=CM has no axes source yet (the CM station is in_view 2)"
+            p["bod"] = 2
+        elif rcp == 4:
+            assert rc["BODY"] == "MOON", f"{where}: BODYCTR: BODY=MOON only"
+            p["bod"], p["alt"] = 2, dlit(rc["ALT"])
+        else:
+            assert rc["ATT"] == "S8ATT", f"{where}: EXTSEED: ATT=S8ATT only"
+            p["att"], p["bod"], p["dst"] = 3, 1, dlit(rc["DIST"])
+        assert r["fov"][0] == 1 or rcp == 4, f"{where}: FOV=DISC: needs BODYCTR"
+        r.update(p)
+        # View rules.
+        r["vw"] = VIEWS_[vw.get("VIEW", "WINDOW")]
+        r["tgt"] = TARGETS[vw["TARGET"]]
+        r["tgf"] = TARGETS[vw["OFFTARGET"]] if "OFFTARGET" in vw else 0
+        assert (r["tgf"] != 0) == (r["fb"] == 1), f"{where}: OFFTARGET= goes with the recipe's OFFLEG="
+        r["rid"] = RIDES[vw["RIDES"]]
+        r["cm"], r["lm"] = STATION_RULES[vw["CM"]], STATION_RULES[vw["LM"]]
+        r["fix_"] = {"NO": 0, "YES": 1}[vw.get("FIXED", "NO")]
+        xs = vw.get("XSTART")
+        r["xo"], r["xy"] = (1, [dlit(x) for x in xs.split(",")]) if xs else (0, ["0.0D0"] * 2)
+        assert len(r["xy"]) == 2, f"{where}: XSTART=yaw,pitch"
+        # Header reference object.
+        r["hk"] = HDR_OBJS[hr["OBJ"]]
+        r["ho"] = dlit(hr.get("OFFSET", "0"))
+        r["hr"] = dlit(hr.get("RADIUS", "0"))
+        assert r["hk"] != 2 or r["pose"] == POSES["S7POSE"], f"{where}: HDRREF OBJ=LMDOCK needs POSE=S7POSE"
+        assert r["hk"] != 3 or r["pose"] == POSES["S8POSE"], f"{where}: HDRREF OBJ=CSMTUNNEL needs POSE=S8POSE"
+        out.append(r)
+    out.sort(key=lambda r: r["id"])
+    assert [r["id"] for r in out] == list(range(1, len(out) + 1)), "situation ids must be 1..N"
+    assert {r["m"] for r in out} <= {m["n"] for m in mis}
+    return out
+
+
+def datas(pairs):
+    """Fixed-form DATA statements naming each element: pairs of (element, literal), packed within
+    72 columns and 19 continuation lines."""
+    out, names, vals = [], [], []
+
+    def flush():
+        if not names:
+            return
+        lines, line = [], "      DATA "
+        for i, n in enumerate(names):
+            w = n + ("," if i < len(names) - 1 else "")
+            if len(line) + len(w) + 1 > 72:
+                lines.append(line.rstrip()); line = "     & "
+            line += w + " "
+        line += "/"
+        for i, v in enumerate(vals):
+            w = " " + v + ("," if i < len(vals) - 1 else " /")
+            if len(line) + len(w) > 72:
+                lines.append(line.rstrip()); line = "     &"
+            line += w
+        lines.append(line)
+        assert len(lines) <= 20 and all(len(x) <= 72 for x in lines)
+        out.extend(lines)
+        names.clear(); vals.clear()
+    for n, v in pairs:
+        if len(names) == 6:
+            flush()
+        names.append(n); vals.append(str(v))
+    flush()
+    return out
+
+
+SIT_INT = [("SISN", "m"), ("SIGK", None), ("SIGE", None), ("SIFK", None), ("SIWN", "win"),
+           ("SIPS", "pose"), ("SIDW", "draw"), ("SIRC", "rcp"), ("SIBD", "bod"), ("SIMD", "mod"),
+           ("SIAZ", "az"), ("SITR", "trn"), ("SIFB", "fb"), ("SIAT", "att"), ("SIFE", "fe"),
+           ("SIVH", "veh"), ("SIVW", "vw"), ("SITG", "tgt"), ("SITF", "tgf"), ("SIRD", "rid"),
+           ("SICM", "cm"), ("SILM", "lm"), ("SIFX", "fix_"), ("SIXO", "xo"), ("SIHK", "hk")]
+SIT_DBL = [("SIGT", None), ("SIFV", None), ("SIEL", "elv"), ("SIFL", "fel"), ("SIFT", "fix"),
+           ("SIDT", "drf"), ("SIEO", "elo"), ("SIAL", "alt"), ("SIDS", "dst"), ("SIHO", "ho"),
+           ("SIHR", "hr")]
+
+
+def write_situations(sits):
+    """src/viewsit.inc (NSIT, the tables' declarations and COMMON) and src/viewsit.f (BLOCK DATA
+    VIEWSB), one block of DATA statements per situation with its cards' sources."""
+    n = len(sits)
+    def decl(kw, names):
+        out, cur = [], []
+        for nm in names:
+            if len("      " + kw + " " + ", ".join(cur + [nm])) > 72:
+                out.append("      " + kw + " " + ", ".join(cur)); cur = []
+            cur.append(nm)
+        return out + ["      " + kw + " " + ", ".join(cur)]
+    inc = ["C     Generated by tools/gen_data.py from the SITUATION cards of",
+           "C     data/missions/*/*.scn.  Do not edit.",
+           "C     The situation tables, row K for situation K (the scene number",
+           "C     of view_init), loaded by BLOCK DATA VIEWSB (viewsit.f).  SITSET",
+           "C     (vdrive.f) copies a row into /CSITU/ (viewcom.inc); the codes",
+           "C     are listed there.  SISN scenario; GET rule SIGK (1 g.e.t. SIGT,",
+           "C     2 event SIGE plus SIGT, 3 ERFIND's Earthrise plus SIGT); FOV",
+           "C     rule SIFK (1 SIFV deg, 2 the disc fills SIFV of the frame);",
+           "C     SILK default yaw, pitch, roll; SILY layers, ended by 0; SITN",
+           "C     the recipe's reference turn; SIXY the external start offset;",
+           "C     SIFE, SIFT, SIDT, SIEO the INERTIAL SIGHTLINE fix event, fix",
+           "C     and drift intervals before it (s) and boresight offset (deg).",
+           "      INTEGER NSIT",
+           "C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)",
+           f"      PARAMETER (NSIT={n})"]
+    inc += decl("INTEGER", [f"{a}(NSIT)" for a, _ in SIT_INT] + [f"SILY({MAXLAY},NSIT)"])
+    inc += decl("DOUBLE PRECISION", [f"{a}(NSIT)" for a, _ in SIT_DBL]
+                + ["SILK(3,NSIT)", "SITN(3,NSIT)", "SIXY(2,NSIT)"])
+    cint = [a for a, _ in SIT_INT] + ["SILY"]
+    cdbl = [a for a, _ in SIT_DBL] + ["SILK", "SITN", "SIXY"]
+    for blk, names in (("CSIT", cdbl), ("CSITI", cint)):
+        line = f"      COMMON /{blk}/ "
+        for i, nm in enumerate(names):
+            w = nm + ("," if i < len(names) - 1 else "")
+            if len(line) + len(w) + 1 > 72:
+                inc.append(line.rstrip()); line = "     &               "
+            line += w + " "
+        inc.append(line.rstrip())
+    for ln in inc:
+        assert len(ln) <= 72, ln
+    (R / "src" / "viewsit.inc").write_text("\n".join(inc) + "\n")
+    b = ["C     Generated by tools/gen_data.py from the SITUATION cards of",
+         "C     data/missions/*/*.scn.  Do not edit.  Layout: viewsit.inc.",
+         "      BLOCK DATA VIEWSB",
+         "C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements",
+         "      INCLUDE 'viewsit.inc'",
+         "C     RESTOMOD END"]
+    for r in sits:
+        k = r["id"]
+        b.append(f"C     SITUATION {k} (scenario {r['m']})")
+        for x in r["src"]:
+            b += comment_wrap(x)
+        pairs = []
+        for a, key in SIT_INT:
+            v = {"SIGK": r["get"][0], "SIGE": r["get"][1], "SIFK": r["fov"][0]}.get(a) \
+                if key is None else r[key]
+            pairs.append((f"{a}({k})", v))
+        for a, key in SIT_DBL:
+            v = {"SIGT": r["get"][2], "SIFV": r["fov"][1]}.get(a) if key is None else r[key]
+            pairs.append((f"{a}({k})", v))
+        pairs += [(f"SILK({i + 1},{k})", v) for i, v in enumerate(r["look"])]
+        pairs += [(f"SITN({i + 1},{k})", v) for i, v in enumerate(r["tn"])]
+        pairs += [(f"SIXY({i + 1},{k})", v) for i, v in enumerate(r["xy"])]
+        pairs += [(f"SILY({i + 1},{k})", v) for i, v in enumerate(r["lay"])]
+        b += datas(pairs)
+    b.append("      END")
+    (R / "src" / "viewsit.f").write_text("\n".join(b) + "\n")
 
 
 def comment_wrap(txt, lead="C       "):
@@ -769,11 +1034,15 @@ def main():
              "TL_KINDS": list(TL_KINDS)}
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
-    (R / "build" / "scenes.json").write_text(json.dumps(scenes(mis)) + "\n")
+    sits = situations(mis, evs, sim["sit"])
+    write_situations(sits)
+    # The scene list make check and the selftest read: situation ids and their scenarios.
+    (R / "build" / "scenes.json").write_text(json.dumps(
+        {"scenes": [t["id"] for t in sits], "scenario": {str(t["id"]): t["m"] for t in sits}}) + "\n")
     print(f"stars {len(sx)} (nav 37), coast {len(coast)} lines / {len(clon)} pts, "
           f"craters {len(crat)}, scenarios {len(mis)} ({len(legs)} legs, {len(evs)} events, "
           f"{len(sim['start'])} start, {len(sim['burn'])} burns, {len(sim['ref'])} reference rows, "
-          f"{len(sim['tl'])} timeline rows, {len(cues)} burn cues)")
+          f"{len(sim['tl'])} timeline rows, {len(cues)} burn cues), situations {len(sits)}")
     for i in (4, 12, 29):
         x, y, z = nav[i]
         print(f"  check {NAV_NAMES[i]}: RA {math.degrees(math.atan2(y, x)) % 360:.2f} "

@@ -519,3 +519,140 @@ BURNCUE IGN="LM descent orbit insertion ignition (LM SPS)" CUT="LM descent orbit
 BURNCUE IGN="LM powered descent engine ignition" CUT="LM powered descent engine cutoff" VEH=LM ENG=DPS SRC="the rows (SP p. 107)"
 BURNCUE IGN="LM lunar liftoff ignition (LM APS)" CUT="LM orbit insertion cutoff" VEH=LM ENG=APS SRC="the row's LM APS (SP p. 108)"
 BURNCUE IGN="Transearth injection ignition (SPS)" CUT="Transearth injection cutoff" VEH=CSM ENG=SPS SRC="the row's SPS (SP p. 109)"
+*
+* SITUATIONS (#17; the model is ours: docs/systems-model.md, section 3).  A
+* situation is what a viewer picks: one camera recipe (a fixed set of kernel
+* camera code) and this scenario's facts for it.  Its ID is the kernel's
+* scene number (view_init(scene), hdr(7)): global across all decks, 1..N,
+* and kept stable; the situation runs on the scenario of the deck it sits in.
+* Each SITUATION card is followed by its RECIPE and VIEWS cards and,
+* optionally, an HDRREF card.  tools/gen_data.py writes them into
+* src/viewsit.f (BLOCK DATA VIEWSB, layout in src/viewsit.inc) and
+* build/scenes.json.  Every code below is ours.
+*
+*   SITUATION ID= NAME=
+*     GET=     default g.e.t.: h:mm:ss (or s); an EVENT kind plus or minus an
+*              offset (UNDOCK+120); or ERISE-60, ERFIND's Earthrise (traj.f:
+*              the Earth's disc clears the lunar horizon) less 60 s
+*     FOV=     default field (deg), or DISC:f, the reference body's disc
+*              filling the fraction f of the frame, rounded to 0.1 deg
+*     LOOK=    default yaw,pitch,roll (deg; default 0,0,0)
+*     WINDOW=  CSM|LM: hdr(8), 1 a CSM window, 2 the LM front window, whose
+*              sill hides what lies below it in the situation's own view
+*     LAYERS=  the layers in draw order (vlayer.f): FRAME STARS SUN MOON EARTH
+*              VEHICLES COAS SHADOW LPD BURN
+*     POSE=    LMPIRO|S7POSE|S8POSE, the kernel pose routine (vdrive.f) that
+*              places this situation's own models
+*     DRAW=    NOSHADE (no Earth night shading), MOONDISC (the whole-disc
+*              Moon: lmoon6.f's extras, craters of 25 km and up, unlabelled),
+*              NOLMMARK (no LM marker while landed)
+*   RECIPE NAME= and its parameters:
+*     LOCALVERT  local-vertical platform about BODY=EARTH|MOON.  MODE=FORWARD:
+*              along the motion, down to the horizon, ELEV= deg above it
+*              (Earth only); AZ=EARTH turns it in azimuth to the Earth's
+*              sightline at the default g.e.t. (AZOFF, after the Earthrise
+*              search); TURN=yaw,pitch,roll turns the result (Moon only);
+*              OFFLEG=EARTH OFFELEV=: where no LUNAR leg holds the g.e.t.,
+*              FORWARD about the Earth, OFFELEV deg above its horizon.
+*              MODE=NORMAL: along the orbit normal, local vertical up (Moon).
+*     INERTIAL  inertially fixed platform.  ATT=SIGHTLINE BODY=EARTH AT=event
+*              FIX= DRIFT= ELOFF=: boresight ELOFF deg ahead of the Earth's
+*              centre as seen FIX before the event, up against its drift from
+*              then to DRIFT before the event.  ATT=S7ATT: the stack's held
+*              attitude (S7ATT), looking down the LM's -X axis.
+*     CREWSTN  a crew station: its vehicle's design eye and front window.
+*              VEH=LM: the commander's eye on the descending LM's axes
+*              (LMDESC), LPDDN down from its +Z, riding the LM.  VEH=CM is
+*              the CM station's geometry (vview.f STATCM, in_view 2); no
+*              situation's own camera can name it until it has an axes
+*              source, so tools/gen_data.py refuses it for now.
+*     BODYCTR  above the sub-observer point of BODY=MOON, ALT= km up, looking
+*              at its centre; yaw and pitch move the sub-observer point
+*     EXTSEED  external view seeded on a vehicle: ATT=S8ATT, the camera DIST=
+*              km from it on its far side from the Earth
+*     TN D-6853 (printed p. 13) offers "an inertially fixed platform or a
+*     local-vertical platform" (as quoted in src/vview.f); the other recipes
+*     and all the names are ours.
+*   VIEWS
+*     VIEW=    WINDOW|EXTERNAL|CM|LM, the view used when in_view is 0
+*     TARGET=  the default target of an external view (in_target 0): EARTH
+*              MOON SUN CSM LM SIVB; OFFTARGET= the same where OFFLEG applies
+*     RIDES=   CSM|LM|NONE, the vehicle the camera rides in its own view
+*              (IRIDE); a camera riding the CSM gets the CSM drawn around it
+*              in an external view (CSMCAM)
+*     CM=, LM= the crew stations offered (in_view 2 and 3; hdr(22)): ALWAYS,
+*              PLACED (where that vehicle is placed as a model) or NO
+*     FIXED=YES the situation ignores in_view and in_target
+*     XSTART=  yaw,pitch: the external view's starting offset (deg)
+*   HDRREF   hdr(11-14)'s reference object, where it is not the reference
+*            body: OBJ=LM (the placed LM's centre), LMDOCK (S7POSE's docking
+*            target, OFFSET= km to the LM's -Y of its tunnel top), CSMTUNNEL
+*            (the placed CSM, OFFSET= km along its +X); RADIUS= km
+*
+* Earthrise: one minute before the Earth's disc clears the lunar horizon on
+* the revolution before the landing (ERFIND), turned in azimuth so the Earth
+* rises mid-frame.  Field ours.
+SITUATION ID=1 NAME="EARTHRISE" GET=ERISE-60 FOV=8.0 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN SRC="the film's first shot (t04.png); time and field ours"
+RECIPE NAME=LOCALVERT BODY=MOON MODE=FORWARD AZ=EARTH ELEV=0
+VIEWS VIEW=WINDOW TARGET=MOON RIDES=CSM CM=ALWAYS LM=PLACED
+*
+* Earth approach on the transearth coast: attitude held inertially from 10 h
+* before entry interface, so the disc climbs in from below, grows and leaves
+* only its limb arc as the spacecraft closes on entry.  Times and field ours.
+SITUATION ID=2 NAME="EARTH APPROACH" GET=EI-5:00:00 FOV=60 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN SRC="the film's second shot (t08.png to t20.png); times and field ours"
+RECIPE NAME=INERTIAL ATT=SIGHTLINE BODY=EARTH AT=EI FIX=10:00:00 DRIFT=1:00:00 ELOFF=0
+VIEWS VIEW=WINDOW TARGET=EARTH RIDES=CSM CM=ALWAYS LM=PLACED
+*
+* Earth parking orbit, looking forward 8 deg above the horizon.  No night
+* shading: the film shows none from low orbit.  Time, field and angle ours.
+SITUATION ID=3 NAME="EARTH LIMB" GET=1:30:00 FOV=70 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN DRAW=NOSHADE SRC="ours"
+RECIPE NAME=LOCALVERT BODY=EARTH MODE=FORWARD ELEV=8
+VIEWS VIEW=WINDOW TARGET=EARTH RIDES=CSM CM=ALWAYS LM=PLACED
+*
+* LM rendezvous and inspection, two minutes after undocking: the LM at its
+* state turning in place (LMPIRO), seen along the orbit normal.  No stars, as
+* on the film (t22.png, t25.png).  The header's reference object is the LM,
+* about half its width (ours).
+SITUATION ID=4 NAME="LM RENDEZVOUS" GET=UNDOCK+120 FOV=12 WINDOW=CSM LAYERS=FRAME,SUN,MOON,EARTH,VEHICLES,BURN POSE=LMPIRO SRC="the film's third shot (t22.png, t25.png); time and field ours"
+RECIPE NAME=LOCALVERT BODY=MOON MODE=NORMAL
+VIEWS VIEW=WINDOW TARGET=LM RIDES=CSM CM=ALWAYS LM=PLACED
+HDRREF OBJ=LM RADIUS=4.5E-3 SRC="ours"
+*
+* LM descent, the commander's front window in the P64 approach.  The film's
+* descent frame is numbered to +-50 at its edges; in the gnomonic plot (pen.f
+* PROJ) that is a physical field of 2 ATAN(50 deg in radians) = 82.4 deg.  The
+* camera rides the LM: its own view is the LM station.
+SITUATION ID=5 NAME="LM DESCENT" GET=102:42:00 FOV=82.4 WINDOW=LM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN,SHADOW,LPD SRC="the film's fourth shot (t28.png, t31.png, t35.png); time ours"
+RECIPE NAME=CREWSTN VEH=LM SRC="LPDDN fitted to the film's LPD marks (llpd.f)"
+VIEWS VIEW=WINDOW TARGET=MOON RIDES=LM CM=NO LM=ALWAYS
+*
+* Moon view, a modern addition (no 1969 plot type we have a source for): the
+* whole disc from 35,000 km above the sub-observer point, which puts the disc
+* at 85 percent of the frame (6.4 deg), at touchdown so the terminator falls
+* as it did for the landing.  All ours.  hdr(8) stays 1, as before.
+SITUATION ID=6 NAME="MOON VIEW" GET=TOUCH FOV=DISC:0.85 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES DRAW=MOONDISC,NOLMMARK SRC="ours, a modern addition"
+RECIPE NAME=BODYCTR BODY=MOON ALT=35000
+VIEWS VIEW=WINDOW TARGET=MOON RIDES=NONE CM=NO LM=NO FIXED=YES
+*
+* Transposition and docking, mid-approach, about 56 ft out (S7POSE's closing
+* law), looking along the CSM +X axis at the LM's docking target through the
+* COAS.  Field ours.  The external view starts 60 deg round and 25 deg up,
+* since down the docking axis the CSM's own solids hide the LM (ours).
+* Header: the docking target, 0.72 m to the LM's -Y of its tunnel (ours,
+* LMDOCK), and half the LM's 14 ft 1 in width (Apollo 11 press kit, printed
+* p. 96).
+SITUATION ID=7 NAME="TRANSPOSITION AND DOCKING" GET=APPR+60 FOV=30 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN,COAS POSE=S7POSE SRC="Mission Report MSC-00171 p. 4-2 and table 7-II p. 7-9 (see S7POSE); moment and field ours"
+RECIPE NAME=INERTIAL ATT=S7ATT
+VIEWS VIEW=WINDOW TARGET=LM RIDES=CSM CM=ALWAYS LM=PLACED XSTART=60,25
+HDRREF OBJ=LMDOCK OFFSET=0.72E-3 RADIUS=2.15E-3 SRC="Apollo 11 press kit, printed p. 96 (the LM's width); the offset ours"
+*
+* The docked stack in translunar coast, a modern addition (VIEW drew vehicles
+* as seen from a vehicle, TN D-6853 p. 12, not from outside both): half an
+* hour into passive thermal control (the PTC event), after the LM's
+* extraction and before the first midcourse correction, our choice of moment.
+* Its own view is external, 60 m from the stack on its far side from the
+* Earth.  Header: the CSM's tunnel top and about half the stack's length.
+SITUATION ID=8 NAME="DOCKED STACK" GET=PTC+1800 FOV=40 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN POSE=S8POSE SRC="Apollo 11 Flight Journal 010:58:19 (PTC); moment, distance and field ours"
+RECIPE NAME=EXTSEED ATT=S8ATT DIST=0.060
+VIEWS VIEW=EXTERNAL TARGET=CSM RIDES=NONE CM=ALWAYS LM=PLACED
+HDRREF OBJ=CSMTUNNEL OFFSET=2.743E-3 RADIUS=1.0E-2 SRC="ours"

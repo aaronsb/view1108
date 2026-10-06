@@ -25,13 +25,15 @@ src/*.f           KERNEL. Fixed-form FORTRAN 66/77 style. All geometry and drawi
                   separately compiled elements (below).
 src/viewdata.f    BLOCK DATA tables (stars, coastlines, craters). Generated; do not edit.
 src/viewdims.inc  Table sizes (PARAMETERs). Generated.
+src/viewsit.f     BLOCK DATA VIEWSB: the situation tables (layout in src/viewsit.inc).
+                  Generated from the SITUATION cards; do not edit.
 src/viewcom.inc   Kernel COMMON blocks, included by every kernel routine.
 src/shell.f90     CHASSIS. Modern Fortran: bind(c) globals and entry points for wasm.
-tools/gen_data.py data/ -> src/viewdata.f, src/viewdims.inc and build/names.js
+tools/gen_data.py data/ -> src/viewdata.f, src/viewdims.inc, src/viewsit.f, src/viewsit.inc,
+                  build/names.js and build/scenes.json (the scene list make check and the
+                  selftest read)
 data/missions/    one folder per mission: mission.scn (name, epoch, site, pad) and its
-                  scenarios (*.scn: trajectory legs, events, timeline)
-data/scenes.scn   each scene's scenario -> build/scenes.json, the list make check and the
-                  selftest read (the kernel's copy is ISNSC in VINIT; gen_data checks both)
+                  scenarios (*.scn: trajectory legs, events, timeline, situations)
 tools/viewsvg.f90 Native driver (gfortran): renders a scene/time to SVG for validation.
 tools/build.sh    gen_data -> lfortran (per file) -> clang -> wasm-ld -> wasm-opt -> wasm2js -> page
 web/              The page: film-recorder renderer, controls, text lettering.

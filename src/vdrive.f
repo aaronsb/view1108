@@ -42,7 +42,9 @@ C              extras), learth.f 5 Earth, lvehic.f 6 vehicles
 C              (lvlab.f their labels and markers),
 C              lcoas.f 7 COAS reticle, lshad.f 8 LM shadow,
 C              llpd.f 9 LPD and LM window, lburn.f 10 burn cue
-C       Data:  viewdata.f (BLOCK DATA, generated), viewcom.inc COMMON
+C       Data:  viewdata.f (BLOCK DATA, generated), viewsit.f (the
+C              situations' BLOCK DATA, generated from the SITUATION
+C              cards), viewcom.inc COMMON
 C
 C     THE ELEMENTS AGAINST TN D-6853, printed p. 3 (our reading).  "The
 C     program consists of two basic parts: the integrator portion and
