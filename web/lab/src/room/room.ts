@@ -17,7 +17,7 @@
 // the drive is the middle tape unit, the one the overview sees best (ours).
 import * as THREE from "three";
 import { EQUIPMENT, FOOTPRINT } from "../equipment";
-import type { BuildContext, Equipment, Footprint, Glow, Opens, Placed, Room } from "../types";
+import type { BuildContext, Equipment, Footprint, Glow, Placed, Room } from "../types";
 import { STATIONS, stationNamed } from "../stations";
 import { DOOR, ROOM, buildShell } from "./shell";
 import { batch } from "./batch";
@@ -50,7 +50,7 @@ export function build(ctx: BuildContext): Room {
   const place = (kind: string, at: [number, number, number], turn: number, name = `${kind}-${++count}`, opts?: Record<string, unknown>) => {
     const equipment = EQUIPMENT[kind] ? (EQUIPMENT[kind] as Builder)(ctx, opts) : standIn(kind);
     const st = stationNamed(name);
-    if (st && st.does !== "control") equipment.opens = st.opens as Opens;
+    if (st && st.does !== "control") equipment.opens = st.opens;   // narrowed to a tab or overlay row: an Opens
     const o = equipment.object, b = new THREE.Box3().setFromObject(o);
     o.position.set(...at); o.rotation.y = turn; o.updateMatrixWorld();
     o.userData.placed = name;

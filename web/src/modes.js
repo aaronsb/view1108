@@ -133,7 +133,8 @@ const reelLabel = () => auto() ? "DEMO" : sitOf(LS.situation).title || "";
 // The drive's STOP/START: the playback clock stops or runs again, through the clock setter (track); the mode, the
 // situation and the shot stay. In the room it is the drive (room.js); on the page, Play/Pause, which starts a demo the
 // drive stopped (demoHeld) and otherwise, as before, takes control out of it.
-function drivePlay() { track({ playing: !LS.playing }); syncUI(); }
+// Beam paces its own clock (loop.js), so there the drive has nothing to stop until Beam honours LS.playing.
+function drivePlay() { if (LS.mode === "beam") return; track({ playing: !LS.playing }); syncUI(); }
 const demoHeld = () => auto() && !LS.playing;
 if (DEBUG) {   // test hooks, enabled by ?debug
   window.VIEW_STEP = () => step(performance.now());

@@ -41,12 +41,13 @@ export const STATIONS = [
   { name: "library", kind: "bookcase", does: "overlay", opens: "library", tabs: [],
     label: "Reference library", at: "Click a binder to pull it out · click again to open", tabbed: "the library (Source's Library button)" },
   { name: "drive", kind: "uniservo", does: "control", opens: "playback", tabs: [],
-    label: "UNISERVO VIII-C — mounted reel", at: "", tabbed: "the Time panel's DEMO label and Play/Pause button" },
+    label: "UNISERVO VIII-C — mounted reel", at: "",
+    tabbed: "the Time group's DEMO label; Play restarts a demo the drive stopped, but Pause on a running demo takes control in Free-look (no plain STOP of the demo yet)" },
 ] as const satisfies readonly Station[];
 
 export type StationRow = typeof STATIONS[number];
 /** What a terminal opens when the camera arrives at it and it is opened: a tab or an overlay. */
 export type Opens = Extract<StationRow, { does: "tab" | "overlay" }>["opens"];
 
-export const stationNamed = (name: string): Station | undefined => STATIONS.find(s => s.name === name);
-export const stationOpening = (opens: string): Station | undefined => STATIONS.find(s => s.opens === opens);
+export const stationNamed = (name: string): StationRow | undefined => STATIONS.find(s => s.name === name);
+export const stationOpening = (opens: string): StationRow | undefined => STATIONS.find(s => s.opens === opens);

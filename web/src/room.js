@@ -124,8 +124,8 @@ function roomShowLab(from) {
   LAB.show(from, rect, ROOM_FADE);
   const inset = el && roomInset(), fadeIn = () => roomFade(true, () => {
     if (el) roomUnclip(el);
-    if (opens === "listing") roomListingClose();
-    roomLibraryClose();   // from the bookcase or not, the library does not stay open under the room
+    if (roomListing) roomListingClose();   // from the printer or not (the tab bar's ← Room), the listing and the
+    roomLibraryClose();                     // library do not stay open under the room
     document.body.classList.add("room");
   });
   if (inset) {
@@ -140,7 +140,7 @@ function roomShowLab(from) {
 function roomArrive(opens, name = "") {
   roomShown = false; document.body.classList.remove("room");
   setTab(roomTabOf(opens));
-  escPush("terminal", () => { if (tab !== "source" && fOn()) return; roomBack(roomTermOf(tab)); });
+  escPush("terminal", () => roomBack(roomTermOf(tab)));   // Fusion's Move photo takes Esc first (fusion.js)
   if (canvasTab()) cv.focus({ preventScroll: true });
   const el = roomScreenEl(opens), inset = el && roomInset();
   if (inset) roomClip(el, inset, "inset(0px)");

@@ -198,7 +198,7 @@ directory strip, the feed cables up from the floor, a dry control transformer, a
 
 ## The drive
 
-One tape unit, the middle of the seven (number 63), is the drive: the unit with the mounted reel (#20; the station table, `web/lab/src/stations.ts`). Everything that marks it is ours: a paper label across the lower edge of its window reads REEL and the reel's name (DEMO while the demo plays, Attract then Tour; else the situation's title), and two lenses at the label's right end, captioned RUN and STOP, light green or amber with the page's playback clock. Clicking it, or `E` in front of it, stops the clock or starts it again; while it runs its reels read in short bursts a second or a few apart, and stopped they hold still. No source says how VIEW's inputs were mounted or labelled (`docs/systems-model.md`, section 6).
+One tape unit, the middle of the seven (number 63), is the drive: the unit with the mounted reel (#20; the station table, `web/lab/src/stations.ts`). Everything that marks it is ours: a paper label across the lower edge of its window reads REEL and the reel's name (DEMO while the demo plays, Attract then Tour; else the situation's title), and two lenses at the label's right end, captioned RUN and STOP, light green or amber with the page's playback clock. Clicking it, or `E` in front of it, stops the clock or starts it again; while it runs its reels read in short bursts a second or a few apart, and stopped they hold still. Beam paces its own clock, so in Beam the drive shows no state (both lamps dark) and does nothing, until Beam honours the clock. No source says how VIEW's inputs were mounted or labelled (`docs/systems-model.md`, section 6).
 
 ## The reference library
 

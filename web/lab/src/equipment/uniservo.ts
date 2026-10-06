@@ -11,7 +11,8 @@
 // The drive (`drive: true`, the station table's "drive", ours): the unit with the mounted reel. A paper label across
 // the window's lower edge names the reel (DEMO while the demo plays, else the situation's title; LabState.reel) and a
 // RUN and a STOP lamp beside it say whether its playback clock runs (LabState.playing). Using it (a click, E) is the
-// page's STOP/START (lab.ts gives it its `use`). While it runs its reels read in bursts; stopped, they hold still.
+// page's STOP/START (lab.ts gives it its `use`). While it runs its reels read in bursts; stopped, they hold still. In
+// Beam, which paces its own clock, it shows no state: both lamps dark, the reels still.
 import * as THREE from "three";
 import type { BuildContext, Equipment, LabEvent, LabState } from "../types";
 import { PAL, Parts, at, canvasTex, grid, lampMat, lensGeo, paint, plateFontReady, plateText, rng, satinMetal, sharedGeo, smoked, chrome, plastic, poseFrom } from "./kit";
@@ -131,9 +132,9 @@ function reelLabel(mine: { dispose(): void }[]) {
     title = drawn = t;
     draw((tex.image as HTMLCanvasElement).getContext("2d")!); tex.needsUpdate = true;
   };
-  const lit = (playing: boolean) => {
-    (run.material as THREE.MeshBasicMaterial).color.set(playing ? RUN_ON : OFF);
-    (stop.material as THREE.MeshBasicMaterial).color.set(playing ? OFF : STOP_ON);
+  const lit = (playing: boolean | null) => {   // null: neither (Beam)
+    (run.material as THREE.MeshBasicMaterial).color.set(playing === true ? RUN_ON : OFF);
+    (stop.material as THREE.MeshBasicMaterial).color.set(playing === false ? STOP_ON : OFF);
   };
   return { card, run, stop, set, lit };
 }
@@ -179,7 +180,7 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
   const label = opts.drive ? reelLabel(mine) : null;
   if (label) object.add(label.card, label.run, label.stop);
   /** The drive's last reading of the page: whether its clock runs, and the reel's name. */
-  const mounted = { playing: true, reel: "", read: false };
+  const mounted = { playing: true, reel: "", beam: false, read: false };
 
   // State: tape position p (0 all on the file reel, at left), speed v (m/s, + forward), the queue of moves.
   let p = 0.15 + r() * 0.7, v = 0, idle = 4 + r() * 20, runs = 0;
@@ -204,16 +205,18 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
     object,
     // The drive's label is its screen anchor: what the walk's zone faces (E uses it).
     anchors: { camera: poseFrom(new THREE.Vector3(0, 1.3, 0.37), [0.25, 0.1, 1], 1.5, 40), motion, ...(label ? { screen: { mesh: label.card, uvRect: [0, 0, 1, 1] as [number, number, number, number] } } : {}) },
-    ...(label ? { status: () => `${mounted.reel} · ${mounted.playing ? "running · click to stop" : "stopped · click to start"}` } : {}),
+    ...(label ? { status: () => `${mounted.reel} · ${mounted.beam ? "Beam paces the clock" : mounted.playing ? "running · click to stop" : "stopped · click to start"}` } : {}),
     update(dt, s: LabState) {
       if (label) {
-        if (s.playing !== mounted.playing || s.reel !== mounted.reel || !mounted.read) {
-          mounted.playing = s.playing; mounted.reel = s.reel; mounted.read = true;
-          label.set(s.reel); label.lit(s.playing);
-          if (!s.playing) queue.length = 0;
+        // In Beam the drive does not drive the clock (Beam paces itself): both lamps dark, the reels still.
+        const beam = s.mode === "beam";
+        if (s.playing !== mounted.playing || s.reel !== mounted.reel || beam !== mounted.beam || !mounted.read) {
+          mounted.playing = s.playing; mounted.reel = s.reel; mounted.beam = beam; mounted.read = true;
+          label.set(s.reel); label.lit(beam ? null : s.playing);
+          if (!s.playing || beam) queue.length = 0;
         }
         // Running: bursts of reads, a second or few apart. Stopped: still.
-        if (s.playing && !queue.length && (idle -= dt) < 0) { idle = 1.5 + r() * 3; run(); }
+        if (s.playing && !beam && !queue.length && (idle -= dt) < 0) { idle = 1.5 + r() * 3; run(); }
       } else if (!queue.length && (idle -= dt) < 0) {
         idle = 8 + r() * 25;   // an occasional short shuttle
         const d = r() < 0.5 ? 1 : -1;
@@ -238,7 +241,7 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
       }
     },
     event(e: LabEvent) {
-      if (e.type !== "tape" || (label && !mounted.playing)) return;
+      if (e.type !== "tape" || (label && (!mounted.playing || mounted.beam))) return;
       runs++;
       if ((num + runs) % 3 !== 0) { queue.length = 0; run(); }   // about two in three units take part
     },

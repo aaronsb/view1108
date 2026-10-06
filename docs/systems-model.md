@@ -18,7 +18,7 @@ What the viewer meets, from the outside in. The layers and the station table are
 
 ### Stations
 
-From #27. This is the one declared equipment→purpose table that #20 asks for (section 6). It drives both presentations: in the room a station is equipment you walk to; in Tabbed the same row is a tab or panel (#27, requirement of 2026-10-06). The rows built so far are code: `STATIONS` in `web/lab/src/stations.ts` (#20; section 6 says what reads it). The shelf and the clock rows are not in it yet; the drive's Tabbed panel is, for now, the Time group's DEMO label and its Play/Pause button.
+From #27. This is the one declared equipment→purpose table that #20 asks for (section 6). It drives both presentations: in the room a station is equipment you walk to; in Tabbed the same row is a tab or panel (#27, requirement of 2026-10-06). The rows built so far are code: `STATIONS` in `web/lab/src/stations.ts` (#20; section 6 says what reads it). The shelf and the clock rows are not in it yet; the drive's Tabbed panel is, for now, only the Time group's DEMO label: Play restarts a demo the drive stopped, but Pause on a running demo takes control into Free-look, so Tabbed has no plain STOP of the demo yet (rule 7 is not met for this row).
 
 | Station | Purpose | Tabbed (tab or panel) |
 |---|---|---|
@@ -237,7 +237,7 @@ The room starts idle: the demo reel is mounted on a UNISERVO drive with a visibl
 
 - Entering the room, walking about and arriving at a terminal leave the loaded state as it is (rule 2).
 - Walk-up auto-entry (0.4 s dwell within 1.3 m, `web/lab/src/walk.ts`) is an option, off by default (#20): the room's WALK-UP button, remembered as `view1108.walkup` beside the room's other preferences.
-- A control at the drive starts and stops the mounted reel (#20). **Decision (2026-10-06, maintainer, on #20): the demo reel runs when the viewer enters, clearly labelled.** Attract plays on the 1558 as on page load; the drive (the middle UNISERVO, placed as `drive`) carries a paper label reading DEMO (the situation's title once another one is loaded) and lit RUN and STOP lamps; clicking it, or `E` in front of it, stops the playback clock and starts it again, through the clock setter (`track`), never by loading a situation; a line at the room's top left says what is playing and how to take control. In Tabbed the Time group labels the demo DEMO and Play/Pause starts a demo the drive stopped. Choosing other reels arrives with #19.
+- A control at the drive starts and stops the mounted reel (#20). **Decision (2026-10-06, maintainer, on #20): the demo reel runs when the viewer enters, clearly labelled.** Attract plays on the 1558 as on page load; the drive (the middle UNISERVO, placed as `drive`) carries a paper label reading DEMO (the situation's title once another one is loaded) and lit RUN and STOP lamps; clicking it, or `E` in front of it, stops the playback clock and starts it again, through the clock setter (`track`), never by loading a situation; a line at the room's top left says what is playing and how to take control. In Tabbed the Time group labels the demo DEMO and Play starts a demo the drive stopped; Pause still takes control into Free-look. In Beam, which paces its own clock, the drive shows no state and the hint line drops it. Choosing other reels arrives with #19.
 
 ### One station table
 

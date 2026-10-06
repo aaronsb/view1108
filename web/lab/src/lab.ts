@@ -361,9 +361,10 @@ export class Lab {
     const el = this.lineEl;
     if (!this.shown) { el.style.display = "none"; return; }
     const s = this.hooks.state(), fine = matchMedia("(any-pointer: fine)").matches;
-    const parts = [s.reel || "-", s.playing ? "running" : "stopped"];
+    // In Beam the clock follows the trace, not the drive (until Beam honours LabState.playing): no drive state.
+    const beam = s.mode === "beam", parts = [s.reel || "-", beam ? "beam trace" : s.playing ? "running" : "stopped"];
     if (!this.engaged) parts.push(fine && !this.lockFailed ? "click to look" : "drag to look", "WASD to walk", "click a terminal");
-    parts.push(`drive: ${s.playing ? "stop" : "start"}`);
+    if (!beam) parts.push(`drive: ${s.playing ? "stop" : "start"}`);
     const t = parts.join(" · ");
     if (el.textContent !== t) el.textContent = t;
     el.style.display = "block";
