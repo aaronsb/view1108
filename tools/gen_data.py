@@ -298,7 +298,10 @@ def scenarios():
     carrying its scenario id and source string."""
     mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": [], "tl": [], "cue": []}
     for mdir in sorted(p for p in (D / "missions").iterdir() if p.is_dir()):
-        ms = mission(mdir / "mission.scn")
+        mpath = mdir / "mission.scn"
+        assert mpath.is_file(), f"{mdir.relative_to(D)}: no mission.scn (the mission's cards)"
+        ms = mission(mpath)
+        nmis = len(mis)
         for path in sorted(p for p in mdir.glob("*.scn") if p.name != "mission.scn"):
             name = path.relative_to(D)
             cur, tab = None, None
@@ -316,7 +319,9 @@ def scenarios():
                            "src": list(ms["src"])}
                     mis.append(cur)
                 else:
+                    assert cur is not None, f"{name}: {kind} card before the SCENARIO card"
                     tab = scenario_card(name, kind, kv, cur, tab, legs, evs, sim)
+        assert len(mis) > nmis, f"{mdir.relative_to(D)}: no scenario (a .scn with a SCENARIO card)"
     mis.sort(key=lambda m: m["n"])
     assert [m["n"] for m in mis] == list(range(1, len(mis) + 1)), "scenario ids must be 1..N"
     for m in mis:
@@ -382,6 +387,8 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
     elif kind == "EVENT":
         evs.append({"m": cur["n"], "kind": EVENT_KINDS[kv["KIND"]], "t": get_s(kv["T"]),
                     "src": kv["KIND"] + ": " + kv.get("SRC", "")})
+    else:
+        raise AssertionError(f"{name}: {kind} card not valid in a scenario")
     return tab
 
 

@@ -17,7 +17,9 @@
 # location are dropped: a path or file name under data/ or tools/, a *.scn or *.py name, or the name
 # of tools/gen_data.py's BURN_CUES table.  These lines say where the tables came from, which a
 # data move changes by design; every other line, comments carrying card sources included, must
-# match.  names.js has no such strings and is compared unmasked.
+# match.  names.js has no such strings and is compared unmasked.  The number of masked lines per
+# file is recorded (masked.txt) and compared, so the mask cannot quietly swallow new lines.  The
+# commit and whether the tree was dirty are recorded too (source.txt; printed by check, not compared).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -121,6 +123,12 @@ capture() {
   rm -rf "$out"; mkdir -p "$out/render"
   grep -Ev "$MASK" src/viewdata.f > "$out/viewdata.f"
   grep -Ev "$MASK" src/viewdims.inc > "$out/viewdims.inc"
+  for f in src/viewdata.f src/viewdims.inc; do
+    echo "$f $(grep -Ec "$MASK" "$f" || true) masked lines"
+  done > "$out/masked.txt"
+  { echo "commit $(git rev-parse HEAD)"
+    if [ -n "$(git status --porcelain)" ]; then echo "tree dirty"; else echo "tree clean"; fi
+  } > "$out/source.txt"
   cp build/names.js "$out/names.js"
   python3 -c 'import json,sys; t=open(sys.argv[1]).read(); j=json.loads(t[t.index("=")+1:].rstrip().rstrip(";")); print(json.dumps(j, indent=1))' \
     build/names.js > "$out/names.pretty.json"
@@ -128,7 +136,8 @@ capture() {
   while IFS='|' read -r name envs args; do
     name=$(echo $name)
     # shellcheck disable=SC2086
-    env -u VIEW_TIME VIEW_HDR=1 $envs build/viewsvg $args > "$out/render/$name.txt" 2>&1
+    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV VIEW_HDR=1 $envs \
+      build/viewsvg $args > "$out/render/$name.txt" 2>&1
     n=$((n + 1))
   done <<< "$CASES"
   echo "golden: captured 3 tables and $n renders into $out"
@@ -140,7 +149,9 @@ case "${1:-}" in
   check)
     [ -d build/golden ] || { echo "golden: no baseline in build/golden; run 'make golden' on the reference tree first" >&2; exit 2; }
     capture build/golden.new
-    if diff -rq build/golden build/golden.new > build/golden.diff.txt; then
+    echo "golden: baseline from $(paste -sd' ' build/golden/source.txt 2>/dev/null || echo 'an unrecorded tree');" \
+         "this check from $(paste -sd' ' build/golden.new/source.txt)"
+    if diff -rq -x source.txt build/golden build/golden.new > build/golden.diff.txt; then
       echo "golden: check PASS: build/golden.new matches build/golden"
     else
       echo "golden: check FAIL: these files differ from the baseline (full diff: diff -r build/golden build/golden.new)" >&2
