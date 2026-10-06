@@ -220,7 +220,7 @@ CARD_KEYS = {
     "VIEWS": {"VIEW", "TARGET", "OFFTARGET", "RIDES", "CM", "LM", "FIXED", "XSTART", "SRC"},
     "HDRREF": {"OBJ", "OFFSET", "RADIUS", "SRC"},
     "SPAN": {"TRACK", "SIT", "UNTIL", "FROM", "LEN", "VIEW", "TARGET", "FOV", "NAME", "BUTTON",
-             "SRC"},
+             "CAPTION", "SRC"},
     "REEL": {"ID", "TITLE", "KIND", "ALIAS", "NEXT", "FADE", "FILM", "TAG", "SRC"},
     "SHOT": {"SIT", "NAME", "DUR", "GET", "RATE", "TO", "AT", "TTE", "LIMB", "FOV", "YAW", "PITCH",
              "ROLL", "VIEW", "TARGET", "LABELS", "FRAME", "CAPTION", "SRC"},
@@ -257,17 +257,18 @@ def flit(v):
 
 def get_s(v):
     """g.e.t. h:mm:ss.s, h:mm (or plain seconds) to seconds; a leading - counts down to range zero.
-    The float is computed as before; the literal is the exact decimal of the seconds, the card's
-    digits with h and mm folded in (h*3600 + mm*60 + ss, in decimal arithmetic)."""
+    One exact decimal feeds both: the literal is the decimal of the seconds, the card's digits with
+    h and mm folded in (h*3600 + mm*60 + ss, in decimal arithmetic), and the float is that decimal
+    correctly rounded, the double gfortran makes of the literal, so Python orders times as the
+    kernel does."""
     if ":" not in v:
         return cnum(v)
     neg = v.startswith("-")
     p = v.lstrip("-").split(":")
-    s = int(p[0]) * 3600 + int(p[1]) * 60 + (float(p[2]) if len(p) > 2 else 0.0)
     d = decimal.Decimal(int(p[0]) * 3600 + int(p[1]) * 60) + \
         (decimal.Decimal(p[2]) if len(p) > 2 else decimal.Decimal(0))
     txt = format(d, "f")
-    return Num(-s, dlit("-" + txt)) if neg else Num(s, dlit(txt))
+    return Num(-float(d), dlit("-" + txt)) if neg else Num(float(d), dlit(txt))
 
 
 def table_legs(name, tab):

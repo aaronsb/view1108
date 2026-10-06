@@ -215,6 +215,8 @@ Conjecture: how many builds the library needs is open. One build holding every e
 
 Today scenario data is compiled in: `tools/gen_data.py` turns `data/missions/*/*.scn` into `BLOCK DATA` in `src/viewdata.f` (`/CSCEN/`, `/CTLN/`; `CLAUDE.md`, Architecture), and `docs/vision.md` planned the same for new scenarios. With reels, the shell writes the run deck and tapes into the kernel's COMMON tables when a reel is loaded, through a new shell entry point (#26). Static catalogs (stars, coastlines, craters, the Moon series) stay compiled in as `BLOCK DATA`: they are the program's, not the run's.
 
+The 2026-10-06 decision on #26 makes this the kernel reading the `.scn` run deck itself, one card at a time, so numbers are parsed once, in FORTRAN, each built from an exact integer mantissa and one exact power of ten to equal the BLOCK DATA literal with the same digits. The golden gate checks this as data: its run-table dump (`tables.txt`, `tools/vdump.f`) writes every scenario-specific COMMON table's used entries as 64-bit patterns, and the reader must reproduce it bit for bit, on native and wasm, before BLOCK DATA is retired. For that, BLOCK DATA first had to hold each card's own digits (#40); that change was the one reviewed re-baseline of the gate (PR #42), and every other #26 slice is byte-identical.
+
 This is also the more faithful shape. VIEW was a general program fed per-mission inputs: "the vehicle position, velocity, and attitude and Greenwich mean time must be known. These data are obtained readily from the operational trajectory document, which is printed and available several months before each Apollo mission" (TN D-6853, printed p. 12, as quoted in `docs/vision.md`). Conjecture: those inputs reached the 1108 as a run deck or input tape per run (`docs/batch-pipeline.md`, section 4). Loading a reel at run time stands in for that; the reel package itself, its manifest and its compression are ours.
 
 ### Packing
@@ -328,7 +330,7 @@ Open decisions, from #23:
 
 ## 9. Migration order
 
-Our proposed order. Each step keeps output identical where it touches existing scenes: the wasm-vs-JS selftest and the native SVG renders from `make check`, compared byte for byte, the gate `docs/vision.md` set for the kernel split. The epic's checklist lists #26 first; this order puts it after the steps that make the data clean, so the first packages are packed from a tree that already has one source per fact.
+Our proposed order. Each step keeps output identical where it touches existing scenes: the wasm-vs-JS selftest and the golden master (`make golden-check`: the generated tables, the native SVG renders, and the run-table dump, every scenario-specific COMMON value as its 64-bit pattern), compared byte for byte, the gate `docs/vision.md` set for the kernel split. The one reviewed re-baseline so far was #40 (PR #42, 2026-10-06): BLOCK DATA now holds each card's own digits instead of values rounded to fixed decimals, which moved 72 table values (up to 56 m, 0.01 s) and 18 golden renders (at most 0.012 plot degrees). The epic's checklist lists #26 first; this order puts it after the steps that make the data clean, so the first packages are packed from a tree that already has one source per fact.
 
 | Step | Issue | What lands | Gate |
 |---|---|---|---|
