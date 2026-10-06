@@ -11,10 +11,10 @@ const canvasTab = () => tab !== "source";
 function setTab(t, pick = true) {
   if (!TABS.includes(t)) return;
   const prev = tab; tab = t;
-  if (prev === "print" && t !== "print" && mode === "beam") startMode("free");
+  if (prev === "print" && t !== "print" && LS.mode === "beam") startMode("free");
   if (pick && t !== prev) {
-    if (t === "review" && !REVIEW_MODES.includes(mode)) startMode("tour");
-    else if (t === "simulate" && mode !== "live") startMode("live");
+    if (t === "review" && !REVIEW_MODES.includes(LS.mode)) startMode("tour");
+    else if (t === "simulate" && LS.mode !== "live") startMode("live");
     else if ((t === "print" || t === "fusion") && auto()) startMode("free");
   }
   showTab(); syncUI();
@@ -28,7 +28,7 @@ function showTab() {
   if (tab === "source") srcShow();
 }
 document.querySelectorAll("#tabs [data-tab]").forEach(b => { b.onclick = () => setTab(b.dataset.tab); });
-const toggleBeam = () => { if (tab !== "print") setTab("print"); startMode(mode === "beam" ? "free" : "beam"); };
+const toggleBeam = () => { if (tab !== "print") setTab("print"); startMode(LS.mode === "beam" ? "free" : "beam"); };
 $("bbeam").onclick = toggleBeam;
 const bumpBeam = d => { beamIdx = Math.max(0, Math.min(BEAM_SPEEDS.length - 1, beamIdx + d)); syncUI(); };
 $("bbslow").onclick = () => bumpBeam(-1);

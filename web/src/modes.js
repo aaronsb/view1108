@@ -46,11 +46,11 @@ const RE_NMI = 3443.9;
 // X,Y (deg, valid off-frame); the Earth's angular radius comes from the range. Yaw/pitch then put the limb top at
 // plot elevation L, worked out in view angles.
 function steerToEarth(L) {
-  wr("in_get", get); wr("in_yaw", 0); wr("in_pitch", 0); wr("in_roll", 0); wr("in_fov", 60); wi("in_flags", 0);
+  wr("in_get", LS.get); wr("in_yaw", 0); wr("in_pitch", 0); wr("in_roll", 0); wr("in_fov", 60); wi("in_flags", 0);
   K.view_frame();
   const H = new Float64Array(buf(), K.hdr.value, 16);
   const rho = Math.asin(Math.min(1, RE_NMI / Math.max(RE_NMI, H[2]))) * 180 / Math.PI;
-  yaw = plotToAngle(H[10], 60); pitch = plotToAngle(H[11], 60) - (plotToAngle(L, 60) - rho);
+  LS.yaw = plotToAngle(H[10], 60); LS.pitch = plotToAngle(H[11], 60) - (plotToAngle(L, 60) - rho);
 }
 const QP = k => { const m = new RegExp("[?&]" + k + "=([^&]+)").exec(location.search); return m ? m[1] : null; };
 const filmQ = /[?&]film=([\d.]+)/.exec(location.search);
@@ -75,41 +75,41 @@ const LEN = { attract: ATTRACT.reduce((a, s) => a + s.dur, 0), tour: TOUR.reduce
 const val = (x, u) => typeof x === "function" ? x(u) : x;
 let autoCap = false;   // caption an unframed Attract shot (the added, non-film ones)
 let follow = false;   // Following (timeline.js): the scene tracks the g.e.t. while the replay plays alongside Apollo in Real Time
-let mode = "attract", autoT = filmQ ? +filmQ[1] : 0, autoShot = -1, fadeA = 0, capName = "", livePin = null, liveIdx = 0;
+let autoT = filmQ ? +filmQ[1] : 0, autoShot = -1, fadeA = 0, capName = "", livePin = null, liveIdx = 0;
 
 function shotGet(sh, u) {
   if (sh.tte) return TETP - Math.exp(lerpTab(sh.tte.map(q => [q[0], Math.log(q[1])]), u));
   const p = (QP("p") && filmQ) ? QP("p").split(",").map(Number) : sh.p;
-  return get0 + p[0] + (p[1] - p[0]) * u;
+  return LS.get0 + p[0] + (p[1] - p[0]) * u;
 }
 function autoStep(dt) {
-  const L = mode === "attract" ? ATTRACT : TOUR, len = LEN[mode];
+  const L = LS.mode === "attract" ? ATTRACT : TOUR, len = LEN[LS.mode];
   if (!filmQ) autoT += dt;
-  if (mode === "attract" && !filmQ && autoT >= len) { startMode("tour"); return; }
+  if (LS.mode === "attract" && !filmQ && autoT >= len) { startMode("tour"); return; }
   let t = autoT % len, i = 0;
   while (i < L.length - 1 && t >= L[i].dur) { t -= L[i].dur; i++; }
   const sh = L[i], u = t / sh.dur;
   if (i !== autoShot) {
-    autoShot = i; scene = sh.scene; viewInit(sh.scene); readDefaults();
-    labLv = sh.fl & 1 ? 3 : 0; viewMode = sh.view || 0; frame = !!(sh.fl & 2); capName = sh.name; autoCap = !!sh.cap; syncUI();
+    autoShot = i; LS.situation = sh.scene; viewInit(sh.scene); readDefaults();
+    LS.labLv = sh.fl & 1 ? 3 : 0; LS.view = sh.view || 0; frame = !!(sh.fl & 2); capName = sh.name; autoCap = !!sh.cap; syncUI();
   }
-  if (sh.fov) fov = sh.fov;
-  if (sh.yaw !== undefined) yaw = val(sh.yaw, u);
-  if (sh.pitch !== undefined) pitch = val(sh.pitch, u);
-  if (sh.roll !== undefined) roll = val(sh.roll, u);
-  if (filmQ) for (const k of ["fov", "yaw", "pitch", "roll"]) if (QP(k) !== null) { const v = +QP(k); if (k === "fov") fov = v; else if (k === "yaw") yaw = v; else if (k === "pitch") pitch = v; else roll = v; }
-  get = shotGet(sh, u);
+  if (sh.fov) LS.fov = sh.fov;
+  if (sh.yaw !== undefined) LS.yaw = val(sh.yaw, u);
+  if (sh.pitch !== undefined) LS.pitch = val(sh.pitch, u);
+  if (sh.roll !== undefined) LS.roll = val(sh.roll, u);
+  if (filmQ) for (const k of ["fov", "yaw", "pitch", "roll"]) if (QP(k) !== null) { const v = +QP(k); if (k === "fov") LS.fov = v; else if (k === "yaw") LS.yaw = v; else if (k === "pitch") LS.pitch = v; else LS.roll = v; }
+  LS.get = shotGet(sh, u);
   if (sh.limb && QP("nosteer") === null) steerToEarth(lerpTab(sh.limb, u));
-  fadeA = mode === "tour" ? Math.max(0, 1 - t / TOUR_FADE, 1 - (sh.dur - t) / TOUR_FADE) : 0;
+  fadeA = LS.mode === "tour" ? Math.max(0, 1 - t / TOUR_FADE, 1 - (sh.dur - t) / TOUR_FADE) : 0;
 }
 
 // ---- Live ----
 // On entering a phase, aim once at the reference body (hdr 11, 12) if it is in front; the look is then left alone.
 function aimAtBody() {
-  wr("in_get", get); wr("in_yaw", 0); wr("in_pitch", 0); wr("in_roll", 0); wr("in_fov", fov); wi("in_flags", 0);
+  wr("in_get", LS.get); wr("in_yaw", 0); wr("in_pitch", 0); wr("in_roll", 0); wr("in_fov", LS.fov); wi("in_flags", 0);
   K.view_frame();
   const H = new Float64Array(buf(), K.hdr.value, 16);
-  if (H[13] === 1) { yaw = H[10]; pitch = H[11]; roll = 0; }
+  if (H[13] === 1) { LS.yaw = H[10]; LS.pitch = H[11]; LS.roll = 0; }
 }
 function livePhase(g) {
   if (livePin && g >= livePin.from && g <= livePin.until) return { scene: livePin.scene, name: livePin.name };
@@ -117,24 +117,24 @@ function livePhase(g) {
   return PHASES.find(p => g < p.to);
 }
 function liveSync() {
-  const ph = livePhase(get); capName = ph.name;
-  if (ph.scene !== scene) {          // keep the viewer's look and the time across a scene change
-    const g = get, y = yaw, pt = pitch, r = roll;   // keep look and time; FOV returns to the new scene's default
-    scene = ph.scene; viewInit(scene); readDefaults(); get = g; yaw = y; pitch = pt; roll = r; get0 = g; aimAtBody(); syncUI();
+  const ph = livePhase(LS.get); capName = ph.name;
+  if (ph.scene !== LS.situation) {          // keep the viewer's look and the time across a scene change
+    const g = LS.get, y = LS.yaw, pt = LS.pitch, r = LS.roll;   // keep look and time; FOV returns to the new scene's default
+    LS.situation = ph.scene; viewInit(LS.situation); readDefaults(); LS.get = g; LS.yaw = y; LS.pitch = pt; LS.roll = r; LS.get0 = g; aimAtBody(); syncUI();
   }
 }
 function liveJump(j) {
   startMode("live");
   livePin = { scene: j.scene, from: j.get, until: j.get + j.len, name: j.name };
-  scene = j.scene; viewInit(scene); readDefaults(); get = j.get; get0 = get; liveSync(); syncUI();
+  LS.situation = j.scene; viewInit(LS.situation); readDefaults(); LS.get = j.get; LS.get0 = LS.get; liveSync(); syncUI();
 }
 
 // ---- modes: attract -> tour (loops), live, free ----
 function startMode(m) {
-  const prev = mode; mode = m; follow = false; autoT = (m === "attract" && filmQ) ? +filmQ[1] : 0; autoShot = -1; fadeA = 0; playing = true;
+  const prev = LS.mode; LS.mode = m; follow = false; autoT = (m === "attract" && filmQ) ? +filmQ[1] : 0; autoShot = -1; fadeA = 0; LS.playing = true;
   if (m === "live") {
-    get = Math.max(LIVE_MIN, Math.min(LIVE_MAX, get)); livePin = null;
-    scene = livePhase(get).scene; viewInit(scene); const g = get; readDefaults(); get = g; get0 = g; frame = true; labLv = 3; liveSync(); aimAtBody();
+    LS.get = Math.max(LIVE_MIN, Math.min(LIVE_MAX, LS.get)); livePin = null;
+    LS.situation = livePhase(LS.get).scene; viewInit(LS.situation); const g = LS.get; readDefaults(); LS.get = g; LS.get0 = g; frame = true; LS.labLv = 3; liveSync(); aimAtBody();
   } else if (m === "beam") {
     beamFrames = []; beamNextStart = 0; beamPrevCompute = 0; beamFrameNo = 0; capName = "";
   } else if (m === "free") {
@@ -143,7 +143,7 @@ function startMode(m) {
   }
   syncUI();
 }
-const leaveAttract = () => { if (mode === "attract" || mode === "tour") startMode("free"); };
+const leaveAttract = () => { if (LS.mode === "attract" || LS.mode === "tour") startMode("free"); };
 if (DEBUG) {   // test hooks, enabled by ?debug
   window.VIEW_STEP = () => step(performance.now());
   window.VIEW_SEEK = t => { autoT = t; step(performance.now()); };   // with ?film=, jump to auto-mode second t
@@ -152,14 +152,14 @@ if (DEBUG) {   // test hooks, enabled by ?debug
 }
 
 function readDefaults() {
-  get = get0 = rd("in_get"); yaw = rd("in_yaw"); pitch = rd("in_pitch"); roll = rd("in_roll"); fov = fov0 = rd("in_fov");
+  LS.get = LS.get0 = rd("in_get"); LS.yaw = rd("in_yaw"); LS.pitch = rd("in_pitch"); LS.roll = rd("in_roll"); LS.fov = LS.fov0 = rd("in_fov");
 }
 function setScene(s) {
   follow = false;
-  if (mode === "live" && LIVE_PINS.includes(s)) {   // not a mission phase (the Moon view): in Live it is pinned until the viewer scrubs or types a time
-    const g = get, name = sitCaption(s) || SCENES[s - 1]; livePin = { scene: s, from: -Infinity, until: Infinity, name };
-    scene = s; viewInit(s); readDefaults(); get = g; get0 = g; capName = name; syncUI(); return;
+  if (LS.mode === "live" && LIVE_PINS.includes(s)) {   // not a mission phase (the Moon view): in Live it is pinned until the viewer scrubs or types a time
+    const g = LS.get, name = sitCaption(s) || SCENES[s - 1]; livePin = { scene: s, from: -Infinity, until: Infinity, name };
+    LS.situation = s; viewInit(s); readDefaults(); LS.get = g; LS.get0 = g; capName = name; syncUI(); return;
   }
-  if (mode !== "beam") mode = "free"; else beamNextStart = 0; capName = ""; scene = s; viewInit(s); readDefaults(); syncUI();
+  if (LS.mode !== "beam") LS.mode = "free"; else beamNextStart = 0; capName = ""; LS.situation = s; viewInit(s); readDefaults(); syncUI();
 }
-function resetView() { const g = get; viewInit(scene); readDefaults(); get = g; }
+function resetView() { const g = LS.get; viewInit(LS.situation); readDefaults(); LS.get = g; }

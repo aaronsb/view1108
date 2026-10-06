@@ -10,7 +10,7 @@ function svgFrame(paper) {
   const fl = ri("in_flags"), nv = ri("nvec"), ns = ri("nstar"), nl = ri("nlab");
   const V = new Float64Array(buf(), K.vbuf.value, nv * 5), S = new Float64Array(buf(), K.sbuf.value, ns * 3);
   const L = new Float64Array(buf(), K.lbuf.value, nl * 4), H = new Float64Array(buf(), K.hdr.value, 16);
-  const F = H[1] || fov, half = H[14] > 0 ? H[14] : F / 2, fr = !!(fl & 2), Wd = SVG_W, Hd = Math.floor(Wd * HGT);
+  const F = H[1] || LS.fov, half = H[14] > 0 ? H[14] : F / 2, fr = !!(fl & 2), Wd = SVG_W, Hd = Math.floor(Wd * HGT);
   const b = fr ? { x: Wd * (1 - BOXF) / 2, y: Wd * HDR, s: Wd * BOXF } : { x: 0, y: Wd * 0.02, s: Wd };
   const k = b.s / (2 * half), cx = b.x + b.s / 2, cy = b.y + b.s / 2, fs = 0.021 * Wd;
   const fg = paper ? "#000" : "#fff", dim = paper ? "#555" : "#aaa", bg = paper ? "#fff" : "#000", lw = paper ? 1.0 : 1.2;
@@ -59,7 +59,7 @@ function svgFrame(paper) {
     centred(pg, `${H[5] === 1 ? "R_E" : "R_M"} = ${Math.round(H[2])} n. mi.   h = ${Math.round(H[3])} stat. mi.   V_I = ${Math.round(H[4])} fps`, cx, b.y - fs * 0.8, fs * 0.95);
     centred(pg, "X, deg", cx, b.y + b.s + fs * 2 + fs * 0.7, fs);
   }
-  if (fr || mode !== "attract" || autoCap) {
+  if (fr || LS.mode !== "attract" || autoCap) {
     centred(pg, "g.e.t. = " + getStr(H[0]), cx, b.y + b.s + fs * (fr ? 4.0 : 0.5) + fs * 1.1 * 0.7, fs * 1.1);
     centred(cap, captionText(H), cx, b.y + b.s + fs * (fr ? 5.7 : 2.0) + fs * 0.7, fs);
   }

@@ -2,13 +2,13 @@
 "use strict";
 // ---- UI ----
 function syncUI() {
-  document.querySelectorAll("#scenes button").forEach(b => b.classList.toggle("on", +b.dataset.scene === scene));
-  document.getElementById("bplay").textContent = playing ? "Pause" : "Play";
-  document.querySelector("#ppause small").textContent = playing ? "PAUSE" : "PLAY";
-  document.getElementById("spd").textContent = mode === "beam" ? BEAM_SPEEDS[beamIdx].short : (mode === "live" ? LIVE_RATES[liveIdx] : SPEEDS[speedIdx]) + "x";
-  document.getElementById("spd").title = mode === "beam" ? BEAM_SPEEDS[beamIdx].name + ". " + BEAM_TIP : "";
-  document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("on", mode === b.dataset.mode));
-  document.getElementById("bbeam").classList.toggle("on", mode === "beam");
+  document.querySelectorAll("#scenes button").forEach(b => b.classList.toggle("on", +b.dataset.scene === LS.situation));
+  document.getElementById("bplay").textContent = LS.playing ? "Pause" : "Play";
+  document.querySelector("#ppause small").textContent = LS.playing ? "PAUSE" : "PLAY";
+  document.getElementById("spd").textContent = LS.mode === "beam" ? BEAM_SPEEDS[beamIdx].short : (LS.mode === "live" ? LIVE_RATES[liveIdx] : SPEEDS[speedIdx]) + "x";
+  document.getElementById("spd").title = LS.mode === "beam" ? BEAM_SPEEDS[beamIdx].name + ". " + BEAM_TIP : "";
+  document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("on", LS.mode === b.dataset.mode));
+  document.getElementById("bbeam").classList.toggle("on", LS.mode === "beam");
   document.getElementById("bspd").textContent = BEAM_SPEEDS[beamIdx].name;
   document.getElementById("bhid").classList.toggle("on", hidden);
   document.getElementById("bjit").classList.toggle("on", effJit());
@@ -19,8 +19,8 @@ function syncUI() {
   document.querySelectorAll("[data-disp]").forEach(b => b.classList.toggle("on", b.dataset.disp === dispChoice()));
   document.querySelectorAll("[data-hz]").forEach(b => { b.classList.toggle("on", b.dataset.hz === scopeHz()); b.disabled = isFilm(); });
   document.getElementById("bcat").textContent = "Catalog " + (effCatalog() === "full" ? "full" : "nav");
-  document.getElementById("blab").classList.toggle("on", labLv > 0);
-  if (FEAT.lablv) document.getElementById("blab").textContent = "Labels " + LAB_LEVELS[labLv];
+  document.getElementById("blab").classList.toggle("on", LS.labLv > 0);
+  if (FEAT.lablv) document.getElementById("blab").textContent = "Labels " + LAB_LEVELS[LS.labLv];
   featSyncUI();
   document.getElementById("bfrm").classList.toggle("on", frame);
 }
@@ -37,14 +37,14 @@ for (const j of JUMPS) {
   b.textContent = `${j.button} ${Math.floor(g / 3600)}:${pad2(Math.floor(g / 60) % 60)}:${pad2(g % 60)}`;
   b.onclick = () => liveJump(j); $("jumps").appendChild(b);
 }
-const bump = d => { if (mode === "beam") beamIdx = Math.max(0, Math.min(BEAM_SPEEDS.length - 1, beamIdx + d)); else if (mode === "live") liveIdx = Math.max(0, Math.min(LIVE_RATES.length - 1, liveIdx + d)); else speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, speedIdx + d)); syncUI(); };
+const bump = d => { if (LS.mode === "beam") beamIdx = Math.max(0, Math.min(BEAM_SPEEDS.length - 1, beamIdx + d)); else if (LS.mode === "live") liveIdx = Math.max(0, Math.min(LIVE_RATES.length - 1, liveIdx + d)); else speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, speedIdx + d)); syncUI(); };
 const parseGet = t => {
   const u = /^\s*(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})\s*Z?\s*$/.exec(t);   // a UTC timestamp
-  if (u) return (Date.UTC(+u[1], +u[2] - 1, +u[3], +u[4], +u[5], +u[6]) - LIFTOFF_MS) / 1000 - epoch;
+  if (u) return (Date.UTC(+u[1], +u[2] - 1, +u[3], +u[4], +u[5], +u[6]) - LIFTOFF_MS) / 1000 - LS.epoch;
   return parseGetHms(t);
 };
 const parseGetHms = t => { const m = t.trim().split(":").map(Number); if (m.some(isNaN)) return null; return m.length === 3 ? m[0] * 3600 + m[1] * 60 + m[2] : m.length === 2 ? m[0] * 3600 + m[1] * 60 : m[0]; };
-$("geti").onchange = e => { const g = parseGet(e.target.value); if (g === null) return; leaveAttract(); livePin = null; get = mode === "live" ? Math.max(LIVE_MIN, Math.min(LIVE_MAX, g)) : g; e.target.blur(); };
+$("geti").onchange = e => { const g = parseGet(e.target.value); if (g === null) return; leaveAttract(); livePin = null; LS.get = LS.mode === "live" ? Math.max(LIVE_MIN, Math.min(LIVE_MAX, g)) : g; e.target.blur(); };
 $("bjit").onclick = () => toggle("jitter");
 $("bdust").onclick = () => toggle("dust");
 $("bfps").onclick = () => toggle("fps");
@@ -53,43 +53,43 @@ $("bcat").onclick = toggleCatalog;
 document.querySelectorAll("[data-disp]").forEach(b => { b.onclick = () => setDisp(b.dataset.disp); });
 document.querySelectorAll("[data-hz]").forEach(b => { b.onclick = () => setHz(b.dataset.hz); });
 $("bhid").onclick = () => { leaveAttract(); hidden = !hidden; syncUI(); };
-$("bplay").onclick = () => { leaveAttract(); playing = !playing; syncUI(); };
+$("bplay").onclick = () => { leaveAttract(); LS.playing = !LS.playing; syncUI(); };
 $("bslow").onclick = () => { leaveAttract(); bump(-1); };
 $("bfast").onclick = () => { leaveAttract(); bump(1); };
 $("breset").onclick = () => { leaveAttract(); resetView(); };
-$("blab").onclick = () => { leaveAttract(); labLv = FEAT.lablv ? (labLv + 1) % 4 : labLv ? 0 : 3; syncUI(); };   // OFF, PRIMARY, SECONDARY, ALL, or on/off
+$("blab").onclick = () => { leaveAttract(); LS.labLv = FEAT.lablv ? (LS.labLv + 1) % 4 : LS.labLv ? 0 : 3; syncUI(); };   // OFF, PRIMARY, SECONDARY, ALL, or on/off
 $("bfrm").onclick = () => { leaveAttract(); frame = !frame; syncUI(); };
-$("scrub").oninput = e => { leaveAttract(); livePin = null; get = mode === "live" ? Number(e.target.value) : get0 + Number(e.target.value); };
+$("scrub").oninput = e => { leaveAttract(); livePin = null; LS.get = LS.mode === "live" ? Number(e.target.value) : LS.get0 + Number(e.target.value); };
 
 const clampFov = v => Math.max(1, Math.min(170, v));
 const plotPx = () => box().s;
 const ptrs = new Map(); let pinch0 = 0, fovPinch = 0;
 cv.addEventListener("pointerdown", e => { leaveAttract(); cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); cv.focus();
-  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); fovPinch = fov; } });
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); fovPinch = LS.fov; } });
 cv.addEventListener("pointermove", e => {
   const p = ptrs.get(e.pointerId); if (!p) return;
   const dx = e.clientX - p[0], dy = e.clientY - p[1]; p[0] = e.clientX; p[1] = e.clientY;
   if (ptrs.size === 1) {
     if (orbiting()) {   // Moon view or EXTERNAL: yaw/pitch are longitude/latitude (azimuth/elevation) around the target, so dragging spins it under the pointer
-      const Hh_ = new Float64Array(buf(), K.hdr.value, 16), R = Hh_[12] > 0 && Hh_[14] > 0 ? Hh_[12] / Hh_[14] * plotPx() / 2 : 0.85 * (fov0 / fov) * plotPx() / 2;   // disc radius in px: hdr(13) over the box half-width hdr(15)
+      const Hh_ = new Float64Array(buf(), K.hdr.value, 16), R = Hh_[12] > 0 && Hh_[14] > 0 ? Hh_[12] / Hh_[14] * plotPx() / 2 : 0.85 * (LS.fov0 / LS.fov) * plotPx() / 2;   // disc radius in px: hdr(13) over the box half-width hdr(15)
       const d = 180 / Math.PI / R;   // degrees of longitude per px at the disc centre
-      yaw -= dx * d; pitch = Math.max(-90, Math.min(90, pitch + dy * d)); yaw = ((yaw + 180) % 360 + 360) % 360 - 180;
-    } else { const Hh_ = new Float64Array(buf(), K.hdr.value, 16), d = 2 * (Hh_[14] > 0 ? Hh_[14] : fov / 2) / plotPx(); yaw -= dx * d; pitch += dy * d; pitch = Math.max(-90, Math.min(90, pitch)); }
+      LS.yaw -= dx * d; LS.pitch = Math.max(-90, Math.min(90, LS.pitch + dy * d)); LS.yaw = ((LS.yaw + 180) % 360 + 360) % 360 - 180;
+    } else { const Hh_ = new Float64Array(buf(), K.hdr.value, 16), d = 2 * (Hh_[14] > 0 ? Hh_[14] : LS.fov / 2) / plotPx(); LS.yaw -= dx * d; LS.pitch += dy * d; LS.pitch = Math.max(-90, Math.min(90, LS.pitch)); }
   }
-  else if (ptrs.size === 2 && pinch0 > 0) { const [a, b] = [...ptrs.values()]; fov = clampFov(fovPinch * pinch0 / Math.max(1, Math.hypot(a[0] - b[0], a[1] - b[1]))); }
+  else if (ptrs.size === 2 && pinch0 > 0) { const [a, b] = [...ptrs.values()]; LS.fov = clampFov(fovPinch * pinch0 / Math.max(1, Math.hypot(a[0] - b[0], a[1] - b[1]))); }
 });
 const up = e => { ptrs.delete(e.pointerId); pinch0 = 0; };
 cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
-cv.addEventListener("wheel", e => { e.preventDefault(); leaveAttract(); fov = clampFov(fov * Math.exp(e.deltaY * 0.001)); }, { passive: false });
+cv.addEventListener("wheel", e => { e.preventDefault(); leaveAttract(); LS.fov = clampFov(LS.fov * Math.exp(e.deltaY * 0.001)); }, { passive: false });
 
 // Look and time actions, shared by the keyboard and the control pad (pad.js).
-const lookStep = () => orbiting() ? 5 : fov * 0.05;
+const lookStep = () => orbiting() ? 5 : LS.fov * 0.05;
 const ACT = {
-  left: () => { yaw -= lookStep(); }, right: () => { yaw += lookStep(); },
-  up: () => { pitch = Math.min(90, pitch + lookStep()); }, down: () => { pitch = Math.max(-90, pitch - lookStep()); },
-  rollL: () => { roll -= 2; }, rollR: () => { roll += 2; },
-  zoomIn: () => { fov = clampFov(fov / 1.1); }, zoomOut: () => { fov = clampFov(fov * 1.1); },
-  pause: () => { playing = !playing; syncUI(); },
+  left: () => { LS.yaw -= lookStep(); }, right: () => { LS.yaw += lookStep(); },
+  up: () => { LS.pitch = Math.min(90, LS.pitch + lookStep()); }, down: () => { LS.pitch = Math.max(-90, LS.pitch - lookStep()); },
+  rollL: () => { LS.roll -= 2; }, rollR: () => { LS.roll += 2; },
+  zoomIn: () => { LS.fov = clampFov(LS.fov / 1.1); }, zoomOut: () => { LS.fov = clampFov(LS.fov * 1.1); },
+  pause: () => { LS.playing = !LS.playing; syncUI(); },
   slower: () => bump(-1), faster: () => bump(1),
   reset: () => resetView()
 };

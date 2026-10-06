@@ -26,7 +26,7 @@ function whineChain(ctx) {
   return { input, out };
 }
 // The recorder runs (ours): the Print tab, or Beam, which traces as the recorder would.
-const whineRec = () => tab === "print" || mode === "beam";
+const whineRec = () => tab === "print" || LS.mode === "beam";
 // The nodes the room connects: `scope` at the 1558 and `recorder` at the film recorder, each gated here (null until
 // sound has started).
 function whineNode() {
@@ -90,7 +90,7 @@ function whineFrame() {
   const now = performance.now();
   if (now - whineLast < WHINE_MIN_MS) return;
   const room = sndOn && sndCtx && sndCtx.state === "running" && roomIn && whineNode();
-  const onScope = room && !isFilm() && mode !== "beam", onRec = room && whineRec(), play = onScope || onRec;
+  const onScope = room && !isFilm() && LS.mode !== "beam", onRec = room && whineRec(), play = onScope || onRec;
   const ctx = sndCtx, t = ctx ? ctx.currentTime + 0.01 : 0;
   if (room) { whineGates.scope.gain.setTargetAtTime(onScope ? 1 : 0, t, 0.05); whineGates.recorder.gain.setTargetAtTime(onRec ? 1 : 0, t, 0.05); }
   if (whineSrc) { whineG.gain.setValueAtTime(whineG.gain.value, t); whineG.gain.linearRampToValueAtTime(0, t + WHINE_XFADE); whineSrc.stop(t + WHINE_XFADE + 0.02); whineSrc = null; }
