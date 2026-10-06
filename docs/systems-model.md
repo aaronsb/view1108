@@ -1,10 +1,39 @@
 # Systems model: mission, scenario, situation, reel, presentation
 
-This page is the design for how VIEW-1108 decides what it shows. It extends [`docs/vision.md`](vision.md) ("Missions as reels", one engine and many scenarios) and does not repeat it. It is written for maintainers and future agents: the first half explains the model and its rules, the second half is reference (package layout, directory tree, migration order). The agreed design and its evidence are in GitHub epic #15 and issues #16-#26; where they differ, #26 (the reel package) is the latest and wins.
+This page is the design for how VIEW-1108 decides what it shows. It extends [`docs/vision.md`](vision.md) ("Missions as reels", one engine and many scenarios) and does not repeat it. It is written for maintainers and future agents: the first half explains the model and its rules, the second half is reference (package layout, directory tree, migration order). The agreed design and its evidence are in GitHub epic #15 and issues #16-#27; where they differ, the later issue wins: #26 (the reel package) over #18 and #23, and #27 (operator interaction) for stations and divergence.
 
 Sourcing follows `CLAUDE.md`: UE-637 (UNIVAC 1108 Executive Users Guide, 1970, https://fourmilab.ch/documents/univac/manuals/pdf/1108/UE-637_1108execUG_1970.pdf) is cited by its printed section and page, as in `docs/batch-pipeline.md`; historical claims cite a document the repo holds, by printed page; our design choices are labelled "ours"; our reasoning about the period is labelled "Conjecture:". Almost everything below is design, so it is ours unless a source is given. File:line references are to the tree at `f8ef1ee` and will drift as the migration lands.
 
-## 1. Problem
+## 1. The application
+
+What the viewer meets, from the outside in. The layers and the station table are the user's direction in #27; the arrangement is our design.
+
+| Layer | What it is | Kind |
+|---|---|---|
+| **The lab** | The machine room: the place, and the navigation. The viewer moves between stations instead of between menus | ours; set dressing from period 1108 photographs (#21) |
+| **Stations** | Pieces of equipment, each with one purpose (table below) | ours |
+| **The reel** | The scenario that is loaded: one mission's run deck and tape, or a playlist (section 3, section 5) | ours as a package; the run deck stands for VIEW's per-mission input (TN D-6853 printed p. 12) |
+| **The kernel** | VIEW: an engine flying the scenario's real maneuvers (`src/sim.f` through the BURN cards, `docs/simulation.md`), plus the view side that draws what the crew would see. TN D-6853 printed p. 3 names the two parts, "the integrator portion and the graphic-display portion" | VIEW material where sourced; flying the maneuvers is ours |
+| **The operator** | Our modern reading of what a viewer can do with VIEW: move the camera's origin and target, see the block interiors around the design eye, and interact with the maneuvers by diverging from the master tape (section 7) | ours, fenced RESTOMOD in the kernel |
+
+### Stations
+
+From #27. This is the one declared equipment→purpose table that #20 asks for (section 6).
+
+| Station | Purpose |
+|---|---|
+| Tape library shelf (#19) | choose a reel |
+| UNISERVO drive | shows the mounted reel; the demo reel when idle (#18, #20) |
+| Graphical console (1558 vector terminal) | dynamic interaction: fly, look, change camera origin and target, diverge |
+| Glass terminal | inspection: the FORTRAN source (as now) and the loaded tape (run deck, states, events, burns, divergence point) |
+| Microfilm recorder | takes the current scenario state (master or work tape, a GET or a span) and records or prints it (as Print does now) |
+| Line printer | kernel listing |
+| Bookcase | reference library |
+| Console / reel-table clock | Houston time and GET of the mounted reel |
+
+**Only the shelf and the drive change what is loaded.** Mounting a reel is the one way to change the reel. The graphical console changes time, look and the work tape inside the mounted reel, through the same loaded-state object and `loadReel` (rule 1). Arriving at a station, opening it or leaving it changes nothing (rule 2). The other stations read the loaded state and never write it.
+
+## 2. Problem
 
 What is simulated is decided in many places, and some of them disagree.
 
@@ -20,7 +49,7 @@ What is simulated is decided in many places, and some of them disagree.
 
 The cost shows when adding a mission. An Apollo 17 LM-descent view today touches about 16-18 files across FORTRAN, Python, JavaScript, TypeScript and docs: a new `.scn`; `gen_data.py` (`BURN_CUES`, `SITECH`); `vdrive.f`, `vlayer.f`, `vview.f` and possibly `pen.f`, `lvlab.f`, `lmoon.f`; `config.js`, `views.js`, `timeline.js`, `modes.js`, `controls.js`; `console4009.ts`; `page.template.html`; `selftest.mjs`; `Makefile`; `photos.tsv`; and `CLAUDE.md`, `README.md`, `docs/modes.md`, `docs/vision.md` (#23).
 
-## 2. Model
+## 3. Model
 
 Five concepts. Four describe what is simulated; the fifth only shows it.
 
@@ -63,7 +92,7 @@ flowchart LR
 
 ### Mission
 
-A mission is identity and nothing else: what the lettering, the status line, the Houston clock and the photo index need to agree on. It is written once, in `data/missions/<id>/mission.scn`, and copied by the packer into every reel of that mission. The five forms in section 1 are all derived from it. The `mission` column of `photos.tsv` becomes the mission id, and photographs move into the reel that uses them (section 4).
+A mission is identity and nothing else: what the lettering, the status line, the Houston clock and the photo index need to agree on. It is written once, in `data/missions/<id>/mission.scn`, and copied by the packer into every reel of that mission. The five forms in section 2 are all derived from it. The `mission` column of `photos.tsv` becomes the mission id, and photographs move into the reel that uses them (section 5).
 
 ### Scenario
 
@@ -89,7 +118,7 @@ Our first reading of how today's nine scenes fall onto the recipes, to be confir
 | 7 Transposition & docking | COAS | |
 | 8 Docked stack in translunar coast | external | a modern addition |
 
-Today's nine scenes become nine situations with their current defaults, and every frame must render identically (the gate in section 7).
+Today's nine scenes become nine situations with their current defaults, and every frame must render identically (the gate in section 9).
 
 ### Reel
 
@@ -100,13 +129,13 @@ A reel is the only thing that can be loaded. #18 and #23 first said "a reel is a
 
 **Attract is the demo reel.** It is a hypothetical demonstration of the system, packaged and loaded like any other playlist reel, and it is the default reel mounted when the viewer has not chosen one, both on page load and in the room (#18, refinement of 2026-10-06). Tour is another playlist reel. Nothing in the code is special to either: there is one playlist player, and leaving the demo means loading a different reel. "Attract" and "Tour" stop being modes; `mode=attract` and `mode=tour` survive only as URL aliases for `reel=demo` and `reel=tour` (#22). The film's four-shot sequence that the attract loop replays today (`CLAUDE.md`, "Attract loop") becomes the first shots of the demo reel.
 
-How the viewer leaves the demo is ours and open (section 8): the proposal is that the first input that takes control loads the scenario reel of the shot on screen, at the current g.e.t. and look, so the picture does not jump.
+How the viewer leaves the demo is ours and open (section 10): the proposal is that the first input that takes control loads the scenario reel of the shot on screen, at the current g.e.t. and look, so the picture does not jump.
 
 ### Presentation
 
-Presentation is the tab bar, Room or Tiled, the room's equipment and camera flights, the overlays, the film effects and the sound. It reads the loaded state and never writes it. Live, Free-look and Beam remain ways of driving time and look within a loaded situation; choosing a tab does not start any of them (section 3).
+Presentation is the tab bar, Room or Tiled, the room's equipment and camera flights, the overlays, the film effects and the sound. It reads the loaded state and never writes it. Live, Free-look and Beam remain ways of driving time and look within a loaded situation; choosing a tab does not start any of them (section 4).
 
-## 3. Rules
+## 4. Rules
 
 1. **One loader.** `loadReel(params)`, taking a `URLSearchParams`-like object, is the only code that changes reel, mission, scenario, situation, g.e.t. or look. The URL, keys, buttons, the Fusion photo pick, Live, the playlist player and the room shelf all build params and call it (#16). `applyParams` (`web/src/link.js:47`) stops reading the global `UP` and becomes the parser `loadReel` uses. Continuous changes inside a situation (the clock running, a drag of the look) go through the same object without reloading the reel.
 2. **Presentation never changes mode, scene or time.** `setTab`, room arrival, walk-up, overlays and Esc change only what is shown. Done when opening any tab or room terminal leaves the loaded state unchanged (#16).
@@ -120,7 +149,7 @@ Presentation is the tab bar, Room or Tiled, the room's equipment and camera flig
 
 Rules 4 and 6 together: mission, scenario and situation data live only in the run deck; kernel tables, page names, the input table's page copy and the shelf index are generated from the deck or from `src/`.
 
-## 4. Reel package
+## 5. Reel package
 
 ### Layout
 
@@ -170,7 +199,7 @@ Material held only locally is never put in a published reel or referenced from t
 
 ### Private reels
 
-A viewer can load a reel package from their own disk (file picker or drop). It is read in the browser and never uploaded or published (#26). The use is local reference material, for example FR-9438 frames overlaid on the Apollo 17 descent. A private reel cannot be named by `reel=`, which resolves only against the site reel index; a link made while one is loaded carries `mission=`, `scn=`, `sit=` and `get=` and falls back to the site reel for that scenario (ours; section 8).
+A viewer can load a reel package from their own disk (file picker or drop). It is read in the browser and never uploaded or published (#26). The use is local reference material, for example FR-9438 frames overlaid on the Apollo 17 descent. A private reel cannot be named by `reel=`, which resolves only against the site reel index; a link made while one is loaded carries `mission=`, `scn=`, `sit=` and `get=` and falls back to the site reel for that scenario (ours; section 10).
 
 ### Kernels by reference, never in a reel
 
@@ -182,13 +211,13 @@ Conjecture: how many builds the library needs is open. One build holding every e
 
 Today scenario data is compiled in: `tools/gen_data.py` turns `data/scenarios/*.scn` into `BLOCK DATA` in `src/viewdata.f` (`/CSCEN/`, `/CTLN/`; `CLAUDE.md`, Architecture), and `docs/vision.md` planned the same for new scenarios. With reels, the shell writes the run deck and tapes into the kernel's COMMON tables when a reel is loaded, through a new shell entry point (#26). Static catalogs (stars, coastlines, craters, the Moon series) stay compiled in as `BLOCK DATA`: they are the program's, not the run's.
 
-This is also the more faithful shape. VIEW was a general program fed per-mission inputs: "the vehicle position, velocity, and attitude and Greenwich mean time must be known. These data are obtained readily from the operational trajectory document, which is printed and available several months before each Apollo mission" (TN D-6853, printed p. 12, as quoted in `docs/vision.md`). Conjecture: those inputs reached the 1108 as a run deck or input tape per run (`docs/batch-pipeline.md`, section 3). Loading a reel at run time stands in for that; the reel package itself, its manifest and its compression are ours.
+This is also the more faithful shape. VIEW was a general program fed per-mission inputs: "the vehicle position, velocity, and attitude and Greenwich mean time must be known. These data are obtained readily from the operational trajectory document, which is printed and available several months before each Apollo mission" (TN D-6853, printed p. 12, as quoted in `docs/vision.md`). Conjecture: those inputs reached the 1108 as a run deck or input tape per run (`docs/batch-pipeline.md`, section 4). Loading a reel at run time stands in for that; the reel package itself, its manifest and its compression are ours.
 
 ### Packing
 
 `tools/gen_data.py` becomes the reel packer for our own reels: it validates every card, checks every card has a source, checks each manifest's `controls` against the input table, packs `data/missions/<id>/` and `data/reels/<id>/` into packages, and writes the site reel index the shelf and `reel=` read (#26). It keeps generating the static catalogs. The build generates the input table from `src/` (the shell's `in_*` globals and the `in_flags` bits) and writes the kernel library's list of builds and hashes.
 
-## 5. Room
+## 6. Room
 
 The room (`web/lab/`) is presentation. These rules apply rules 1 and 2 to it.
 
@@ -204,17 +233,53 @@ The room starts idle: the demo reel is mounted on a UNISERVO drive with a visibl
 
 - Entering the room, walking about and arriving at a terminal leave the loaded state as it is (rule 2).
 - Walk-up auto-entry (0.4 s dwell within 1.3 m, `web/lab/src/walk.ts:15,136`) becomes an option, off by default (#20).
-- A control at the drive starts and stops the mounted reel. Whether the demo reel's tape is moving when the viewer first enters is open (section 8); our proposal is stopped, so the screens, clocks and lamps hold still until the viewer starts it.
+- A control at the drive starts and stops the mounted reel. Whether the demo reel's tape is moving when the viewer first enters is open (section 10); our proposal is stopped, so the screens, clocks and lamps hold still until the viewer starts it.
 
-### One equipment→target table
+### One station table
 
-One declared table maps each piece of equipment to what it opens (its tab, overlay or the shelf) and its hover label. `ROOM_OPENS`, `roomOver`, `roomTermOf`, the `Opens` type, `AT_HINT` and the hover labels are generated from or read it. A new kind (the shelf, `scenario` in `Opens`) is one row.
+The station table in section 1 is the one declared table (#20, #27). Each row gives a piece of equipment's purpose, what it opens (its tab, overlay or the shelf) and its hover label. `ROOM_OPENS`, `roomOver`, `roomTermOf`, the `Opens` type, `AT_HINT` and the hover labels are generated from or read it. A new kind (the shelf, `scenario` in `Opens`) is one row.
 
 ### One Esc stack
 
-Opening anything (a terminal, an overlay, a pulled binder or reel) pushes onto one stack; Esc pops the top. The seven handlers in section 1 go. The stack never touches the loaded state.
+Opening anything (a terminal, an overlay, a pulled binder or reel) pushes onto one stack; Esc pops the top. The seven handlers in section 2 go. The stack never touches the loaded state.
 
-## 6. Directory layout
+## 7. Divergence: master and work tapes
+
+All of this section is our design (#27). No source says VIEW was used interactively or that a run branched mid-mission.
+
+- **The master tape.** A reel's tape is the master: read-only, flown by the engine from the sourced scenario. Nothing the operator does changes it.
+- **Diverging.** At any GET the operator can branch a **work tape** by editing a burn, an attitude or a target. The engine (`src/sim.f`) takes the state at that GET from the tape it is on and flies on from there with the edit; before that GET the work tape is the master. The operator can return to the master or keep several work tapes.
+- **Labelled.** A work tape carries its parent and its branch GET, and everywhere it is shown (the lettering, the glass terminal, film-recorder output) it is labelled as divergent from the master at that GET.
+- **An edit is a new run of the deck, not a live joystick.** Changing a burn re-flies the deck from the branch point, as the BURN cards are flown now; there is no continuous stick input.
+
+Where each station fits:
+
+| Station | Role in divergence |
+|---|---|
+| Graphical console | where the operator interacts: picks the GET, edits the burn, attitude or target, and flies and views the work tape |
+| Glass terminal | inspects the source and the loaded tape: run deck, states, events, burns, the branch point and the edit |
+| Microfilm recorder | records or prints the current scenario state, master or work tape, at a GET or over a span |
+
+Precedent, not a source for the mechanism: MSC regenerated the views when the trajectory changed. MSC IN 69-FM-197 "supersedes MSC IN 69-FM-168" and "conforms with the latest nominal mission profile" (PDF pp. 23-24). A work tape is a new run of a changed deck in that spirit.
+
+In the model a work tape belongs to the loaded scenario: the loaded-state object gains a tape field (the master, or a work tape id), and choosing a tape goes through `loadReel` like any other change. The kernel's tape (`src/tape.f`) already holds what the engine writes; branching needs the engine to start from a tape state and an edited card set instead of the scenario's START (`docs/simulation.md`).
+
+### Interaction ideas from Kerbal Space Program
+
+From #27: ideas only, mapped to period terms. Anything VIEW did not do stays fenced RESTOMOD in the kernel and labelled on the page.
+
+| KSP idea | Period counterpart | Status |
+|---|---|---|
+| Switch focus between vessels | `in_target` / `in_view` | ours, shipped |
+| IVA seat view | crew-station views at the CM and LM design eye (CSM Data Book SNA-8-D-027; Grumman LM stations) | ours, shipped |
+| Time warp | GET rate; VIEW filmed "every nth integration step" (TN D-6853 printed p. 3) | ours |
+| Map view, orbit lines | orbit and ground tracks styled on MSC IN 69-FM-197's drafted charts (p. 47, p. 123) | planned |
+| Maneuver nodes | the scenario's BURN cards; crew maneuver PADs (**term needs a source**) | to design: divergence edits |
+| Navball | the FDAI attitude ball (**page citation needed** in the CSM and LM handbooks) | candidate overlay |
+
+The two marked terms stay off the page and out of code comments until a source the repo holds is cited for them.
+
+## 8. Directory layout
 
 The target tree (ours, from #23 and #26):
 
@@ -257,7 +322,7 @@ Open decisions, from #23:
 - **Whether generated kernel tables stay committed.** `src/viewdata.f` (510K) and `src/viewdims.inc` are committed today. Once scenario data leaves them they shrink to the static catalogs. If the kernel must build without Python, keep them committed and marked generated; otherwise move them to `build/`.
 - **The PDF policy for `web/library`.** It holds about 48 MB of PDFs beside the page, two of them symlinks into `reference/`, which duplicates `reference/`'s role. Options: keep the binders' PDFs in `web/library` and drop the duplicates in `reference/`; keep one copy in `reference/` and have the build copy what the site serves; or serve only `library.json` with URLs to the public copies.
 
-## 7. Migration order
+## 9. Migration order
 
 Our proposed order. Each step keeps output identical where it touches existing scenes: the wasm-vs-JS selftest and the native SVG renders from `make check`, compared byte for byte, the gate `docs/vision.md` set for the kernel split. The epic's checklist lists #26 first; this order puts it after the steps that make the data clean, so the first packages are packed from a tree that already has one source per fact.
 
@@ -274,11 +339,12 @@ Our proposed order. Each step keeps output identical where it touches existing s
 | 8 | #19 | Tape library shelf and UNISERVO mount | mounting loads without reload |
 | 9 | #21 | Room set dressing from period UNIVAC 1108 photographs, labelled ours | — |
 | 10 | #24 | **Acceptance test:** Apollo 17 LM descent at Taurus-Littrow as a new reel | see below |
+| 11 | #27 | Operator interaction: the station table as the room's one table; the engine starting from a tape state; work tapes branched at a GET; console, glass-terminal and recorder roles | a work tape branched with one edited burn, flown, viewed on the console, inspected on the glass terminal and printed by the recorder, with the master unchanged |
 | — | #25 | Research: the 1972 films and the MPAD source behind FR-9438; runs alongside | — |
 
 **Acceptance (#24).** The Apollo 17 reel passes when it is added as one mission folder plus its entry in the reel index, with no edits to page or kernel code except the new terrain layer it needs (#24, #26). That layer is a new element in `src/`, part of a kernel build in the site library that the reel names (rule 6), not code in the reel. The checks are the film's data block readings (TIME FROM IGN, ALTITUDE, PITCH ANGLE and the rest) for its 96 plots, which are local-only research material and stay out of the repo. The photographs used for the room in #21 are described by title and credit only: a Dakota County Historical Society (Lawshe Memorial Museum) photograph of a UNIVAC 1108 installation, and the UNIVAC 1108-II Information Brochure (Computer History Museum); `docs/media/univac-1108-census-bureau.jpg` is the public-domain alternative already in the repo.
 
-## 8. Open questions
+## 10. Open questions
 
 1. **Leaving the demo.** Does the first input that takes control load the scenario reel of the shot on screen at the current g.e.t. and look (our proposal), or return to a reel chooser?
 2. **The idle room's tape.** In the room the demo reel is mounted; is it running or stopped when the viewer enters? Running is the page-load behaviour; stopped is what #20 asked for.
@@ -286,7 +352,9 @@ Our proposed order. Each step keeps output identical where it touches existing s
 4. **The run-time kernel entry point.** Its name and shape (one call per card table, or one buffer the kernel parses as cards), and whether the native driver `tools/viewsvg.f90` reads the same reel files.
 5. **Links to private reels.** A link cannot name a private reel. Should the page say so when it falls back to the site reel, or refuse the link?
 6. **Situation versus scenario reel granularity.** One reel per scenario (as #26's example) or per mission with several scenarios inside?
-7. **Generated tables committed or not, and the `web/library` PDF policy** (section 6).
+7. **Generated tables committed or not, and the `web/library` PDF policy** (section 8).
 8. **The controls vocabulary.** The exact closed set of widget kinds, and whether presentation-only settings (film effects, label level) are reel-declared or stay per-viewer preferences.
 9. **Mode names.** With Attract and Tour gone as modes, are Live, Free-look and Beam still modes, or properties of the loaded state (clock rate, look source, output)?
 10. **Photo index.** `data/photos.tsv` serves Fusion across missions today; does it split into each reel's `images/` entries, with a generated site-wide index for Fusion?
+11. **Where work tapes live.** In memory only, saved per viewer, or exportable as a private reel that names its master by id and hash? Can a link carry a divergence (branch GET plus the edit) so another viewer can re-fly it?
+12. **Which edits.** The closed set of divergence edits (burn time, Δv, attitude, target), and whether a phase the engine does not fly yet, such as the LM's powered descent, can be edited.
