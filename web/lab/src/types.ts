@@ -5,13 +5,18 @@ import type * as THREE from "three";
  *  listing on greenbar (the line printer), or the reference library (the bookcase and its binders). */
 export type Opens = "workbench" | "source" | "print" | "listing" | "library";
 
-/** The page's state, read by the lab once per rendered frame (web/src/room.js labState()). */
+/** The page's state, read by the lab once per rendered frame (web/src/room.js labState()): the presentation (tab) and
+ *  the page's loaded state (web/src/state.js LS), which only the page's loadReel changes; the lab never writes it. */
 export interface LabState {
   tab: string;            // review | simulate | print | fusion | source
   mode: string;           // attract | tour | live | free | beam
   playing: boolean;
-  get: number;            // g.e.t., s
-  scene: number;
+  get: number;            // g.e.t., s, of the loaded scenario
+  situation: number;      // the loaded situation's ID (the kernel's scene number)
+  scenario: number;       // its scenario's ID
+  mission: string;        // that scenario's mission, as its MISSION card names it ("APOLLO 8")
+  epoch: number;          // the scenario's range zero, s from scenario 1's (hdr(16))
+  zero: number;           // the scenario's range zero, UTC ms (VIEW_NAMES.SCENARIOS)
   frameNo: number;        // kernel frames drawn since boot; the vector screen is stale when this moves
   /** web/src/sound.js sndCtx, sndOut, sndOn, and soundBed (the page's ambience bed on or off; the room's sound
    *  replaces it while the room runs), and whineNode (the deflection whine at the 1558 and the film recorder,
