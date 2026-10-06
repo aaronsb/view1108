@@ -22,7 +22,12 @@ function showTab() {
   if (tab === "source") srcShow();
 }
 document.querySelectorAll("#tabs [data-tab]").forEach(b => { b.onclick = () => setTab(b.dataset.tab); });
-const toggleBeam = () => { if (tab !== "print") setTab("print"); loadReel(P({ mode: LS.mode === "beam" ? "free" : "beam" })); };
+// T and Beam trace: start or stop Beam in Print. Beam outlives the tab, so away from Print with Beam running, T only
+// shows Print and the trace goes on; a second T there stops it.
+const toggleBeam = () => {
+  if (tab !== "print") { setTab("print"); if (LS.mode === "beam") return; }
+  loadReel(P({ mode: LS.mode === "beam" ? "free" : "beam" }));
+};
 $("bbeam").onclick = toggleBeam;
 const bumpBeam = d => { beamIdx = Math.max(0, Math.min(BEAM_SPEEDS.length - 1, beamIdx + d)); syncUI(); };
 $("bbslow").onclick = () => bumpBeam(-1);

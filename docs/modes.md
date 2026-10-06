@@ -42,7 +42,7 @@ The room renders at one of two qualities, shown and switched by the button at it
 | **Tour** | A slow loop through every scene, a few minutes each, with a caption naming the shot and its g.e.t. With scene 8 it ends by orbiting the stack from outside, then looking out of the CM's left rendezvous window. Loops forever. | [?mode=tour](https://aaronsb.github.io/view1108/?mode=tour) |
 | **Live** | The Apollo 11 mission clock at 1× (or 10×, 60×, 300×, 1000×). The scene follows the mission phase from the g.e.t.: Earth parking orbit until 2:50:00, translunar coast until 75:50:00, lunar orbit until 135:24:00, then transearth coast. The transposition and docking, the LM rendezvous and the descent are jump windows. Phases and jumps are the LIVE and JUMP `SPAN` cards of the Apollo 11 deck. | [Live at touchdown](https://aaronsb.github.io/view1108/?mode=live&get=102:45:40) |
 | **Free-look** | Time paused or running at a chosen speed; look anywhere at the current moment. Any drag, wheel or key in Attract or Tour switches to Free-look and keeps the view. | [A frozen Earthrise](https://aaronsb.github.io/view1108/?mode=free&scene=1&get=102:20:06&fov=8) |
-| **Beam** | Started from the Print tab (Beam trace, or `T`). Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades, with a beam spot on the pen. The mission clock advances one frame at a time, by however long the frame took to draw. | [Slow trace of the Earth](https://aaronsb.github.io/view1108/?mode=beam&scene=2&bspeed=3) |
+| **Beam** | Started from the Print tab (Beam trace, or `T`). It keeps tracing on the other plot tabs, with that tab's film defaults; `T` there shows Print, and `T` again stops it. Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades, with a beam spot on the pen. The mission clock advances one frame at a time, by however long the frame took to draw. | [Slow trace of the Earth](https://aaronsb.github.io/view1108/?mode=beam&scene=2&bspeed=3) |
 
 ### Beam speeds (`bspeed`)
 
@@ -107,7 +107,7 @@ Keys act in the plot tabs (Review, Simulate, Print, Fusion), not in Source.
 | `[` `]` | Slower / faster (the Live rate, the Beam speed, or the Free-look speed) |
 | `R` | Reset the view |
 | `1`–`9` | Scenes: the situations, from the SITUATION cards, as many as there are up to 9 |
-| `T` | Beam on or off (opens the Print tab) |
+| `T` | Beam on or off in the Print tab; on another tab with Beam running, shows Print and leaves Beam on |
 | `L` | Copy a link to the current view |
 | Esc | Back to the machine room, in Room (when Esc has nothing else to close) |
 | `W` `A` `S` `D`, arrows, Shift | In the room (Room, shown): walk, Shift faster; `E` or Enter goes into the terminal in front of you (or flips the light switch); `L` the lights |
@@ -165,7 +165,7 @@ Each control group in the dock has a header: `[-]` shows the group is open, `[+]
 | Parameter | Values | Example |
 |---|---|---|
 | `mode` | `attract`, `tour`, `live`, `free`, `beam` | `?mode=live` |
-| `tab` | `review`, `simulate`, `print`, `fusion`, `source`. Without it, the mode's tab (Live: Simulate, Beam: Print, else Review). With no `mode`, the link loads that tab's mode at the first scene (Simulate: Live; Print and Fusion: Free-look; Review and Source: Attract) and its other view keys are ignored. Beam is always in Print | `?tab=simulate` |
+| `tab` | `review`, `simulate`, `print`, `fusion`, `source`. Without it, the mode's tab (Live: Simulate, Beam: Print, else Review). With no `mode`, the link loads that tab's mode at the first scene (Simulate: Live; Print and Fusion: Free-look; Review and Source: Attract) and its other view keys are ignored, except that with `photo` the photograph's `get`, `fov`, `yaw`, `pitch` and `roll` still apply. Beam is always in Print | `?tab=simulate` |
 | `scene` | `1`–`9` (in Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase; `9` opens in Free-look) | `?mode=free&scene=7` |
 | `photo` | a frame in `data/photos.tsv` with a scene: opens it in Fusion, then `get`, `fov`, `yaw`, `pitch` and `roll` apply on top | `?tab=fusion&photo=AS08-14-2383` |
 | `get` | g.e.t. as `h:mm:ss` or seconds | `?get=102:45:40` |

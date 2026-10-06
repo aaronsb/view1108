@@ -22,7 +22,6 @@ function featInputs() {   // every frame, before view_frame
   if (FEAT.lablv) wi("in_lablv", LS.labLv);
 }
 function featSyncUI() {
-  $("jumps").hidden = String(LS.scenario) !== LIVE_SCN;   // the jump buttons are times of the Live scenario
   if (FEAT.view) document.querySelectorAll("#viewgrp button:not(#bcab):not(#bwal)").forEach((b, i) => b.classList.toggle("on", i === LS.view));
   if (FEAT.target) document.querySelectorAll("#targrp button").forEach((b, i) => b.classList.toggle("on", i === LS.target));
   if (FEAT.cabin) { const b = $("bcab"); b.classList.toggle("on", cabin); b.disabled = LS.view !== 2 && LS.view !== 3; }

@@ -5,7 +5,7 @@
 // One record of what is loaded and where in it the viewer is. Every module and the room (room.js labState) read it;
 // only loadReel (loader.js) changes the situation, scenario, mission and epoch or jumps the time or look by command.
 // Continuous changes inside the situation (the clock running, a drag or key of the look, the scrubber) go through
-// track(), below.
+// track(), below; so do the Labels button and Play/Pause.
 const LS = {
   situation: SITS[0].id,           // the situation (scene) shown: its ID in VIEW_NAMES.SITUATIONS
   scenario: SITS[0].scenario,      // its scenario, from its SITUATION card

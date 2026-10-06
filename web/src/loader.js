@@ -10,7 +10,7 @@
 // (docs/modes.md): mode, scene, get, utc, fov, yaw, pitch, roll, rate, bspeed, labels, lab, view, target, cabin,
 // walls, frame, hidden, photo. One more, `by`, names the page's own callers whose rule differs from a viewer's pick;
 // openLink sets it to "url" and never passes the URL's own:
-//   url     a link: the mode (default Attract), its situation, time, look, labels and display flags (applyParams)
+//   url     a link: the mode (default Attract), its situation, time, look, labels and display flags (loadLink)
 //   phase   Live's phase changed: the phase's situation, the time and look kept, the field its own, aimed at the body
 //   shot    the Attract or Tour shot changed: its situation at its defaults, with its view, labels and frame
 //   follow  Following's span changed, or a timeline event lies outside the view on screen: the span's situation,
@@ -91,7 +91,7 @@ function loadLive(p, scn) {
 }
 
 // ---- by caller ----
-// A link (applyParams): everything it names, over the situation mounted at start-up.
+// A link (loadLink, which replaced applyParams): everything it names, over the situation mounted at start-up.
 function loadLink(p) {
   const md = MODES.includes(p.get("mode")) ? p.get("mode") : "attract";
   if (md === "attract" || md === "tour") { enterMode(md); return; }
