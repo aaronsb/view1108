@@ -14,7 +14,7 @@ const GATE_MM = 55.74;
 // plot deg; rot: deg counterclockwise; scale: % of the lens's field.
 const FUSION_FITS = {
   "AS08-14-2383": { turn: 1, cam: [0, 0, 0], x: 0.056, y: -0.018, rot: -0.70, scale: 100.28,
-    note: "Our fit on this scan: the Earth's disc to about a pixel. The kernel's horizon sits about 0.1° below the photograph's (0.25° on the left, where the far terrain rises), about 2 s of Earth rise. The photograph is turned 0.7° from the horizon S9REF was fitted to on the ASU scan." },
+    note: "Our fit on this scan: the Earth's disc to about a pixel. The kernel's horizon sits about 0.1° below the photograph's (0.25° on the left, where the far terrain rises), about 2 s of Earth rise. The photograph is turned 0.7° from the horizon the scene's TURN= card (applied by REFTRN) was fitted to on the ASU scan." },
   "AS08-14-2384": { turn: 1, cam: [0.727, 1.315, 7.955], x: 0, y: 0, rot: 0, scale: 100.33,
     note: "Our fit on this scan: the Earth's disc, and the horizon's tilt by pointing (rolled 8° from AS08-14-2383). The kernel's horizon sits about 0.4° below the photograph's, about 8 s of Earth rise against a quoted ~1 s." },
   "AS08-13-2329": { turn: 0, cam: [-1.184, -3.185, 13.323], x: 0, y: 0, rot: 0, scale: 100.71,

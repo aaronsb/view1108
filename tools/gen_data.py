@@ -423,6 +423,22 @@ TARGETS = {"EARTH": 1, "MOON": 2, "SUN": 3, "CSM": 4, "LM": 5, "SIVB": 6}
 RIDES = {"NONE": 0, "CSM": 1, "LM": 2}
 STATION_RULES = {"NO": 0, "PLACED": 1, "ALWAYS": 2}
 HDR_OBJS = {"BODY": 0, "LM": 1, "LMDOCK": 2, "CSMTUNNEL": 3}
+SIT_ORDER = ["RECIPE", "VIEWS", "HDRREF"]     # the cards after a SITUATION card, in this order
+# The keys each recipe (and attitude source) takes; any other key on its RECIPE card is refused.
+RECIPE_KEYS = {
+    "LOCALVERT": {"BODY", "MODE", "AZ", "ELEV", "TURN", "OFFLEG", "OFFELEV"},
+    ("INERTIAL", "SIGHTLINE"): {"ATT", "BODY", "AT", "FIX", "DRIFT", "ELOFF"},
+    ("INERTIAL", "S7ATT"): {"ATT"},
+    "CREWSTN": {"VEH"},
+    "BODYCTR": {"BODY", "ALT"},
+    "EXTSEED": {"ATT", "DIST"},
+}
+
+
+def enum(table, val, where, what):
+    """A card's code word looked up in its table, refused with the words it may take."""
+    assert val in table, f"{where}: {what}={val}: not one of {', '.join(map(str, table))}"
+    return table[val]
 
 
 def dlit(tok):
@@ -448,11 +464,15 @@ def situation_card(name, kind, kv, cur, sits):
     """One SITUATION, RECIPE, VIEWS or HDRREF card of scenario cur into sits."""
     assert cur is not None, f"{name}: {kind} card before the SCENARIO card"
     if kind == "SITUATION":
-        sits.append({"id": int(kv["ID"]), "m": cur["n"], "deck": str(name), "kv": kv})
+        sits.append({"id": int(kv["ID"]), "m": cur["n"], "deck": str(name), "kv": kv, "seq": []})
         return
     assert sits and sits[-1]["m"] == cur["n"], f"{name}: {kind} card before its SITUATION card"
-    assert kind not in sits[-1], f"{name}: situation {sits[-1]['id']}: a second {kind} card"
-    sits[-1][kind] = kv
+    t = sits[-1]
+    want = SIT_ORDER[len(t["seq"])] if len(t["seq"]) < len(SIT_ORDER) else None
+    assert kind == want, (f"{name}: situation {t['id']}: {kind} card out of order; after "
+                          f"SITUATION come RECIPE, VIEWS and an optional HDRREF, once each")
+    t["seq"].append(kind)
+    t[kind] = kv
 
 
 def get_rule(txt, evkinds):
@@ -473,6 +493,11 @@ def get_rule(txt, evkinds):
 def situations(mis, evs, sits):
     """Check the situation cards and lay out their table rows, situations 1..N."""
     out = []
+    seen = {}
+    for t in sits:
+        assert t["id"] not in seen, \
+            f"{t['deck']}: situation {t['id']}: ID {t['id']} already used in {seen.get(t['id'])}"
+        seen[t["id"]] = t["deck"]
     for t in sits:
         kv, where = t["kv"], f"{t['deck']}: situation {t['id']}"
         assert "RECIPE" in t and "VIEWS" in t, f"{where}: needs a RECIPE and a VIEWS card"
@@ -490,21 +515,27 @@ def situations(mis, evs, sits):
         look = kv.get("LOOK", "0,0,0").split(",")
         assert len(look) == 3, f"{where}: LOOK=yaw,pitch,roll"
         r["look"] = [dlit(x) for x in look]
-        r["win"] = WINDOWS[kv["WINDOW"]]
-        lay = [LAYER_IDS[x] for x in kv["LAYERS"].split(",")]
+        r["win"] = enum(WINDOWS, kv["WINDOW"], where, "WINDOW")
+        lay = [enum(LAYER_IDS, x, where, "LAYERS") for x in kv["LAYERS"].split(",")]
         assert len(lay) <= MAXLAY and len(set(lay)) == len(lay), f"{where}: LAYERS"
         r["lay"] = lay + [0] * (MAXLAY - len(lay))
-        r["pose"] = POSES[kv["POSE"]] if "POSE" in kv else 0
-        r["draw"] = sum(DRAW_BITS[x] for x in kv["DRAW"].split(",")) if "DRAW" in kv else 0
+        r["pose"] = enum(POSES, kv["POSE"], where, "POSE") if "POSE" in kv else 0
+        r["draw"] = sum(enum(DRAW_BITS, x, where, "DRAW") for x in kv["DRAW"].split(",")) \
+            if "DRAW" in kv else 0
         # The recipe and its parameters.  Each recipe takes only the parameter values the kernel
         # has a code path for; anything else is refused here rather than drawn wrongly.
-        rcp = RECIPES[rc["NAME"]]
+        rcp = enum(RECIPES, rc["NAME"], where, "RECIPE NAME")
+        rkey = (rc["NAME"], rc.get("ATT")) if rc["NAME"] == "INERTIAL" else rc["NAME"]
+        rkeys = enum(RECIPE_KEYS, rkey, where, "RECIPE NAME and ATT")
+        extra = sorted(set(rc) - rkeys - {"NAME", "SRC"})
+        assert not extra, f"{where}: RECIPE {rc['NAME']} takes no {', '.join(extra)}"
         p = {"rcp": rcp, "bod": 0, "mod": 0, "az": 0, "elv": "0.0D0", "trn": 0,
              "tn": ["0.0D0"] * 3, "fb": 0, "fel": "0.0D0", "att": 0, "fe": 0, "fix": "0.0D0",
              "drf": "0.0D0", "elo": "0.0D0", "veh": 0, "alt": "0.0D0", "dst": "0.0D0"}
         if rcp == 1:
-            p["bod"], p["mod"] = BODIES[rc["BODY"]], MODES[rc["MODE"]]
-            p["az"] = {"NONE": 0, "EARTH": 1}[rc.get("AZ", "NONE")]
+            p["bod"] = enum(BODIES, rc["BODY"], where, "BODY")
+            p["mod"] = enum(MODES, rc["MODE"], where, "MODE")
+            p["az"] = enum({"NONE": 0, "EARTH": 1}, rc.get("AZ", "NONE"), where, "AZ")
             p["elv"] = dlit(rc.get("ELEV", "0"))
             if p["bod"] == 2:
                 assert float(rc.get("ELEV", "0")) == 0, f"{where}: LOCALVERT about the Moon: ELEV=0 only"
@@ -519,17 +550,19 @@ def situations(mis, evs, sits):
                 assert p["bod"] == 2 and rc["OFFLEG"] == "EARTH", f"{where}: OFFLEG=EARTH from the Moon only"
                 p["fb"], p["fel"] = 1, dlit(rc["OFFELEV"])
         elif rcp == 2:
-            p["att"] = ATTS[rc["ATT"]]
+            p["att"] = enum(ATTS, rc["ATT"], where, "ATT")
             assert p["att"] in (1, 2), f"{where}: INERTIAL: ATT=SIGHTLINE or S7ATT"
             if p["att"] == 1:
                 assert rc["BODY"] == "EARTH", f"{where}: INERTIAL SIGHTLINE: BODY=EARTH only"
-                p["bod"], p["fe"] = 1, EVENT_KINDS[rc["AT"]]
+                p["bod"], p["fe"] = 1, enum(EVENT_KINDS, rc["AT"], where, "AT")
                 assert p["fe"] in evk, f"{where}: AT={rc['AT']}: the scenario has no such EVENT"
                 p["fix"], p["drf"] = tlit(get_s(rc["FIX"])), tlit(get_s(rc["DRIFT"]))
                 p["elo"] = dlit(rc["ELOFF"])
         elif rcp == 3:
-            p["veh"] = CREW_VEH[rc["VEH"]]
+            p["veh"] = enum(CREW_VEH, rc["VEH"], where, "VEH")
             assert p["veh"] == 2, f"{where}: CREWSTN VEH=CM has no axes source yet (the CM station is in_view 2)"
+            assert kv["WINDOW"] == "LM" and vw.get("RIDES") == "LM", \
+                f"{where}: CREWSTN VEH=LM goes with WINDOW=LM and RIDES=LM"
             p["bod"] = 2
         elif rcp == 4:
             assert rc["BODY"] == "MOON", f"{where}: BODYCTR: BODY=MOON only"
@@ -538,20 +571,25 @@ def situations(mis, evs, sits):
             assert rc["ATT"] == "S8ATT", f"{where}: EXTSEED: ATT=S8ATT only"
             p["att"], p["bod"], p["dst"] = 3, 1, dlit(rc["DIST"])
         assert r["fov"][0] == 1 or rcp == 4, f"{where}: FOV=DISC: needs BODYCTR"
+        # The Earthrise time comes from ERFIND, which VINIT runs only for an Earth-sightline
+        # azimuth.
+        assert gk != 3 or (rcp == 1 and p["az"] == 1), \
+            f"{where}: GET={kv['GET']}: the Earthrise rule needs RECIPE LOCALVERT AZ=EARTH"
         r.update(p)
         # View rules.
-        r["vw"] = VIEWS_[vw.get("VIEW", "WINDOW")]
-        r["tgt"] = TARGETS[vw["TARGET"]]
-        r["tgf"] = TARGETS[vw["OFFTARGET"]] if "OFFTARGET" in vw else 0
+        r["vw"] = enum(VIEWS_, vw.get("VIEW", "WINDOW"), where, "VIEW")
+        r["tgt"] = enum(TARGETS, vw["TARGET"], where, "TARGET")
+        r["tgf"] = enum(TARGETS, vw["OFFTARGET"], where, "OFFTARGET") if "OFFTARGET" in vw else 0
         assert (r["tgf"] != 0) == (r["fb"] == 1), f"{where}: OFFTARGET= goes with the recipe's OFFLEG="
-        r["rid"] = RIDES[vw["RIDES"]]
-        r["cm"], r["lm"] = STATION_RULES[vw["CM"]], STATION_RULES[vw["LM"]]
-        r["fix_"] = {"NO": 0, "YES": 1}[vw.get("FIXED", "NO")]
+        r["rid"] = enum(RIDES, vw["RIDES"], where, "RIDES")
+        r["cm"] = enum(STATION_RULES, vw["CM"], where, "CM")
+        r["lm"] = enum(STATION_RULES, vw["LM"], where, "LM")
+        r["fix_"] = enum({"NO": 0, "YES": 1}, vw.get("FIXED", "NO"), where, "FIXED")
         xs = vw.get("XSTART")
         r["xo"], r["xy"] = (1, [dlit(x) for x in xs.split(",")]) if xs else (0, ["0.0D0"] * 2)
         assert len(r["xy"]) == 2, f"{where}: XSTART=yaw,pitch"
         # Header reference object.
-        r["hk"] = HDR_OBJS[hr["OBJ"]]
+        r["hk"] = enum(HDR_OBJS, hr["OBJ"], where, "HDRREF OBJ")
         r["ho"] = dlit(hr.get("OFFSET", "0"))
         r["hr"] = dlit(hr.get("RADIUS", "0"))
         assert r["hk"] != 2 or r["pose"] == POSES["S7POSE"], f"{where}: HDRREF OBJ=LMDOCK needs POSE=S7POSE"
@@ -649,10 +687,10 @@ def write_situations(sits):
     (R / "src" / "viewsit.inc").write_text("\n".join(inc) + "\n")
     b = ["C     Generated by tools/gen_data.py from the SITUATION cards of",
          "C     data/missions/*/*.scn.  Do not edit.  Layout: viewsit.inc.",
+         "C     RESTOMOD BEGIN: file INCLUDE (FORTRAN V's named PDP elements);",
+         "C     the 1108 loader skips unreferenced BLOCK DATA (docs/univac-1108.md).",
          "      BLOCK DATA VIEWSB",
-         "C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements",
-         "      INCLUDE 'viewsit.inc'",
-         "C     RESTOMOD END"]
+         "      INCLUDE 'viewsit.inc'"]
     for r in sits:
         k = r["id"]
         b.append(f"C     SITUATION {k} (scenario {r['m']})")
@@ -671,7 +709,7 @@ def write_situations(sits):
         pairs += [(f"SIXY({i + 1},{k})", v) for i, v in enumerate(r["xy"])]
         pairs += [(f"SILY({i + 1},{k})", v) for i, v in enumerate(r["lay"])]
         b += datas(pairs)
-    b.append("      END")
+    b += ["      END", "C     RESTOMOD END"]
     (R / "src" / "viewsit.f").write_text("\n".join(b) + "\n")
 
 

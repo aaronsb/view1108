@@ -101,8 +101,11 @@ C     The situation (its SITUATION card) and its scenario.
       ROL = SILK(3,ISCN)
 C
 C     The Earthrise search (ERFIND) for a view turned to the Earth's
-C     sightline: its time is the GET rule's Earthrise.
+C     sightline: its time is the GET rule's Earthrise (gen_data.py
+C     allows that rule only there).  Without that turn, no azimuth
+C     offset: AZOFF is not left from the last situation.
       IF (JRCP .EQ. 1 .AND. SIAZ(ISCN) .EQ. 1) CALL ERFIND
+      IF (SIAZ(ISCN) .EQ. 0) AZOFF = 0.0D0
 C     Default GET: a g.e.t., an event plus an offset, or the
 C     Earthrise plus an offset.
       GET = SIGT(ISCN)

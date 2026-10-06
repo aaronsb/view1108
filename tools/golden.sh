@@ -7,14 +7,15 @@
 #                              exit 1 on any difference, naming each file that differs
 #
 # Captured (build/, gitignored; the baseline is a build output, never committed):
-#   viewdata.f, viewdims.inc   as tools/gen_data.py writes them, with one mask (below)
+#   viewdata.f, viewdims.inc,  as tools/gen_data.py writes them, with one mask (below)
+#   viewsit.f, viewsit.inc     (the last two: the situation tables)
 #   scenes.json                byte for byte (the scene list make check and the selftest read)
 #   names.js                   byte for byte, plus names.pretty.json (the same JSON, indented) so a
 #                              difference shows as readable lines
 #   render/*.txt               build/viewsvg's SVG on stdout and hdr(1..24) on stderr (VIEW_HDR) for
 #                              every case in CASES
 #
-# The mask: in viewdata.f and viewdims.inc, comment lines (C in column 1) that quote a source
+# The mask: in viewdata.f, viewdims.inc, viewsit.f and viewsit.inc, comment lines (C in column 1) that quote a source
 # location are dropped: a path or file name under data/ or tools/, a *.scn or *.py name, or the name
 # of tools/gen_data.py's BURN_CUES table.  These lines say where the tables came from, which a
 # data move changes by design; every other line, comments carrying card sources included, must
@@ -166,9 +167,10 @@ capture() {
   local out=$1
   ./tools/build.sh native >/dev/null
   rm -rf "$out"; mkdir -p "$out/render"
-  grep -Ev "$MASK" src/viewdata.f > "$out/viewdata.f"
-  grep -Ev "$MASK" src/viewdims.inc > "$out/viewdims.inc"
-  for f in src/viewdata.f src/viewdims.inc; do
+  for f in viewdata.f viewdims.inc viewsit.f viewsit.inc; do
+    grep -Ev "$MASK" "src/$f" > "$out/$f"
+  done
+  for f in src/viewdata.f src/viewdims.inc src/viewsit.f src/viewsit.inc; do
     echo "$f $(grep -Ec "$MASK" "$f" || true) masked lines"
   done > "$out/masked.txt"
   { echo "commit $(git rev-parse HEAD)"
@@ -186,7 +188,7 @@ capture() {
       build/viewsvg $args > "$out/render/$name.txt" 2>&1
     n=$((n + 1))
   done <<< "$CASES"
-  echo "golden: captured 4 tables and $n renders into $out"
+  echo "golden: captured 6 tables and $n renders into $out"
 }
 
 case "${1:-}" in
