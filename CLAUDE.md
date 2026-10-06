@@ -45,8 +45,8 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 
 | Kind | File | Contents |
 |---|---|---|
-| Driver | `vdrive.f` | `VINIT`, `VFRAME`, scene cameras (`SCNCAM`, `LOOK`), table setup, per-scene model placement (`SCNMOD`, scene 7's pose and attitude; `VEHPL`, the LM at its state near the camera) |
-| Dispatcher | `vlayer.f` | `LAYERS`: each scene's layer list and a computed `GO TO` over layer ids |
+| Driver | `vdrive.f` | `VINIT` (selects a situation: `SITSET` copies its row of the situation tables), `VFRAME`, the camera recipes (`SCNCAM`, `LOOK`, `REFTRN`), table setup, model placement (`SCNMOD`: the situation's pose, `LMPIRO`, `S7POSE` with `S7ATT`, `S8POSE`; `VEHPL`, the LM at its state near the camera) |
+| Dispatcher | `vlayer.f` | `LAYERS`: the situation's layer list and a computed `GO TO` over layer ids |
 | Core | `ephem.f` | time, Sun, Moon, Moon orientation |
 | Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon, `LEGRV` one leg), events (`EVGET`), the LM's and the S-IVB's state rules (`LMSTAT`, `SIVST`), the LM descent, the Earthrise search |
 | Core | `sim.f` | the engine: flies the CSM from the scenario's START through its score (BURN cards), with state vector updates at its REF rows (optional), and writes the tape (`SIMRUN`) |
@@ -69,9 +69,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Layer 9 | `llpd.f` | LPD scale and LM window (scene 5) |
 | Layer 10 | `lburn.f` | burn cue: exhaust of a placed vehicle firing a main engine, and its BURN text (a modern addition) |
 
-Every layer is a subroutine with the argument list `(GET, VB, NV, SB, NS, LB, NL)`. To add one:
-a new file, the next id and one `CALL` in `LAYERS`, and the id in the scene lists there. The
-build, lint and native driver pick up every `src/*.f`, so they need no change.
+Every layer is a subroutine with the argument list `(GET, VB, NV, SB, NS, LB, NL)`. To add one: a new file, the next id and one `CALL` in `LAYERS`, a name for the id in `tools/gen_data.py` (`LAYER_IDS`), and the name in the `LAYERS=` of the SITUATION cards that draw it. The build, lint and native driver pick up every `src/*.f`, so they need no change.
 
 ### How the pieces map onto a 1969 run (conjecture, labelled as such)
 
@@ -122,7 +120,7 @@ LFortran notes (see `tools/build.sh`): the kernel needs `--implicit-interface` (
 its own routines) and `--legacy-array-sections` (sequence association, `CEV(1,J)` passed as a
 3-vector). `INCLUDE` works (`src/viewdims.inc` generated, `src/viewcom.inc` the kernel COMMON).
 LFortran defines every COMMON block strongly in each file, so the build makes them `weak` in
-every element's `.ll` but `viewdata.ll`, and the BLOCK DATA initialisers win. It also emits its
+every element's `.ll` but the BLOCK DATA files' (`viewdata.ll`, `viewsit.ll`), and the BLOCK DATA initialisers win. It also emits its
 runtime helpers (`_lcompilers_sin_f64` and the like) into every file that uses them; the build
 marks them `linkonce_odr` so the linker keeps one copy. Do not use `--fast`: it optimises for the host
 (x86 vectors, `__multi3`); clang optimises the IR for wasm32 instead, without saturating
@@ -373,7 +371,7 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
    heading of 275.5° there. The camera is scene 1's forward horizon view, turned by three
    angles FITTED to the photograph in its usual presentation (the film frame turned a quarter
    turn clockwise): the Earth's centre at plot (0.855, -0.456) and the horizon's 6.63° tilt
-   (`vdrive.f` S9REF). Checks against the photograph, as measured on the scan (ours):
+   (its RECIPE card's `TURN=`, applied by `vdrive.f` REFTRN). Checks against the photograph, as measured on the scan (ours):
    the Earth's angular diameter 1.9303° against 1.9366° (-0.32%; the Earth-camera distance
    agrees with JPL Horizons' Moon to 6 km, so the rest is the photograph's scale or the
    Earth's cloud and haze limb); the Earth's centre 3.455° above the smooth-sphere horizon
@@ -494,8 +492,7 @@ scenario has six LM legs from separation to TPF (MR Table 7-II p. 7-9 rows, SP-4
 burns). The Apollo 11 as-flown scenario uses the Mission Report's Table 7-II and
 7-VII states and SP-4029's ascent table; the Apollo 8 one the Apollo 8 Mission Report's
 (MSC-PA-R-69-1) Table 5-II and 5-V states, SP-4029's ascent table and the SVS 4129 position
-at the Earthrise photograph; see the scenarios' comments and `src/traj.f`. `VINIT` maps each
-scene to a scenario: 1-8 Apollo 11, 9 Apollo 8 (`ISNSC`; the same map is `data/scenes.scn`). Code keyed to a mission's events looks them
+at the Earthrise photograph; see the scenarios' comments and `src/traj.f`. Each scene is a situation whose SITUATION card sits in its scenario's deck (Scenes, below): 1-8 Apollo 11, 9 Apollo 8. Code keyed to a mission's events looks them
 up by kind (`EVGET`) and copes with their absence: without a TOUCH event (Apollo 8) the
 Earthrise search (`ERFIND`) ends its revolution at the PHOTO event, and no LM is marked.
 

@@ -292,9 +292,10 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         END IF
       END IF
 C     RESTOMOD END
-C     From the LM the window sill hides everything below it.
+C     From the LM the window sill hides everything below it: the LM
+C     station, and the situation's own view from the LM front window.
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF ((ISCN .EQ. 5 .AND. IVUSE .EQ. 0) .OR. IVUSE .EQ. 3) THEN
+      IF ((JWIN .EQ. 2 .AND. IVUSE .EQ. 0) .OR. IVUSE .EQ. 3) THEN
         IF (SILL(P) .GT. 0.0D0) THEN
           ISVIS = 0
           RETURN

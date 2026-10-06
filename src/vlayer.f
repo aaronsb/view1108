@@ -2,7 +2,8 @@ C=======================================================================
 C
 C     V I E W - 1 1 0 8          LAYER DISPATCHER
 C
-C     Walks the scene's layer list and calls each layer by its id.
+C     Walks the situation's layer list (JLL, from its SITUATION card)
+C     and calls each layer by its id.
 C     Every layer is a subroutine of one file with the same argument
 C     list, (GET, VB, NV, SB, NS, LB, NL), and draws into the plot
 C     buffers in list order.  FORTRAN 66 has no procedure variables,
@@ -10,7 +11,8 @@ C     so the call is chosen by a computed GO TO over the id.  One
 C     relocatable element of the kernel; see vdrive.f for the list.
 C
 C     To add a layer: a new file with its subroutine, the next id, one
-C     GO TO target and CALL below, and the id in the scene lists.
+C     GO TO target and CALL below, a name for it in tools/gen_data.py
+C     (LAYER_IDS), and the name in the SITUATION cards' LAYERS.
 C
 C       id  layer                       element
 C        1  plot frame and ticks        lframe.f   DFRAME
@@ -33,24 +35,11 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION GET, VB(5,MAXV), SB(3,MAXS), LB(4,MAXL)
       INTEGER NV, NS, NL
-      INTEGER LL(12,9), K, L
-C     Layer lists, one column per scene, ended by 0.  Scene 8 (the
-C     stack in translunar coast) has the sky and the vehicles.  Scene 4
-C     (the LM pirouette) has no stars, as on the film (t22.png,
-C     t25.png).  Scene 9 (Apollo 8 Earthrise) has scene 1's.  The
-C     burn cue (10, ours) follows the vehicles in every scene but 6,
-C     whose camera rides no vehicle and places no model.
-      DATA LL / 1, 2, 3, 4, 5, 6,10, 0, 0, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6,10, 0, 0, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6,10, 0, 0, 0, 0, 0,
-     &          1, 3, 4, 5, 6,10, 0, 0, 0, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6,10, 8, 9, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6,10, 7, 0, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6,10, 0, 0, 0, 0, 0,
-     &          1, 2, 3, 4, 5, 6,10, 0, 0, 0, 0, 0 /
+      INTEGER K, L
+C     The situation's layer list, JLL, ended by 0 (its SITUATION
+C     card's LAYERS, copied by SITSET).
       DO 90 K = 1, 12
-        L = LL(K, ISCN)
+        L = JLL(K)
         IF (L .LT. 1 .OR. L .GT. 10) GO TO 95
 C       Window overlays (COAS, LPD) only in the scene's window view.
         IF (IVUSE .NE. 0 .AND. (L .EQ. 7 .OR. L .EQ. 9)) GO TO 90

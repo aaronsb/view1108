@@ -127,7 +127,8 @@ C     X (DMOON6) stands for it there.
    60 IF (KLMPL() .NE. 0) GO TO 70
       IF (IRIDE() .EQ. 2) GO TO 70
       TL = EVGET(KELFT)
-      IF (ISCN .EQ. 6 .AND. LUT0 .GT. 0.0D0 .AND. GET .GE. LUT0
+      IF (MOD(JDRW / 4, 2) .EQ. 1 .AND. LUT0 .GT. 0.0D0
+     &    .AND. GET .GE. LUT0
      &    .AND. (TL .LT. 0.0D0 .OR. GET .LT. TL)) GO TO 70
       CALL VSTATE(GET, 2, 2, R, V, IOK)
       IF (IOK .NE. 1) GO TO 70

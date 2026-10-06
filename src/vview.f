@@ -15,7 +15,7 @@ C         points from the scene's camera at the target; free-look
 C         yaw, pitch and roll are offsets from it.
 C       Stations (in_view 2, 3): the camera at the CM or LM eye, the
 C         cabin around it (STATCM, STATLM), its interior with in_flags
-C         bit 4 (CMINT, LMINT; scene 5 too, S5CAB).
+C         bit 4 (CMINT, LMINT; the LM descent too, LDCAB).
 C       External view (in_view 1): the camera sits D from the target
 C         and looks at it; yaw and pitch carry it around the target
 C         (starting from the side the scene's own camera is on), roll
@@ -24,7 +24,8 @@ C         for the CSM, the docked stack or the S-IVB, 40 m for the
 C         LM, 60,000 km for the Earth, 36,737 km (35,000 km up, as
 C         scene 6) for the Moon.  The Sun is a target only for the
 C         window view.
-C     Scene 6 keeps its own Moon-centred camera and ignores both.
+C     A situation with FIXED=YES (the Moon view's body-centred camera)
+C     keeps its own camera and ignores both.
 C=======================================================================
 C
 C-----------------------------------------------------------------------
@@ -45,15 +46,16 @@ C     RESTOMOD END
       INTEGER IT, IOK, I, KCSPL
       LOOKD = 0
       IVUSE = IVIEW
-C     Scene 8's own view is the external one.
-      IF (ISCN .EQ. 8 .AND. IVUSE .EQ. 0) IVUSE = 1
-C     Scene 5 is the LM station already; asked for as one, it gets
-C     the cabin.
-      IF (ISCN .EQ. 5 .AND. IVUSE .EQ. 3) CALL S5CAB(GET)
-      IF (ISCN .EQ. 5 .AND. IVUSE .EQ. 3) IVUSE = 0
-      IF (ISCN .EQ. 6) IVUSE = 0
+C     The situation's own view where in_view is 0 (JVW; the docked
+C     stack's is the external one).
+      IF (IVUSE .EQ. 0) IVUSE = JVW
+C     A crew-station recipe is that station already; asked for as
+C     one, it gets the cabin (the LM's: JVEH 2, in_view 3).
+      IF (JRCP .EQ. 3 .AND. IVUSE .EQ. JVEH + 1) CALL LDCAB(GET)
+      IF (JRCP .EQ. 3 .AND. IVUSE .EQ. JVEH + 1) IVUSE = 0
+      IF (JFIX .EQ. 1) IVUSE = 0
       IT = ITARG
-      IF (ISCN .EQ. 6) RETURN
+      IF (JFIX .EQ. 1) RETURN
 C     Stations: the camera moves to the eye, the cabin goes around it.
 C     Where the scene has no such vehicle, the window view.
       IF (IVUSE .EQ. 2) CALL STATCM(CG, IOK)
@@ -64,15 +66,16 @@ C     The LM station keeps its window's own aim (its overlay is drawn in
 C     the reference frame, OVLPD).
       IF (IVUSE .EQ. 3) RETURN
       IF (IVUSE .NE. 1 .AND. IT .EQ. 0) RETURN
-C     The external view's default target is the scene's subject.
+C     The external view's default target is the situation's subject.
       IF (IVUSE .EQ. 1 .AND. (IT .EQ. 0 .OR. IT .EQ. 3))
      &  CALL TGTDEF(GET, IT)
-C     Seen from outside, a camera riding the CSM (scenes 1, 2, 3, 4,
-C     7, 9) shows the CSM: its origin (CSMBLD) 1.2 m behind
-C     the eye along the scene's boresight, its X axis along that
-C     boresight (ours); after CM/SM separation the CM alone.
-      IF (IVUSE .EQ. 1 .AND. KCSPL() .EQ. 0 .AND. ISCN .NE. 5
-     &    .AND. ISCN .NE. 8) CALL CSMCAM(GET)
+C     Seen from outside, a camera riding the CSM in its own view (JRID
+C     1: situations 1, 2, 3, 4, 7, 9) shows the CSM: its origin
+C     (CSMBLD) 1.2 m behind the eye along the reference boresight, its
+C     X axis along that boresight (ours); after CM/SM separation the
+C     CM alone.
+      IF (IVUSE .EQ. 1 .AND. KCSPL() .EQ. 0 .AND. JRID .EQ. 1)
+     &  CALL CSMCAM(GET)
       CALL TGTPOS(GET, IT, PM, CG, TG, DIST, IOK)
       IF (IOK .EQ. 0) RETURN
       DO 10 I = 1, 3
@@ -98,11 +101,12 @@ C     as it can be.
       IF (IVUSE .NE. 1) RETURN
 C
 C     External: free-look sets the direction, the camera backs off
-C     along it to DIST from the target.  Scene 7's reference looks
-C     down the docking axis, where the CSM's solids hide the LM it
-C     docks with: it starts 60 deg round and 25 deg up (ours).
-      IF (ISCN .EQ. 7) CALL LOOK(YAW + 60.0D0, PIT + 25.0D0, ROL)
-      IF (ISCN .NE. 7) CALL LOOK(YAW, PIT, ROL)
+C     along it to DIST from the target.  A situation with XSTART (JXOF;
+C     the docking, whose reference looks down the docking axis, where
+C     the CSM's solids hide the LM it docks with) starts QXY round:
+C     there 60 deg round and 25 deg up (ours).
+      IF (JXOF .EQ. 1) CALL LOOK(YAW + QXY(1), PIT + QXY(2), ROL)
+      IF (JXOF .NE. 1) CALL LOOK(YAW, PIT, ROL)
       LOOKD = 1
       DO 30 I = 1, 3
         CG(I) = TG(I) - DIST * CB(I)
@@ -113,19 +117,18 @@ C     Carry the placed models, shifted by DS.
       RETURN
       END
 C
-C     TGTDEF: the scene's default external target at GET: the
-C     reference body (Moon in scenes 1, 5, 6, 9; Earth in 2, 3, and in
-C     9 away from lunar orbit, LUNIN), the LM (4, 7), the CSM (8).
+C     TGTDEF: the situation's default external target at GET (its
+C     VIEWS card): JTGT, or JTGF where the recipe's off-leg fallback
+C     applies (no LUNAR leg holds the GET, LUNIN).
       SUBROUTINE TGTDEF(GET, IT)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION GET
-      INTEGER IT, ID(9), LUNIN
-      DATA ID / 2, 1, 1, 5, 2, 2, 5, 4, 2 /
-      IT = ID(ISCN)
-      IF (ISCN .EQ. 9 .AND. LUNIN(GET) .EQ. 0) IT = 1
+      INTEGER IT, LUNIN
+      IT = JTGT
+      IF (JFAL .EQ. 1 .AND. LUNIN(GET) .EQ. 0) IT = JTGF
       RETURN
       END
 C
@@ -229,17 +232,17 @@ C     A window view cannot aim at its own camera.
       END
 C
 C     IRIDE: the vehicle the camera rides this frame (after VIEWPT has
-C     set IVUSE): 1 the CSM (the window views of scenes 1, 2, 3, 4, 7
-C     and 9, and the CM station in any scene), 2 the LM (scene 5, the
-C     LM station), 0 none (scenes 6 and 8, and the external views).
+C     set IVUSE): in the situation's own view JRID (1 the CSM in
+C     situations 1, 2, 3, 4, 7 and 9, 2 the LM in 5, 0 none in 6 and
+C     8), 1 in the CM station, 2 in the LM station, 0 in the external
+C     views.
       INTEGER FUNCTION IRIDE()
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      IRIDE = 1
-      IF (ISCN .EQ. 5) IRIDE = 2
-      IF (ISCN .EQ. 6 .OR. ISCN .EQ. 8 .OR. IVUSE .EQ. 1) IRIDE = 0
+      IRIDE = JRID
+      IF (IVUSE .EQ. 1) IRIDE = 0
       IF (IVUSE .EQ. 2) IRIDE = 1
       IF (IVUSE .EQ. 3) IRIDE = 2
       RETURN
@@ -303,8 +306,9 @@ C     along the CSM's +X axis with its -Z up, the view of MSC IN 69-FM-
 C     197's CSM maneuver plots (see CMCAB); the cabin (KCMC) around it,
 C     and with in_flags bit 4 its interior (KCMI).
 C     The CSM's axes: the placed CSM's (scene 8), else X along the
-C     scene's boresight and Z against its up, so the station looks
-C     where the window view looked (ours).  Not in scenes 5 and 6.
+C     reference boresight and Z against its up, so the station looks
+C     where the window view looked (ours).  Only where the situation
+C     offers it (JSCM: always, or where the CSM is placed).
 C-----------------------------------------------------------------------
       SUBROUTINE STATCM(CG, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -314,7 +318,7 @@ C     RESTOMOD END
       DOUBLE PRECISION CG(3), AT(3,3), E(3), V(3), W(3), DS(3), Z(3)
       INTEGER IOK, I, J, KC, KCSPL
       IOK = 0
-      IF (ISCN .EQ. 5 .OR. ISCN .EQ. 6) RETURN
+      IF (JSCM .EQ. 0 .OR. (JSCM .EQ. 1 .AND. KCSPL() .EQ. 0)) RETURN
       IOK = 1
       CALL CMEYE(E)
       CALL SETV(Z, 0.0D0, 0.0D0, 0.0D0)
@@ -354,8 +358,8 @@ C     STATLM: the LM station.  The camera at the commander's design eye
 C     (LDEYE) in the placed LM (scenes 4, 7, 8), looking as scene 5
 C     does, LPDDN deg down from the LM's +Z in the X-Z plane; the LM
 C     window and LPD overlay (OVLPD) is drawn about that aim, and with
-C     in_flags bit 4 the interior (KLMI) around the eye.  Not where no
-C     LM is placed.
+C     in_flags bit 4 the interior (KLMI) around the eye.  Only where
+C     the situation offers it (JSLM) and an LM is placed.
 C-----------------------------------------------------------------------
       SUBROUTINE STATLM(CG, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -367,7 +371,7 @@ C     RESTOMOD END
       INTEGER IOK, I, J, KL, KLMPL
       IOK = 0
       KL = KLMPL()
-      IF (KL .EQ. 0) RETURN
+      IF (KL .EQ. 0 .OR. JSLM .EQ. 0) RETURN
       IOK = 1
       CALL LDEYE(E)
       DO 10 I = 1, 3
@@ -396,10 +400,10 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     S5CAB: scene 5's camera is the commander's eye; asked for as the
-C     LM station, with in_flags bit 4 the LM interior goes around it,
-C     on the descending LM's axes (LMDESC).
-      SUBROUTINE S5CAB(GET)
+C     LDCAB: the LM crew-station recipe's camera is the commander's
+C     eye; asked for as the LM station, with in_flags bit 4 the LM
+C     interior goes around it, on the descending LM's axes (LMDESC).
+      SUBROUTINE LDCAB(GET)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
