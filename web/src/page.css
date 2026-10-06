@@ -35,7 +35,7 @@ body[data-tab=source] #wrap, body[data-tab=source] #status, body[data-tab=source
   body:not(.still) #ws { flex:1; min-width:0; display:flex; flex-direction:column; }
   body:not(.still) #wrap { flex:1; min-height:0; overflow:hidden; }
   body:not(.still) #srcws { flex:1; min-height:0; }
-  body:not(.still) #status { flex:none; height:calc(2.5em + 10px); line-height:1.25; overflow:hidden; white-space:pre; text-overflow:ellipsis; max-width:100%; }   /* a fixed height, so the plot keeps its size as the line changes; one line, cut at its end (#37) */
+  body:not(.still) #status { flex:none; height:calc(2.5em + 10px); padding:8px 8px 0; -webkit-line-clamp:2; line-clamp:2; max-width:100%; }   /* a fixed height, so the plot keeps its size as the line changes: two lines, cut at the end (#37) */
   #dock { flex:none; width:clamp(360px, 22vw, 440px); overflow-y:auto; padding-right:4px; }
   #dock #ctl { flex-direction:column; flex-wrap:nowrap; align-items:stretch; margin-top:0; }
   #dock .shade { align-items:flex-start; }
@@ -67,9 +67,11 @@ button.shade-h:hover { color:var(--fg); border-bottom-color:var(--dim); }
 #pad button.held { color:#000; background:var(--fg); border-color:var(--fg); }
 #pad button.held small { color:#000; }
 #pad button:nth-child(n+10) { margin-top:4px; }
-/* Narrow screens: the status line at most three lines, cut at its end, so the plot sized under it (render.js) keeps
-   its size as the line changes (#37). */
-@media (max-width:999px) { #status { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; line-clamp:3; overflow:hidden; line-height:1.25; padding-bottom:0; } }   /* no bottom padding: the cut line would show in it */
+/* The status line (loop.js updateStatus): a fixed number of lines, cut with an ellipsis at its end, so the plot sized
+   under it (render.js) and the dock below keep their places as it changes (#37): three lines on a narrow screen, four
+   on the narrowest, two on a wide one (above). */
+#status { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; line-clamp:3; overflow:hidden; line-height:1.25; padding-bottom:0; height:calc(3.75em + 6px); }   /* no bottom padding: the cut line would show in it */
+@media (max-width:400px) { #status { -webkit-line-clamp:4; line-clamp:4; height:calc(5em + 6px); } }   /* the narrowest phones: four lines hold the mission, mode, times and rate */
 @media (max-width:600px) {
   #ctl { gap:6px; }
   .shade { flex-basis:100%; }

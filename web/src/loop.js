@@ -24,16 +24,18 @@ function step(now) {
 }
 let lastStatus = "", flashMsg = "", flashUntil = 0;
 const flash = m => { flashMsg = m; flashUntil = performance.now() + 1800; };
-// The status line: the mission, mode, time and rate first, then the display (the film's effects that are on, or the
-// scope's refresh; the film rate; the star catalog), which the line's CSS cuts with an ellipsis where it runs out of
-// room (#37: one line on a wide screen, at most three on a narrow one). Beam's trace rate is its short name; the Beam
-// group shows the long one.
+// The status line: the mission, mode, g.e.t., Beam's frame, the rate and the UTC first, then the display (the film's
+// effects that are on, or the scope's refresh; the film rate; the star catalog), or a flash in its place. The line's
+// CSS gives it a fixed number of lines and cuts it with an ellipsis where it runs out of room, which only the display
+// can reach (#37). Beam's trace rate is its short name; the Beam group shows the long one.
 function updateStatus() {
   const bs = BEAM_SPEEDS[beamIdx];
   const rate = LS.mode === "beam" ? `${bs.short} ${bs.vps ? bs.vps + " VEC/S" : "1/15 S FRAME"}` : LS.mode === "live" ? LIVE_RATES[liveIdx] + "X" : LS.mode === "free" ? (LS.playing ? SPEEDS[speedIdx] + "X" : "HOLD") : "AUTO";
   const disp = isFilm() ? ["FILM", effBloom() && "BLOOM", effJit() && "JITTER", effDust() && "DUST"].filter(Boolean).join(" ") : `SCOPE ${scopeHz() === "16" ? "16 HZ" : "STEADY"}`;
-  const t = (performance.now() < flashUntil ? flashMsg + "  " : "") + `${LS.epoch ? (LS.mission || "OTHER MISSION") + "  " : ""}MODE ${LS.mode}  G.E.T. ${getStr(LS.get)}  UTC ${utcStr(LS.get)}  ${LS.mode === "beam" ? "FRAME " + beamFrameNo + "  " : ""}${rate}  ${disp}${effFps() ? " 16 FPS" : ""}  STARS ${effCatalog().toUpperCase()}`;
-  if (t !== lastStatus) { lastStatus = t; document.getElementById("status").textContent = t; }
+  const mis = LS.mission || (LS.epoch ? "OTHER MISSION" : "");
+  const t = `${mis ? mis + "  " : ""}MODE ${LS.mode}  G.E.T. ${getStr(LS.get)}  ${LS.mode === "beam" ? "FRAME " + beamFrameNo + "  " : ""}${rate}  UTC ${utcStr(LS.get)}  `
+    + (performance.now() < flashUntil ? flashMsg : `${disp}${effFps() ? " 16 FPS" : ""}  STARS ${effCatalog().toUpperCase()}`);   // a flash stands in for the display
+  if (t !== lastStatus) { lastStatus = t; const el = document.getElementById("status"); el.textContent = t; el.title = t; }   // the title: the whole line, cut or not
 }
 // Film rate: with the toggle on, the kernel is stepped and a frame presented only every 1/16 s and held in between
 // (time keeps running in real time because step() works from the elapsed time). While the room is shown (room.js)

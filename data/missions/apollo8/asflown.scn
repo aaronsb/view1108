@@ -389,10 +389,11 @@ VIEWS VIEW=WINDOW TARGET=MOON OFFTARGET=EARTH RIDES=CSM CM=ALWAYS LM=PLACED
 * Captions (#35; ours): scene 9 is the Earthrise camera only in lunar orbit,
 * so each span outside it names its phase (CAPTION=), else the page would
 * caption the parking orbit or the entry "Apollo 8 Earthrise".  The phase
-* names are MR8's section 5 headings (its contents): 5.1 Launch phase,
-* 5.2 Earth parking orbit, 5.3 Translunar injection, 5.5 Lunar orbit
-* insertion, 5.6 Transearth injection, 5.8 Entry; and its summary's
-* "translunar and transearth coast phases" (section 1.0).  Which span gets
+* names are MR8's section 5 headings (its contents): 5.1 Launch phase
+* (p. 5-1), 5.2 Earth parking orbit (p. 5-1), 5.3 Translunar injection
+* (p. 5-2), 5.5 Lunar orbit insertion (p. 5-3), 5.6 Transearth injection
+* (p. 5-3), 5.8 Entry (p. 5-3); and its summary's "translunar and
+* transearth coast phases" (section 1.0).  Which span gets
 * which name is ours.  The lunar orbit span keeps the situation's own
 * title, Apollo 8 Earthrise.
 *
