@@ -44,7 +44,7 @@ const box = () => framed ? { x: W * (1 - BOXF) / 2, y: W * HDR, s: W * BOXF } : 
 // The caption line under the plot (also lettered by svgout.js).  hdr(9), the CSM to LM range, is lettered only within
 // 10 n mi (60,761 ft; ours): the kernel gives it wherever both states are known, the LM often far out of the picture.
 function captionText(H) {
-  const sc = H[6] | 0, liveTag = LS.mode === "live" ? `LIVE ${LIVE_RATES[liveIdx]}x   ` : LS.mode === "tour" ? "TOUR   " : "";
+  const sc = H[6] | 0, liveTag = LS.mode === "live" ? `LIVE ${LIVE_RATES[liveIdx]}x   ` : reelTag() ? reelTag() + "   " : "";
   const cap = sitCaption(sc);
   return liveTag + (capName || cap || SCENES[sc - 1] || "") + (H[5] && !autoCap && !(cap && (!capName || capName === cap)) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 && H[8] < 60761 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (LS.roll ? `   roll ${LS.roll.toFixed(0)}°` : "");
 }
@@ -179,7 +179,7 @@ function draw(now) {
   ctx.fillText("X, deg", cx, b.y + b.s + fs * 2);
   ctx.save(); ctx.translate(b.x - fs * 3.2, cy); ctx.rotate(-Math.PI / 2); ctx.textBaseline = "bottom"; ctx.fillText("Y, deg", 0, 0); ctx.restore();
   }
-  const showCap = framed || LS.mode !== "attract" || autoCap;   // the film has no text on its unframed shots; added shots say what they are
+  const showCap = framed || !filmReel() || autoCap;   // the film has no text on its unframed shots; added shots say what they are
   if (showCap) {
   ctx.textAlign = "center"; ctx.fillStyle = "#eee";
   ctx.textBaseline = "top"; ctx.font = `${fs * 1.1}px "Courier Prime","Courier New",monospace`;

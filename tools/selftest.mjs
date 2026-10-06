@@ -176,19 +176,24 @@ if (W.in_lablv) {
 }
 // The playlist reels (#18; data/reels/*/run.scn, VIEW_NAMES.REELS): every shot's situation exists, and its g.e.t. at
 // start and end lies inside that situation's scenario (from its first to its last TIMELINE row) and draws there (the
-// kernel takes it as given: hdr(1) is that g.e.t., hdr(7) the situation). Two values are held as literals, so the
-// check is not only the cards against themselves: the demo reel's Earthrise shot starts 30 s after the kernel's own
-// Earthrise default (ERFIND's Earthrise less 60 s, computed by the kernel, not the cards), and its LM descent shot
-// starts at 369,656 s (102:40:56, the film fit: 27 s = 369,676 s and 35 s = 369,840 s, extrapolated to 26 s).
+// kernel takes it as given: hdr(1) is that g.e.t., hdr(7) the situation). An ERISE shot's times are offsets from the
+// kernel's Earthrise (out_terise, after view_init of its situation), as the player resolves them. Literals, so the
+// check is not only the cards against themselves: the demo reel's Earthrise shot starts 30 s after the situation's own
+// default (ERFIND's Earthrise less 60 s, as the kernel computes it) and the tour's at it, both to 1 ulp; and the demo's
+// LM descent shot starts at 369,656 s (102:40:56, the film fit: 27 s = 369,676 s and 35 s = 369,840 s, extrapolated to
+// 26 s).
 {
   const bad = [], REELS = NAMES.REELS || {};
+  const terise = sit => { W.view_init(sit); return W.out_terise ? f64(W, 'out_terise', 1)[0] : NaN; };
+  const ulp = x => Math.abs(x) * Number.EPSILON;
   let n = 0;
   for (const [id, r] of Object.entries(REELS))
     r.shots.forEach((sh, k) => {
       const s = SIT.find(x => x.id === sh.sit), where = `${id} shot ${k + 1}`;
       if (!s) { bad.push(where + ' (no situation)'); return; }
       const ev = NAMES.TIMELINE[String(s.scenario)].events.map(e => e[0]);
-      const g = sh.get || [sh.at - sh.tte[0][1], sh.at - sh.tte[sh.tte.length - 1][1]];
+      const base = sh.rule === 'ERISE' ? terise(sh.sit) : 0;
+      const g = sh.get ? sh.get.map(x => base + x) : [sh.at - sh.tte[0][1], sh.at - sh.tte[sh.tte.length - 1][1]];
       for (const t of g) {
         const a = run(W, sh.sit, 3, sh.view, 0, 0, t); n++;
         if (!(t >= Math.min(...ev) && t <= Math.max(...ev) && a.hdr[0] === t && a.hdr[6] === sh.sit && a.nvec > 0))
@@ -196,10 +201,13 @@ if (W.in_lablv) {
       }
     });
   const demo = (REELS.demo || { shots: [] }).shots;
-  const rise = demo.find(sh => (SIT.find(x => x.id === sh.sit) || {}).get_rule === 'ERISE-60');
   const lmd = demo.find(sh => (SIT.find(x => x.id === sh.sit) || {}).recipe === 'CREWSTN');
-  const rise0 = rise && run(W, rise.sit).init;
-  if (!rise || Math.abs(rise.get[0] - (rise0 + 30)) > 1e-3) bad.push(`demo Earthrise: start ${rise && rise.get[0]} s, kernel Earthrise less 60 s ${rise0} plus 30`);
+  for (const [id, after] of [['demo', 30], ['tour', 0]]) {
+    const rise = ((REELS[id] || { shots: [] }).shots).find(sh => (SIT.find(x => x.id === sh.sit) || {}).get_rule === 'ERISE-60');
+    const def = rise && run(W, rise.sit).init, start = rise && terise(rise.sit) + rise.get[0];
+    if (!rise || !(Math.abs(start - (def + after)) <= ulp(start)))
+      bad.push(`${id} Earthrise: start ${start} s, the situation's default ${def} s plus ${after}`);
+  }
   if (!lmd || lmd.get[0] !== 369656) bad.push(`demo LM descent: start ${lmd && lmd.get[0]} s, not 369656`);
   console.log(`reels: ${Object.keys(REELS).length} (${Object.keys(REELS).join(', ')}), ${n} shot ends in their scenarios` +
     `  ${bad.length ? 'WRONG: ' + bad.join('; ') : 'ok'}`);

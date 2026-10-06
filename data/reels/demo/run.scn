@@ -14,13 +14,18 @@
 * plays it.  The kernel never reads this deck.
 *
 * Card types (all ours):
-*   REEL ID= TITLE= KIND=PLAYLIST ALIAS= [NEXT=] [FADE=]
+*   REEL ID= TITLE= KIND=PLAYLIST ALIAS= [NEXT=] [FADE=] [FILM=] [TAG=]
 *     ID       the reel's id, the name of its folder under data/reels/
 *     TITLE    its label on the drive (the room's UNISERVO, the page's drive
 *              panel)
-*     ALIAS    the page's mode for it (mode=attract in a link mounts it)
+*     ALIAS    the page's mode for it (mode=attract in a link mounts it);
+*              not LIVE, FREE or BEAM, the page's other modes
 *     NEXT     the reel mounted when the last shot ends; absent, it loops
 *     FADE     seconds of fade to black at each end of every shot (default 0)
+*     FILM     YES: the reel replays the film.  Its unframed shots carry no
+*              text, as on the film, unless CAPTION=YES, and the screen's
+*              AUTO setting shows the film look in the room (default NO)
+*     TAG      text before every shot's caption (default none)
 *   SHOT SIT= NAME= DUR= and a time law, then optional look and view keys.
 *     The shots play in card order.
 *     SIT      the situation shown, by its SITUATION card's ID (any mission)
@@ -38,6 +43,11 @@
 *     scenario plus or minus an offset (UNDOCK+120), resolved when the tables
 *     are generated, as on SPAN cards.  It is absolute: never an offset from
 *     the situation's default g.e.t., so retuning a default moves no shot.
+*     One time is computed when the reel plays: ERISE plus or minus an
+*     offset, ERFIND's Earthrise (the Earth's disc clearing the lunar
+*     horizon, src/traj.f), which the kernel exports as out_terise; only for
+*     a situation that runs that search (RECIPE LOCALVERT AZ=EARTH), and
+*     GET= and TO= both ERISE or neither.
 *     FOV=     the field (deg); absent, the situation's own
 *     YAW= PITCH= ROLL=  the look (deg; absent, the situation's own): a
 *              number, or a law in the shot fraction u: LIN:a,b (a to b),
@@ -49,17 +59,14 @@
 *     TARGET=  EARTH|MOON|SUN|CSM|LM|SIVB (in_target); absent, unchanged
 *     LABELS=  YES|NO (default NO)    FRAME=  YES|NO, the plot frame and ticks
 *              (default NO)
-*     CAPTION= YES: captioned even unframed (on this reel the film's unframed
-*              shots carry no text, as on the film)
+*     CAPTION= YES: captioned even unframed on a FILM=YES reel
 *
-REEL ID=DEMO TITLE="DEMO" KIND=PLAYLIST ALIAS=ATTRACT NEXT=TOUR SRC="ours"
+REEL ID=DEMO TITLE="DEMO" KIND=PLAYLIST ALIAS=ATTRACT NEXT=TOUR FILM=YES SRC="ours"
 *
-* Earthrise (t04.png), framed.  Situation 1's default is ERFIND's Earthrise
-* less 60 s (ERISE-60), which the kernel computes: 102:14:03.686 (368043.686
-* s) in today's kernel.  The shot runs from 30 s to 68 s after it, the span
-* it was tuned to on the film (ours); the selftest checks this start against
-* the kernel's ERISE-60.
-SHOT SIT=1 NAME="Earthrise" DUR=5.9 GET=102:14:33.686 TO=102:15:11.686 FRAME=YES ROLL=-3 SRC="the film's first shot (t04.png); times ours"
+* Earthrise (t04.png), framed: from 30 s before ERFIND's Earthrise to 8 s
+* after it (102:14:33.686 to 102:15:11.686 in today's kernel), the span it
+* was tuned to on the film (ours).
+SHOT SIT=1 NAME="Earthrise" DUR=5.9 GET=ERISE-30 TO=ERISE+8 FRAME=YES ROLL=-3 SRC="the film's first shot (t04.png); times ours"
 *
 * Earth approach (t08.png to t20.png): from 11,600 s before entry interface
 * to 600 s before it, the Earth's limb top steered to the film's elevations.

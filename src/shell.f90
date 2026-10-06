@@ -6,6 +6,7 @@
 !   view_init(scene), view_frame(), sim_run(flags)
 !   in_get, in_yaw, in_pitch, in_roll, in_fov, in_flags, in_src,
 !   in_view, in_target, in_lablv
+!   out_terise (read-only)
 !   vbuf, nvec, sbuf, nstar, lbuf, nlab, hdr, tbuf, ntxt, tchr, nchr
 module view_shell
   use iso_c_binding, only: c_double, c_int
@@ -27,6 +28,11 @@ module view_shell
   integer(c_int), bind(c, name="in_view") :: in_view = 0
   integer(c_int), bind(c, name="in_target") :: in_target = 0
   integer(c_int), bind(c, name="in_lablv") :: in_lablv = 0
+  ! Read-only: the Earthrise time (g.e.t. s) of the last Earthrise search
+  ! (ERFIND, TERISE in /CORB/), which view_init runs for a situation whose
+  ! GET rule is ERISE; copied out after each view_init.  The page's
+  ! playlist reels time their ERISE shots from it (web/src/player.js).
+  real(c_double), bind(c, name="out_terise") :: out_terise = 0
 
   real(c_double), bind(c, name="vbuf") :: vbuf(5, MAXV)
   integer(c_int), bind(c, name="nvec") :: nvec = 0
@@ -67,8 +73,15 @@ contains
     integer(c_int), value :: scene
     integer :: isc
     double precision :: get, yaw, pit, rol, fov
+    ! The kernel's /CORB/ as src/viewcom.inc declares it (read here only,
+    ! for TERISE); the two must match.
+    double precision :: lut0, tetp, lmalt, lmeye, azoff, eloff, terise
+    double precision :: fxb(3), fxu(3), fxdt, s6lat, s6lon, s6dst
+    common /corb/ lut0, tetp, lmalt, lmeye, azoff, eloff, terise, &
+                  fxb, fxu, fxdt, s6lat, s6lon, s6dst
     isc = scene
     call vinit(isc, get, yaw, pit, rol, fov)
+    out_terise = terise
     in_get = get
     in_yaw = yaw
     in_pitch = pit

@@ -42,19 +42,20 @@ function loadReel(p) {
     case "shot": loadShot(p); break;
     case "follow": loadFollow(p); break;
     case "event": loadEvent(pNum(p, "get")); break;
-    case "reset": { const g = LS.get; mount(LS.situation); LS.get = g; break; }
-    case "source": { const keep = { ...LS }; mount(LS.situation); Object.assign(LS, { get: keep.get, get0: keep.get0, yaw: keep.yaw, pitch: keep.pitch, roll: keep.roll, fov: keep.fov }); break; }
+    case "reset": { const g = LS.get, t = LS.target; mount(LS.situation); LS.get = g; LS.target = t; break; }
+    case "source": { const keep = { ...LS }; mount(LS.situation); Object.assign(LS, { get: keep.get, get0: keep.get0, yaw: keep.yaw, pitch: keep.pitch, roll: keep.roll, fov: keep.fov, target: keep.target }); break; }
     default: loadPick(p);
   }
   if (p.has("photo")) loadPhoto(p);
 }
 
 // ---- steps ----
-// Mount situation s: the kernel sets it up (view_init) and its defaults become the look and time. Its scenario,
-// mission and epoch come from the generated tables (config.js SITS, SCNS).
+// Mount situation s: the kernel sets it up (view_init) and its defaults become the look and time, with its own target
+// (in_target 0), so a playlist shot's TARGET does not carry into the next shot or Free-look. Its scenario, mission and
+// epoch come from the generated tables (config.js SITS, SCNS).
 function mount(s) {
   const sit = sitOf(s), scn = SCNS[sit.scenario] || {};
-  Object.assign(LS, { situation: s, scenario: sit.scenario, mission: scn.mission || "", epoch: scn.epoch || 0, zero: scn.zero || 0 });
+  Object.assign(LS, { situation: s, scenario: sit.scenario, mission: scn.mission || "", epoch: scn.epoch || 0, zero: scn.zero || 0, target: 0 });
   viewInit(s);
   LS.get = LS.get0 = rd("in_get"); LS.yaw = rd("in_yaw"); LS.pitch = rd("in_pitch"); LS.roll = rd("in_roll"); LS.fov = LS.fov0 = rd("in_fov");
 }
@@ -141,8 +142,8 @@ function loadPick(p) {
 // Live's phase changed: keep the viewer's look and the time across it; the field returns to the situation's own,
 // and the look is aimed once at the reference body if it is in front.
 function loadPhase(s) {
-  const g = LS.get, y = LS.yaw, pt = LS.pitch, r = LS.roll;
-  mount(s); LS.get = g; LS.yaw = y; LS.pitch = pt; LS.roll = r; LS.get0 = g; Object.assign(LS, aimAtBody()); syncUI();
+  const g = LS.get, y = LS.yaw, pt = LS.pitch, r = LS.roll, t = LS.target;
+  mount(s); LS.get = g; LS.yaw = y; LS.pitch = pt; LS.roll = r; LS.target = t; LS.get0 = g; Object.assign(LS, aimAtBody()); syncUI();
 }
 // The playlist player's next shot: its situation at its defaults, its view, labels and frame, its target where it
 // names one; the shot then drives the time and look through track() (player.js reelStep).

@@ -5,11 +5,11 @@
 * ends.  Card format: data/reels/demo/run.scn.  The shots, their order,
 * rates and looks are all ours.
 *
-REEL ID=TOUR TITLE="TOUR" KIND=PLAYLIST ALIAS=TOUR FADE=0.8 SRC="ours"
+REEL ID=TOUR TITLE="TOUR" KIND=PLAYLIST ALIAS=TOUR FADE=0.8 TAG="TOUR" SRC="ours"
 *
-* Earthrise from ERFIND's Earthrise less 60 s (102:14:03.686 in today's
-* kernel; see the demo reel), at 1x, the camera lifting 4 deg.
-SHOT SIT=1 NAME="Earthrise" DUR=200 GET=102:14:03.686 RATE=1 FOV=14 ROLL=-3 PITCH=LIN:0,4 FRAME=YES SRC="ours"
+* Earthrise from 60 s before ERFIND's Earthrise (102:14:03.686 in today's
+* kernel), at 1x, the camera lifting 4 deg.
+SHOT SIT=1 NAME="Earthrise" DUR=200 GET=ERISE-60 RATE=1 FOV=14 ROLL=-3 PITCH=LIN:0,4 FRAME=YES SRC="ours"
 *
 * Earth approach: the demo reel's law, over 150 s.
 SHOT SIT=2 NAME="Earth approach" DUR=150 AT=195:03:06 TTE=0:11600,0.14:6500,0.62:900,1:600 LIMB=0:-11,0.14:-11.6,0.62:-13,1:-6 FOV=60 SRC="ours"

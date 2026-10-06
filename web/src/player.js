@@ -4,12 +4,17 @@
 // Attract is the demo reel and Tour another playlist reel: the page's modes "attract" and "tour" are their ALIASes.
 "use strict";
 const QP = k => { const m = new RegExp("[?&]" + k + "=([^&]+)").exec(location.search); return m ? m[1] : null; };
-// ?film=N: the demo reel held at its second N (screenshots against the film); with it, ?p=from,to (g.e.t. s) replaces
+// ?film=N: the demo reel held at its second N (screenshots against the film); with it, ?p=from,to (absolute g.e.t. s) replaces
 // the shot's time law and ?fov= ?yaw= ?pitch= ?roll= its look, for tuning a shot against the film.
 const filmQ = /[?&]film=([\d.]+)/.exec(location.search);
 let autoCap = false;   // caption an unframed shot of the demo reel (its CAPTION=YES shots, the added, non-film ones)
-let autoT = filmQ ? +filmQ[1] : 0, autoShot = -1, fadeA = 0;
+let autoT = filmQ ? +filmQ[1] : 0, autoShot = -1, fadeA = 0, shotBase = 0;
 const reelOfMode = m => Object.values(REELS).find(r => r.alias === m) || null;
+// The mounted reel and its card's flags: FILM (replays the film: unframed shots uncaptioned, the film look on the
+// room's AUTO screen) and TAG (text before each caption). Captions and the display read these, never the mode name.
+const reelOn = () => REELS[LS.reel] || null;
+const filmReel = () => !!(reelOn() && reelOn().film);
+const reelTag = () => (reelOn() && reelOn().tag) || "";
 const reelLen = r => r.shots.reduce((a, s) => a + s.dur, 0);
 
 // A look law in the shot fraction u (gen_data.py LOOK_LAWS): a number, or [law, a, b].
@@ -21,10 +26,12 @@ const LOOK_LAW = {
 const lookAt = (x, u) => Array.isArray(x) ? LOOK_LAW[x[0]](x[1], x[2], u) : x;
 function lerpTab(t, u) { for (let i = 1; i < t.length; i++) if (u <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (u - t[i - 1][0]) / (t[i][0] - t[i - 1][0]); return t[t.length - 1][1]; }
 // The shot's g.e.t. at fraction u: linear from get[0] to get[1], or (TTE) at less the seconds to go, log-interpolated.
+// An ERISE shot's get is offsets from ERFIND's Earthrise, which the kernel exports (out_terise) when the shot's
+// situation is set up: shotBase, read at the shot's load. The situation's default g.e.t. is never used.
 function shotGet(sh, u) {
   if (sh.tte) return sh.at - Math.exp(lerpTab(sh.tte.map(q => [q[0], Math.log(q[1])]), u));
-  const g = (QP("p") && filmQ) ? QP("p").split(",").map(Number) : sh.get;
-  return g[0] + (g[1] - g[0]) * u;
+  const ov = QP("p") && filmQ, g = ov ? QP("p").split(",").map(Number) : sh.get;
+  return (ov ? g[0] : shotBase + g[0]) + (g[1] - g[0]) * u;
 }
 const RE_NMI = 3443.9;
 // LIMB: aim the camera at the Earth. Probe the kernel with no look offset and read hdr(11,12), the body centre's plot
@@ -49,6 +56,7 @@ function reelStep(dt) {
   const sh = L[i], u = t / sh.dur;
   if (i !== autoShot) {
     autoShot = i; loadReel(P({ by: "shot", scene: sh.sit, lab: sh.lab, view: sh.view, target: sh.target, frame: sh.frame ? 1 : 0 }));
+    shotBase = sh.rule === "ERISE" ? (K.out_terise ? rd("out_terise") : NaN) : 0;   // NaN: a kernel without the export
     capName = sh.name; autoCap = !!sh.cap; syncUI();
   }
   const look = {};

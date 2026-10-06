@@ -16,12 +16,13 @@ if (UP.get("hz") === "16" || UP.get("hz") === "steady") urlOv.hz = UP.get("hz");
 const urlFlag = k => k in urlOv ? urlOv[k] : null;
 // The screen: FILM, the microfilm recorder (the effects below), or SCOPE, the room's UNIVAC 1558 console (none of
 // them: render.js scopeRender). AUTO (ours): the 1558's screen while the room shows it; on the page SCOPE when it was
-// reached through the room, except Attract (the film clip) and the Print tab; FILM otherwise, as in Tiled.
+// reached through the room, except on a FILM=YES reel (Attract, the film clip; player.js filmReel) and the Print tab;
+// FILM otherwise, as in Tiled.
 const dispChoice = () => urlOv.disp || prefs.disp;
 const effDisp = () => {
   if (roomShown) return "scope";
   const d = dispChoice();
-  return d !== "auto" ? d : roomIn && LS.mode !== "attract" && tab !== "print" ? "scope" : "film";
+  return d !== "auto" ? d : roomIn && !filmReel() && tab !== "print" ? "scope" : "film";
 };
 const isFilm = () => effDisp() === "film";
 // SCOPE refresh: "16" redraws the frame as a beam pass every 1/16 s on a decaying phosphor; "steady" holds it still.

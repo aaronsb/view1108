@@ -209,6 +209,10 @@ Inputs (written by JS):
   LPD) and the LM window sill apply only in the window view.
 
 Outputs (written by the kernel):
+- `out_terise` real(8), read-only: the Earthrise time (g.e.t. s) of the last Earthrise search
+  (`ERFIND`, `TERISE` in `/CORB/`), copied out by the chassis after each `view_init`; the
+  search runs for a situation whose GET rule is ERISE. The playlist player times ERISE shots
+  from it (`web/src/player.js`). Read only after `view_init` of such a situation.
 - `vbuf(5, MAXV)` real(8), `nvec` int32: line segments `x1, y1, x2, y2, style` in plot
   degrees (the report's "X, deg" / "Y, deg"). style 1 = solid, 2 = dashed (hidden line).
   MAXV = 60000.
@@ -454,7 +458,7 @@ Drawing conventions from TN D-6853 (Hyle & Lunde 1972): night sides are straight
 "shading lines"; the 37 prime nav stars are named; the background catalog runs to V 4.5;
 circular craters appear as ellipses.
 
-**Attract loop:** on load the page mounts the demo reel and replays the film's four shots live (film time 0–5.9 s Earthrise, 5.9–20.5 s Earth approach, 20.5–26 s LM pirouette, 26–36.4 s LM descent), then a fifth shot of ours, by driving `in_get` and the free-look inputs from its SHOT cards, then mounts the tour reel, which loops. Both are playlist reels (#18): `data/reels/demo/run.scn` and `data/reels/tour/run.scn`, a REEL card and SHOT cards, each shot a situation by ID, an absolute g.e.t. (h:mm:ss or EVENT±offset, never an offset from the situation's default) and its look; `tools/gen_data.py` checks them into `VIEW_NAMES.REELS` and one player (`web/src/player.js`) plays the mounted one. `mode=attract` and `mode=tour` (the REEL cards' ALIAS) mount them. Any user input hands control to the viewer. The drive's label is the mounted reel's TITLE (DEMO, TOUR); in the room the drive's STOP/START holds and resumes it without leaving it, and a line over the room says what plays and how to take control (#20; `docs/modes.md`, Room).
+**Attract loop:** on load the page mounts the demo reel and replays the film's four shots live (film time 0–5.9 s Earthrise, 5.9–20.5 s Earth approach, 20.5–26 s LM pirouette, 26–36.4 s LM descent), then a fifth shot of ours, by driving `in_get` and the free-look inputs from its SHOT cards, then mounts the tour reel, which loops. Both are playlist reels (#18): `data/reels/demo/run.scn` and `data/reels/tour/run.scn`, a REEL card and SHOT cards, each shot a situation by ID, an absolute g.e.t. (h:mm:ss or EVENT±offset, never an offset from the situation's default; ERISE±offset is the kernel's Earthrise, `out_terise`) and its look; `tools/gen_data.py` checks them into `VIEW_NAMES.REELS` and one player (`web/src/player.js`) plays the mounted one. `mode=attract` and `mode=tour` (the REEL cards' ALIAS) mount them; captions, the TOUR tag and the room's display read the reel's FILM and TAG fields. Any user input hands control to the viewer. The drive's label is the mounted reel's TITLE (DEMO, TOUR); in the room the drive's STOP/START holds and resumes it without leaving it, and a line over the room says what plays and how to take control (#20; `docs/modes.md`, Room).
 
 World model: the Moon from Meeus ch. 47 (ELP-2000/82 abridged; terms in `data/meeus47.txt`,
 within about 15 km of JPL Horizons over Apollo 8 and 11), the Sun from the Almanac's

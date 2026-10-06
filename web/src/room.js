@@ -4,7 +4,7 @@
 // terminal's screen is the plot (#cv), the glass terminal opens Source, the microfilm recorder Print, the line printer
 // the kernel listing on greenbar over the page, the bookcase (or one of its binders) the library over it; clicking one
 // flies the camera to its close-up, and a click there shows that tab or overlay. The drive is the mounted reel's
-// STOP/START (drivePlay, modes.js), used in place. The Room button, or Esc (the one stack, esc.js), flies back out.
+// STOP/START (drivePlay, player.js), used in place. The Room button, or Esc (the one stack, esc.js), flies back out.
 "use strict";
 const LAB = typeof VIEW_LAB !== "undefined" ? VIEW_LAB : null;
 const ROOM_KEY = "view1108.space";
