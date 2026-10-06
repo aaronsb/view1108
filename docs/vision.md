@@ -64,6 +64,8 @@ The direction is a **scenario per mission or trajectory version**: a data table 
 
 The kernel stays mission-agnostic: it reads the scenario, propagates the leg that covers the current g.e.t., and draws. Adding Apollo 10, 12 or 13 then means adding a scenario. Apollo 11 can carry two: the pre-flight nominal VIEW would have been given, and the as-flown trajectory from the mission report, so the viewer can compare prediction with flight. Conjecture: this is close to how VIEW itself was used, a fixed program with a new input deck per mission and per trajectory revision. The job flow is our guess (see `docs/batch-pipeline.md`).
 
+The model behind this (mission, scenario, situation, reel package and presentation, with the rules that keep each fact in one place) is in [`docs/systems-model.md`](systems-model.md).
+
 ## Pluggable modules
 
 The rendering stays a FORTRAN vector system. What changes is its shape: the kernel, once a single 2,944-line `src/view.f`, is now a set of modules with fixed interfaces, so a new mission, vehicle or overlay is added as a module and the core stays unchanged.
