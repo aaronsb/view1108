@@ -1,0 +1,83 @@
+* THE DEMO REEL: A PLAYLIST RUN DECK (VIEW-1108, #18).
+*
+* The demo reel is a hypothetical demonstration of the system, mounted when
+* the viewer has chosen no reel: on page load, and on the room's drive,
+* labelled with this deck's TITLE (docs/systems-model.md, sections 3 and 6).
+* Its first four shots replay the film's four shots live, in film time:
+* 0-5.9 s Earthrise, 5.9-20.5 s Earth approach, 20.5-26 s LM pirouette,
+* 26-36.4 s LM descent (the clip in reference/video_frames/; frame names
+* below).  A fifth shot, a modern addition, follows.  When the last shot
+* ends the page mounts the NEXT reel (the tour).  The deck format is ours.
+* One card per line; a card starting with * is a comment; fields KEY=VALUE.
+* tools/gen_data.py checks the cards and writes the page's copy into
+* build/names.js (VIEW_NAMES.REELS); the playlist player (web/src/player.js)
+* plays it.  The kernel never reads this deck.
+*
+* Card types (all ours):
+*   REEL ID= TITLE= KIND=PLAYLIST ALIAS= [NEXT=] [FADE=]
+*     ID       the reel's id, the name of its folder under data/reels/
+*     TITLE    its label on the drive (the room's UNISERVO, the page's drive
+*              panel)
+*     ALIAS    the page's mode for it (mode=attract in a link mounts it)
+*     NEXT     the reel mounted when the last shot ends; absent, it loops
+*     FADE     seconds of fade to black at each end of every shot (default 0)
+*   SHOT SIT= NAME= DUR= and a time law, then optional look and view keys.
+*     The shots play in card order.
+*     SIT      the situation shown, by its SITUATION card's ID (any mission)
+*     NAME     the shot's caption
+*     DUR      real seconds on screen
+*     Time law, one of:
+*       GET= RATE=   g.e.t. at the shot's start, then RATE g.e.t. seconds per
+*                    real second
+*       GET= TO=     g.e.t. at the start and at the end, linear between
+*       AT= TTE=     AT the g.e.t. of entry interface; TTE=u:s,u:s,... the
+*                    seconds still to go to AT at shot fraction u (0 to 1),
+*                    interpolated in the logarithm, so the approach slows
+*                    as it closes
+*     A g.e.t. is h:mm:ss (or s) or an EVENT kind of the situation's
+*     scenario plus or minus an offset (UNDOCK+120), resolved when the tables
+*     are generated, as on SPAN cards.  It is absolute: never an offset from
+*     the situation's default g.e.t., so retuning a default moves no shot.
+*     FOV=     the field (deg); absent, the situation's own
+*     YAW= PITCH= ROLL=  the look (deg; absent, the situation's own): a
+*              number, or a law in the shot fraction u: LIN:a,b (a to b),
+*              SIN:a,b (a + b sin 2 pi u), HAV:a,b (a to b and back, as
+*              a + (b - a)(1 - cos 2 pi u)/2)
+*     LIMB=u:deg,...  steer the camera so the Earth's limb top sits at that
+*              plot elevation (the Earth approach)
+*     VIEW=    WINDOW|EXTERNAL|CM|LM (in_view; default WINDOW)
+*     TARGET=  EARTH|MOON|SUN|CSM|LM|SIVB (in_target); absent, unchanged
+*     LABELS=  YES|NO (default NO)    FRAME=  YES|NO, the plot frame and ticks
+*              (default NO)
+*     CAPTION= YES: captioned even unframed (on this reel the film's unframed
+*              shots carry no text, as on the film)
+*
+REEL ID=DEMO TITLE="DEMO" KIND=PLAYLIST ALIAS=ATTRACT NEXT=TOUR SRC="ours"
+*
+* Earthrise (t04.png), framed.  Situation 1's default is ERFIND's Earthrise
+* less 60 s (ERISE-60), which the kernel computes: 102:14:03.686 (368043.686
+* s) in today's kernel.  The shot runs from 30 s to 68 s after it, the span
+* it was tuned to on the film (ours); the selftest checks this start against
+* the kernel's ERISE-60.
+SHOT SIT=1 NAME="Earthrise" DUR=5.9 GET=102:14:33.686 TO=102:15:11.686 FRAME=YES ROLL=-3 SRC="the film's first shot (t04.png); times ours"
+*
+* Earth approach (t08.png to t20.png): from 11,600 s before entry interface
+* to 600 s before it, the Earth's limb top steered to the film's elevations.
+* AT is entry interface rounded to the second (EI is 195:03:05.7, MR Table
+* 7-VII p. 7-12), as this shot has always used; the rows are ours.
+SHOT SIT=2 NAME="Earth approach" DUR=14.6 AT=195:03:06 TTE=0:11600,0.14:6500,0.62:900,1:600 LIMB=0:-11,0.14:-11.6,0.62:-13,1:-6 FOV=60 SRC="the film's second shot (t08.png to t20.png); times and steering ours"
+*
+* LM pirouette (t22.png, t25.png), two minutes after undocking for 45 s.
+SHOT SIT=4 NAME="LM pirouette" DUR=5.5 GET=UNDOCK+120 TO=UNDOCK+165 SRC="the film's third shot (t22.png, t25.png); times ours"
+*
+* LM descent (t28.png, t31.png, t35.png), framed: film 27 s = 102:41:16
+* (369676 s) and 35 s = 102:44:00 (369840 s), linear; 26 s and 36.4 s are
+* extrapolated from them.
+SHOT SIT=5 NAME="LM descent" DUR=10.4 GET=102:40:56 TO=102:44:29 FRAME=YES SRC="the film's fourth shot (t28.png, t31.png, t35.png); fitted times ours"
+*
+* After the film's four shots, a modern addition, captioned as ours: orbit
+* the docked stack from outside.  Yaw circles the stack's long axis, which
+* looks alike from every side, so the shot rises in elevation from side-on
+* toward the LM end and drifts a little in azimuth, with the stack about
+* half the frame.  From situation 8's moment (PTC+1800) at 1x.
+SHOT SIT=8 NAME="Translunar stack - a modern addition, not 1969 film" DUR=12 GET=PTC+1800 RATE=1 VIEW=EXTERNAL FOV=24 YAW=LIN:150,200 PITCH=LIN:-10,35 CAPTION=YES SRC="ours, a modern addition"
