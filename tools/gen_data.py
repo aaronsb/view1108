@@ -610,8 +610,9 @@ def situations(mis, evs, sits):
 # The page's copy of the situations and of each scenario's SPAN cards (#17), in build/names.js:
 # VIEW_NAMES.SITUATIONS (in id order) and VIEW_NAMES.SCENARIOS.  The page reads these and holds no
 # list of its own (docs/systems-model.md, section 4, rules 3 and 4).
-SPAN_KEYS = {"FOLLOW": {"UNTIL", "VIEW", "TARGET", "FOV"}, "LIVE": {"UNTIL", "NAME"},
-             "JUMP": {"FROM", "LEN", "BUTTON"}, "PIN": set()}
+SPAN_KEYS = {"FOLLOW": {"VIEW", "TARGET", "FOV"}, "LIVE": set(), "JUMP": set(), "PIN": set()}   # optional
+SPAN_NEED = {"FOLLOW": {"SIT", "UNTIL"}, "LIVE": {"SIT", "UNTIL", "NAME"},                         # required
+             "JUMP": {"SIT", "FROM", "LEN", "BUTTON"}, "PIN": {"SIT"}}
 
 
 def event_times(evs, m):
@@ -624,7 +625,10 @@ def static_get(txt, evt, where):
     cards; None for END.  Rounded to the millisecond, as the cards' times are."""
     if txt == "END":
         return None
-    gk, ge, gt = get_rule(txt, EVENT_KINDS)
+    try:
+        gk, ge, gt = get_rule(txt, EVENT_KINDS)
+    except (AssertionError, ValueError) as e:
+        raise AssertionError(f"{where}: {e}") from None
     assert gk in (1, 2), f"{where}: {txt}: a g.e.t. or an EVENT plus or minus an offset"
     assert gk == 1 or ge in evt, f"{where}: {txt}: the scenario has no such EVENT"
     return round(gt + (evt[ge] if gk == 2 else 0.0), 3)
@@ -655,46 +659,67 @@ def page_situations(sits, raw, mis, evs):
     return out
 
 
-def page_scenarios(mis, evs, spans, sits):
+def page_scenarios(mis, legs, evs, spans, sits):
     """VIEW_NAMES.SCENARIOS: per scenario its mission, its epoch (s from scenario 1's range zero, as
     hdr(16)) and its SPAN cards by track.  follow: [until, situation, in_view, in_target, field],
     until None for END, field None for the situation's own; live: [until, situation, name]; jump:
-    {scene, get, len, button}; pin: situation ids."""
+    {scene, get, len, button}; pin: situation ids.  Every span time lies within the scenario's
+    legs; LIVE cards are in exactly one scenario (the one Live follows)."""
     sit_m = {r["id"]: r["m"] for r in sits}
     jd1 = next(m["jd"] for m in mis if m["n"] == 1)
     out = {}
     for m in mis:
         evt = event_times(evs, m["n"])
+        ml = [lg["p"] for lg in legs if lg["m"] == m["n"]]
+        t0, t1 = min(q[0] for q in ml), max(q[1] for q in ml)
         tr = {"follow": [], "live": [], "jump": [], "pin": []}
         for k, c in enumerate(x for x in spans if x["m"] == m["n"]):
             kv, where = c["kv"], f"{c['deck']}: SPAN {k + 1}"
             track = enum({t: t for t in SPAN_KEYS}, kv.get("TRACK", ""), where, "TRACK")
-            extra = sorted(set(kv) - SPAN_KEYS[track] - {"TRACK", "SIT", "SRC"})
+            extra = sorted(set(kv) - SPAN_KEYS[track] - SPAN_NEED[track] - {"TRACK", "SRC"})
             assert not extra, f"{where}: TRACK={track} takes no {', '.join(extra)}"
-            sid = int(kv["SIT"])
+            miss = sorted(SPAN_NEED[track] - set(kv))
+            assert not miss, f"{where}: TRACK={track} needs {', '.join(k + '=' for k in miss)}"
+
+            def num(key, conv=float):
+                try:
+                    return conv(kv[key])
+                except ValueError:
+                    raise AssertionError(f"{where}: {key}={kv[key]}: not a number") from None
+
+            def when(key):
+                t = static_get(kv[key], evt, f"{where}: {key}")
+                assert t is None or t0 <= t <= t1, \
+                    f"{where}: {key}={kv[key]} ({t} s) is outside the scenario's legs, {t0} to {t1} s"
+                return t
+            sid = num("SIT", int)
             assert sit_m.get(sid) == m["n"], f"{where}: SIT={sid} is not a situation of this scenario"
             if track in ("FOLLOW", "LIVE"):
-                until = static_get(kv["UNTIL"], evt, where)
+                until = when("UNTIL")
                 prev = tr[track.lower()]
                 assert not prev or (prev[-1][0] is not None and (until is None or until > prev[-1][0])), \
                     f"{where}: {track} spans in g.e.t. order, END last"
             if track == "FOLLOW":
                 tr["follow"].append([until, sid, enum(VIEWS_, kv.get("VIEW", "WINDOW"), where, "VIEW"),
                                      enum(TARGETS, kv["TARGET"], where, "TARGET") if "TARGET" in kv else 0,
-                                     float(kv["FOV"]) if "FOV" in kv else None])
+                                     num("FOV") if "FOV" in kv else None])
             elif track == "LIVE":
                 tr["live"].append([until, sid, kv["NAME"]])
             elif track == "JUMP":
-                g = static_get(kv["FROM"], evt, where)
+                g, n = when("FROM"), num("LEN")
                 assert g is not None, f"{where}: FROM=END"
-                tr["jump"].append({"scene": sid, "get": g, "len": float(kv["LEN"]),
-                                   "button": kv["BUTTON"]})
+                assert n > 0, f"{where}: LEN={kv['LEN']}: must be more than 0"
+                assert g + n <= t1, f"{where}: FROM+LEN ({g + n} s) is past the scenario's legs, {t1} s"
+                tr["jump"].append({"scene": sid, "get": g, "len": n, "button": kv["BUTTON"]})
             else:
+                assert sid not in tr["pin"], f"{where}: SIT={sid} is already pinned"
                 tr["pin"].append(sid)
         for t in ("follow", "live"):
             assert not tr[t] or tr[t][-1][0] is None, f"scenario {m['n']}: the last {t.upper()} span ends at END"
         out[str(m["n"])] = {"mission": m["mname"], "epoch": round((m["jd"] - jd1) * 86400, 3),
                             "spans": tr}
+    live = [k for k, v in out.items() if v["spans"]["live"]]
+    assert len(live) == 1, f"LIVE spans: Live follows one scenario, found them in {len(live)} ({', '.join(live)})"
     return out
 
 
@@ -1170,7 +1195,7 @@ def main():
     sits = situations(mis, evs, sim["sit"])
     # The situations and each scenario's SPAN cards: the page's only copy of them.
     names["SITUATIONS"] = page_situations(sits, sim["sit"], mis, evs)
-    names["SCENARIOS"] = page_scenarios(mis, evs, sim["span"], sits)
+    names["SCENARIOS"] = page_scenarios(mis, legs, evs, sim["span"], sits)
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
     write_situations(sits)
