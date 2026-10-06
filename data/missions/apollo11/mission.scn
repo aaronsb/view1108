@@ -19,10 +19,14 @@
 *   MISSION  NAME=  (the mission's name, lettered with each scenario's NAME)
 *   EPOCH    JD=  (range zero, Julian date)
 *   SITE     LAT= LON= AZ=  (lunar landing site, deg, and descent azimuth)
+*            NAME=  (the name lettered at the site's mark, at most 22
+*            characters; one mission's site is lettered)
 *   PAD      NAME= LAT= LON= (launch pad, deg; LATTYPE=GC geocentric, GD
 *            geodetic), NAME at most 7 characters, lettered beside its mark
 *
 MISSION NAME="APOLLO 11"
 EPOCH JD=2440419.063889 SRC="MR Table 3-I p. 3-4: range zero 13:32:00 G.m.t., July 16, 1969"
-SITE LAT=0.67416 LON=23.47314 AZ=268.8 SRC="NSSDC Apollo Landing Site Coordinates, citing Wagner et al., Icarus 283 (2017), mean Earth/polar axis; MR p. 3-2 gives 0 41 15 N, 23 26 E on ORB-II-6 (1967). Azimuth 268.8: ours, near the 269.0 fitted to MR Table 7-II"
+* The site's NAME is the lettering of our whole-disc Moon view (scene 6, a
+* modern addition): ours.
+SITE NAME="APOLLO 11 LANDING SITE" LAT=0.67416 LON=23.47314 AZ=268.8 SRC="NSSDC Apollo Landing Site Coordinates, citing Wagner et al., Icarus 283 (2017), mean Earth/polar axis; MR p. 3-2 gives 0 41 15 N, 23 26 E on ORB-II-6 (1967). Azimuth 268.8: ours, near the 269.0 fitted to MR Table 7-II"
 PAD NAME="LC-39A" LATTYPE=GC LAT=28.4470 LON=-80.6041 SRC="SP p. 103, Apollo 11 ascent phase table, Liftoff 000:00:00.63: geocentric latitude 28.4470 deg N, longitude -80.6041 deg E; SP p. 92: Apollo 11 was launched from Kennedy Space Center Launch Complex 39, Pad A"

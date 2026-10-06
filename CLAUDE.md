@@ -434,8 +434,8 @@ is too large for its EARTH name.
 
 Burn cue (`src/lburn.f`, layer 10 in every scene but 6), all ours, a modern addition: no
 source we hold shows VIEW marking an engine firing. The firings are the main-engine burns of
-each scenario, from its TIMELINE rows: `tools/gen_data.py` `BURN_CUES` pairs SP-4029's
-ignition and cutoff rows by name and says whose engine each is (SPS, DPS, APS, the S-IVB's
+each scenario, from its TIMELINE rows: the scenario's `BURNCUE` cards pair SP-4029's
+ignition and cutoff rows by name and say whose engine each is (SPS, DPS, APS, the S-IVB's
 J-2) and from what source (the rows' names, MR Tables 7-III and 7-V via the BURN cards, or our
 reading of an Apollo 8 BURN card's rate); `/CBRN/` in BLOCK DATA. RCS firings and the S-IVB's
 APS slingshot burn are left out. While a vehicle burns, its placed model (`KCSPL`, `KLMPL`,

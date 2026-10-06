@@ -87,8 +87,8 @@ C              Names are in build/names.js only.
       INTEGER TLK(NTL), TLSN(NTL)
       COMMON /CTLN/ TLT
       COMMON /CTLNI/ TLK, TLSN
-C     /CBRN/   the burn cue's main-engine firings (BURN_CUES in
-C              tools/gen_data.py, from the TIMELINE rows): row K of
+C     /CBRN/   the burn cue's main-engine firings (BURNCUE cards, *.scn
+C              in data/missions, from the TIMELINE rows): row K of
 C              scenario BRSN(K) burns from g.e.t. BRT1(K) to BRT2(K)
 C              (s), vehicle BRVH(K) (1 CSM, 2 LM, 3 S-IVB), engine
 C              BREN(K) (1 SPS, 2 DPS, 3 APS, 4 J-2); NBR used.

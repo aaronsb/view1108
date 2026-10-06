@@ -52,6 +52,8 @@
 *            turning Earth.
 *   EVENT    KIND= T=  (an event the kernel keys on)
 *   TIMELINE T= KIND= NAME=  (a row of the mission's timeline; see TIMELINE below)
+*   BURNCUE  IGN= CUT= VEH= ENG=  (a main-engine firing between two TIMELINE
+*            rows, named; see Burn cue at the end)
 *
 SCENARIO ID=1 NAME="AS FLOWN"
 *
@@ -495,3 +497,25 @@ REF T=135:23:42.3 BODY=MOON LAT=-0.16 LON=164.02 ALT=52.4 V=5376.0 FPA=-0.03 SRC
 REF T=150:30:07.4 BODY=EARTH LATTYPE=GD LAT=-13.16 LON=-37.83 ALT=169080.6 V=4074.0 FPA=-80.41 HDG=129.30 SRC="second midcourse correction cutoff"
 REF T=194:49:12.7 BODY=EARTH LATTYPE=GD LAT=-35.09 LON=122.54 ALT=1778.3 V=29615.5 FPA=-35.26 HDG=69.27 SRC="command module/service module separation"
 REF T=195:03:05.7 BODY=EARTH LATTYPE=GD LAT=-3.19 LON=171.96 ALT=65.8 V=36194.4 FPA=-6.48 HDG=50.18 SRC="MR Table 7-VII p. 7-12, entry interface"
+*
+* Burn cue (src/lburn.f; ours, a modern addition): the main-engine firings,
+* each opened and closed by two TIMELINE rows of this scenario (SP-4029's
+* timelines, by exact name; a pair whose names occur more than once takes the
+* first ignition and the first cutoff after it), with whose engine it is.
+* VEH=CSM|LM|S-IVB, ENG=SPS|DPS (descent)|APS (ascent)|J-2 (the S-IVB's).
+* SRC says where the engine comes from.
+* RCS firings (the CSM's separation manoeuvres, Apollo 11's second midcourse
+* correction, SM RCS by MR Table 7-VI p. 7-11; the LM's rendezvous burns CSI,
+* CDH, TPI, TPF, whose engine no source we hold names) and the S-IVB's APS
+* slingshot burn are left out: the cue is for the main engines.
+*
+BURNCUE IGN="S-IVB 1st burn ignition" CUT="S-IVB 1st burn cutoff" VEH=S-IVB ENG=J-2 SRC="the rows name the stage"
+BURNCUE IGN="S-IVB 2nd burn ignition (STDV open)" CUT="S-IVB 2nd burn cutoff" VEH=S-IVB ENG=J-2 SRC="the rows name the stage"
+BURNCUE IGN="CSM/LM evasive maneuver from S-IVB ignition" CUT="CSM/LM evasive maneuver from S-IVB cutoff" VEH=CSM ENG=SPS SRC="MR Table 7-III p. 7-10, the scenario's BURN card"
+BURNCUE IGN="Midcourse correction ignition" CUT="Midcourse correction cutoff" VEH=CSM ENG=SPS SRC="MR Table 7-III p. 7-10, the scenario's BURN card (the first such pair, 26:44:58.64)"
+BURNCUE IGN="Lunar orbit insertion ignition" CUT="Lunar orbit insertion cutoff" VEH=CSM ENG=SPS SRC="MR Table 7-V p. 7-11, the scenario's BURN card"
+BURNCUE IGN="Lunar orbit circularization ignition" CUT="Lunar orbit circularization cutoff" VEH=CSM ENG=SPS SRC="MR Table 7-V p. 7-11, the scenario's BURN card"
+BURNCUE IGN="LM descent orbit insertion ignition (LM SPS)" CUT="LM descent orbit insertion cutoff" VEH=LM ENG=DPS SRC="the row's LM SPS, the descent stage's engine (SP p. 107)"
+BURNCUE IGN="LM powered descent engine ignition" CUT="LM powered descent engine cutoff" VEH=LM ENG=DPS SRC="the rows (SP p. 107)"
+BURNCUE IGN="LM lunar liftoff ignition (LM APS)" CUT="LM orbit insertion cutoff" VEH=LM ENG=APS SRC="the row's LM APS (SP p. 108)"
+BURNCUE IGN="Transearth injection ignition (SPS)" CUT="Transearth injection cutoff" VEH=CSM ENG=SPS SRC="the row's SPS (SP p. 109)"

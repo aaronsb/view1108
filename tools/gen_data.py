@@ -168,55 +168,23 @@ EVENT_PARAMS = {"TDATT": "KETDA", "SEP": "KESEP", "APPR": "KEAPR", "DOCK": "KEDO
 TL_KINDS = {"LAUNCH": 1, "BURN": 2, "STAGING": 3, "ORBIT": 4, "SEP": 5, "SURFACE": 6, "TV": 7,
             "CREW": 8, "PHOTO": 9, "ENTRY": 10, "MARK": 11}
 NLGP = 17   # leg parameters, see scenarios()
-# The burn cue (src/lburn.f; ours, a modern addition): the main-engine firings, each opened and
-# closed by two TIMELINE rows of its scenario (SP-4029's timelines, by exact name), with whose
-# engine it is.  Vehicles: 1 CSM, 2 LM, 3 S-IVB.  Engines: 1 SPS, 2 DPS (descent), 3 APS
-# (ascent), 4 the S-IVB's J-2.  The last field says where the engine comes from.  RCS firings
-# (the CSM's separation manoeuvres, Apollo 11's second midcourse correction, SM RCS by MR Table
-# 7-VI p. 7-11; the LM's rendezvous burns CSI, CDH, TPI, TPF, whose engine no source we hold
-# names) and the S-IVB's APS slingshot burn are left out: the cue is for the main engines.
+# The burn cue (src/lburn.f; ours, a modern addition): the main-engine firings, from each
+# scenario's BURNCUE cards, each naming the two TIMELINE rows of its scenario that open and close
+# it and whose engine it is.  Vehicles: 1 CSM, 2 LM, 3 S-IVB.  Engines: 1 SPS, 2 DPS (descent),
+# 3 APS (ascent), 4 the S-IVB's J-2.
 BURN_VEH = {"CSM": 1, "LM": 2, "S-IVB": 3}
 BURN_ENG = {"SPS": 1, "DPS": 2, "APS": 3, "J-2": 4}
-BURN_CUES = [
-    (1, "S-IVB 1st burn ignition", "S-IVB 1st burn cutoff", "S-IVB", "J-2", "the rows name the stage"),
-    (1, "S-IVB 2nd burn ignition (STDV open)", "S-IVB 2nd burn cutoff", "S-IVB", "J-2",
-     "the rows name the stage"),
-    (1, "CSM/LM evasive maneuver from S-IVB ignition", "CSM/LM evasive maneuver from S-IVB cutoff",
-     "CSM", "SPS", "MR Table 7-III p. 7-10, the scenario's BURN card"),
-    (1, "Midcourse correction ignition", "Midcourse correction cutoff", "CSM", "SPS",
-     "MR Table 7-III p. 7-10, the scenario's BURN card (the first such pair, 26:44:58.64)"),
-    (1, "Lunar orbit insertion ignition", "Lunar orbit insertion cutoff", "CSM", "SPS",
-     "MR Table 7-V p. 7-11, the scenario's BURN card"),
-    (1, "Lunar orbit circularization ignition", "Lunar orbit circularization cutoff", "CSM", "SPS",
-     "MR Table 7-V p. 7-11, the scenario's BURN card"),
-    (1, "LM descent orbit insertion ignition (LM SPS)", "LM descent orbit insertion cutoff", "LM",
-     "DPS", "the row's LM SPS, the descent stage's engine (SP p. 107)"),
-    (1, "LM powered descent engine ignition", "LM powered descent engine cutoff", "LM", "DPS",
-     "the rows (SP p. 107)"),
-    (1, "LM lunar liftoff ignition (LM APS)", "LM orbit insertion cutoff", "LM", "APS",
-     "the row's LM APS (SP p. 108)"),
-    (1, "Transearth injection ignition (SPS)", "Transearth injection cutoff", "CSM", "SPS",
-     "the row's SPS (SP p. 109)"),
-    (2, "S-IVB 1st burn ignition", "S-IVB 1st burn cutoff", "S-IVB", "J-2", "the rows name the stage"),
-    (2, "S-IVB 2nd burn ignition", "S-IVB 2nd burn cutoff", "S-IVB", "J-2", "the rows name the stage"),
-    (2, "Midcourse correction ignition", "Midcourse correction cutoff", "CSM", "SPS",
-     "ours: the BURN card's 20.4 ft/s in 2.4 s (SP p. 46) is beyond the SM RCS (the first such pair)"),
-    (2, "Lunar orbit insertion ignition", "Lunar orbit insertion cutoff", "CSM", "SPS",
-     "ours: the BURN card's 2,997 ft/s (SP p. 46) is the SPS's"),
-    (2, "Lunar orbit circularization ignition", "Lunar orbit circularization cutoff", "CSM", "SPS",
-     "ours: the BURN card's 134.8 ft/s in 9.6 s (SP p. 46) is beyond the SM RCS"),
-    (2, "Transearth injection ignition (SPS)", "Transearth injection cutoff", "CSM", "SPS",
-     "the row's SPS (SP p. 49)"),
-]
 
 
-def burn_cues(tl):
-    """The burn cue table from BURN_CUES and the TIMELINE rows tl: (scenario, ignition s,
-    cutoff s, vehicle code, engine code, comment), sorted by scenario and ignition.  A pair
-    whose names occur more than once takes the first ignition and the first cutoff after it."""
+def burn_cues(sim):
+    """The burn cue table from the BURNCUE cards and the TIMELINE rows of sim: (scenario,
+    ignition s, cutoff s, vehicle code, engine code, comment), sorted by scenario and ignition.
+    A pair whose names occur more than once takes the first ignition and the first cutoff
+    after it."""
     out = []
-    for m, ign, cut, veh, eng, why in BURN_CUES:
-        rows = sorted((r for r in tl if r["m"] == m), key=lambda r: r["t"])
+    for c in sim["cue"]:
+        m, ign, cut, veh, eng, why = c["m"], c["ign"], c["cut"], c["veh"], c["eng"], c["src"]
+        rows = sorted((r for r in sim["tl"] if r["m"] == m), key=lambda r: r["t"])
         t1 = [r for r in rows if r["name"] == ign]
         assert t1, f"burn cue: scenario {m} has no TIMELINE row {ign!r}"
         t2 = [r for r in rows if r["name"] == cut and r["t"] > t1[0]["t"]]
@@ -230,7 +198,7 @@ CARD_KEYS = {
     "MISSION": {"NAME", "SRC"},
     "SCENARIO": {"ID", "NAME", "SRC"},
     "EPOCH": {"JD", "SRC"},
-    "SITE": {"LAT", "LON", "AZ", "SRC"},
+    "SITE": {"NAME", "LAT", "LON", "AZ", "SRC"},
     "PAD": {"NAME", "LAT", "LON", "LATTYPE", "SRC"},
     "LEG": {"TYPE", "FROM", "TO", "T", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG",
             "TB", "LATB", "LONB", "N", "VEH", "DV", "P", "R", "ALTB", "SRC"},
@@ -240,6 +208,7 @@ CARD_KEYS = {
     "START": {"T", "END", "BODY", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG", "SRC"},
     "REF": {"T", "BODY", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG", "SRC"},
     "BURN": {"T", "DV", "BODY", "P", "R", "N", "SRC"},
+    "BURNCUE": {"IGN", "CUT", "VEH", "ENG", "SRC"},
 }
 
 
@@ -297,7 +266,8 @@ def cards(path):
 def mission(path):
     """A mission card deck (data/missions/<id>/mission.scn): name, epoch (JD of range zero),
     landing site, launch pad, and each card's source, shared by the mission's scenarios."""
-    m = {"name": None, "jd": None, "site": (0.0, 0.0, 0.0), "pad": ("", 0.0, 0.0, 0), "src": []}
+    m = {"name": None, "jd": None, "site": (0.0, 0.0, 0.0), "sitename": "",
+         "pad": ("", 0.0, 0.0, 0), "src": []}
     for kind, kv in cards(path):
         if kind == "*END":
             break
@@ -308,6 +278,7 @@ def mission(path):
             m["jd"] = float(kv["JD"]); m["src"].append("EPOCH: " + kv.get("SRC", ""))
         elif kind == "SITE":
             m["site"] = (float(kv["LAT"]), float(kv["LON"]), float(kv["AZ"]))
+            m["sitename"] = kv.get("NAME", "")
             m["src"].append("SITE: " + kv.get("SRC", ""))
         elif kind == "PAD":
             assert len(kv["NAME"]) <= 7, "PAD NAME: at most 7 characters"
@@ -323,7 +294,7 @@ def scenarios():
     and files in name order.  Returns scenarios (dicts with id, mission, name, jd, site, pad,
     sources; the mission's cards are copied into each of its scenarios), legs and events, each
     carrying its scenario id and source string."""
-    mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": [], "tl": []}
+    mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": [], "tl": [], "cue": []}
     for mdir in sorted(p for p in (D / "missions").iterdir() if p.is_dir()):
         ms = mission(mdir / "mission.scn")
         for path in sorted(p for p in mdir.glob("*.scn") if p.name != "mission.scn"):
@@ -339,7 +310,8 @@ def scenarios():
                 if kind == "SCENARIO":
                     cur = {"n": int(kv["ID"]), "mission": mdir.name,
                            "name": ms["name"] + " " + kv["NAME"], "jd": ms["jd"],
-                           "site": ms["site"], "pad": ms["pad"], "src": list(ms["src"])}
+                           "site": ms["site"], "sitename": ms["sitename"], "pad": ms["pad"],
+                           "src": list(ms["src"])}
                     mis.append(cur)
                 else:
                     tab = scenario_card(name, kind, kv, cur, tab, legs, evs, sim)
@@ -401,6 +373,10 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
         assert kv["KIND"] in TL_KINDS, f"{name}: TIMELINE KIND {kv['KIND']}"
         sim["tl"].append({"m": cur["n"], "t": get_s(kv["T"]), "kind": kv["KIND"],
                           "name": kv["NAME"], "src": kv.get("SRC", "")})
+    elif kind == "BURNCUE":
+        assert kv["VEH"] in BURN_VEH and kv["ENG"] in BURN_ENG, f"{name}: BURNCUE VEH= or ENG="
+        sim["cue"].append({"m": cur["n"], "ign": kv["IGN"], "cut": kv["CUT"], "veh": kv["VEH"],
+                           "eng": kv["ENG"], "src": kv.get("SRC", "")})
     elif kind == "EVENT":
         evs.append({"m": cur["n"], "kind": EVENT_KINDS[kv["KIND"]], "t": get_s(kv["T"]),
                     "src": kv["KIND"] + ": " + kv.get("SRC", "")})
@@ -511,7 +487,7 @@ def main():
     mis, legs, evs, sim = scenarios()
     m47a, m47b = meeus47()
     nst, nbn, nrf = (max(1, len(sim[k])) for k in ("start", "burn", "ref"))
-    cues = burn_cues(sim["tl"])
+    cues = burn_cues(sim)
     ns, npt, nln, ncr = len(sx), len(clon), len(coast), len(crat)
     inc = ["C     Generated by tools/gen_data.py from data/. Do not edit.",
            "C     Table sizes shared by the kernel (src/*.f) and its BLOCK DATA.",
@@ -535,7 +511,7 @@ def main():
            "C     Timeline rows (TIMELINE cards, all scenarios): at least 1.",
            "      INTEGER NTL",
            f"      PARAMETER (NTL={max(1, len(sim['tl']))})",
-           "C     Burn cue rows (BURN_CUES in tools/gen_data.py): at least 1.",
+           "C     Burn cue rows (BURNCUE cards, data/missions): at least 1.",
            "      INTEGER NBRN",
            f"      PARAMETER (NBRN={max(1, len(cues))})",
            "      PARAMETER (" + ", ".join(f"K{k}={v}" for k, v in
@@ -638,8 +614,8 @@ def main():
          "      INTEGER TLK(NTL), TLSN(NTL)",
          "      COMMON /CTLN/ TLT",
          "      COMMON /CTLNI/ TLK, TLSN",
-         "C     /CBRN/   the burn cue's main-engine firings (BURN_CUES in",
-         "C              tools/gen_data.py, from the TIMELINE rows): row K of",
+         "C     /CBRN/   the burn cue's main-engine firings (BURNCUE cards, *.scn",
+         "C              in data/missions, from the TIMELINE rows): row K of",
          "C              scenario BRSN(K) burns from g.e.t. BRT1(K) to BRT2(K)",
          "C              (s), vehicle BRVH(K) (1 CSM, 2 LM, 3 S-IVB), engine",
          "C              BREN(K) (1 SPS, 2 DPS, 3 APS, 4 J-2); NBR used.",
@@ -664,7 +640,10 @@ def main():
     for nm in ("SUN", "EARTH", "MOON"):
         bodch += [ord(ch) for ch in nm] + [0] * (5 - len(nm))
     body += fdata("NAVCH", navch, "%d", 10) + fdata("BODCH", bodch, "%d", 10)
-    body += fdata("SITECH", [ord(ch) for ch in "APOLLO 11 LANDING SITE"], "%d", 10)
+    # The landing site lettered in scene 6 (kind 7): the one mission whose SITE card names it.
+    site = sorted({m["sitename"] for m in mis if m["sitename"]})
+    assert len(site) == 1 and len(site[0]) <= 22, f"one SITE NAME= of 22 characters at most: {site}"
+    body += fdata("SITECH", [ord(ch) for ch in site[0]] + [0] * (22 - len(site[0])), "%d", 10)
     mrch = []
     for m in mar:
         nm = m[3][:24]
