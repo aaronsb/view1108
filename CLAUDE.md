@@ -36,6 +36,7 @@ data/missions/    one folder per mission: mission.scn (name, epoch, site, pad) a
                   scenarios (*.scn: trajectory legs, events, timeline, situations)
 data/reels/       playlist reels, <id>/run.scn: a REEL card and its SHOT cards (demo, tour)
 tools/viewsvg.f90 Native driver (gfortran): renders a scene/time to SVG for validation.
+tools/vdump.f     The native driver's VIEW_DUMP=1: the run tables as hex, for the golden gate.
 tools/build.sh    gen_data -> lfortran (per file) -> clang -> wasm-ld -> wasm-opt -> wasm2js -> page
 web/              The page: film-recorder renderer, controls, text lettering.
 ```
@@ -529,7 +530,11 @@ Toolchain: LFortran 0.66 + LLVM tools + binaryen in `~/lf` (micromamba, conda-fo
 LF_BIN=~/lf/bin ./tools/build.sh    # full build + selftest
 ./tools/build.sh native             # gfortran only: build/viewsvg
 build/viewsvg 1 > f.svg             # scene [GET|-] [yaw pitch roll fov|-] [flags]
+make golden                         # capture the golden master into build/golden
+make golden-check                   # re-capture and diff against it
 ```
+
+The golden master (`tools/golden.sh`, kept in `build/golden`, gitignored) holds the generated tables, 129 native renders with their hdr words, and the run-table dump (`tables.txt`, `VIEW_DUMP=1 build/viewsvg`, `tools/vdump.f`): every scenario-specific COMMON table's used entries, each double as its 64-bit pattern in hex, so a changed value shows as data and not only through a render. A data or kernel refactor must pass it byte for byte. The one reviewed re-baseline so far was #40 (2026-10-06, PR #42): gen_data writing each card's own digits instead of rounding them to fixed decimals, which moved 72 table values and 18 renders by at most 0.012 plot degrees.
 
 ## Sources and history
 

@@ -16,7 +16,7 @@ C       time and field ours
       DATA SITF(1), SIRD(1), SICM(1), SILM(1), SIFX(1), SIXO(1) / 0, 1,
      & 2, 1, 0, 0 /
       DATA SIHK(1), SIGT(1), SIFV(1), SIEL(1), SIFL(1), SIFT(1) / 0,
-     & -60.000D0, 8.0D0, 0.0D0, 0.0D0, 0.0D0 /
+     & -60.0D0, 8.0D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SIDT(1), SIEO(1), SIAL(1), SIDS(1), SIHO(1), SIHR(1) / 0.0D0,
      & 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SILK(1,1), SILK(2,1), SILK(3,1), SITN(1,1), SITN(2,1),
@@ -38,9 +38,9 @@ C       (t08.png to t20.png); times and field ours
       DATA SITF(2), SIRD(2), SICM(2), SILM(2), SIFX(2), SIXO(2) / 0, 1,
      & 2, 1, 0, 0 /
       DATA SIHK(2), SIGT(2), SIFV(2), SIEL(2), SIFL(2), SIFT(2) / 0,
-     & -18000.000D0, 60.0D0, 0.0D0, 0.0D0, 36000.000D0 /
+     & -18000.0D0, 60.0D0, 0.0D0, 0.0D0, 36000.0D0 /
       DATA SIDT(2), SIEO(2), SIAL(2), SIDS(2), SIHO(2), SIHR(2) /
-     & 3600.000D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0 /
+     & 3600.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SILK(1,2), SILK(2,2), SILK(3,2), SITN(1,2), SITN(2,2),
      & SITN(3,2) / 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SIXY(1,2), SIXY(2,2), SILY(1,2), SILY(2,2), SILY(3,2),
@@ -59,7 +59,7 @@ C       EARTH LIMB, recipe LOCALVERT: ours
       DATA SITF(3), SIRD(3), SICM(3), SILM(3), SIFX(3), SIXO(3) / 0, 1,
      & 2, 1, 0, 0 /
       DATA SIHK(3), SIGT(3), SIFV(3), SIEL(3), SIFL(3), SIFT(3) / 0,
-     & 5400.000D0, 70.0D0, 8.0D0, 0.0D0, 0.0D0 /
+     & 5400.0D0, 70.0D0, 8.0D0, 0.0D0, 0.0D0 /
       DATA SIDT(3), SIEO(3), SIAL(3), SIDS(3), SIHO(3), SIHR(3) / 0.0D0,
      & 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SILK(1,3), SILK(2,3), SILK(3,3), SITN(1,3), SITN(2,3),
@@ -82,7 +82,7 @@ C       HDRREF: ours
       DATA SITF(4), SIRD(4), SICM(4), SILM(4), SIFX(4), SIXO(4) / 0, 1,
      & 2, 1, 0, 0 /
       DATA SIHK(4), SIGT(4), SIFV(4), SIEL(4), SIFL(4), SIFT(4) / 1,
-     & 120.000D0, 12.0D0, 0.0D0, 0.0D0, 0.0D0 /
+     & 120.0D0, 12.0D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SIDT(4), SIEO(4), SIAL(4), SIDS(4), SIHO(4), SIHR(4) / 0.0D0,
      & 0.0D0, 0.0D0, 0.0D0, 0.0D0, 4.5D-3 /
       DATA SILK(1,4), SILK(2,4), SILK(3,4), SITN(1,4), SITN(2,4),
@@ -105,7 +105,7 @@ C       RECIPE: LPDDN fitted to the film's LPD marks (llpd.f)
       DATA SITF(5), SIRD(5), SICM(5), SILM(5), SIFX(5), SIXO(5) / 0, 2,
      & 0, 2, 0, 0 /
       DATA SIHK(5), SIGT(5), SIFV(5), SIEL(5), SIFL(5), SIFT(5) / 0,
-     & 369720.000D0, 82.4D0, 0.0D0, 0.0D0, 0.0D0 /
+     & 369720.0D0, 82.4D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SIDT(5), SIEO(5), SIAL(5), SIDS(5), SIHO(5), SIHR(5) / 0.0D0,
      & 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SILK(1,5), SILK(2,5), SILK(3,5), SITN(1,5), SITN(2,5),
@@ -126,7 +126,7 @@ C       MOON VIEW, recipe BODYCTR: ours, a modern addition
       DATA SITF(6), SIRD(6), SICM(6), SILM(6), SIFX(6), SIXO(6) / 0, 0,
      & 0, 0, 1, 0 /
       DATA SIHK(6), SIGT(6), SIFV(6), SIEL(6), SIFL(6), SIFT(6) / 0,
-     & 0.000D0, 0.85D0, 0.0D0, 0.0D0, 0.0D0 /
+     & 0.0D0, 0.85D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SIDT(6), SIEO(6), SIAL(6), SIDS(6), SIHO(6), SIHR(6) / 0.0D0,
      & 0.0D0, 35000.0D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SILK(1,6), SILK(2,6), SILK(3,6), SITN(1,6), SITN(2,6),
@@ -151,7 +151,7 @@ C       the offset ours
       DATA SITF(7), SIRD(7), SICM(7), SILM(7), SIFX(7), SIXO(7) / 0, 1,
      & 2, 1, 0, 1 /
       DATA SIHK(7), SIGT(7), SIFV(7), SIEL(7), SIFL(7), SIFT(7) / 2,
-     & 60.000D0, 30.0D0, 0.0D0, 0.0D0, 0.0D0 /
+     & 60.0D0, 30.0D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SIDT(7), SIEO(7), SIAL(7), SIDS(7), SIHO(7), SIHR(7) / 0.0D0,
      & 0.0D0, 0.0D0, 0.0D0, 0.72D-3, 2.15D-3 /
       DATA SILK(1,7), SILK(2,7), SILK(3,7), SITN(1,7), SITN(2,7),
@@ -174,7 +174,7 @@ C       HDRREF: ours
       DATA SITF(8), SIRD(8), SICM(8), SILM(8), SIFX(8), SIXO(8) / 0, 0,
      & 2, 1, 0, 0 /
       DATA SIHK(8), SIGT(8), SIFV(8), SIEL(8), SIFL(8), SIFT(8) / 3,
-     & 1800.000D0, 40.0D0, 0.0D0, 0.0D0, 0.0D0 /
+     & 1800.0D0, 40.0D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SIDT(8), SIEO(8), SIAL(8), SIDS(8), SIHO(8), SIHR(8) / 0.0D0,
      & 0.0D0, 0.0D0, 0.060D0, 2.743D-3, 1.0D-2 /
       DATA SILK(1,8), SILK(2,8), SILK(3,8), SITN(1,8), SITN(2,8),
@@ -199,7 +199,7 @@ C       OFFLEG ours
       DATA SITF(9), SIRD(9), SICM(9), SILM(9), SIFX(9), SIXO(9) / 1, 1,
      & 2, 1, 0, 0 /
       DATA SIHK(9), SIGT(9), SIFV(9), SIEL(9), SIFL(9), SIFT(9) / 0,
-     & 0.000D0, 12.72D0, 0.0D0, 8.0D0, 0.0D0 /
+     & 0.0D0, 12.72D0, 0.0D0, 8.0D0, 0.0D0 /
       DATA SIDT(9), SIEO(9), SIAL(9), SIDS(9), SIHO(9), SIHR(9) / 0.0D0,
      & 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0 /
       DATA SILK(1,9), SILK(2,9), SILK(3,9), SITN(1,9), SITN(2,9),

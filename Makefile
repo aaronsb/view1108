@@ -43,6 +43,8 @@ lint: ## Check kernel dialect, compile warnings, and script syntax
 	# viewdata.f: LFortran needs the DATA implied-DO index declared; gfortran warns about it.
 	gfortran -fsyntax-only -std=legacy -Wall -Wno-unused-variable src/viewdata.f
 	gfortran -fsyntax-only -Wall -Jbuild src/shell.f90
+	# tools/vdump.f: the native driver's run-table dump for the golden gate (not a kernel element).
+	gfortran -fsyntax-only -std=legacy -Wall -fimplicit-none -Isrc tools/vdump.f
 	python3 -m py_compile tools/*.py
 	node --check tools/selftest.mjs
 

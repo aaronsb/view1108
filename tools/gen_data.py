@@ -17,7 +17,7 @@ Inputs (all in data/):
 Everything is written in the J2000 equatorial frame. AGC star vectors are precessed
 from 1969.5 to J2000 so they share a frame with the catalog.
 """
-import json, math, pathlib, re, shlex, struct
+import decimal, json, math, pathlib, re, shlex, struct
 
 R = pathlib.Path(__file__).resolve().parent.parent
 D = R / "data"
@@ -220,21 +220,55 @@ CARD_KEYS = {
     "VIEWS": {"VIEW", "TARGET", "OFFTARGET", "RIDES", "CM", "LM", "FIXED", "XSTART", "SRC"},
     "HDRREF": {"OBJ", "OFFSET", "RADIUS", "SRC"},
     "SPAN": {"TRACK", "SIT", "UNTIL", "FROM", "LEN", "VIEW", "TARGET", "FOV", "NAME", "BUTTON",
-             "SRC"},
+             "CAPTION", "SRC"},
     "REEL": {"ID", "TITLE", "KIND", "ALIAS", "NEXT", "FADE", "FILM", "TAG", "SRC"},
     "SHOT": {"SIT", "NAME", "DUR", "GET", "RATE", "TO", "AT", "TTE", "LIMB", "FOV", "YAW", "PITCH",
              "ROLL", "VIEW", "TARGET", "LABELS", "FRAME", "CAPTION", "SRC"},
 }
 
 
+class Num(float):
+    """A card's number: its value as a float, as before, and lit, the FORTRAN literal with the
+    card's own digits (#40), which is what the BLOCK DATA gets.  Arithmetic gives a plain float;
+    only negation keeps the literal."""
+    def __new__(cls, v, lit):
+        o = float.__new__(cls, v)
+        o.lit = lit
+        return o
+
+    def __neg__(self):
+        return Num(-float(self), self.lit[1:] if self.lit.startswith("-") else "-" + self.lit)
+
+
+def cnum(tok):
+    """A card's decimal number (or a default, such as 0) as a Num carrying its digits."""
+    tok = str(tok)
+    return Num(float(tok), dlit(tok))
+
+
+def flit(v):
+    """The BLOCK DATA literal of a table value: a card's number with the card's digits (Num), or a
+    whole number that is no card's (padding, a default of 0)."""
+    if isinstance(v, Num):
+        return v.lit
+    assert v == int(v), f"{v!r}: a table value that is not a card's number"
+    return dlit(repr(float(v)))
+
+
 def get_s(v):
-    """g.e.t. h:mm:ss.s, h:mm (or plain seconds) to seconds; a leading - counts down to range zero."""
+    """g.e.t. h:mm:ss.s, h:mm (or plain seconds) to seconds; a leading - counts down to range zero.
+    One exact decimal feeds both: the literal is the decimal of the seconds, the card's digits with
+    h and mm folded in (h*3600 + mm*60 + ss, in decimal arithmetic), and the float is that decimal
+    correctly rounded, the double gfortran makes of the literal, so Python orders times as the
+    kernel does."""
     if ":" not in v:
-        return float(v)
+        return cnum(v)
     neg = v.startswith("-")
     p = v.lstrip("-").split(":")
-    s = int(p[0]) * 3600 + int(p[1]) * 60 + (float(p[2]) if len(p) > 2 else 0.0)
-    return -s if neg else s
+    d = decimal.Decimal(int(p[0]) * 3600 + int(p[1]) * 60) + \
+        (decimal.Decimal(p[2]) if len(p) > 2 else decimal.Decimal(0))
+    txt = format(d, "f")
+    return Num(-float(d), dlit("-" + txt)) if neg else Num(float(d), dlit(txt))
 
 
 def table_legs(name, tab):
@@ -290,14 +324,14 @@ def mission(path):
         if kind == "MISSION":
             m["name"] = kv["NAME"]
         elif kind == "EPOCH":
-            m["jd"] = float(kv["JD"]); m["src"].append("EPOCH: " + kv.get("SRC", ""))
+            m["jd"] = cnum(kv["JD"]); m["src"].append("EPOCH: " + kv.get("SRC", ""))
         elif kind == "SITE":
-            m["site"] = (float(kv["LAT"]), float(kv["LON"]), float(kv["AZ"]))
+            m["site"] = (cnum(kv["LAT"]), cnum(kv["LON"]), cnum(kv["AZ"]))
             m["sitename"] = kv.get("NAME", "")
             m["src"].append("SITE: " + kv.get("SRC", ""))
         elif kind == "PAD":
             assert len(kv["NAME"]) <= 7, "PAD NAME: at most 7 characters"
-            m["pad"] = (kv["NAME"], float(kv["LAT"]), float(kv["LON"]),
+            m["pad"] = (kv["NAME"], cnum(kv["LAT"]), cnum(kv["LON"]),
                         1 if kv.get("LATTYPE", "GD") == "GC" else 0)
             m["src"].append("PAD: " + kv.get("SRC", ""))
     assert m["name"] and m["jd"] is not None, f"{path.relative_to(D)}: needs MISSION and EPOCH"
@@ -350,7 +384,7 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
         assert tab is not None, f"{name}: ROW card outside a LEG TYPE=TABLE"
         assert kv.get("VEL", "SF") in ("SF", "EF"), f"{name}: ROW VEL= SF or EF"
         tab["rows"].append({"t": get_s(kv["T"]),
-                            "f": [float(kv[k]) for k in ("LAT", "LON", "ALT", "V", "FPA", "HDG")],
+                            "f": [cnum(kv[k]) for k in ("LAT", "LON", "ALT", "V", "FPA", "HDG")],
                             "ef": 1 if kv.get("VEL", "SF") == "EF" else 0,
                             "src": kv.get("SRC", "")})
     elif kind == "LEG" and kv["TYPE"] == "TABLE":
@@ -359,15 +393,15 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
     elif kind == "LEG":
         t = kv["TYPE"]
         p = [get_s(kv["FROM"]), get_s(kv["TO"]), get_s(kv["T"]),
-             float(kv.get("LAT", 0)), float(kv.get("LON", 0)), float(kv.get("ALT", 0)),
-             float(kv.get("V", 0)), float(kv.get("FPA", 0)), float(kv.get("HDG", 0)),
-             get_s(kv.get("TB", "0")), float(kv.get("LATB", 0)), float(kv.get("LONB", 0))]
+             cnum(kv.get("LAT", 0)), cnum(kv.get("LON", 0)), cnum(kv.get("ALT", 0)),
+             cnum(kv.get("V", 0)), cnum(kv.get("FPA", 0)), cnum(kv.get("HDG", 0)),
+             get_s(kv.get("TB", "0")), cnum(kv.get("LATB", 0)), cnum(kv.get("LONB", 0))]
         # LCONIC: DV= (ft/s) and its direction P= R= N= at T (mid-burn) on the
         # vehicle's previous leg, or (no DV=) a state T= LAT= LON= ALT= V= FPA=.
         lc = t == "LCONIC"
-        p += [float(kv.get("DV", 0)), float(kv.get("P", 0)), float(kv.get("R", 0)),
-              float(kv.get("N", 0)) if lc else 0.0,
-              float(kv.get("ALTB", kv.get("ALT", 0)))]
+        p += [cnum(kv.get("DV", 0)), cnum(kv.get("P", 0)), cnum(kv.get("R", 0)),
+              cnum(kv.get("N", 0)) if lc else 0.0,
+              cnum(kv.get("ALTB", kv.get("ALT", 0)))]
         if lc and "DV" not in kv:
             for k in ("LAT", "LON", "ALT", "V", "FPA"):
                 assert k in kv, f"{name}: LCONIC state needs {k}="
@@ -378,16 +412,16 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
                      "src": f"{t}: " + kv.get("SRC", "")})
     elif kind in ("START", "REF"):
         p = [get_s(kv["T"]), get_s(kv.get("END", "0")), get_s(kv["T"]),
-             float(kv["LAT"]), float(kv["LON"]), float(kv["ALT"]),
-             float(kv["V"]), float(kv["FPA"]), float(kv.get("HDG", 0)), 0.0, 0.0, 0.0]
+             cnum(kv["LAT"]), cnum(kv["LON"]), cnum(kv["ALT"]),
+             cnum(kv["V"]), cnum(kv["FPA"]), cnum(kv.get("HDG", 0)), 0.0, 0.0, 0.0]
         p += [0.0] * (NLGP - len(p))
         sim["start" if kind == "START" else "ref"].append(
             {"m": cur["n"], "p": p, "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
              "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
              "src": kind + ": " + kv.get("SRC", "")})
     elif kind == "BURN":
-        sim["burn"].append({"m": cur["n"], "t": get_s(kv["T"]), "dv": float(kv["DV"]),
-                            "dir": (float(kv["P"]), float(kv["R"]), float(kv["N"])),
+        sim["burn"].append({"m": cur["n"], "t": get_s(kv["T"]), "dv": cnum(kv["DV"]),
+                            "dir": (cnum(kv["P"]), cnum(kv["R"]), cnum(kv["N"])),
                             "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
                             "src": "BURN: " + kv.get("SRC", "")})
     elif kind == "TIMELINE":
@@ -464,12 +498,6 @@ def dlit(tok):
     return m + "D" + e
 
 
-def tlit(v):
-    """A g.e.t. or interval in seconds (from get_s) as a literal; card times are whole or tenths."""
-    assert abs(v * 1000 - round(v * 1000)) < 1e-6, v
-    return f"{v:.3f}D0"
-
-
 def situation_card(name, kind, kv, cur, sits):
     """One SITUATION, RECIPE, VIEWS or HDRREF card of scenario cur into sits."""
     assert cur is not None, f"{name}: {kind} card before the SCENARIO card"
@@ -519,7 +547,7 @@ def situations(mis, evs, sits):
                 if "SRC" in d]}
         gk, ge, gt = get_rule(kv["GET"], EVENT_KINDS)
         assert gk != 2 or ge in evk, f"{where}: GET={kv['GET']}: the scenario has no such EVENT"
-        r["get"] = (gk, ge, tlit(gt))
+        r["get"] = (gk, ge, flit(gt))
         fov = kv["FOV"]
         r["fov"] = (2, dlit(fov.split(":")[1])) if fov.startswith("DISC:") else (1, dlit(fov))
         look = kv.get("LOOK", "0,0,0").split(",")
@@ -566,7 +594,7 @@ def situations(mis, evs, sits):
                 assert rc["BODY"] == "EARTH", f"{where}: INERTIAL SIGHTLINE: BODY=EARTH only"
                 p["bod"], p["fe"] = 1, enum(EVENT_KINDS, rc["AT"], where, "AT")
                 assert p["fe"] in evk, f"{where}: AT={rc['AT']}: the scenario has no such EVENT"
-                p["fix"], p["drf"] = tlit(get_s(rc["FIX"])), tlit(get_s(rc["DRIFT"]))
+                p["fix"], p["drf"] = flit(get_s(rc["FIX"])), flit(get_s(rc["DRIFT"]))
                 p["elo"] = dlit(rc["ELOFF"])
         elif rcp == 3:
             p["veh"] = enum(CREW_VEH, rc["VEH"], where, "VEH")
@@ -1071,6 +1099,28 @@ def fdata(arr, vals, fmt, per=5, chunk=95):
     return "\n".join(out) + "\n"
 
 
+def ldata(arr, vals):
+    """Fixed-form DATA statements for arr(1..n) of card numbers, each with the card's own digits
+    (flit), packed within 72 columns and 19 continuation lines per statement."""
+    lits, out, k = [flit(v) for v in vals], [], 0
+    while k < len(lits):
+        lines, line, j = [], "     1", k
+        while j < len(lits):
+            w = " " + lits[j] + ","
+            if len(line) + len(w) > 72:
+                if len(lines) == 18:
+                    break
+                lines.append(line); line = "     1"
+                continue
+            line += w; j += 1
+        lines.append(line[:-1] + "/")
+        out += [f"      DATA ({arr}(IBD),IBD={k + 1},{j}) /"] + lines
+        k = j
+    for ln in out:
+        assert len(ln) <= 72, ln
+    return "\n".join(out) + "\n"
+
+
 def dfmt(nd):
     """Double precision constant with nd decimals, D exponent."""
     return lambda v: ("%." + str(nd) + "f") % v + "D0"
@@ -1273,19 +1323,19 @@ def main():
     for m in mis:
         body += "\n".join([f"C     SCENARIO {m['n']} {m['name']}"] +
                           sum((comment_wrap(x) for x in m["src"]), [])) + "\n"
-    body += fdata("SNJD0", [m["jd"] for m in mis], F(dfmt(6)), 3)
-    body += fdata("SNSLA", [m["site"][0] for m in mis], F(dfmt(5)), 3)
-    body += fdata("SNSLO", [m["site"][1] for m in mis], F(dfmt(5)), 3)
-    body += fdata("SNSAZ", [m["site"][2] for m in mis], F(dfmt(3)), 3)
-    body += fdata("SNPLA", [m["pad"][1] for m in mis], F(dfmt(4)), 3)
-    body += fdata("SNPLO", [m["pad"][2] for m in mis], F(dfmt(4)), 3)
+    body += ldata("SNJD0", [m["jd"] for m in mis])
+    body += ldata("SNSLA", [m["site"][0] for m in mis])
+    body += ldata("SNSLO", [m["site"][1] for m in mis])
+    body += ldata("SNSAZ", [m["site"][2] for m in mis])
+    body += ldata("SNPLA", [m["pad"][1] for m in mis])
+    body += ldata("SNPLO", [m["pad"][2] for m in mis])
     body += fdata("SNPGC", [m["pad"][3] for m in mis], "%d", 10)
     body += fdata("PADCH", [c for m in mis for c in
                             [ord(ch) for ch in m["pad"][0]] + [0] * (8 - len(m["pad"][0]))],
                   "%d", 10)
     for k, lg in enumerate(legs):
         body += "\n".join([f"C     LEG {k + 1}"] + comment_wrap(lg["src"])) + "\n"
-        body += "\n".join(f"      DATA LGP({i + 1},{k + 1}) / {v:.3f}D0 /"
+        body += "\n".join(f"      DATA LGP({i + 1},{k + 1}) / {flit(v)} /"
                           for i, v in enumerate(lg["p"])) + "\n"
     body += fdata("LGSN", [lg["m"] for lg in legs], "%d", 10)
     body += fdata("LGTYP", [lg["type"] for lg in legs], "%d", 10)
@@ -1294,7 +1344,7 @@ def main():
     body += fdata("LGVEH", [lg["veh"] for lg in legs], "%d", 10)
     for j, ev in enumerate(evs):
         body += "\n".join([f"C     EVENT {j + 1}"] + comment_wrap(ev["src"])) + "\n"
-    body += fdata("EVT", [ev["t"] for ev in evs], F(dfmt(1)), 4)
+    body += ldata("EVT", [ev["t"] for ev in evs])
     body += fdata("EVSN", [ev["m"] for ev in evs], "%d", 10)
     body += fdata("EVKND", [ev["kind"] for ev in evs], "%d", 10)
     # Simulation cards.  Empty tables get one zero entry and a count of 0.
@@ -1304,7 +1354,7 @@ def main():
         for k, r in enumerate(rows):
             if r["src"]:
                 body += "\n".join([f"C     {key.upper()} {k + 1}"] + comment_wrap(r["src"])) + "\n"
-            body += "\n".join(f"      DATA {pa}({i + 1},{k + 1}) / {v:.3f}D0 /"
+            body += "\n".join(f"      DATA {pa}({i + 1},{k + 1}) / {flit(v)} /"
                               for i, v in enumerate(r["p"])) + "\n"
         body += fdata(sn, [r["m"] for r in rows], "%d", 10)
         body += fdata(bod, [r["body"] for r in rows], "%d", 10)
@@ -1313,25 +1363,25 @@ def main():
     for k, b_ in enumerate(bn):
         if b_["src"]:
             body += "\n".join([f"C     BURN {k + 1}"] + comment_wrap(b_["src"])) + "\n"
-    body += fdata("BNT", [b_["t"] for b_ in bn], F(dfmt(2)), 4)
-    body += fdata("BNDV", [b_["dv"] for b_ in bn], F(dfmt(1)), 4)
-    body += fdata("BNP", [b_["dir"][0] for b_ in bn], F(dfmt(3)), 4)
-    body += fdata("BNR", [b_["dir"][1] for b_ in bn], F(dfmt(3)), 4)
-    body += fdata("BNN", [b_["dir"][2] for b_ in bn], F(dfmt(3)), 4)
+    body += ldata("BNT", [b_["t"] for b_ in bn])
+    body += ldata("BNDV", [b_["dv"] for b_ in bn])
+    body += ldata("BNP", [b_["dir"][0] for b_ in bn])
+    body += ldata("BNR", [b_["dir"][1] for b_ in bn])
+    body += ldata("BNN", [b_["dir"][2] for b_ in bn])
     body += fdata("BNSN", [b_["m"] for b_ in bn], "%d", 10)
     body += fdata("BNBOD", [b_["body"] for b_ in bn], "%d", 10)
     body += fdata("MMA", [v for r_ in m47a for v in r_], "%d", 6)
     body += fdata("MMB", [v for r_ in m47b for v in r_], "%d", 5)
     tl = sorted(sim["tl"], key=lambda r: (r["m"], r["t"])) or \
         [{"m": 0, "t": 0.0, "kind": "MARK", "name": "", "src": ""}]
-    body += fdata("TLT", [r["t"] for r in tl], F(dfmt(3)), 4)
+    body += ldata("TLT", [r["t"] for r in tl])
     body += fdata("TLK", [TL_KINDS[r["kind"]] for r in tl], "%d", 10)
     body += fdata("TLSN", [r["m"] for r in tl], "%d", 10)
     for k, c in enumerate(cues):
         body += "\n".join([f"C     BURN CUE {k + 1}"] + comment_wrap(c[5])) + "\n"
     cr = cues or [(0, 0.0, 0.0, 0, 0, "")]
-    body += fdata("BRT1", [c[1] for c in cr], F(dfmt(2)), 4)
-    body += fdata("BRT2", [c[2] for c in cr], F(dfmt(2)), 4)
+    body += ldata("BRT1", [c[1] for c in cr])
+    body += ldata("BRT2", [c[2] for c in cr])
     body += fdata("BRSN", [c[0] for c in cr], "%d", 10)
     body += fdata("BRVH", [c[3] for c in cr], "%d", 10)
     body += fdata("BREN", [c[4] for c in cr], "%d", 10)
