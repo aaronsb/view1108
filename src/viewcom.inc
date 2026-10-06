@@ -249,9 +249,51 @@ C     hdr 21).
       INTEGER IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT
       COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT
 C
-C     /CSCN/ scene number, flags of this frame, init done.
+C     /CSCN/ scene number (the situation, row ISCN of the situation
+C     tables), flags of this frame, init done.
       INTEGER ISCN, IFLG, INITD
       COMMON /CSCN/ ISCN, IFLG, INITD
+C
+C     /CSITU/, /CSITUI/ the current situation, row ISCN of the tables
+C     in viewsit.inc (generated from the SITUATION cards), copied by
+C     SITSET when VINIT selects it.  All codes ours.
+C     JRCP the camera recipe: 1 LOCALVERT (local-vertical platform),
+C       2 INERTIAL (inertially fixed), 3 CREWSTN (a crew station's
+C       eye), 4 BODYCTR (body-centred), 5 EXTSEED (external, seeded
+C       on a vehicle).  JBOD its body, 1 Earth, 2 Moon.  JMOD
+C       (LOCALVERT) 1 FORWARD, 2 NORMAL.  JTRN 1 if the reference is
+C       turned by QTRN (yaw, pitch, roll, deg; REFTRN).  JFAL 1 if,
+C       where no LUNAR leg holds the GET, the camera is FORWARD about
+C       the Earth QFEL deg above its horizon instead.  QELV: FORWARD
+C       about the Earth, deg above the horizon.  JATT attitude source,
+C       1 the Earth's sightline (FXB, FXU), 2 S7ATT, 3 S8ATT.  JVEH
+C       (CREWSTN) 1 CM, 2 LM.  QDST (EXTSEED) the camera's distance
+C       from the vehicle (km).
+C     JWIN window code (hdr 8): 1 CSM window, 2 LM front window.
+C     JPOS the pose routine placing the situation's models: 0 none,
+C       1 LMPIRO, 2 S7POSE, 3 S8POSE.  JDRW drawing switches, bits:
+C       1 no Earth night shading, 2 the whole-disc Moon, 4 no LM
+C       marker while landed.  JLL the layers in order, ended by 0.
+C     JVW the view used when in_view is 0 (0 window, 1 external,
+C       2 CM station, 3 LM station).  JTGT the external view's
+C       default target (as ITARG), JTGF the same where JFAL applies.
+C       JRID the vehicle the camera rides in its own view, 0 none,
+C       1 the CSM, 2 the LM.  JSCM, JSLM the CM and LM stations: 0
+C       not offered, 1 where that vehicle is placed, 2 always.  JFIX 1
+C       if in_view and in_target are ignored.  JXOF 1 if the external
+C       view starts QXY (yaw, pitch, deg) round.
+C     JHRK the header's reference object (hdr 11-14): 0 the body, 1
+C       the placed LM, 2 S7POSE's docking target QHOF km to the LM's
+C       -Y, 3 the placed CSM's tunnel QHOF km along its +X; QHRR its
+C       radius (km).
+      INTEGER JRCP, JBOD, JMOD, JTRN, JFAL, JATT, JVEH, JWIN, JPOS
+      INTEGER JDRW, JLL(12), JVW, JTGT, JTGF, JRID, JSCM, JSLM, JFIX
+      INTEGER JXOF, JHRK
+      DOUBLE PRECISION QELV, QTRN(3), QFEL, QDST, QXY(2), QHOF, QHRR
+      COMMON /CSITU/ QELV, QTRN, QFEL, QDST, QXY, QHOF, QHRR
+      COMMON /CSITUI/ JRCP, JBOD, JMOD, JTRN, JFAL, JATT, JVEH, JWIN,
+     &                JPOS, JDRW, JLL, JVW, JTGT, JTGF, JRID, JSCM,
+     &                JSLM, JFIX, JXOF, JHRK
 C
 C     /CLM/ spacecraft wireframe models (MLIB), each in its own body
 C     axes (m); for the LM X up, Y right, Z forward.

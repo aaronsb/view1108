@@ -42,9 +42,9 @@ The two presentations are named **Room** and **Tabbed** (the user's naming, 2026
 What is simulated is decided in many places, and some of them disagree.
 
 - **Mission identity takes five forms:** the MISSION card of each mission folder (`data/missions/apollo11/mission.scn:25`, `data/missions/apollo8/mission.scn:13`); the `mission` column (8, 11) of `data/photos.tsv`; `SCENE_MISSION = { 9: "APOLLO 8" }` (`web/src/views.js:11`); `LIFTOFF_MS`, fixed to Apollo 11 (`web/src/lettering.js:4`), with the epoch offset read back from `hdr(16)` (`web/src/kernel.js:59-60`); and `A11_RANGE_ZERO` plus `A8_OFFSET` keyed on scene 9 (`web/lab/src/equipment/console4009.ts:56`).
-- **The scene→scenario map is written four times:** `DATA ISNSC` (`src/vdrive.f:82`), `SCENE_SCENARIO` (`web/src/timeline.js:4`), `SCN` (`tools/selftest.mjs:49`) and `replayUTC` (`console4009.ts:56`).
+- **The scene→scenario map is written four times:** `DATA ISNSC` (`src/vdrive.f:82`; resolved by #17: the SITUATION cards carry it), `SCENE_SCENARIO` (`web/src/timeline.js:4`), `SCN` (`tools/selftest.mjs:49`) and `replayUTC` (`console4009.ts:56`).
 - **The scene list is written five or more times:** `SCENES` (`web/src/config.js:9`) plus runtime pushes for scenes 8 and 9 (`web/src/views.js:44-56`); `tools/selftest.mjs:49`; `Makefile:7`, which has drifted to `1 2 3 4 5 6 7 8`; the key hint at `web/page.template.html:141`, patched at runtime (`views.js:58`); and the README, which still says 1..6.
-- **Scenes are hard-coded in the kernel:** the 1..9 clamp in `VINIT` (`src/vdrive.f:93`), 25 `ISCN .EQ. n` branches in `vdrive.f` and 10 in `vview.f`, more in `lvlab.f`, `pen.f` and `lmoon.f`, and the layer lists `LL(12,9)` (`src/vlayer.f:36`).
+- **Scenes are hard-coded in the kernel:** the 1..9 clamp in `VINIT` (`src/vdrive.f:93`), 25 `ISCN .EQ. n` branches in `vdrive.f` and 10 in `vview.f`, more in `lvlab.f`, `pen.f` and `lmoon.f`, and the layer lists `LL(12,9)` (`src/vlayer.f:36`). Resolved by #17 (PR #32): the kernel reads the SITUATION cards' tables and tests no scene number (the counts were 45 `ISCN` tests and 8 on `ICAM`).
 - **Phase is three tables at three granularities:** `PHASES` (`web/src/modes.js:33`) and `JUMPS` (`modes.js:39`), both Apollo 11 only, and `TL_SCENES` (`web/src/timeline.js:54-107`), per scenario.
 - **Scenario facts live outside the scenario files:** `BURN_CUES` (`tools/gen_data.py:179-210`) and the string `"APOLLO 11 LANDING SITE"` (`gen_data.py:625`).
 - **Shot lists are tied to scene defaults:** Attract and Tour are scene numbers plus offsets from each scene's default g.e.t. (`modes.js:15-30`, `:65-72`; `ATTRACT8`, `TOUR8`, `TOUR9` pushed in at `views.js:54-56`), so retuning a default moves the shots.
@@ -108,21 +108,19 @@ A situation is the unit a viewer picks: "Apollo 8 Earthrise", "Apollo 11 LM desc
 
 ### Camera recipes
 
-The kernel keeps a small fixed set of camera recipes, the parts of today's scenes that are genuinely different camera code. #17 names six: forward horizon, inertially fixed, COAS, LM window with LPD, whole-disc Moon, and external. A situation names one recipe and supplies the mission facts (times, vehicles, targets) as data; the kernel no longer branches on scene numbers for mission facts. `view_init(scene)` in the interface contract becomes an initialisation from the loaded situation (exact entry point to be set in #17).
+The kernel keeps a small fixed set of camera recipes, the parts of today's scenes that are genuinely different camera code. A situation names one recipe and supplies the mission facts (times, vehicles, targets, the pose of its models) as data; the kernel no longer branches on scene numbers. #17 first named six recipes; the survey of the kernel for #17 found five, because COAS is an overlay layer and "external" is a view (`in_view` 1) applied after any recipe, not camera code. A recipe is a platform plus a reference-attitude rule; `in_view` (window, external, CM station, LM station) and `in_target` are operators `VIEWPT` applies after it, in the order `SCNCAM`, `SCNMOD`, `VIEWPT`, `LOOK`. The two platform names echo TN D-6853 (printed p. 13): "an inertially fixed platform or a local-vertical platform" (as quoted in `src/vview.f`); the rest of the set and all the names are ours.
 
-Our first reading of how today's nine scenes fall onto the recipes, to be confirmed in #17:
-
-| Today | Recipe | Notes |
+| Recipe | Parameters | Situations (today's scenes) |
 |---|---|---|
-| 1 Earthrise, 3 Earth limb, 9 Apollo 8 Earthrise | forward horizon | 9 differs from 1 only in scenario and defaults |
-| 2 Transearth coast / Earth approach | inertially fixed | |
-| 4 LM rendezvous | external (vehicle seen from a vehicle) | may need its own recipe if the pirouette pose stays kernel code |
-| 5 LM descent | LM window with LPD | |
-| 6 Moon view | whole-disc Moon | a modern addition (`CLAUDE.md`, Scenes) |
-| 7 Transposition & docking | COAS | |
-| 8 Docked stack in translunar coast | external | a modern addition |
+| `LOCALVERT`, local-vertical platform | body; FORWARD (elevation above the horizon, azimuth turned to the Earth's sightline, an optional reference turn, an optional off-leg fallback to the Earth) or NORMAL (along the orbit normal) | 1 Earthrise (Moon, FORWARD, Earth azimuth); 3 Earth limb (Earth, FORWARD, +8°); 4 LM rendezvous (Moon, NORMAL); 9 Apollo 8 Earthrise (as 1, plus the fitted turn and the Earth fallback off the lunar legs) |
+| `INERTIAL`, inertially fixed platform | attitude from the Earth's sightline (event, fix and drift times, offset) or from a vehicle's held attitude (`S7ATT`) | 2 Earth approach (sightline); 7 transposition and docking (`S7ATT`; the COAS is its layer 7) |
+| `CREWSTN`, a crew station | vehicle, CM or LM: its design eye, window and cabin, and the vehicle it rides | 5 LM descent (the LM on `LMDESC` axes). The CM and LM stations of `in_view` 2 and 3 are the same geometry on a placed vehicle; a situation cannot yet name the CM as its own camera, for want of an axes source |
+| `BODYCTR`, body-centred | body, altitude; yaw and pitch move the sub-observer point; ignores view and target | 6 Moon view |
+| `EXTSEED`, external view seeded on a vehicle | vehicle attitude (`S8ATT`), seed distance, its far side from the Earth | 8 docked stack (its default view is external) |
 
-Today's nine scenes become nine situations with their current defaults, and every frame must render identically (the gate in section 9).
+`LOCALVERT` keeps three code paths (about the Moon FORWARD, about the Moon NORMAL, about the Earth FORWARD) and `INERTIAL` two, so every frame stays byte-identical to the scene code they replace (`make golden-check`). The poses (`LMPIRO`, `S7POSE`, `S8POSE`) stay kernel routines that a SITUATION card names by id; they are time laws with sourced or labelled constants, not data.
+
+Today's nine scenes are nine situations with their current defaults, and every frame renders identically (the gate in section 9). The cards are in the scenario decks (`data/missions/<id>/*.scn`, the SITUATIONS section of the Apollo 11 deck lists the card types); a situation's ID is global and is still the kernel's scene number (`view_init(scene)`, `hdr(7)`), so the identity of each scene stays stable while its card lives with its scenario. `tools/gen_data.py` writes them into `src/viewsit.f` (BLOCK DATA) and `build/scenes.json`; the page's lists (`PHASES`, `JUMPS`, `TL_SCENES`) follow in #17's second half.
 
 ### Reel
 

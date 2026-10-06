@@ -354,3 +354,24 @@ BURNCUE IGN="Midcourse correction ignition" CUT="Midcourse correction cutoff" VE
 BURNCUE IGN="Lunar orbit insertion ignition" CUT="Lunar orbit insertion cutoff" VEH=CSM ENG=SPS SRC="ours: the BURN card's 2,997 ft/s (SP p. 46) is the SPS's"
 BURNCUE IGN="Lunar orbit circularization ignition" CUT="Lunar orbit circularization cutoff" VEH=CSM ENG=SPS SRC="ours: the BURN card's 134.8 ft/s in 9.6 s (SP p. 46) is beyond the SM RCS"
 BURNCUE IGN="Transearth injection ignition (SPS)" CUT="Transearth injection cutoff" VEH=CSM ENG=SPS SRC="the row's SPS (SP p. 49)"
+*
+* SITUATIONS: card types as in ../apollo11/asflown.scn (its SITUATIONS
+* section lists them).
+*
+* Apollo 8 Earthrise: at the photograph AS08-14-2383 (the PHOTO event), with
+* the field of its 250 mm lens on the 70 mm frame, 12.72 deg: the lens from
+* the Apollo 8 Flight Journal (day 4, orbit 4, commentary: "another
+* Hasselblad with a 250-mm lens"), the 55.74 mm gate measured by us on the
+* ASU scan of AS08-14-2383 (tothemoon.im-ldi.com), taking the 70 mm
+* perforation pitch as 4.75 mm (unsourced).  Situation 1's forward horizon
+* view, its azimuth set at the photograph's time, turned by three angles
+* FITTED by us to the photograph as usually shown (the film frame a quarter
+* turn clockwise): the Earth's centre at plot (0.8550, -0.4555) deg and the
+* horizon falling 6.634 deg to the right, as measured on the scan
+* (2026-09-30; CLAUDE.md, scene 9).  Away from lunar orbit (no LUNAR leg
+* holds the g.e.t.: traj.f LUNIN) the camera looks forward 8 deg above the
+* Earth's horizon and the default target is the Earth: our choice, since no
+* Apollo 8 view survives (TN D-6853 printed p. 3).
+SITUATION ID=9 NAME="APOLLO 8 EARTHRISE" GET=PHOTO FOV=12.72 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN SRC="SVS 4129 (AS08-14-2383 at 75:48:39.7); Apollo 8 Flight Journal day 4 orbit 4 (250 mm lens); the gate measured by us"
+RECIPE NAME=LOCALVERT BODY=MOON MODE=FORWARD AZ=EARTH ELEV=0 TURN=-0.9043,3.7599,-6.7873 OFFLEG=EARTH OFFELEV=8 SRC="TURN fitted by us to the ASU scan of AS08-14-2383; OFFLEG ours"
+VIEWS VIEW=WINDOW TARGET=MOON OFFTARGET=EARTH RIDES=CSM CM=ALWAYS LM=PLACED

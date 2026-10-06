@@ -25,13 +25,15 @@ src/*.f           KERNEL. Fixed-form FORTRAN 66/77 style. All geometry and drawi
                   separately compiled elements (below).
 src/viewdata.f    BLOCK DATA tables (stars, coastlines, craters). Generated; do not edit.
 src/viewdims.inc  Table sizes (PARAMETERs). Generated.
+src/viewsit.f     BLOCK DATA VIEWSB: the situation tables (layout in src/viewsit.inc).
+                  Generated from the SITUATION cards; do not edit.
 src/viewcom.inc   Kernel COMMON blocks, included by every kernel routine.
 src/shell.f90     CHASSIS. Modern Fortran: bind(c) globals and entry points for wasm.
-tools/gen_data.py data/ -> src/viewdata.f, src/viewdims.inc and build/names.js
+tools/gen_data.py data/ -> src/viewdata.f, src/viewdims.inc, src/viewsit.f, src/viewsit.inc,
+                  build/names.js and build/scenes.json (the scene list make check and the
+                  selftest read)
 data/missions/    one folder per mission: mission.scn (name, epoch, site, pad) and its
-                  scenarios (*.scn: trajectory legs, events, timeline)
-data/scenes.scn   each scene's scenario -> build/scenes.json, the list make check and the
-                  selftest read (the kernel's copy is ISNSC in VINIT; gen_data checks both)
+                  scenarios (*.scn: trajectory legs, events, timeline, situations)
 tools/viewsvg.f90 Native driver (gfortran): renders a scene/time to SVG for validation.
 tools/build.sh    gen_data -> lfortran (per file) -> clang -> wasm-ld -> wasm-opt -> wasm2js -> page
 web/              The page: film-recorder renderer, controls, text lettering.
@@ -43,8 +45,8 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 
 | Kind | File | Contents |
 |---|---|---|
-| Driver | `vdrive.f` | `VINIT`, `VFRAME`, scene cameras (`SCNCAM`, `LOOK`), table setup, per-scene model placement (`SCNMOD`, scene 7's pose and attitude; `VEHPL`, the LM at its state near the camera) |
-| Dispatcher | `vlayer.f` | `LAYERS`: each scene's layer list and a computed `GO TO` over layer ids |
+| Driver | `vdrive.f` | `VINIT` (selects a situation: `SITSET` copies its row of the situation tables), `VFRAME`, the camera recipes (`SCNCAM`, `LOOK`, `REFTRN`), table setup, model placement (`SCNMOD`: the situation's pose, `LMPIRO`, `S7POSE` with `S7ATT`, `S8POSE`; `VEHPL`, the LM at its state near the camera) |
+| Dispatcher | `vlayer.f` | `LAYERS`: the situation's layer list and a computed `GO TO` over layer ids |
 | Core | `ephem.f` | time, Sun, Moon, Moon orientation |
 | Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon, `LEGRV` one leg), events (`EVGET`), the LM's and the S-IVB's state rules (`LMSTAT`, `SIVST`), the LM descent, the Earthrise search |
 | Core | `sim.f` | the engine: flies the CSM from the scenario's START through its score (BURN cards), with state vector updates at its REF rows (optional), and writes the tape (`SIMRUN`) |
@@ -67,9 +69,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Layer 9 | `llpd.f` | LPD scale and LM window (scene 5) |
 | Layer 10 | `lburn.f` | burn cue: exhaust of a placed vehicle firing a main engine, and its BURN text (a modern addition) |
 
-Every layer is a subroutine with the argument list `(GET, VB, NV, SB, NS, LB, NL)`. To add one:
-a new file, the next id and one `CALL` in `LAYERS`, and the id in the scene lists there. The
-build, lint and native driver pick up every `src/*.f`, so they need no change.
+Every layer is a subroutine with the argument list `(GET, VB, NV, SB, NS, LB, NL)`. To add one: a new file, the next id and one `CALL` in `LAYERS`, a name for the id in `tools/gen_data.py` (`LAYER_IDS`), and the name in the `LAYERS=` of the SITUATION cards that draw it. The build, lint and native driver pick up every `src/*.f`, so they need no change.
 
 ### How the pieces map onto a 1969 run (conjecture, labelled as such)
 
@@ -120,7 +120,7 @@ LFortran notes (see `tools/build.sh`): the kernel needs `--implicit-interface` (
 its own routines) and `--legacy-array-sections` (sequence association, `CEV(1,J)` passed as a
 3-vector). `INCLUDE` works (`src/viewdims.inc` generated, `src/viewcom.inc` the kernel COMMON).
 LFortran defines every COMMON block strongly in each file, so the build makes them `weak` in
-every element's `.ll` but `viewdata.ll`, and the BLOCK DATA initialisers win. It also emits its
+every element's `.ll` but the BLOCK DATA files' (`viewdata.ll`, `viewsit.ll`), and the BLOCK DATA initialisers win. It also emits its
 runtime helpers (`_lcompilers_sin_f64` and the like) into every file that uses them; the build
 marks them `linkonce_odr` so the linker keeps one copy. Do not use `--fast`: it optimises for the host
 (x86 vectors, `__multi3`); clang optimises the IR for wasm32 instead, without saturating
@@ -197,7 +197,7 @@ Inputs (written by JS):
   (`models.f` CMCAB); targets aim it as offsets. LM station (3): scenes 4, 7, 8 (scene 5 is it
   already), the commander's design eye of Grumman's LM stations (`models.f` LDEYE) with the LM
   window and LPD overlay of scene 5, 30.2 deg down (`LPDDN`, fitted to the film's LPD marks,
-  `llpd.f`); it ignores targets. With `in_flags` bit 4 both stations get the interior (CMINT,
+  `llpd.f`); it ignores targets. Which stations a scene offers is its VIEWS card's `CM=` and `LM=` (always, where that vehicle is placed, or no), the same rule for both vehicles. With `in_flags` bit 4 both stations get the interior (CMINT,
   LMINT), drawn as an outline model: no hidden lines, and the sky shows through its walls unless
   bit 5 masks it to the windows. Elsewhere a station falls back to the window view.
   Scene 6 ignores both view and target. In an external view of a scene whose camera rides the
@@ -243,7 +243,7 @@ Outputs (written by the kernel):
   carries the CSM); the vehicle the camera rides (`IRIDE` in `vview.f`: the CSM in
   the window views of scenes 1-4, 7, 9 and the CM station, the LM in scene 5 and the LM station,
   none in scenes 6, 8 and external views) is not counted. Set at every label level. 22 the crew
-  stations the scene offers, a bitmask: 1 the CM station (not scenes 5 and 6), 2 the LM station
+  stations the scene offers (its VIEWS card's `CM=` and `LM=`), a bitmask: 1 the CM station (not scenes 5 and 6), 2 the LM station
   (where an LM is placed, in the LM station itself, and scene 5), 4 always (a kernel without
   hdr(22) leaves 0); the page enables its CM and LM buttons from it. 23-24 spare.
   The page letters the report-style header from these.
@@ -315,29 +315,25 @@ Fidelity rule: best effort within the spirit of what VIEW had in 1969 (trajector
 catalogs, engineering drawings, a vector recorder). Where a source is silent, choose what a
 1969 programmer could plausibly have done and say so in a comment.
 
-1. **Earthrise** — CSM in 60 n.mi. circular retrograde lunar orbit, looking forward at the
-   horizon, FOV ~12–15°, Earth climbing over the limb with its night side hatched; the lunar
-   surface is IAU gazetteer craters drawn as rim circles on the sphere (foreshortened to
-   ellipses). (`t04.png`)
-2. **Transearth coast / Earth approach** — inertially fixed camera; a small Earth disc grows
-   until only the limb arc remains, arriving at entry interface (GET 195:03:06). (`t08.png`
-   through `t20.png`)
-3. **Earth limb** — low Earth orbit, limb arc and stars.
-4. **LM rendezvous** — LM wireframe seen from the CSM, turning in place (the post-undocking
-   inspection pirouette). (`t22.png`, `t25.png`) The LM sits at its state (`LMSTAT`: 300 ft
+Each scene is a situation (`docs/systems-model.md`, section 3): a SITUATION card in its scenario's deck, followed by its RECIPE and VIEWS cards and, where the header's reference object is not the reference body, an HDRREF card (the card types are listed in the SITUATIONS section of `data/missions/apollo11/asflown.scn`). The card holds the default g.e.t. (a g.e.t., an event plus an offset, or the Earthrise search's time plus an offset), field, look, window, layer list, pose, drawing switches, camera recipe and its parameters, the default view and targets, the vehicle the camera rides, and the CM and LM stations offered. The situation's ID is the scene number. `tools/gen_data.py` writes the cards into `src/viewsit.f`; `VINIT` loads one (`SITSET`) and the kernel tests the recipe and the card's switches, never a scene number. The recipes: `LOCALVERT` (1, 3, 4, 9), `INERTIAL` (2, 7), `CREWSTN` (5, the LM), `BODYCTR` (6), `EXTSEED` (8). A new view of an existing kind is a new card; a new kind of camera is a new recipe in `SCNCAM`.
+
+1. **Earthrise** — CSM in 60 n.mi. circular retrograde lunar orbit, looking forward at the horizon (`LOCALVERT` about the Moon, turned in azimuth to the Earth's sightline), FOV 8°, default GET one minute before the Earth's disc clears the horizon on the revolution before the landing (`ERFIND`), Earth climbing over the limb with its night side hatched; the lunar surface is IAU gazetteer craters drawn as rim circles on the sphere (foreshortened to ellipses). (`t04.png`)
+2. **Transearth coast / Earth approach** — inertially fixed camera (`INERTIAL` from the Earth's sightline 10 h before entry interface), default GET 5 h before entry interface, FOV 60°; a small Earth disc grows until only the limb arc remains, arriving at entry interface (GET 195:03:06). (`t08.png` through `t20.png`)
+3. **Earth limb** — low Earth orbit, limb arc and stars: `LOCALVERT` about the Earth, forward and 8° above the horizon, GET 1:30:00, FOV 70°, no night shading (`DRAW=NOSHADE`).
+4. **LM rendezvous** — LM wireframe seen from the CSM's window along the orbit normal (`LOCALVERT` about the Moon, NORMAL; a window view, not an external one), turning in place (the post-undocking
+   inspection pirouette, the `LMPIRO` pose), two minutes after undocking, FOV 12°, no stars. (`t22.png`, `t25.png`) The LM sits at its state (`LMSTAT`: 300 ft
    along the orbit normal from undocking to the separation burn, ours), so later in the scene
    it drifts away on its own leg, and it is not drawn where it has no state of its own nor
    from touchdown on (the gear-down model, as `VEHPL`).
-5. **LM descent** — LM front window with the LPD scale, horizon rising through the window
-   during pitch-over, flattened craters. (`t28.png`, `t31.png`, `t35.png`)
+5. **LM descent** — the LM crew station (`CREWSTN`, the LM: the commander's eye on the descending LM's axes, riding the LM, so its own view is the LM station), LM front window with the LPD scale, GET 102:42:00, FOV 82.4°, horizon rising through the window during pitch-over, flattened craters. (`t28.png`, `t31.png`, `t35.png`)
 6. **Moon view** — a modern addition (the inspiration is a present-day VIEW-style plot, not a
-   1969 source): the whole disc from 35,000 km above the sub-observer point, selenographic
+   1969 source; `BODYCTR`, which ignores view and target): the whole disc from 35,000 km above the sub-observer point, selenographic
    north up, default GET 102:45:40 (touchdown) and FOV 6.4° (disc about 85% of the frame).
    Limb, terminator and night-side shading lines, gazetteer craters of 25 km and up, maria,
    lacus, sinus and oceanus as circles of their gazetteer diameters (the gazetteer gives only
    centre and diameter), and the Apollo 11 landing site as a boxed X. No seeded craters.
 7. **Transposition & docking** — GET 3:20:30 to 3:24:03.1 (docking, Apollo 11 Mission Report
-   MSC-00171 table 7-II, printed p. 7-9). The CSM's COAS view along its +X axis down onto the LM,
+   MSC-00171 table 7-II, printed p. 7-9); default GET 3:21:30, FOV 30°. `INERTIAL` from the stack's held attitude (`S7ATT`), the `S7POSE` pose, the COAS as layer 7. The CSM's COAS view along its +X axis down onto the LM,
    stowed with its gear retracted (Apollo 11 press kit, printed p. 103) on the S-IVB/IU, with the
    fixed stub of the SLA (upper panels jettisoned, not drawn). Range closes from 100 ft (Mission
    Report p. 4-2: "at least 100 feet") to contact at 0.1 ft/s (same page); the closing law, the
@@ -356,8 +352,8 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
    extraction and before the first midcourse correction: our choice of moment. The CSM
    (`models.f` CSMBLD) docked to the LM with its gear stowed, rolling about the CSM's X
    axis at 3 revolutions per hour (Flight Journal commentary after 008:11:00); the roll axis,
-   square to the ecliptic, is ours. The scene's own view is external: 60 m from the stack,
-   starting on its far side from the Earth; yaw and pitch carry the camera around it.
+   square to the ecliptic, is ours. The scene's own view is external (`EXTSEED`, its card's `VIEW=EXTERNAL`, the `S8POSE` pose): 60 m from the stack,
+   starting on its far side from the Earth; yaw and pitch carry the camera around it. FOV 40°.
 9. **Apollo 8 Earthrise** — scenario 2 (Apollo 8 as flown). VIEW made Apollo 8 views ("Preflight
    views produced for the Apollo 8 mission included views as seen through the spacecraft
    windows during various critical maneuvers", TN D-6853 printed p. 3), but none survive; this
@@ -368,10 +364,10 @@ catalogs, engineering drawings, a vector recorder). Where a source is silent, ch
    unsourced). The CSM is on the scenario's lunar leg through the SVS head-up display position
    at the photograph (11.15 S, 113.80 E, 110.0 km) and the transearth injection ignition row
    (MR8 Table 5-II), which gives an inclination of 12.40° (the research fit: 12.35°) and a
-   heading of 275.5° there. The camera is scene 1's forward horizon view, turned by three
+   heading of 275.5° there. The camera is scene 1's forward horizon view (the same `LOCALVERT` recipe), turned by three
    angles FITTED to the photograph in its usual presentation (the film frame turned a quarter
    turn clockwise): the Earth's centre at plot (0.855, -0.456) and the horizon's 6.63° tilt
-   (`vdrive.f` S9REF). Checks against the photograph, as measured on the scan (ours):
+   (its RECIPE card's `TURN=`, applied by `vdrive.f` REFTRN). Checks against the photograph, as measured on the scan (ours):
    the Earth's angular diameter 1.9303° against 1.9366° (-0.32%; the Earth-camera distance
    agrees with JPL Horizons' Moon to 6 km, so the rest is the photograph's scale or the
    Earth's cloud and haze limb); the Earth's centre 3.455° above the smooth-sphere horizon
@@ -492,8 +488,7 @@ scenario has six LM legs from separation to TPF (MR Table 7-II p. 7-9 rows, SP-4
 burns). The Apollo 11 as-flown scenario uses the Mission Report's Table 7-II and
 7-VII states and SP-4029's ascent table; the Apollo 8 one the Apollo 8 Mission Report's
 (MSC-PA-R-69-1) Table 5-II and 5-V states, SP-4029's ascent table and the SVS 4129 position
-at the Earthrise photograph; see the scenarios' comments and `src/traj.f`. `VINIT` maps each
-scene to a scenario: 1-8 Apollo 11, 9 Apollo 8 (`ISNSC`; the same map is `data/scenes.scn`). Code keyed to a mission's events looks them
+at the Earthrise photograph; see the scenarios' comments and `src/traj.f`. Each scene is a situation whose SITUATION card sits in its scenario's deck (Scenes, below): 1-8 Apollo 11, 9 Apollo 8. Code keyed to a mission's events looks them
 up by kind (`EVGET`) and copes with their absence: without a TOUCH event (Apollo 8) the
 Earthrise search (`ERFIND`) ends its revolution at the PHOTO event, and no LM is marked.
 

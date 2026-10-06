@@ -45,11 +45,12 @@ C     Gazetteer craters inside the visible cap.
      &      .LT. CA * D) GO TO 20
 C       Whole-disc view: gazetteer craters of 25 km and up only (our
 C       floor, so the disc is not a solid mass), unlabelled.
-        IF (ISCN .EQ. 6 .AND. CRDIA(K) .LT. 25.0D0) GO TO 20
+        IF (MOD(JDRW / 2, 2) .EQ. 1 .AND. CRDIA(K) .LT. 25.0D0)
+     &    GO TO 20
         CALL CRATER(VB, NV, CRV(1,K), 0.5D0 * CRDIA(K) / RM, IOK)
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         IF (IOK .EQ. 1 .AND. CRDIA(K) .GE. 20.0D0 .AND.
-     &      MOD(IFLG, 2) .EQ. 1 .AND. ISCN .NE. 6) THEN
+     &      MOD(IFLG, 2) .EQ. 1 .AND. MOD(JDRW / 2, 2) .EQ. 0) THEN
           DO 15 I = 1, 3
             G(I) = RM * CRV(I,K)
    15     CONTINUE
@@ -79,7 +80,7 @@ C     the flat approach, the oblique look and few large craters;
 C     the patch density is set low to match.  Cells are seeded from
 C     their indices, so craters stay put from frame to frame.
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (ISCN .EQ. 6) THEN
+      IF (MOD(JDRW / 2, 2) .EQ. 1) THEN
         CALL DMOON6(VB, NV, LB, NL)
       ELSE
         CALL PCRAT(VB, NV, 0.5D0, 1.2D0, 2.5D0, 25.0D0, 1,

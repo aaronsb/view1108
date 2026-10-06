@@ -7,13 +7,15 @@
 #                              exit 1 on any difference, naming each file that differs
 #
 # Captured (build/, gitignored; the baseline is a build output, never committed):
-#   viewdata.f, viewdims.inc   as tools/gen_data.py writes them, with one mask (below)
+#   viewdata.f, viewdims.inc,  as tools/gen_data.py writes them, with one mask (below)
+#   viewsit.f, viewsit.inc     (the last two: the situation tables)
+#   scenes.json                byte for byte (the scene list make check and the selftest read)
 #   names.js                   byte for byte, plus names.pretty.json (the same JSON, indented) so a
 #                              difference shows as readable lines
 #   render/*.txt               build/viewsvg's SVG on stdout and hdr(1..24) on stderr (VIEW_HDR) for
 #                              every case in CASES
 #
-# The mask: in viewdata.f and viewdims.inc, comment lines (C in column 1) that quote a source
+# The mask: in viewdata.f, viewdims.inc, viewsit.f and viewsit.inc, comment lines (C in column 1) that quote a source
 # location are dropped: a path or file name under data/ or tools/, a *.scn or *.py name, or the name
 # of tools/gen_data.py's BURN_CUES table.  These lines say where the tables came from, which a
 # data move changes by design; every other line, comments carrying card sources included, must
@@ -114,6 +116,50 @@ s5-sim0           | VIEW_SIM=0                   | 5 - 0 0 0 - 11
 s8-sim1           | VIEW_SIM=1                   | 8 - 0 0 0 - 11
 s9-sim1           | VIEW_SIM=1                   | 9 - 0 0 0 - 11
 s9-sim0           | VIEW_SIM=0                   | 9 - 0 0 0 - 11
+s1-cm             | VIEW_VIEW=2                  | 1
+s2-cm             | VIEW_VIEW=2                  | 2
+s3-cm             | VIEW_VIEW=2                  | 3
+s4-cm             | VIEW_VIEW=2                  | 4
+s7-cm             | VIEW_VIEW=2                  | 7
+s8-cm             | VIEW_VIEW=2                  | 8
+s8-cm-cabin       | VIEW_VIEW=2                  | 8 - 0 0 0 - 19
+s9-cm             | VIEW_VIEW=2                  | 9
+s9-cm-8000        | VIEW_VIEW=2                  | 9 8000
+s5-cm             | VIEW_VIEW=2                  | 5
+s2-cm-tgt-moon    | VIEW_VIEW=2 VIEW_TARGET=2    | 2
+s4-lm             | VIEW_VIEW=3                  | 4
+s4-lm-cabin       | VIEW_VIEW=3                  | 4 - 0 0 0 - 19
+s7-lm             | VIEW_VIEW=3                  | 7
+s7-lm-mask        | VIEW_VIEW=3 VIEW_LABLV=3     | 7 - 0 0 0 - 51
+s8-lm             | VIEW_VIEW=3                  | 8
+s8-lm-cabin       | VIEW_VIEW=3                  | 8 - 0 0 0 - 19
+s6-lm             | VIEW_VIEW=3                  | 6
+s9-lm             | VIEW_VIEW=3                  | 9
+s4-lm-docked      | VIEW_VIEW=3                  | 4 350000
+s4-cm-docked      | VIEW_VIEW=2                  | 4 350000
+s1-lm-undocked    | VIEW_VIEW=3                  | 1 360900
+s1-cm-undocked    | VIEW_VIEW=2                  | 1 360900
+s4-lm-tpf         | VIEW_VIEW=3                  | 4 460500
+s4-cm-tpf         | VIEW_VIEW=2                  | 4 460500
+s2-lm-sep         | VIEW_VIEW=3                  | 2 12100
+s2-cm-sep         | VIEW_VIEW=2                  | 2 12100
+s3-lm-eject       | VIEW_VIEW=3                  | 3 16000
+s8-lm-13000       | VIEW_VIEW=3                  | 8 13000
+s8-cm-13000       | VIEW_VIEW=2                  | 8 13000
+s7-ext            | VIEW_VIEW=1                  | 7
+s7-ext-look       | VIEW_VIEW=1                  | 7 - 20 -10 5 -
+s7-ext-lab3       | VIEW_VIEW=1 VIEW_LABLV=3     | 7 12200
+s4-ext            | VIEW_VIEW=1                  | 4
+s4-ext-360900     | VIEW_VIEW=1                  | 4 360900
+s4-ext-lab3       | VIEW_VIEW=1 VIEW_LABLV=3     | 4
+s4-tgt-lm         | VIEW_TARGET=5                | 4
+s5-ext            | VIEW_VIEW=1                  | 5
+s6-ext-csm        | VIEW_VIEW=1 VIEW_TARGET=4    | 6
+s6-look           |                              | 6 - 30 20 10 -
+s8-ext-earth      | VIEW_VIEW=1 VIEW_TARGET=1    | 8
+s8-tgt-lm         | VIEW_TARGET=5                | 8
+s9-ext-def-earth  | VIEW_VIEW=1                  | 9 8000
+s2-ext-cmsep      | VIEW_VIEW=1 VIEW_LABLV=2     | 2 701500
 EOF
 )
 
@@ -121,15 +167,17 @@ capture() {
   local out=$1
   ./tools/build.sh native >/dev/null
   rm -rf "$out"; mkdir -p "$out/render"
-  grep -Ev "$MASK" src/viewdata.f > "$out/viewdata.f"
-  grep -Ev "$MASK" src/viewdims.inc > "$out/viewdims.inc"
-  for f in src/viewdata.f src/viewdims.inc; do
+  for f in viewdata.f viewdims.inc viewsit.f viewsit.inc; do
+    grep -Ev "$MASK" "src/$f" > "$out/$f"
+  done
+  for f in src/viewdata.f src/viewdims.inc src/viewsit.f src/viewsit.inc; do
     echo "$f $(grep -Ec "$MASK" "$f" || true) masked lines"
   done > "$out/masked.txt"
   { echo "commit $(git rev-parse HEAD)"
     if [ -n "$(git status --porcelain)" ]; then echo "tree dirty"; else echo "tree clean"; fi
   } > "$out/source.txt"
   cp build/names.js "$out/names.js"
+  cp build/scenes.json "$out/scenes.json"
   python3 -c 'import json,sys; t=open(sys.argv[1]).read(); j=json.loads(t[t.index("=")+1:].rstrip().rstrip(";")); print(json.dumps(j, indent=1))' \
     build/names.js > "$out/names.pretty.json"
   local n=0 name envs args
@@ -140,7 +188,7 @@ capture() {
       build/viewsvg $args > "$out/render/$name.txt" 2>&1
     n=$((n + 1))
   done <<< "$CASES"
-  echo "golden: captured 3 tables and $n renders into $out"
+  echo "golden: captured 6 tables and $n renders into $out"
 }
 
 case "${1:-}" in

@@ -11,7 +11,8 @@ C
 C     ENTRY POINTS (called by the chassis, shell.f90; also SIMRUN in
 C     sim.f, which runs the engine and fills the tape)
 C       VINIT  (ISC, GET, YAW, PIT, ROL, FOV)
-C              select scene ISC and return its default inputs.
+C              select situation ISC (the scene number; its SITUATION
+C              card, BLOCK DATA VIEWSB) and return its default inputs.
 C       VFRAME (GET, YAW, PIT, ROL, FOV, IFLAG,
 C               VB, NV, SB, NS, LB, NL, HD, TB, NT, TC, NCH)
 C              draw one frame.  VB(5,MAXV) line vectors X1 Y1 X2 Y2
@@ -24,8 +25,9 @@ C     the Collector, which "is a system processor designed to provide
 C     the user with a means of gathering (collecting) and
 C     interconnecting one or more relocatable elements to produce a
 C     program" (UE-637 sec. 5.1; docs/batch-pipeline.md).
-C       vdrive.f  this driver: scenes, cameras, model placement
-C       vlayer.f  the layer dispatcher and each scene's layer list
+C       vdrive.f  this driver: situations, camera recipes, model
+C                 placement
+C       vlayer.f  the layer dispatcher over the situation's layer list
 C       Core:  ephem.f (time, Sun, Moon), traj.f (trajectory legs,
 C              the replay), sim.f (the engine), tape.f (the tape it
 C              writes), vsrc.f (the state source: replay or tape),
@@ -42,7 +44,9 @@ C              extras), learth.f 5 Earth, lvehic.f 6 vehicles
 C              (lvlab.f their labels and markers),
 C              lcoas.f 7 COAS reticle, lshad.f 8 LM shadow,
 C              llpd.f 9 LPD and LM window, lburn.f 10 burn cue
-C       Data:  viewdata.f (BLOCK DATA, generated), viewcom.inc COMMON
+C       Data:  viewdata.f (BLOCK DATA, generated), viewsit.f (the
+C              situations' BLOCK DATA, generated from the SITUATION
+C              cards), viewcom.inc COMMON
 C
 C     THE ELEMENTS AGAINST TN D-6853, printed p. 3 (our reading).  "The
 C     program consists of two basic parts: the integrator portion and
@@ -71,15 +75,13 @@ C=======================================================================
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
+      INCLUDE 'viewsit.inc'
 C     RESTOMOD END
       INTEGER ISC
       DOUBLE PRECISION GET, YAW, PIT, ROL, FOV
       DOUBLE PRECISION R(3), V(3), PM(3), E(3), S(3), X, Y, TFIX
-      INTEGER I, ISNSC(9), IVS
+      INTEGER I, IVS
       DOUBLE PRECISION VDOT, EVGET
-C     The scenario of each scene: Apollo 11 as flown for scenes 1-8,
-C     Apollo 8 as flown for scene 9.
-      DATA ISNSC / 1, 1, 1, 1, 1, 1, 1, 1, 2 /
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (INITD .NE. 1) THEN
@@ -89,32 +91,34 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         INITD = 1
       END IF
 C     RESTOMOD END
+C     The situation (its SITUATION card) and its scenario.
       ISCN = ISC
-      IF (ISCN .LT. 1 .OR. ISCN .GT. 9) ISCN = 1
-      IF (ISNSC(ISCN) .NE. ISN) CALL SNSET(ISNSC(ISCN))
-      YAW = 0.0D0
-      PIT = 0.0D0
-      ROL = 0.0D0
+      IF (ISCN .LT. 1 .OR. ISCN .GT. NSIT) ISCN = 1
+      CALL SITSET(ISCN)
+      IF (SISN(ISCN) .NE. ISN) CALL SNSET(SISN(ISCN))
+      YAW = SILK(1,ISCN)
+      PIT = SILK(2,ISCN)
+      ROL = SILK(3,ISCN)
 C
+C     The Earthrise search (ERFIND) for a view turned to the Earth's
+C     sightline: its time is the GET rule's Earthrise (gen_data.py
+C     allows that rule only there).  Without that turn, no azimuth
+C     offset: AZOFF is not left from the last situation.
+      IF (JRCP .EQ. 1 .AND. SIAZ(ISCN) .EQ. 1) CALL ERFIND
+      IF (SIAZ(ISCN) .EQ. 0) AZOFF = 0.0D0
+C     Default GET: a g.e.t., an event plus an offset, or the
+C     Earthrise plus an offset.
+      GET = SIGT(ISCN)
+      IF (SIGK(ISCN) .EQ. 2) GET = EVGET(SIGE(ISCN)) + SIGT(ISCN)
+      IF (SIGK(ISCN) .EQ. 3) GET = TERISE + SIGT(ISCN)
+      IF (SIFK(ISCN) .EQ. 1) FOV = SIFV(ISCN)
+C
+C     The recipe's set-up at the default GET.
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (ISCN .EQ. 1 .OR. ISCN .EQ. 9) THEN
-C       EARTHRISE.  Scene 1: one minute before the Earth's disc
-C       clears the lunar horizon on the revolution before the landing.
-C       The view is turned in azimuth (AZOFF) so the Earth rises
+      IF (JRCP .EQ. 1 .AND. SIAZ(ISCN) .EQ. 1) THEN
+C       FORWARD about the Moon, turned in azimuth (AZOFF) to the
+C       Earth's sightline at the default GET, so the Earth rises
 C       mid-frame.
-C       Scene 9, APOLLO 8 EARTHRISE: at the photograph AS08-14-2383
-C       (the scenario's PHOTO event), with the field of its 250 mm lens
-C       on the 70 mm frame, 12.72 deg: the lens from the Apollo 8
-C       Flight Journal (day 4, orbit 4, commentary: "another Hasselblad
-C       with a 250-mm lens"), the 55.74 mm gate measured by us on the
-C       ASU scan of AS08-14-2383 (tothemoon.im-ldi.com), taking the
-C       70 mm perforation pitch as 4.75 mm (unsourced).  The azimuth is
-C       set at the photograph's time; the pointing is S9REF's.
-        CALL ERFIND
-        GET = TERISE - 60.0D0
-        FOV = 8.0D0
-        IF (ISCN .EQ. 9) GET = EVGET(KEPHO)
-        IF (ISCN .EQ. 9) FOV = 12.72D0
         CALL VSTATE(GET, 1, 2, R, V, IVS)
         CALL MOONG(GET, PM)
         E(1) = -PM(1) - R(1)
@@ -126,27 +130,23 @@ C       set at the photograph's time; the pointing is S9REF's.
         X = VDOT(E, V)
         Y = VDOT(E, S)
         AZOFF = DATAN2(Y, X) / DR
-      ELSE IF (ISCN .EQ. 2) THEN
-C       EARTH APPROACH on the transearth coast.  The attitude is
-C       held inertially: boresight ELOFF deg ahead of the Earth's
-C       centre as seen at TFIX, up against the Earth's drift across
-C       the sky, so the disc climbs in from below, grows, and leaves
-C       only its limb arc as the spacecraft closes on entry.
-        FXDT = 10.0D0 * 3600.0D0
-        TFIX = TETP - FXDT
-        GET = TETP - 5.0D0 * 3600.0D0
-        FOV = 60.0D0
-        ELOFF = 0.0D0
+      ELSE IF (JRCP .EQ. 2 .AND. JATT .EQ. 1) THEN
+C       INERTIAL from the Earth's sightline.  The attitude is held
+C       inertially: boresight ELOFF deg ahead of the Earth's centre as
+C       seen FXDT before the event (TFIX), up against the Earth's
+C       drift across the sky from then to SIDT before the event.
+        FXDT = SIFT(ISCN)
+        TFIX = EVGET(SIFE(ISCN)) - FXDT
+        ELOFF = SIEO(ISCN)
         CALL VSTATE(TFIX, 1, 1, R, V, IVS)
-        CALL VSTATE(TETP - 3600.0D0, 1, 1, E, S, IVS)
+        CALL VSTATE(EVGET(SIFE(ISCN)) - SIDT(ISCN), 1, 1, E, S, IVS)
         DO 22 I = 1, 3
           PM(I) = -R(I)
           E(I) = -E(I)
    22   CONTINUE
         CALL VUNIT(PM)
         CALL VUNIT(E)
-C       Net drift of the Earth centre across the line of sight from
-C       TFIX to an hour before entry.
+C       Net drift of the Earth centre across the line of sight.
         X = VDOT(E, PM)
         DO 24 I = 1, 3
           S(I) = E(I) - X * PM(I)
@@ -157,49 +157,61 @@ C       TFIX to an hour before entry.
           FXB(I) = DCOS(Y) * PM(I) + DSIN(Y) * S(I)
           FXU(I) = -(DCOS(Y) * S(I) - DSIN(Y) * PM(I))
    26   CONTINUE
-      ELSE IF (ISCN .EQ. 3) THEN
-C       EARTH PARKING ORBIT, looking forward at the horizon.
-        GET = 1.5D0 * 3600.0D0
-        FOV = 70.0D0
-      ELSE IF (ISCN .EQ. 4) THEN
-C       LM RENDEZVOUS / INSPECTION, two minutes after undocking.
-        GET = EVGET(KEUND) + 120.0D0
-        FOV = 12.0D0
-      ELSE IF (ISCN .EQ. 8) THEN
-C       THE DOCKED STACK IN TRANSLUNAR COAST (a modern addition: VIEW
-C       drew vehicles as seen from a vehicle, TN D-6853 p. 12, not
-C       from outside both).  Half an hour into passive thermal
-C       control, which began at 10:58:19 (the scenario's PTC event),
-C       after the LM's extraction (4:17) and before the first
-C       midcourse correction (26:45): our choice of moment.
-        GET = EVGET(KEPTC) + 1800.0D0
-        FOV = 40.0D0
-      ELSE IF (ISCN .EQ. 7) THEN
-C       TRANSPOSITION AND DOCKING.  Mid-approach, about 56 ft out
-C       (see S7POSE for the closing law), looking along the CSM +X
-C       axis at the LM docking target.  Field of view: ours.
-        GET = EVGET(KEAPR) + 60.0D0
-        FOV = 30.0D0
-      ELSE IF (ISCN .EQ. 6) THEN
-C       MOON VIEW (a modern addition, not a 1969 plot type we have a
-C       source for).  The camera sits 35,000 km above the sub-observer
-C       point, our choice, which with the field below puts the disc at
-C       85 percent of the frame; yaw and pitch then move the
-C       sub-observer point (see SCNCAM).  GET at touchdown, so the
-C       terminator falls as it did for the landing.
-        GET = LUT0
-        S6DST = RM + 35000.0D0
-        FOV = DBLE(NINT(20.0D0 * DASIN(RM / S6DST) / DR / 0.85D0))
-     &      / 10.0D0
-      ELSE
-C       LM DESCENT, commander's front window, P64 approach.
-        GET = 102.0D0*3600.0D0 + 42.0D0*60.0D0
-C       The film's descent frame is numbered to +-50 at its edges; in
-C       the gnomonic plot (see PROJ) that is a physical field of
-C       2 ATAN(50 deg in radians) = 82.4 deg.
-        FOV = 82.4D0
+      ELSE IF (JRCP .EQ. 4) THEN
+C       BODYCTR: the camera SIAL km above the Moon's surface.
+        S6DST = RM + SIAL(ISCN)
       END IF
 C     RESTOMOD END
+C     The disc rule: the body's disc fills SIFV of the frame, rounded
+C     to 0.1 deg (BODYCTR's distance).
+      IF (SIFK(ISCN) .EQ. 2) FOV = DBLE(NINT(20.0D0
+     &  * DASIN(RM / S6DST) / DR / SIFV(ISCN))) / 10.0D0
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     SITSET: copy situation K's row of the tables (viewsit.inc, BLOCK
+C     DATA VIEWSB) into the current situation, /CSITU/ (viewcom.inc).
+C-----------------------------------------------------------------------
+      SUBROUTINE SITSET(K)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+      INCLUDE 'viewsit.inc'
+C     RESTOMOD END
+      INTEGER K, I
+      JRCP = SIRC(K)
+      JBOD = SIBD(K)
+      JMOD = SIMD(K)
+      JTRN = SITR(K)
+      JFAL = SIFB(K)
+      JATT = SIAT(K)
+      JVEH = SIVH(K)
+      JWIN = SIWN(K)
+      JPOS = SIPS(K)
+      JDRW = SIDW(K)
+      JVW = SIVW(K)
+      JTGT = SITG(K)
+      JTGF = SITF(K)
+      JRID = SIRD(K)
+      JSCM = SICM(K)
+      JSLM = SILM(K)
+      JFIX = SIFX(K)
+      JXOF = SIXO(K)
+      JHRK = SIHK(K)
+      QELV = SIEL(K)
+      QFEL = SIFL(K)
+      QDST = SIDS(K)
+      QHOF = SIHO(K)
+      QHRR = SIHR(K)
+      DO 10 I = 1, 3
+        QTRN(I) = SITN(I,K)
+   10 CONTINUE
+      QXY(1) = SIXY(1,K)
+      QXY(2) = SIXY(2,K)
+      DO 20 I = 1, 12
+        JLL(I) = SILY(I,K)
+   20 CONTINUE
       RETURN
       END
 C
@@ -217,7 +229,7 @@ C     RESTOMOD END
       INTEGER NT, TC(MAXTC), NCH
       DOUBLE PRECISION PM(3), CG(3), CV(3), RB, RNG, D1, D2, D3, D4
       DOUBLE PRECISION PB(3), RR, VNRM, VDOT, RHO, RC(3), RL(3), VX(3)
-      INTEGER I, IREF, IWIN, IOK, J, LOOKD, KLMPL
+      INTEGER I, IREF, IWIN, IOK, J, LOOKD, KLMPL, KCSPL
       DOUBLE PRECISION MR1(3,3), MR2(3,3)
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
@@ -288,9 +300,10 @@ C     The camera target and the external view (vview.f).
         CAMF(I) = -CAMF(I)
    30 CONTINUE
 C
-C     Free look, then the boresight in the Moon frame.
+C     Free look, then the boresight in the Moon frame.  BODYCTR's
+C     yaw and pitch moved the sub-observer point (SCNCAM): roll only.
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (ISCN .EQ. 6) THEN
+      IF (JRCP .EQ. 4) THEN
         CALL LOOK(0.0D0, 0.0D0, ROL)
       ELSE IF (LOOKD .EQ. 0) THEN
         CALL LOOK(YAW, PIT, ROL)
@@ -303,7 +316,7 @@ C     No burn text until the burn cue (lburn.f) asks for one.
       IBRTX = 0
 C     The cabin's windows for the window mask (vmask.f).
       CALL WMSET
-C     The scene's layers, in order (vlayer.f).
+C     The situation's layers, in order (vlayer.f).
       CALL LAYERS(GET, VB, NV, SB, NS, LB, NL)
 C
 C     Header.
@@ -324,26 +337,24 @@ C     RESTOMOD END
       HD(6) = DBLE(IREF)
       HD(7) = DBLE(ISCN)
       HD(8) = DBLE(IWIN)
-C     Scene 5: the footpads' altitude (LMDESC), 0 at touchdown.
-      IF (ISCN .EQ. 5) HD(10) = LMALT * 1000.0D0 / 0.3048D0
+C     The LM crew station riding the descending LM: the footpads'
+C     altitude (LMDESC), 0 at touchdown.
+      IF (JRCP .EQ. 3) HD(10) = LMALT * 1000.0D0 / 0.3048D0
 C     Reference body in the picture, for the page's camera steering:
 C     centre X, Y (deg, even off frame), angular radius, in front flag.
-C     Scene 4: the LM.  Scene 7: the LM's docking target (S7POSE).
+C     Or the situation's header object (HDRREF): the placed LM, the
+C     LM's docking target (S7POSE), the placed CSM's tunnel.
       DO 40 I = 1, 3
         PB(I) = EPOS(I)
         IF (IREF .EQ. 2) PB(I) = MPOS(I)
-        IF (ISCN .EQ. 4 .AND. KLMPL() .NE. 0) PB(I) = MDP(I,KLMPL())
-        IF (ISCN .EQ. 7) PB(I) = S7LP(I) - 0.72D-3 * S7AT(I,2)
-        IF (ISCN .EQ. 8) PB(I) = MDP(I,KCSM) + 2.743D-3 * MDAT(I,1,KCSM)
+        IF (JHRK .EQ. 1 .AND. KLMPL() .NE. 0) PB(I) = MDP(I,KLMPL())
+        IF (JHRK .EQ. 2) PB(I) = S7LP(I) - QHOF * S7AT(I,2)
+        IF (JHRK .EQ. 3) PB(I) = MDP(I,KCSM) + QHOF * MDAT(I,1,KCSM)
    40 CONTINUE
       RR = RE
       IF (IREF .EQ. 2) RR = RM
-      IF (ISCN .EQ. 4 .AND. KLMPL() .NE. 0) RR = 4.5D-3
-C     Scene 7: the LM, half its 14 ft 1 in width (Apollo 11 press kit,
-C     printed p. 96).
-      IF (ISCN .EQ. 7) RR = 2.15D-3
-C     Scene 8: about half the stack's length.
-      IF (ISCN .EQ. 8) RR = 1.0D-2
+      IF (JHRK .EQ. 1 .AND. KLMPL() .NE. 0) RR = QHRR
+      IF (JHRK .EQ. 2 .OR. JHRK .EQ. 3) RR = QHRR
       CALL PROJ(PB, HD(11), HD(12), IOK)
       HD(13) = RHO(DASIN(DMIN1(1.0D0, RR / VNRM(PB))))
       HD(15) = BOXH
@@ -356,38 +367,42 @@ C     GET: position (km), velocity (ft/s), that row's g.e.t. (s).
       HD(17) = DBLE(ISRCU)
       CALL SIMERR(GET, J, HD(20), HD(18), HD(19))
 C     The CSM to LM range (ft) where both states are known (VSTATE;
-C     0 docked), kept from HD(17)'s record of the source; scene 7:
-C     the docking ring's range of its closing law (S7POSE).
+C     0 docked), kept from HD(17)'s record of the source; with S7POSE
+C     the docking ring's range of its closing law.
       I = ISRCU
       CALL CSMSL(GET, RC, VX)
       CALL VSTATE(GET, 2, 2, RL, VX, IOK)
       ISRCU = I
       IF (IOK .NE. 0) HD(9) = DSQRT((RL(1) - RC(1))**2
      &  + (RL(2) - RC(2))**2 + (RL(3) - RC(3))**2) * 1.0D3 / 0.3048D0
-      IF (ISCN .EQ. 7) HD(9) = S7RNG
+      IF (JPOS .EQ. 2) HD(9) = S7RNG
       HD(14) = 0.0D0
       IF (VDOT(PB, CB) .GT. 0.0D0) HD(14) = 1.0D0
 C     The vehicles in this frame's world (VPRES): 1 CSM, 2 LM, 4 S-IVB.
       CALL VPRES(GET)
       HD(21) = DBLE(IVBIT)
-C     The crew stations this scene offers (STATCM, STATLM): 1 the CM,
-C     2 the LM (scene 5 is the LM station already; in the LM station
-C     the LM is not placed, the camera being inside it), and 4 always,
-C     so the page can tell this from a kernel without HD(22).  The page
-C     enables its station buttons from these; HD(21) leaves out the
-C     vehicle the camera rides, so it cannot.
+C     The crew stations this situation offers (its VIEWS card; STATCM,
+C     STATLM): 1 the CM, 2 the LM, each always or where that vehicle
+C     is placed (in a station the camera's own vehicle is not placed,
+C     the camera being inside it), and 4 always, so the page can tell
+C     this from a kernel without HD(22).  The page enables its station
+C     buttons from these; HD(21) leaves out the vehicle the camera
+C     rides, so it cannot.
       HD(22) = 4.0D0
-      IF (ISCN .NE. 5 .AND. ISCN .NE. 6) HD(22) = HD(22) + 1.0D0
-      IF (KLMPL() .NE. 0 .OR. ISCN .EQ. 5
-     &  .OR. IVUSE .EQ. 3) HD(22) = HD(22) + 2.0D0
+      IF (JSCM .EQ. 2 .OR. (JSCM .EQ. 1 .AND. (KCSPL() .NE. 0
+     &  .OR. IVUSE .EQ. 2))) HD(22) = HD(22) + 1.0D0
+      IF (JSLM .EQ. 2 .OR. (JSLM .EQ. 1 .AND. (KLMPL() .NE. 0
+     &  .OR. IVUSE .EQ. 3))) HD(22) = HD(22) + 2.0D0
 C     Text for the recorder's character generator.
       CALL TXALL(LB, NL, TB, NT, TC, NCH)
       RETURN
       END
 C
 C=======================================================================
-C     SCENE CAMERAS.  Position, velocity, reference body and the
-C     reference attitude RREF, UREF, BREF for scene ISCN at GET.
+C     CAMERA RECIPES.  Position, velocity, reference body and the
+C     reference attitude RREF, UREF, BREF of the situation's recipe
+C     (JRCP, its parameters in /CSITU/) at GET.  Each branch is the
+C     camera code of the scenes it came from, unchanged.
 C=======================================================================
       SUBROUTINE SCNCAM(GET, PM, CG, CV, IREF, IWIN)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -398,19 +413,22 @@ C     RESTOMOD END
       INTEGER IREF, IWIN
       DOUBLE PRECISION R(3), V(3), RU(3), VU(3), SU(3), H(3), E(3)
       DOUBLE PRECISION DIP, CA, SA, CD, SD, P2(3), R2(3), K, VDOT
-      DOUBLE PRECISION XB(3), YB(3), ZB(3), PMF(3), VNRM
-      INTEGER I, ICAM, LUNIN, IVS
+      DOUBLE PRECISION XB(3), YB(3), ZB(3), PMF(3), VNRM, ELV
+      INTEGER I, LB, LUNIN, IVS
 C
-      IWIN = 1
-C     The camera class: the scene's own, but scene 9 (Apollo 8) away
-C     from lunar orbit takes scene 3's forward view above the Earth's
-C     horizon (our choice: no Apollo 8 view survives, TN D-6853
-C     printed p. 3).
-      ICAM = ISCN
-      IF (ISCN .EQ. 9 .AND. LUNIN(GET) .EQ. 0) ICAM = 3
+      IWIN = JWIN
+C     The platform's body and elevation, but where the recipe has an
+C     off-leg fallback (JFAL) and no LUNAR leg holds the GET, FORWARD
+C     about the Earth instead (scene 9, Apollo 8, away from lunar
+C     orbit; our choice: no Apollo 8 view survives, TN D-6853 printed
+C     p. 3).
+      LB = JBOD
+      ELV = QELV
+      IF (JFAL .EQ. 1 .AND. LUNIN(GET) .EQ. 0) LB = 1
+      IF (LB .NE. JBOD) ELV = QFEL
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (ICAM .EQ. 1 .OR. ICAM .EQ. 4 .OR. ICAM .EQ. 9) THEN
-C       CSM in lunar orbit.
+      IF (JRCP .EQ. 1 .AND. LB .EQ. 2) THEN
+C       LOCALVERT about the Moon: the CSM in lunar orbit.
         IREF = 2
         CALL VSTATE(GET, 1, 2, R, V, IVS)
         DO 10 I = 1, 3
@@ -421,8 +439,8 @@ C       CSM in lunar orbit.
    10   CONTINUE
         CALL VUNIT(RU)
         CALL VUNIT(VU)
-        IF (ICAM .EQ. 1 .OR. ICAM .EQ. 9) THEN
-C         Forward along the orbit, turned AZOFF in azimuth, down to
+        IF (JMOD .EQ. 1) THEN
+C         FORWARD along the orbit, turned AZOFF in azimuth, down to
 C         the horizon by the dip angle.
           CALL VCRS(VU, RU, SU)
           CA = DCOS(AZOFF * DR)
@@ -435,17 +453,18 @@ C         the horizon by the dip angle.
             BREF(I) = CD * H(I) - SD * RU(I)
             UREF(I) = SD * H(I) + CD * RU(I)
    20     CONTINUE
-C         Scene 9: turned to the photograph's framing (S9REF).
-          IF (ICAM .EQ. 9) CALL S9REF
+C         The situation's reference turn (REFTRN).
+          IF (JTRN .EQ. 1) CALL REFTRN
         ELSE
-C         Out of plane toward the LM, local vertical up.
+C         NORMAL: out of plane toward the LM, local vertical up.
           CALL VCRS(RU, VU, BREF)
           DO 30 I = 1, 3
             UREF(I) = RU(I)
    30     CONTINUE
         END IF
-      ELSE IF (ICAM .EQ. 2) THEN
-C       Coast.  Attitude held inertially (FXB, FXU, set by VINIT).
+      ELSE IF (JRCP .EQ. 2 .AND. JATT .EQ. 1) THEN
+C       INERTIAL from the Earth's sightline, the coast.  Attitude held
+C       inertially (FXB, FXU, set by VINIT).
         IREF = 1
         CALL VSTATE(GET, 1, 1, R, V, IVS)
         DO 40 I = 1, 3
@@ -454,9 +473,9 @@ C       Coast.  Attitude held inertially (FXB, FXU, set by VINIT).
           BREF(I) = FXB(I)
           UREF(I) = FXU(I)
    40   CONTINUE
-      ELSE IF (ICAM .EQ. 3) THEN
-C       Parking orbit (and scene 9 away from the Moon).  Forward,
-C       boresight 8 deg above the horizon.
+      ELSE IF (JRCP .EQ. 1) THEN
+C       LOCALVERT about the Earth (parking orbit, and the off-leg
+C       fallback).  FORWARD, boresight ELV deg above the horizon.
         IREF = 1
         CALL VSTATE(GET, 1, 1, R, V, IVS)
         DO 70 I = 1, 3
@@ -467,17 +486,17 @@ C       boresight 8 deg above the horizon.
    70   CONTINUE
         CALL VUNIT(RU)
         CALL VUNIT(VU)
-        DIP = DACOS(RE / VNRM(R)) - 8.0D0 * DR
+        DIP = DACOS(RE / VNRM(R)) - ELV * DR
         CD = DCOS(DIP)
         SD = DSIN(DIP)
         DO 80 I = 1, 3
           BREF(I) = CD * VU(I) - SD * RU(I)
           UREF(I) = SD * VU(I) + CD * RU(I)
    80   CONTINUE
-      ELSE IF (ICAM .EQ. 6) THEN
-C       Moon view: looking at the centre from above the sub-observer
-C       point (S6LAT, S6LON), selenographic north up (our choice; a
-C       J2000-north layout would do as well).
+      ELSE IF (JRCP .EQ. 4) THEN
+C       BODYCTR, the Moon view: looking at the centre from above the
+C       sub-observer point (S6LAT, S6LON), selenographic north up (our
+C       choice; a J2000-north layout would do as well).
         IREF = 2
         E(1) = DCOS(S6LAT * DR) * DCOS(S6LON * DR)
         E(2) = DCOS(S6LAT * DR) * DSIN(S6LON * DR)
@@ -501,11 +520,11 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         END IF
 C     RESTOMOD END
         CALL VUNIT(UREF)
-      ELSE IF (ICAM .EQ. 8) THEN
-C       The docked stack (S8ATT) from 60 m on its far side from the
-C       Earth, looking at it with the Earth behind; the stack's X axis
-C       up.  Its own view is external (VIEWPT), which yaw and pitch
-C       carry around the stack.
+      ELSE IF (JRCP .EQ. 5) THEN
+C       EXTSEED, the docked stack (S8ATT) from QDST on its far side
+C       from the Earth, looking at it with the Earth behind; the
+C       stack's X axis up.  Its own view is external (JVW, VIEWPT),
+C       which yaw and pitch carry around the stack.
         IREF = 1
         CALL VSTATE(GET, 1, 1, R, V, IVS)
         CALL S8ATT(GET)
@@ -516,16 +535,16 @@ C       carry around the stack.
         K = VDOT(S8AT(1,1), BREF)
         DO 125 I = 1, 3
           UREF(I) = S8AT(I,1) - K * BREF(I)
-          CG(I) = R(I) - 0.060D0 * BREF(I)
+          CG(I) = R(I) - QDST * BREF(I)
           CV(I) = V(I)
   125   CONTINUE
         CALL VUNIT(UREF)
-      ELSE IF (ICAM .EQ. 7) THEN
-C       Transposition and docking.  The CSM on the translunar ellipse
-C       (30 m from the S-IVB, nothing at this scale), turned around to
-C       face the stack, which holds an inertial attitude (S7ATT).
-C       Boresight along the CSM +X axis, which is down the LM's -X
-C       axis; the LM front (+Z) up.
+      ELSE IF (JRCP .EQ. 2) THEN
+C       INERTIAL from a vehicle, transposition and docking.  The CSM
+C       on the translunar ellipse (30 m from the S-IVB, nothing at
+C       this scale), turned around to face the stack, which holds an
+C       inertial attitude (S7ATT).  Boresight along the CSM +X axis,
+C       which is down the LM's -X axis; the LM front (+Z) up.
         IREF = 1
         CALL VSTATE(GET, 1, 1, R, V, IVS)
         CALL S7ATT
@@ -536,11 +555,11 @@ C       axis; the LM front (+Z) up.
           UREF(I) = S7AT(I,3)
   110   CONTINUE
       ELSE
-C       LM descent.  Boresight LPDDN (30.2) deg down from the LM +Z
-C       axis in the X-Z plane, the LPD's plane; the film's LPD marks
-C       give the angle (llpd.f).
+C       CREWSTN, the LM (JVEH 2; gen_data.py refuses the CM until it
+C       has an axes source): the LM descent.  Boresight LPDDN (30.2)
+C       deg down from the LM +Z axis in the X-Z plane, the LPD's
+C       plane; the film's LPD marks give the angle (llpd.f).
         IREF = 2
-        IWIN = 2
         CALL LMDESC(GET, PMF, XB, YB, ZB)
         CALL LMDESC(GET + 1.0D0, P2, H, E, R2)
         CALL MXV(MMF, PMF, R)
@@ -628,8 +647,9 @@ C
 C-----------------------------------------------------------------------
 C     SCNMOD: place this frame's models (after SCNCAM, before the sky
 C     is drawn, since placed solids hide stars and bodies): the
-C     scene's own, then the vehicles near the camera at their states
-C     (VEHPL, SIVPL).  PM the Moon, CG the camera (geocentric, km).
+C     situation's own (its pose, JPOS), then the vehicles near the
+C     camera at their states (VEHPL, SIVPL).  PM the Moon, CG the
+C     camera (geocentric, km).
 C-----------------------------------------------------------------------
       SUBROUTINE SCNMOD(GET, PM, CG)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -638,9 +658,9 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION GET, PM(3), CG(3)
       CALL MCLEAR
-      IF (ISCN .EQ. 4) CALL LMPIRO(GET, PM, CG)
-      IF (ISCN .EQ. 7) CALL S7POSE(GET)
-      IF (ISCN .EQ. 8) CALL S8POSE
+      IF (JPOS .EQ. 1) CALL LMPIRO(GET, PM, CG)
+      IF (JPOS .EQ. 2) CALL S7POSE(GET)
+      IF (JPOS .EQ. 3) CALL S8POSE
       CALL VEHPL(GET, PM, CG)
       CALL SIVPL(GET, CG)
       RETURN
@@ -672,8 +692,8 @@ C
 C-----------------------------------------------------------------------
 C     VEHPL: the LM at its state (LMSTAT), placed when it is within 5
 C     km of the camera (where its model spans more than about 0.1 deg;
-C     ours), not already placed by the scene and not carrying the
-C     camera (scene 5): before touchdown with its descent stage, the
+C     ours), not already placed by the situation and not carrying the
+C     camera (JRID, the LM descent): before touchdown with its descent stage, the
 C     gear-down model (KLMD); from lift-off (the LIFT event) the ascent
 C     stage alone (KLMA).  Landed, from touchdown to lift-off, it is
 C     not placed (the marker of lvlab.f stands for it).  Attitude ours:
@@ -690,7 +710,7 @@ C     RESTOMOD END
       DOUBLE PRECISION RL(3), RC(3), VC(3), TL, TF, C, VDOT, VNRM
       DOUBLE PRECISION EVGET
       INTEGER IOK, I, J, K, KLMPL
-      IF (ISCN .EQ. 5 .OR. KLMPL() .NE. 0) RETURN
+      IF (JRID .EQ. 2 .OR. KLMPL() .NE. 0) RETURN
       K = KLMD
       TL = EVGET(KELFT)
       IF (TL .GE. 0.0D0 .AND. GET .GE. TL) K = KLMA
@@ -1036,8 +1056,9 @@ C     RESTOMOD END
       END
 C
 C     S8POSE: place the docked stack (STKPL), the LM with its gear
-C     stowed (KLMS) as in translunar coast (press kit p. 103), 60 m
-C     along the reference boresight from the camera.
+C     stowed (KLMS) as in translunar coast (press kit p. 103), QDST
+C     (EXTSEED's distance, 60 m) along the reference boresight from
+C     the camera.
       SUBROUTINE S8POSE
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -1046,37 +1067,33 @@ C     RESTOMOD END
       DOUBLE PRECISION P(3)
       INTEGER I
       DO 10 I = 1, 3
-        P(I) = 0.060D0 * BREF(I)
+        P(I) = QDST * BREF(I)
    10 CONTINUE
       CALL STKPL(S8AT, P, KLMS)
       RETURN
       END
 C
 C-----------------------------------------------------------------------
-C     S9REF: scene 9's reference attitude, the forward horizon view of
-C     scene 1 turned to the framing of the photograph AS08-14-2383 as
-C     it is usually shown (the film frame turned a quarter turn
-C     clockwise, the lunar horizon at the bottom): yaw, pitch, roll
-C     offsets in LOOK's sense.  The three angles are FITTED by us (not
-C     sourced): they put the Earth's centre where the photograph has
-C     it and the horizon at its tilt, measured on the ASU scan; the
-C     Earth's size, its height above the horizon and its phase are
-C     then checks, not inputs.
+C     REFTRN: the recipe's reference attitude turned by the situation's
+C     TURN angles, QTRN: yaw, pitch, roll offsets in LOOK's sense.
+C     Situation 9 (Apollo 8 Earthrise) turns the forward horizon view
+C     to the framing of the photograph AS08-14-2383 as it is usually
+C     shown (the film frame turned a quarter turn clockwise, the lunar
+C     horizon at the bottom), with three angles FITTED by us (not
+C     sourced; see its SITUATION card): they put the Earth's centre
+C     where the photograph has it and the horizon at its tilt,
+C     measured on the ASU scan; the Earth's size, its height above the
+C     horizon and its phase are then checks, not inputs.
 C-----------------------------------------------------------------------
-      SUBROUTINE S9REF
+      SUBROUTINE REFTRN
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION YAW, PIT, ROL
       INTEGER I
-C     Fitted 2026-09-30 (see CLAUDE.md, scene 9): the Earth's centre at
-C     plot (0.8550, -0.4555) deg and the horizon falling 6.634 deg to
-C     the right, as measured on the scan.
-      DATA YAW, PIT, ROL / -0.9043D0, 3.7599D0, -6.7873D0 /
       CALL VCRS(BREF, UREF, RREF)
       CALL VUNIT(RREF)
-      CALL LOOK(YAW, PIT, ROL)
+      CALL LOOK(QTRN(1), QTRN(2), QTRN(3))
       DO 10 I = 1, 3
         BREF(I) = CB(I)
         UREF(I) = CU(I)
