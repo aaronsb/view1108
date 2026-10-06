@@ -55,18 +55,15 @@ function libShow(id) {
     note.appendChild(a);
   });
 }
-/** Open the library, with document `id` (else the last one shown, else the first). */
+/** Open the library, with document `id` (else the last one shown, else the first). Open, it is on the Esc stack (esc.js):
+ *  Esc closes it (opened from the bookcase, room.js makes it go back there). */
 function libraryOpen(id) {
   if (!$("liblist").children.length) libList();
   $("libr").classList.add("open");
+  escPush("library", libraryClose);
   libShow(id || libCur?.id);
 }
-function libraryClose() { $("libr").classList.remove("open"); }
+function libraryClose() { $("libr").classList.remove("open"); escDrop("library"); }
 const libraryIsOpen = () => $("libr").classList.contains("open");
 $("blib").onclick = () => libraryOpen();
 $("blibclose").onclick = libraryClose;
-// Esc closes it (in the room, room.js takes Esc first and goes back to the bookcase).
-window.addEventListener("keydown", e => {
-  if (e.key !== "Escape" || e.defaultPrevented || !libraryIsOpen()) return;
-  e.preventDefault(); libraryClose();
-});
