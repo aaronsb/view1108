@@ -43,7 +43,7 @@ function airtRealTime() {
 // at a 20 deg field (ours), the disc with its LC-39A mark (learth.f DPAD); the CSM is marked where VSTATE puts it, on
 // the TABLE legs (traj.f TABRV): standing on the pad, running downrange to S-IVB cutoff, falling to the splash point
 // and riding there. The whole disc shows where on the Earth that is, which a camera beside the CSM (target 4) would not.
-// The spans are ours, from the scenarios' cards and the kernel's code (data/scenarios/*.scn, src/*.f).
+// The spans are ours, from the scenarios' cards and the kernel's code (data/missions/*/*.scn, src/*.f).
 // Burn spans (ignition to cutoff, the TIMELINE rows of SP-4029) follow MSC IN 69-FM-197's views of the same burn: its
 // CSM burn plots (figures 5.1-1, 6.1-1, 7.1-1) look along the CM's X axis through the left rendezvous window at a
 // 100 deg field, which is the CM station (in_view 2, vview.f STATCM; CMCAB reads that window off figure 9.0-3). A row
@@ -88,7 +88,7 @@ const TL_SCENES = {
     [702185.7, 3],          // the entry approach in scene 3's horizon view, to the EI event 195:03:05.7
     [Infinity, 3, 1, 1, 20] // the entry (TABLE leg, MR Table 7-VII p. 7-12) to splashdown, 195:18:35, then the splash point
   ],
-  2: [   // Apollo 8 (data/scenarios/apollo8-asflown.scn): scene 9 rides its LUNAR legs (LUNORB) with the Earthrise
+  2: [   // Apollo 8 (data/missions/apollo8/asflown.scn): scene 9 rides its LUNAR legs (LUNORB) with the Earthrise
          // camera, and the Earth legs with scene 3's forward view above the horizon (vdrive.f SCNCAM, traj.f LUNIN).
          // The 50 deg field of the window views is MSC IN 69-FM-197's for the CSM window aimed at the Earth on
          // Apollo 11's transearth coast (figure 7.3.2-1, "constant field of view (earth)", printed p. 207).

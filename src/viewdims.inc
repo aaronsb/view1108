@@ -6,7 +6,7 @@ C     (1978); FORTRAN V wrote PARAMETER I = 2 (UP-4046 sec. 10.4.1)
       PARAMETER (NSTAR=921, NNAV=37, NCPT=5128, NCST=134)
       PARAMETER (NCRAT=7968, NMARE=56)
 C     RESTOMOD END
-C     Scenarios (data/scenarios): scenarios, trajectory legs of
+C     Scenarios (data/missions): scenarios, trajectory legs of
 C     NLGP parameters, events; leg types and event kinds.
       INTEGER NSN, NLEG, NEVT, NLGP
       INTEGER KCIRC, KCONIC, KLUNAR, KLCON, KTABL

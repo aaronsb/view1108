@@ -1,7 +1,9 @@
 * APOLLO 8 AS FLOWN: A VIEW-1108 SCENARIO (A RUN DECK, IN 1969 TERMS).
 *
 * The mission as flown, from the post-flight reports.  Card types and units as
-* in apollo11-asflown.scn (its header lists them).  VIEW made Apollo 8 views:
+* in ../apollo11/asflown.scn (its header lists them); the mission's name,
+* range zero and pad are in mission.scn beside this file.
+* VIEW made Apollo 8 views:
 * "Preflight views produced for the Apollo 8 mission included views as seen
 * through the spacecraft windows during various critical maneuvers of the
 * flight" (TN D-6853, printed p. 3).  None of them survive; the scene built on
@@ -18,9 +20,7 @@
 *        A. Chaikin, 2013), https://svs.gsfc.nasa.gov/4129: the spacecraft's
 *        position in its head-up display for each Earthrise frame.
 *
-SCENARIO ID=2 MISSION="APOLLO 8" NAME="AS FLOWN"
-EPOCH JD=2440212.035417 SRC="MR8 p. 2-1: Range zero for this mission was 12:51:00 G.m.t. (21 December 1968)"
-PAD NAME="LC-39A" LATTYPE=GC LAT=28.4470 LON=-80.6041 SRC="SP p. 45, Apollo 8 ascent phase table, Liftoff 000:00:00.67: geocentric latitude 28.4470 deg N, longitude -80.6041 deg E; SP p. 34: Apollo 8 was launched from Launch Complex 39, Pad A, at the Kennedy Space Center, Florida"
+SCENARIO ID=2 NAME="AS FLOWN"
 *
 * The powered ascent, as Apollo 11's: SP p. 45's ascent table, lift-off to
 * S-IVB first cutoff.

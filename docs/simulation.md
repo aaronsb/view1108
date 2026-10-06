@@ -21,7 +21,7 @@ Each piece has a documented counterpart in Apollo mission support. We use these 
 
 | Here | Period term | Source |
 |---|---|---|
-| The scenario (`data/scenarios`) | the "Spacecraft Operational Trajectory", with per-burn "target loads" | MSC Internal Note 69-FM-96, "Revision I of the Spacecraft Operational Trajectory for Apollo 10", Vol. I (tables 5.5-II, 5.6-1, 5.7-1, 5.8-1, "Target loads for ...") |
+| The scenario (`data/missions`) | the "Spacecraft Operational Trajectory", with per-burn "target loads" | MSC Internal Note 69-FM-96, "Revision I of the Spacecraft Operational Trajectory for Apollo 10", Vol. I (tables 5.5-II, 5.6-1, 5.7-1, 5.8-1, "Target loads for ...") |
 | The engine (`src/sim.f`) | the RTACF integrator, "the Apollo Reference Mission Program" | Allday, TN D-6855, pp. 7-8 |
 | The tape (`src/tape.f`) | the "trajectory ephemeris tape" | Allday, TN D-6855, p. 8 |
 | State vector updates | the "CSM/LM state vector update" by uplink to program P27, verb 71 | Comanche 055 (Apollo 11 CM software), `UPDATE_PROGRAM.agc`: "P27 (THE UPDATE PROGRAM) PROCESSES COMMANDS AND DATA INSERTIONS REQUESTED BY THE GROUND VIA UPLINK"; V71 is used for "CSM/LM STATE VECTOR UPDATE" |
@@ -35,7 +35,7 @@ Each piece is its own element with a narrow interface:
 
 | Piece | File | Knows | Does not know |
 |---|---|---|---|
-| Scenario | `data/scenarios/*.scn` → `src/viewdata.f` | START state, BURN cards (the score), REF rows, with sources | anything about code |
+| Scenario | `data/missions/*/*.scn` → `src/viewdata.f` | START state, BURN cards (the score), REF rows, with sources | anything about code |
 | Engine | `src/sim.f` | physics, the score, the reference rows | drawing |
 | Tape | `src/tape.f` | time-tagged states, up to 4 vehicle channels (CSM only now), event marks | how states were made or drawn |
 | State source | `src/vsrc.f` | whether to read the replay or the tape | what a scene does with the state |

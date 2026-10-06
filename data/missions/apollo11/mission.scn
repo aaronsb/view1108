@@ -1,0 +1,28 @@
+* APOLLO 11: THE MISSION CARD (VIEW-1108).
+*
+* A mission's identity, shared by every scenario in this folder: its name,
+* range zero, lunar landing site and launch pad.  The scenarios (asflown.scn;
+* a pre-flight nominal would be a second file) hold the trajectory, events and
+* timeline.  tools/gen_data.py reads data/missions/*/mission.scn and the
+* scenario files beside it into BLOCK DATA (src/viewdata.f); each card's SRC
+* is carried into viewdata.f as a comment next to every scenario's data.
+* Card format as in asflown.scn: one card per line, KEY=VALUE fields, a card
+* starting with * a comment.
+*
+* Sources:
+*   MR  Apollo 11 Mission Report, MSC-00171, November 1969.  NASA re-scan
+*       https://www.nasa.gov/wp-content/uploads/static/apollo50th/pdf/A11_MissionReport.pdf
+*       (printed page numbers).
+*   SP  R. W. Orloff, Apollo by the Numbers, NASA SP-2000-4029 (printed pages).
+*
+* Card types:
+*   MISSION  NAME=  (the mission's name, lettered with each scenario's NAME)
+*   EPOCH    JD=  (range zero, Julian date)
+*   SITE     LAT= LON= AZ=  (lunar landing site, deg, and descent azimuth)
+*   PAD      NAME= LAT= LON= (launch pad, deg; LATTYPE=GC geocentric, GD
+*            geodetic), NAME at most 7 characters, lettered beside its mark
+*
+MISSION NAME="APOLLO 11"
+EPOCH JD=2440419.063889 SRC="MR Table 3-I p. 3-4: range zero 13:32:00 G.m.t., July 16, 1969"
+SITE LAT=0.67416 LON=23.47314 AZ=268.8 SRC="NSSDC Apollo Landing Site Coordinates, citing Wagner et al., Icarus 283 (2017), mean Earth/polar axis; MR p. 3-2 gives 0 41 15 N, 23 26 E on ORB-II-6 (1967). Azimuth 268.8: ours, near the 269.0 fitted to MR Table 7-II"
+PAD NAME="LC-39A" LATTYPE=GC LAT=28.4470 LON=-80.6041 SRC="SP p. 103, Apollo 11 ascent phase table, Liftoff 000:00:00.63: geocentric latitude 28.4470 deg N, longitude -80.6041 deg E; SP p. 92: Apollo 11 was launched from Kennedy Space Center Launch Complex 39, Pad A"

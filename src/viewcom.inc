@@ -123,7 +123,7 @@ C     camera distance from the Moon's centre (km).
      &              FXB, FXU, FXDT, S6LAT, S6LON, S6DST
 C
 C     /CSCEN/, /CSCENI/ the scenarios, one mission's data each, run
-C     decks in 1969 terms (BLOCK DATA from data/scenarios by
+C     decks in 1969 terms (BLOCK DATA from data/missions by
 C     tools/gen_data.py; field layout in src/viewdata.f).
       DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)
       DOUBLE PRECISION SNSAZ(NSN)

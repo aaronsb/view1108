@@ -5,7 +5,7 @@ C
 C     Core element.  Where the spacecraft is at a GET.  One relocatable
 C     element of the kernel; see vdrive.f for the list.
 C
-C     The scenario (data/scenarios, BLOCK DATA /CSCEN/: one mission's
+C     The scenario (data/missions, BLOCK DATA /CSCEN/: one mission's
 C     data, a run deck in 1969 terms) gives the
 C     epoch, the trajectory legs and the events.  VIEW itself
 C     integrated trajectories from the state vectors of the operational

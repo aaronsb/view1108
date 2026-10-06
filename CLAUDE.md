@@ -28,7 +28,8 @@ src/viewdims.inc  Table sizes (PARAMETERs). Generated.
 src/viewcom.inc   Kernel COMMON blocks, included by every kernel routine.
 src/shell.f90     CHASSIS. Modern Fortran: bind(c) globals and entry points for wasm.
 tools/gen_data.py data/ -> src/viewdata.f, src/viewdims.inc and build/names.js
-data/scenarios/   scenarios: one mission's data each (epoch, trajectory legs, events)
+data/missions/    one folder per mission: mission.scn (name, epoch, site, pad) and its
+                  scenarios (*.scn: trajectory legs, events, timeline)
 tools/viewsvg.f90 Native driver (gfortran): renders a scene/time to SVG for validation.
 tools/build.sh    gen_data -> lfortran (per file) -> clang -> wasm-ld -> wasm-opt -> wasm2js -> page
 web/              The page: film-recorder renderer, controls, text lettering.
@@ -463,9 +464,10 @@ low-precision series, IAU Moon orientation, GMST for Earth rotation about the po
 the IAU 1976 precession to J2000 (`PRECM`), J2000 equatorial frame throughout. Earth-fixed
 states and coastlines go through that precession too.
 
-A mission's data is a scenario (a run deck, in 1969 terms): `data/scenarios/*.scn`, turned into
-`BLOCK DATA` by `tools/gen_data.py`, holds the epoch, landing site, launch pad, trajectory legs and events,
-each card with its source. A mission can have more than one scenario (Apollo 11 as flown, id 1;
+A mission's data is a folder, `data/missions/<id>/`: its `mission.scn` holds the mission's
+identity (MISSION name, EPOCH range zero, SITE landing site, PAD launch pad) and each other
+`.scn` file there is a scenario (a run deck, in 1969 terms) holding the trajectory legs, events
+and timeline, each card with its source; `tools/gen_data.py` turns them into `BLOCK DATA`. A mission can have more than one scenario (Apollo 11 as flown, id 1;
 Apollo 8 as flown, id 2; a pre-flight nominal one could follow), each with its own id. A leg is a simple model fixed
 by sourced states: `CIRC` (Earth circular orbit through a state), `CONIC` (Earth-centred Kepler
 conic from a state, no lunar gravity), `LUNAR` (circle about the Moon through two states, its

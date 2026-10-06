@@ -6,7 +6,8 @@ Inputs (all in data/):
   stars.6.json                  d3-celestial star catalog (J2000 RA/Dec, V mag)
   ne_110m_coastline.geojson     Natural Earth 1:110m coastlines
   MOON_nomenclature_center_pts.dbf   IAU lunar gazetteer (crater centres and diameters)
-  scenarios/*.scn               scenarios (run decks): epoch, trajectory legs, events
+  missions/<id>/mission.scn     a mission's identity: name, epoch (range zero), landing site, pad
+  missions/<id>/*.scn           its scenarios (run decks): trajectory legs, events, timeline
   meeus47.txt                   Meeus ch. 47 lunar periodic terms (tables 47.A and 47.B)
 
 Everything is written in the J2000 equatorial frame. AGC star vectors are precessed
@@ -226,7 +227,8 @@ def burn_cues(tl):
 # Keys each card type reads.  Other keys are ignored with a warning, so cards can grow
 # (a BURN's TRIGGER= and TARGET= are planned, docs/simulation.md) without breaking old decks.
 CARD_KEYS = {
-    "SCENARIO": {"ID", "MISSION", "NAME", "SRC"},
+    "MISSION": {"NAME", "SRC"},
+    "SCENARIO": {"ID", "NAME", "SRC"},
     "EPOCH": {"JD", "SRC"},
     "SITE": {"LAT", "LON", "AZ", "SRC"},
     "PAD": {"NAME", "LAT", "LON", "LATTYPE", "SRC"},
@@ -270,99 +272,139 @@ def table_legs(name, tab):
     return out
 
 
+# The mission's cards: data/missions/<id>/mission.scn holds these and nothing else.
+MISSION_CARDS = {"MISSION", "EPOCH", "SITE", "PAD"}
+
+
+def cards(path):
+    """One deck's cards as (kind, keys), comment and blank lines skipped, ending with ("*END", {}).
+    Unknown cards and keys are dropped with a warning."""
+    name = path.relative_to(D)
+    for ln in path.read_text().splitlines():
+        if not ln.strip() or ln.startswith("*"):
+            continue
+        tok = shlex.split(ln)
+        kind, kv = tok[0], dict(t.split("=", 1) for t in tok[1:])
+        if kind not in CARD_KEYS:
+            print(f"warning: {name}: unknown card {kind}, ignored")
+            continue
+        for k in sorted(set(kv) - CARD_KEYS[kind]):
+            print(f"warning: {name}: {kind} card: unknown key {k}, ignored")
+        yield kind, kv
+    yield "*END", {}
+
+
+def mission(path):
+    """A mission card deck (data/missions/<id>/mission.scn): name, epoch (JD of range zero),
+    landing site, launch pad, and each card's source, shared by the mission's scenarios."""
+    m = {"name": None, "jd": None, "site": (0.0, 0.0, 0.0), "pad": ("", 0.0, 0.0, 0), "src": []}
+    for kind, kv in cards(path):
+        if kind == "*END":
+            break
+        assert kind in MISSION_CARDS, f"{path.relative_to(D)}: {kind} card belongs in a scenario"
+        if kind == "MISSION":
+            m["name"] = kv["NAME"]
+        elif kind == "EPOCH":
+            m["jd"] = float(kv["JD"]); m["src"].append("EPOCH: " + kv.get("SRC", ""))
+        elif kind == "SITE":
+            m["site"] = (float(kv["LAT"]), float(kv["LON"]), float(kv["AZ"]))
+            m["src"].append("SITE: " + kv.get("SRC", ""))
+        elif kind == "PAD":
+            assert len(kv["NAME"]) <= 7, "PAD NAME: at most 7 characters"
+            m["pad"] = (kv["NAME"], float(kv["LAT"]), float(kv["LON"]),
+                        1 if kv.get("LATTYPE", "GD") == "GC" else 0)
+            m["src"].append("PAD: " + kv.get("SRC", ""))
+    assert m["name"] and m["jd"] is not None, f"{path.relative_to(D)}: needs MISSION and EPOCH"
+    return m
+
+
 def scenarios():
-    """Parse data/scenarios/*.scn.  Returns scenarios (dicts with id, mission, name, jd,
-    site, sources), legs and events, each carrying its scenario id and source string."""
+    """Parse data/missions/*/: each mission's mission.scn and its scenario .scn files, missions
+    and files in name order.  Returns scenarios (dicts with id, mission, name, jd, site, pad,
+    sources; the mission's cards are copied into each of its scenarios), legs and events, each
+    carrying its scenario id and source string."""
     mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": [], "tl": []}
-    for path in sorted((D / "scenarios").glob("*.scn")):
-        cur, tab = None, None
-        for ln in path.read_text().splitlines() + ["*END"]:
-            if not ln.strip() or (ln.startswith("*") and ln != "*END"):
-                continue
-            tok = shlex.split(ln) if ln != "*END" else ["*END"]
-            kind, kv = tok[0], dict(t.split("=", 1) for t in tok[1:])
-            if tab is not None and kind != "ROW":
-                legs += table_legs(path.name, tab)
-                tab = None
-            if kind == "*END":
-                break
-            if kind not in CARD_KEYS:
-                print(f"warning: {path.name}: unknown card {kind}, ignored")
-                continue
-            for k in sorted(set(kv) - CARD_KEYS[kind]):
-                print(f"warning: {path.name}: {kind} card: unknown key {k}, ignored")
-            if kind == "ROW":
-                assert tab is not None, f"{path.name}: ROW card outside a LEG TYPE=TABLE"
-                assert kv.get("VEL", "SF") in ("SF", "EF"), f"{path.name}: ROW VEL= SF or EF"
-                tab["rows"].append({"t": get_s(kv["T"]),
-                                    "f": [float(kv[k]) for k in ("LAT", "LON", "ALT", "V", "FPA",
-                                                                 "HDG")],
-                                    "ef": 1 if kv.get("VEL", "SF") == "EF" else 0,
-                                    "src": kv.get("SRC", "")})
-            elif kind == "LEG" and kv["TYPE"] == "TABLE":
-                tab = {"m": cur["n"], "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
-                       "veh": LEG_VEH[kv.get("VEH", "CSM")], "src": kv.get("SRC", ""),
-                       "rows": []}
-            elif kind == "SCENARIO":
-                cur = {"n": int(kv["ID"]), "name": kv["MISSION"] + " " + kv["NAME"], "jd": None,
-                       "site": (0.0, 0.0, 0.0), "pad": ("", 0.0, 0.0, 0), "src": []}
-                mis.append(cur)
-            elif kind == "EPOCH":
-                cur["jd"] = float(kv["JD"]); cur["src"].append("EPOCH: " + kv.get("SRC", ""))
-            elif kind == "SITE":
-                cur["site"] = (float(kv["LAT"]), float(kv["LON"]), float(kv["AZ"]))
-                cur["src"].append("SITE: " + kv.get("SRC", ""))
-            elif kind == "PAD":
-                assert len(kv["NAME"]) <= 7, "PAD NAME: at most 7 characters"
-                cur["pad"] = (kv["NAME"], float(kv["LAT"]), float(kv["LON"]),
-                              1 if kv.get("LATTYPE", "GD") == "GC" else 0)
-                cur["src"].append("PAD: " + kv.get("SRC", ""))
-            elif kind == "LEG":
-                t = kv["TYPE"]
-                p = [get_s(kv["FROM"]), get_s(kv["TO"]), get_s(kv["T"]),
-                     float(kv.get("LAT", 0)), float(kv.get("LON", 0)), float(kv.get("ALT", 0)),
-                     float(kv.get("V", 0)), float(kv.get("FPA", 0)), float(kv.get("HDG", 0)),
-                     get_s(kv.get("TB", "0")), float(kv.get("LATB", 0)), float(kv.get("LONB", 0))]
-                # LCONIC: DV= (ft/s) and its direction P= R= N= at T (mid-burn) on the
-                # vehicle's previous leg, or (no DV=) a state T= LAT= LON= ALT= V= FPA=.
-                lc = t == "LCONIC"
-                p += [float(kv.get("DV", 0)), float(kv.get("P", 0)), float(kv.get("R", 0)),
-                      float(kv.get("N", 0)) if lc else 0.0,
-                      float(kv.get("ALTB", kv.get("ALT", 0)))]
-                if lc and "DV" not in kv:
-                    for k in ("LAT", "LON", "ALT", "V", "FPA"):
-                        assert k in kv, f"{path.name}: LCONIC state needs {k}="
-                legs.append({"m": cur["n"], "type": LEG_TYPES[t], "p": p,
-                             "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
-                             "veh": LEG_VEH[kv.get("VEH", "CSM")],
-                             "n": 0 if lc else int(kv.get("N", 0)),
-                             "src": f"{t}: " + kv.get("SRC", "")})
-            elif kind in ("START", "REF"):
-                p = [get_s(kv["T"]), get_s(kv.get("END", "0")), get_s(kv["T"]),
-                     float(kv["LAT"]), float(kv["LON"]), float(kv["ALT"]),
-                     float(kv["V"]), float(kv["FPA"]), float(kv.get("HDG", 0)), 0.0, 0.0, 0.0]
-                p += [0.0] * (NLGP - len(p))
-                sim["start" if kind == "START" else "ref"].append(
-                    {"m": cur["n"], "p": p, "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
-                     "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
-                     "src": kind + ": " + kv.get("SRC", "")})
-            elif kind == "BURN":
-                sim["burn"].append({"m": cur["n"], "t": get_s(kv["T"]), "dv": float(kv["DV"]),
-                                    "dir": (float(kv["P"]), float(kv["R"]), float(kv["N"])),
-                                    "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
-                                    "src": "BURN: " + kv.get("SRC", "")})
-            elif kind == "TIMELINE":
-                assert kv["KIND"] in TL_KINDS, f"{path.name}: TIMELINE KIND {kv['KIND']}"
-                sim["tl"].append({"m": cur["n"], "t": get_s(kv["T"]), "kind": kv["KIND"],
-                                  "name": kv["NAME"], "src": kv.get("SRC", "")})
-            elif kind == "EVENT":
-                evs.append({"m": cur["n"], "kind": EVENT_KINDS[kv["KIND"]], "t": get_s(kv["T"]),
-                            "src": kv["KIND"] + ": " + kv.get("SRC", "")})
+    for mdir in sorted(p for p in (D / "missions").iterdir() if p.is_dir()):
+        ms = mission(mdir / "mission.scn")
+        for path in sorted(p for p in mdir.glob("*.scn") if p.name != "mission.scn"):
+            name = path.relative_to(D)
+            cur, tab = None, None
+            for kind, kv in cards(path):
+                if tab is not None and kind != "ROW":
+                    legs += table_legs(name, tab)
+                    tab = None
+                if kind == "*END":
+                    break
+                assert kind not in MISSION_CARDS, f"{name}: {kind} card belongs in mission.scn"
+                if kind == "SCENARIO":
+                    cur = {"n": int(kv["ID"]), "mission": mdir.name,
+                           "name": ms["name"] + " " + kv["NAME"], "jd": ms["jd"],
+                           "site": ms["site"], "pad": ms["pad"], "src": list(ms["src"])}
+                    mis.append(cur)
+                else:
+                    tab = scenario_card(name, kind, kv, cur, tab, legs, evs, sim)
     mis.sort(key=lambda m: m["n"])
     assert [m["n"] for m in mis] == list(range(1, len(mis) + 1)), "scenario ids must be 1..N"
     for m in mis:
         assert sum(1 for x in sim["start"] if x["m"] == m["n"]) <= 1, "one START per scenario"
     return mis, legs, evs, sim
+
+
+def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
+    """One card of scenario cur into legs, evs and sim.  Returns the open LEG TYPE=TABLE (its
+    ROW cards follow it), or None."""
+    if kind == "ROW":
+        assert tab is not None, f"{name}: ROW card outside a LEG TYPE=TABLE"
+        assert kv.get("VEL", "SF") in ("SF", "EF"), f"{name}: ROW VEL= SF or EF"
+        tab["rows"].append({"t": get_s(kv["T"]),
+                            "f": [float(kv[k]) for k in ("LAT", "LON", "ALT", "V", "FPA", "HDG")],
+                            "ef": 1 if kv.get("VEL", "SF") == "EF" else 0,
+                            "src": kv.get("SRC", "")})
+    elif kind == "LEG" and kv["TYPE"] == "TABLE":
+        return {"m": cur["n"], "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
+                "veh": LEG_VEH[kv.get("VEH", "CSM")], "src": kv.get("SRC", ""), "rows": []}
+    elif kind == "LEG":
+        t = kv["TYPE"]
+        p = [get_s(kv["FROM"]), get_s(kv["TO"]), get_s(kv["T"]),
+             float(kv.get("LAT", 0)), float(kv.get("LON", 0)), float(kv.get("ALT", 0)),
+             float(kv.get("V", 0)), float(kv.get("FPA", 0)), float(kv.get("HDG", 0)),
+             get_s(kv.get("TB", "0")), float(kv.get("LATB", 0)), float(kv.get("LONB", 0))]
+        # LCONIC: DV= (ft/s) and its direction P= R= N= at T (mid-burn) on the
+        # vehicle's previous leg, or (no DV=) a state T= LAT= LON= ALT= V= FPA=.
+        lc = t == "LCONIC"
+        p += [float(kv.get("DV", 0)), float(kv.get("P", 0)), float(kv.get("R", 0)),
+              float(kv.get("N", 0)) if lc else 0.0,
+              float(kv.get("ALTB", kv.get("ALT", 0)))]
+        if lc and "DV" not in kv:
+            for k in ("LAT", "LON", "ALT", "V", "FPA"):
+                assert k in kv, f"{name}: LCONIC state needs {k}="
+        legs.append({"m": cur["n"], "type": LEG_TYPES[t], "p": p,
+                     "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
+                     "veh": LEG_VEH[kv.get("VEH", "CSM")],
+                     "n": 0 if lc else int(kv.get("N", 0)),
+                     "src": f"{t}: " + kv.get("SRC", "")})
+    elif kind in ("START", "REF"):
+        p = [get_s(kv["T"]), get_s(kv.get("END", "0")), get_s(kv["T"]),
+             float(kv["LAT"]), float(kv["LON"]), float(kv["ALT"]),
+             float(kv["V"]), float(kv["FPA"]), float(kv.get("HDG", 0)), 0.0, 0.0, 0.0]
+        p += [0.0] * (NLGP - len(p))
+        sim["start" if kind == "START" else "ref"].append(
+            {"m": cur["n"], "p": p, "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
+             "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
+             "src": kind + ": " + kv.get("SRC", "")})
+    elif kind == "BURN":
+        sim["burn"].append({"m": cur["n"], "t": get_s(kv["T"]), "dv": float(kv["DV"]),
+                            "dir": (float(kv["P"]), float(kv["R"]), float(kv["N"])),
+                            "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
+                            "src": "BURN: " + kv.get("SRC", "")})
+    elif kind == "TIMELINE":
+        assert kv["KIND"] in TL_KINDS, f"{name}: TIMELINE KIND {kv['KIND']}"
+        sim["tl"].append({"m": cur["n"], "t": get_s(kv["T"]), "kind": kv["KIND"],
+                          "name": kv["NAME"], "src": kv.get("SRC", "")})
+    elif kind == "EVENT":
+        evs.append({"m": cur["n"], "kind": EVENT_KINDS[kv["KIND"]], "t": get_s(kv["T"]),
+                    "src": kv["KIND"] + ": " + kv.get("SRC", "")})
+    return tab
 
 
 def comment_wrap(txt, lead="C       "):
@@ -479,7 +521,7 @@ def main():
            f"      PARAMETER (NSTAR={ns}, NNAV=37, NCPT={npt}, NCST={nln})",
            f"      PARAMETER (NCRAT={ncr}, NMARE={len(mar)})",
            "C     RESTOMOD END",
-           "C     Scenarios (data/scenarios): scenarios, trajectory legs of",
+           "C     Scenarios (data/missions): scenarios, trajectory legs of",
            "C     NLGP parameters, events; leg types and event kinds.",
            "      INTEGER NSN, NLEG, NEVT, NLGP",
            "      INTEGER KCIRC, KCONIC, KLUNAR, KLCON, KTABL",

@@ -1,0 +1,15 @@
+* APOLLO 8: THE MISSION CARD (VIEW-1108).
+*
+* The mission's identity, shared by every scenario in this folder: its name,
+* range zero and launch pad (no lunar landing).  Card types as in
+* ../apollo11/mission.scn (its header lists them).
+*
+* Sources:
+*   MR8  Apollo 8 Mission Report, MSC-PA-R-69-1, February 1969
+*        https://ntrs.nasa.gov/api/citations/19700033031/downloads/19700033031.pdf
+*        (printed page numbers).
+*   SP   R. W. Orloff, Apollo by the Numbers, NASA SP-2000-4029 (printed pages).
+*
+MISSION NAME="APOLLO 8"
+EPOCH JD=2440212.035417 SRC="MR8 p. 2-1: Range zero for this mission was 12:51:00 G.m.t. (21 December 1968)"
+PAD NAME="LC-39A" LATTYPE=GC LAT=28.4470 LON=-80.6041 SRC="SP p. 45, Apollo 8 ascent phase table, Liftoff 000:00:00.67: geocentric latitude 28.4470 deg N, longitude -80.6041 deg E; SP p. 34: Apollo 8 was launched from Launch Complex 39, Pad A, at the Kennedy Space Center, Florida"
