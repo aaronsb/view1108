@@ -372,6 +372,50 @@ BURNCUE IGN="Transearth injection ignition (SPS)" CUT="Transearth injection cuto
 * holds the g.e.t.: traj.f LUNIN) the camera looks forward 8 deg above the
 * Earth's horizon and the default target is the Earth: our choice, since no
 * Apollo 8 view survives (TN D-6853 printed p. 3).
-SITUATION ID=9 NAME="APOLLO 8 EARTHRISE" GET=PHOTO FOV=12.72 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN SRC="SVS 4129 (AS08-14-2383 at 75:48:39.7); Apollo 8 Flight Journal day 4 orbit 4 (250 mm lens); the gate measured by us"
+SITUATION ID=9 NAME="APOLLO 8 EARTHRISE" TITLE="Apollo 8 Earthrise" GET=PHOTO FOV=12.72 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN SRC="SVS 4129 (AS08-14-2383 at 75:48:39.7); Apollo 8 Flight Journal day 4 orbit 4 (250 mm lens); the gate measured by us"
 RECIPE NAME=LOCALVERT BODY=MOON MODE=FORWARD AZ=EARTH ELEV=0 TURN=-0.9043,3.7599,-6.7873 OFFLEG=EARTH OFFELEV=8 SRC="TURN fitted by us to the ASU scan of AS08-14-2383; OFFLEG ours"
 VIEWS VIEW=WINDOW TARGET=MOON OFFTARGET=EARTH RIDES=CSM CM=ALWAYS LM=PLACED
+*
+* SPANS: card types as in ../apollo11/asflown.scn (its SPANS section lists
+* them).  No LIVE, JUMP or PIN cards: Live follows Apollo 11.
+*
+* Follow: situation 9 rides the LUNAR legs (LUNORB) with the Earthrise
+* camera, and the Earth legs with situation 3's forward view above the
+* horizon (its RECIPE card's OFFLEG=, vdrive.f SCNCAM, traj.f LUNIN).  The
+* 50 deg field of the window views is MSC IN 69-FM-197's for the CSM window
+* aimed at the Earth on Apollo 11's transearth coast (figure 7.3.2-1,
+* "constant field of view (earth)", printed p. 207).
+*
+* The pad and the ascent (TABLE leg, SP p. 45) to S-IVB cutoff, where the
+* CIRC leg begins (FROM 0:11:24.98).
+SPAN TRACK=FOLLOW SIT=9 UNTIL=0:11:24.98 VIEW=EXTERNAL TARGET=EARTH FOV=20
+* The CIRC leg to the S-IVB's 2nd burn ignition, 2:50:37.79 (SP p. 48): the
+* horizon view at situation 3's 70 deg.
+SPAN TRACK=FOLLOW SIT=9 UNTIL=2:50:37.79 FOV=70
+* TLI, to its cutoff 2:55:55.51 (SP p. 48): the CM station at 100 deg, the
+* Apollo 11 note's TLI format (figure 5.1-1).
+SPAN TRACK=FOLLOW SIT=9 UNTIL=2:55:55.51 VIEW=CM FOV=100
+* The CIRC leg stretched to TLI (the TLI event, MR8 Table 5-II p. 5-7).
+SPAN TRACK=FOLLOW SIT=9 UNTIL=TLI FOV=70
+* The TLI conic while the Earth's disc overfills the window's 50 deg field:
+* 50 deg across at about 8150 nmi, 3:27 (our run).
+SPAN TRACK=FOLLOW SIT=9 UNTIL=3:27:00 VIEW=EXTERNAL TARGET=EARTH FOV=20
+* The translunar conics to LOI ignition (the first LUNAR leg's FROM; the
+* LOI1 event, MR8 Table 3-I p. 3-3).
+SPAN TRACK=FOLLOW SIT=9 UNTIL=LOI1 TARGET=EARTH FOV=50
+* LOI, to its cutoff 69:12:27.3 (SP p. 49): the CM station at 100 deg, the
+* Apollo 11 note's LOI format (figure 6.1-1), the Moon's limb across the
+* frame (no LM).
+SPAN TRACK=FOLLOW SIT=9 UNTIL=69:12:27.3 VIEW=CM FOV=100
+* Lunar orbit to TEI ignition (the last LUNAR leg's TO; the TEI event, MR8
+* Table 3-I p. 3-3).
+SPAN TRACK=FOLLOW SIT=9 UNTIL=TEI
+* TEI, to its cutoff 89:22:40.3 (SP p. 49): the CM station at 100 deg, the
+* Apollo 11 note's TEI format (figure 7.1-1).
+SPAN TRACK=FOLLOW SIT=9 UNTIL=89:22:40.3 VIEW=CM FOV=100
+* The transearth conics to entry interface (the EI event, MR8 Table 3-I p.
+* 3-4).
+SPAN TRACK=FOLLOW SIT=9 UNTIL=EI TARGET=EARTH FOV=50
+* The entry (TABLE leg, MR8 Tables 5-V and 6.9-IV) to splashdown, 147:00:42,
+* then the splash point.
+SPAN TRACK=FOLLOW SIT=9 UNTIL=END VIEW=EXTERNAL TARGET=EARTH FOV=20

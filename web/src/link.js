@@ -51,14 +51,15 @@ function applyParams() {
   if (md === "attract" || md === "tour") { startMode(md); applyTab(); return; }
   // get/utc are read after the scene is set: a utc is converted with that scene's scenario epoch.
   const gOf = () => { let g = null; for (const k of ["get", "utc"]) if (UP.has(k)) { const v = parseGet(UP.get(k)); if (v !== null && isFinite(v)) g = v; } return g; };
-  const sc = num("scene") === null ? 1 : Math.round(num("scene")), scn = hasScene(sc) ? sc : 1;
-  const other = scn === 9;   // another mission's scene: Live follows Apollo 11, so it opens in Free-look
+  const sc = num("scene") === null ? SITS[0].id : Math.round(num("scene")), scn = hasScene(sc) ? sc : SITS[0].id;
+  const other = String(sitOf(scn).scenario) !== LIVE_SCN;   // another scenario's scene: Live follows its own, so it opens in Free-look
   if (md === "free" || md === "beam" || other) { setScene(scn); const g = gOf(); if (g !== null) get = g; if (md === "beam") { const b = Math.round(num("bspeed") ?? 0); if (b >= 1 && b <= BEAM_SPEEDS.length) beamIdx = b - 1; startMode("beam"); } }
-  else {   // live: the scene follows the mission phase, except the LM and docking views, which are pinned
+  else {   // live: the scene follows the mission phase, except the situations with a pin or a jump, which are pinned
     const g = gOf(); if (g !== null) get = g;
     startMode("live");
-    if (scn === 6) setScene(6);
-    else if (scn === 4 || scn === 5 || scn === 7) { const j = JUMPS[{ 4: "jundock", 5: "jdesc", 7: "jtd" }[scn]]; liveJump({ ...j, get: g ?? j.get }); }
+    const j = JUMPS.find(x => x.scene === scn);
+    if (LIVE_PINS.includes(scn)) setScene(scn);
+    else if (j) liveJump({ ...j, get: g ?? j.get });
   }
   const r = num("rate"); if (r !== null) { if (md === "live" && !other && LIVE_RATES.includes(r)) liveIdx = LIVE_RATES.indexOf(r); else if ((md === "free" || other) && SPEEDS.includes(r) && r > 0) speedIdx = SPEEDS.indexOf(r); }
   const f = num("fov"); if (f !== null) fov = Math.max(1, Math.min(170, f));

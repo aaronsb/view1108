@@ -528,9 +528,13 @@ BURNCUE IGN="Transearth injection ignition (SPS)" CUT="Transearth injection cuto
 * Each SITUATION card is followed by its RECIPE and VIEWS cards and,
 * optionally, an HDRREF card.  tools/gen_data.py writes them into
 * src/viewsit.f (BLOCK DATA VIEWSB, layout in src/viewsit.inc) and
-* build/scenes.json.  Every code below is ours.
+* build/scenes.json, and the page's copy of them into build/names.js
+* (VIEW_NAMES.SITUATIONS).  Every code below is ours.
 *
 *   SITUATION ID= NAME=
+*     TITLE=   the page's name for it (scene buttons, captions, the timeline);
+*              ours.  CAPTION= the page's caption where it needs more than
+*              the title (ours)
 *     GET=     default g.e.t.: h:mm:ss (or s); an EVENT kind plus or minus an
 *              offset (UNDOCK+120); or ERISE-60, ERFIND's Earthrise (traj.f:
 *              the Earth's disc clears the lunar horizon) less 60 s
@@ -592,20 +596,20 @@ BURNCUE IGN="Transearth injection ignition (SPS)" CUT="Transearth injection cuto
 * Earthrise: one minute before the Earth's disc clears the lunar horizon on
 * the revolution before the landing (ERFIND), turned in azimuth so the Earth
 * rises mid-frame.  Field ours.
-SITUATION ID=1 NAME="EARTHRISE" GET=ERISE-60 FOV=8.0 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN SRC="the film's first shot (t04.png); time and field ours"
+SITUATION ID=1 NAME="EARTHRISE" TITLE="Earthrise" GET=ERISE-60 FOV=8.0 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN SRC="the film's first shot (t04.png); time and field ours"
 RECIPE NAME=LOCALVERT BODY=MOON MODE=FORWARD AZ=EARTH ELEV=0
 VIEWS VIEW=WINDOW TARGET=MOON RIDES=CSM CM=ALWAYS LM=PLACED
 *
 * Earth approach on the transearth coast: attitude held inertially from 10 h
 * before entry interface, so the disc climbs in from below, grows and leaves
 * only its limb arc as the spacecraft closes on entry.  Times and field ours.
-SITUATION ID=2 NAME="EARTH APPROACH" GET=EI-5:00:00 FOV=60 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN SRC="the film's second shot (t08.png to t20.png); times and field ours"
+SITUATION ID=2 NAME="EARTH APPROACH" TITLE="Translunar coast" GET=EI-5:00:00 FOV=60 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN SRC="the film's second shot (t08.png to t20.png); times and field ours"
 RECIPE NAME=INERTIAL ATT=SIGHTLINE BODY=EARTH AT=EI FIX=10:00:00 DRIFT=1:00:00 ELOFF=0
 VIEWS VIEW=WINDOW TARGET=EARTH RIDES=CSM CM=ALWAYS LM=PLACED
 *
 * Earth parking orbit, looking forward 8 deg above the horizon.  No night
 * shading: the film shows none from low orbit.  Time, field and angle ours.
-SITUATION ID=3 NAME="EARTH LIMB" GET=1:30:00 FOV=70 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN DRAW=NOSHADE SRC="ours"
+SITUATION ID=3 NAME="EARTH LIMB" TITLE="Earth limb" GET=1:30:00 FOV=70 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN DRAW=NOSHADE SRC="ours"
 RECIPE NAME=LOCALVERT BODY=EARTH MODE=FORWARD ELEV=8
 VIEWS VIEW=WINDOW TARGET=EARTH RIDES=CSM CM=ALWAYS LM=PLACED
 *
@@ -613,7 +617,7 @@ VIEWS VIEW=WINDOW TARGET=EARTH RIDES=CSM CM=ALWAYS LM=PLACED
 * state turning in place (LMPIRO), seen along the orbit normal.  No stars, as
 * on the film (t22.png, t25.png).  The header's reference object is the LM,
 * about half its width (ours).
-SITUATION ID=4 NAME="LM RENDEZVOUS" GET=UNDOCK+120 FOV=12 WINDOW=CSM LAYERS=FRAME,SUN,MOON,EARTH,VEHICLES,BURN POSE=LMPIRO SRC="the film's third shot (t22.png, t25.png); time and field ours"
+SITUATION ID=4 NAME="LM RENDEZVOUS" TITLE="LM rendezvous" GET=UNDOCK+120 FOV=12 WINDOW=CSM LAYERS=FRAME,SUN,MOON,EARTH,VEHICLES,BURN POSE=LMPIRO SRC="the film's third shot (t22.png, t25.png); time and field ours"
 RECIPE NAME=LOCALVERT BODY=MOON MODE=NORMAL
 VIEWS VIEW=WINDOW TARGET=LM RIDES=CSM CM=ALWAYS LM=PLACED
 HDRREF OBJ=LM RADIUS=4.5E-3 SRC="ours"
@@ -622,7 +626,7 @@ HDRREF OBJ=LM RADIUS=4.5E-3 SRC="ours"
 * descent frame is numbered to +-50 at its edges; in the gnomonic plot (pen.f
 * PROJ) that is a physical field of 2 ATAN(50 deg in radians) = 82.4 deg.  The
 * camera rides the LM: its own view is the LM station.
-SITUATION ID=5 NAME="LM DESCENT" GET=102:42:00 FOV=82.4 WINDOW=LM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN,SHADOW,LPD SRC="the film's fourth shot (t28.png, t31.png, t35.png); time ours"
+SITUATION ID=5 NAME="LM DESCENT" TITLE="LM descent" GET=102:42:00 FOV=82.4 WINDOW=LM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN,SHADOW,LPD SRC="the film's fourth shot (t28.png, t31.png, t35.png); time ours"
 RECIPE NAME=CREWSTN VEH=LM SRC="LPDDN fitted to the film's LPD marks (llpd.f)"
 VIEWS VIEW=WINDOW TARGET=MOON RIDES=LM CM=NO LM=ALWAYS
 *
@@ -630,7 +634,7 @@ VIEWS VIEW=WINDOW TARGET=MOON RIDES=LM CM=NO LM=ALWAYS
 * whole disc from 35,000 km above the sub-observer point, which puts the disc
 * at 85 percent of the frame (6.4 deg), at touchdown so the terminator falls
 * as it did for the landing.  All ours.  hdr(8) stays 1, as before.
-SITUATION ID=6 NAME="MOON VIEW" GET=TOUCH FOV=DISC:0.85 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES DRAW=MOONDISC,NOLMMARK SRC="ours, a modern addition"
+SITUATION ID=6 NAME="MOON VIEW" TITLE="Moon view" CAPTION="Moon view — spin to explore" GET=TOUCH FOV=DISC:0.85 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES DRAW=MOONDISC,NOLMMARK SRC="ours, a modern addition"
 RECIPE NAME=BODYCTR BODY=MOON ALT=35000
 VIEWS VIEW=WINDOW TARGET=MOON RIDES=NONE CM=NO LM=NO FIXED=YES
 *
@@ -641,7 +645,7 @@ VIEWS VIEW=WINDOW TARGET=MOON RIDES=NONE CM=NO LM=NO FIXED=YES
 * Header: the docking target, 0.72 m to the LM's -Y of its tunnel (ours,
 * LMDOCK), and half the LM's 14 ft 1 in width (Apollo 11 press kit, printed
 * p. 96).
-SITUATION ID=7 NAME="TRANSPOSITION AND DOCKING" GET=APPR+60 FOV=30 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN,COAS POSE=S7POSE SRC="Mission Report MSC-00171 p. 4-2 and table 7-II p. 7-9 (see S7POSE); moment and field ours"
+SITUATION ID=7 NAME="TRANSPOSITION AND DOCKING" TITLE="Transposition & docking" GET=APPR+60 FOV=30 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN,COAS POSE=S7POSE SRC="Mission Report MSC-00171 p. 4-2 and table 7-II p. 7-9 (see S7POSE); moment and field ours"
 RECIPE NAME=INERTIAL ATT=S7ATT
 VIEWS VIEW=WINDOW TARGET=LM RIDES=CSM CM=ALWAYS LM=PLACED XSTART=60,25
 HDRREF OBJ=LMDOCK OFFSET=0.72E-3 RADIUS=2.15E-3 SRC="Apollo 11 press kit, printed p. 96 (the LM's width); the offset ours"
@@ -652,7 +656,144 @@ HDRREF OBJ=LMDOCK OFFSET=0.72E-3 RADIUS=2.15E-3 SRC="Apollo 11 press kit, printe
 * extraction and before the first midcourse correction, our choice of moment.
 * Its own view is external, 60 m from the stack on its far side from the
 * Earth.  Header: the CSM's tunnel top and about half the stack's length.
-SITUATION ID=8 NAME="DOCKED STACK" GET=PTC+1800 FOV=40 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN POSE=S8POSE SRC="Apollo 11 Flight Journal 010:58:19 (PTC); moment, distance and field ours"
+SITUATION ID=8 NAME="DOCKED STACK" TITLE="Translunar stack" GET=PTC+1800 FOV=40 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN POSE=S8POSE SRC="Apollo 11 Flight Journal 010:58:19 (PTC); moment, distance and field ours"
 RECIPE NAME=EXTSEED ATT=S8ATT DIST=0.060
 VIEWS VIEW=EXTERNAL TARGET=CSM RIDES=NONE CM=ALWAYS LM=PLACED
 HDRREF OBJ=CSMTUNNEL OFFSET=2.743E-3 RADIUS=1.0E-2 SRC="ours"
+*
+* SPANS (#17; ours): how the page puts a situation on this scenario's time.
+* tools/gen_data.py writes them into build/names.js
+* (VIEW_NAMES.SCENARIOS[id].spans), the page's only copy; the kernel never
+* reads them.  A g.e.t. on a SPAN card is h:mm:ss (or s) or an EVENT kind of
+* this scenario plus or minus an offset (UNDOCK, TOUCH-600), resolved when
+* the tables are generated; END is the end of the scenario.  SIT= names a
+* situation of this deck.
+*
+*   SPAN TRACK=FOLLOW SIT= UNTIL= [VIEW=] [TARGET=] [FOV=]
+*     The timeline's camera (Review: an event jump, and Following as the
+*     g.e.t. runs) while the g.e.t. is before UNTIL; FOLLOW cards in g.e.t.
+*     order, the last UNTIL=END.  VIEW= WINDOW|EXTERNAL|CM|LM and TARGET=
+*     EARTH|MOON|SUN|CSM|LM|SIVB as on the VIEWS card (in_view, in_target);
+*     absent, the situation's own.  FOV= the field (deg); absent, the
+*     situation's default.
+*   SPAN TRACK=LIVE SIT= UNTIL= NAME=
+*     Live's mission phase while the g.e.t. is before UNTIL, NAME its
+*     caption; LIVE cards in g.e.t. order, the last UNTIL=END.  Live follows
+*     the one scenario that has them.
+*   SPAN TRACK=JUMP SIT= FROM= LEN= BUTTON=
+*     A Live jump button, BUTTON and FROM its text: Live pins the situation
+*     from FROM for LEN s, captioned with the situation's title.
+*   SPAN TRACK=PIN SIT=
+*     A situation that is no mission phase: picked in Live, it is pinned at
+*     the current g.e.t. until the viewer scrubs or types a time, captioned
+*     with its CAPTION (or title).
+*
+* Follow.  On the pad, in the ascent and in the entry the external view looks
+* at the Earth at a 20 deg field (ours), the disc with its LC-39A mark
+* (learth.f DPAD); the CSM is marked where VSTATE puts it, on the TABLE legs
+* (traj.f TABRV): standing on the pad, running downrange to S-IVB cutoff,
+* falling to the splash point and riding there.  The whole disc shows where
+* on the Earth that is, which a camera beside the CSM (TARGET=CSM) would not.
+* The spans are ours, from this deck's cards and the kernel's code (src/*.f).
+* Burn spans (ignition to cutoff, the TIMELINE rows of SP-4029) follow MSC IN
+* 69-FM-197's views of the same burn: its CSM burn plots (figures 5.1-1,
+* 6.1-1, 7.1-1) look along the CM's X axis through the left rendezvous window
+* at a 100 deg field, which is the CM station (in_view 2, vview.f STATCM;
+* CMCAB reads that window off figure 9.0-3).  A span cannot turn the camera:
+* those plots have the Earth or Moon at the top, heads down, where the
+* station keeps the situation's own up and puts it at the bottom (ours to
+* model; a gap).
+*
+* The pad and the ascent (TABLE leg, SP p. 103) to S-IVB cutoff, where the
+* CIRC leg begins (FROM 0:11:39.33).
+SPAN TRACK=FOLLOW SIT=3 UNTIL=0:11:39.33 VIEW=EXTERNAL TARGET=EARTH FOV=20
+* CIRC leg to the S-IVB's 2nd burn ignition, 2:44:16.2 (TIMELINE row, SP p.
+* 105): situation 3's forward horizon view (vdrive.f SCNCAM).
+SPAN TRACK=FOLLOW SIT=3 UNTIL=2:44:16.2
+* TLI, to the 2nd burn cutoff 2:50:03.03 (SP p. 105): the CM station at 100
+* deg, the Earth's limb across the frame and stars, as figure 5.1-1 (PDF pp.
+* 53-55, printed 35-37; pre-flight 2:44:11 to 2:50:02).
+SPAN TRACK=FOLLOW SIT=3 UNTIL=2:50:03.03 VIEW=CM FOV=100
+* The TLI conic: situation 3's forward horizon view loses the Earth near
+* 3:00 (our run).
+SPAN TRACK=FOLLOW SIT=3 UNTIL=3:00:00
+* TLI coast to the CSM's separation from the S-IVB, 3:15:23 (TIMELINE row,
+* SP p. 106).
+SPAN TRACK=FOLLOW SIT=3 UNTIL=3:15:23 VIEW=EXTERNAL TARGET=EARTH FOV=20
+* S7POSE: 100 ft until APPR, closing to the DOCK event (MR Table 7-II p.
+* 7-9).
+SPAN TRACK=FOLLOW SIT=7 UNTIL=DOCK
+* Docked, seen from outside (S7POSE puts the CSM on the LM's axis) to the
+* stack's ejection, 4:17:03 (TIMELINE row, SP p. 106); 40 deg ours.
+SPAN TRACK=FOLLOW SIT=7 UNTIL=4:17:03 VIEW=EXTERNAL TARGET=LM FOV=40
+* Ejected: the CSM's window aimed at the S-IVB, which backs away down the
+* stack's axis at the ejection springs' 1 ft/s (traj.f SIVST; Apollo 11
+* press kit, printed p. 30), to the evasive manoeuvre's ignition, 4:40:01.72
+* (TIMELINE row, SP p. 106); 40 deg ours.
+SPAN TRACK=FOLLOW SIT=3 UNTIL=4:40:01.72 TARGET=SIVB FOV=40
+* The evasive manoeuvre (the BURN card's 19.7 ft/s, MR Table 7-III p. 7-10)
+* opens the range to about 4 km by the S-IVB's slingshot venting (the SLING
+* event, SP p. 106), after which it has no state; 10 deg ours.
+SPAN TRACK=FOLLOW SIT=3 UNTIL=SLING TARGET=SIVB FOV=10
+* The docked stack (S8POSE) on the translunar conics to LOI ignition,
+* 75:49:50.37 (TIMELINE row; LUNAR FROM 75:49:50.4).
+SPAN TRACK=FOLLOW SIT=8 UNTIL=75:49:50.37
+* LOI, to its cutoff 75:55:47.90 (SP p. 106): from the CM station of the
+* docked stack the LM fills the middle of a 100 deg field, as figure 6.1-1
+* (PDF pp. 113-115, printed 95-97); the figure's Moon limb at the top is not
+* in ours (situation 8 holds its passive thermal control roll, S8ATT).
+SPAN TRACK=FOLLOW SIT=8 UNTIL=75:55:47.90 VIEW=CM FOV=100
+* Lunar orbit (LUNAR legs, LUNORB) to the UNDOCK event.
+SPAN TRACK=FOLLOW SIT=1 UNTIL=UNDOCK
+* LMPIRO's LM 300 ft out (traj.f LMSTAT), to the LMSEP event (SP p. 104).
+SPAN TRACK=FOLLOW SIT=4 UNTIL=LMSEP
+* The CSM's window aimed at the LM on its first leg, to DOI ignition
+* 101:36:14.0 (MR Table 7-II); 20 deg ours.
+SPAN TRACK=FOLLOW SIT=1 UNTIL=101:36:14.0 TARGET=LM FOV=20
+* DOI, to its cutoff 101:36:44.00 (SP p. 107): from the LM (the LM station,
+* LMPIRO's attitude) the Moon below a horizon near the middle at 100 deg, as
+* figure 6.2.1-2 (PDF p. 128, printed 110) shows from the docking window;
+* ours is the front window, and tilts with the pirouette.
+SPAN TRACK=FOLLOW SIT=4 UNTIL=101:36:44.00 VIEW=LM FOV=100
+* The descent orbit: CSM and LM marks on the disc, to LMDESC's last 600 s
+* before the TOUCH event.
+SPAN TRACK=FOLLOW SIT=6 UNTIL=TOUCH-600
+* The descent, then the landed LM (LMDESC holds TAU at 0), to the LIFT event
+* (SP p. 104).
+SPAN TRACK=FOLLOW SIT=5 UNTIL=LIFT
+* The powered ascent (no LM state), to LM orbit insertion 124:29:15.7 (MR
+* Table 7-II).
+SPAN TRACK=FOLLOW SIT=1 UNTIL=124:29:15.7
+* The rendezvous, the CSM's window aimed at the LM, to the LMDOK event (SP p.
+* 104); 20 deg ours (MSC IN 69-FM-197's rendezvous views, figs. 6.3.2-1 to
+* 6.3.4-1, printed pp. 169-177, are from the LM, 100 deg).
+SPAN TRACK=FOLLOW SIT=1 UNTIL=LMDOK TARGET=LM FOV=20
+* Lunar orbit to TEI ignition, 135:23:42.28 (TIMELINE row, SP p. 109).
+SPAN TRACK=FOLLOW SIT=1 UNTIL=135:23:42.28
+* TEI, to the transearth leg (CONIC FROM 135:26:13.7; cutoff 135:26:13.69,
+* SP p. 109): the CM station at 100 deg, the Moon's limb across the frame,
+* as figure 7.1-1 (PDF pp. 203-205, printed 185-187).
+SPAN TRACK=FOLLOW SIT=1 UNTIL=135:26:13.7 VIEW=CM FOV=100
+* Transearth coast: situation 2's held attitude keeps the Earth in frame to
+* about 194:00 (our run).
+SPAN TRACK=FOLLOW SIT=2 UNTIL=194:00:00
+* The entry approach in situation 3's horizon view, to the EI event.
+SPAN TRACK=FOLLOW SIT=3 UNTIL=EI
+* The entry (TABLE leg, MR Table 7-VII p. 7-12) to splashdown, 195:18:35,
+* then the splash point.
+SPAN TRACK=FOLLOW SIT=3 UNTIL=END VIEW=EXTERNAL TARGET=EARTH FOV=20
+*
+* Live: coarser than Follow, and the windowed situations (4, 5, 7) are pinned
+* through the jumps below instead.  Phases, times and names ours.
+SPAN TRACK=LIVE SIT=3 UNTIL=2:50:00 NAME="Earth parking orbit"
+SPAN TRACK=LIVE SIT=2 UNTIL=75:50:00 NAME="Translunar coast"
+SPAN TRACK=LIVE SIT=1 UNTIL=135:24:00 NAME="Lunar orbit"
+SPAN TRACK=LIVE SIT=2 UNTIL=END NAME="Transearth coast"
+* Live's jumps: transposition and docking from the APPR event; the
+* rendezvous from the UNDOCK event for half an hour; the descent from
+* situation 5's default g.e.t.  Lengths ours.
+SPAN TRACK=JUMP SIT=7 FROM=APPR LEN=280 BUTTON="Docking"
+SPAN TRACK=JUMP SIT=4 FROM=UNDOCK LEN=1800 BUTTON="Undocking"
+SPAN TRACK=JUMP SIT=5 FROM=102:42:00 LEN=280 BUTTON="Descent"
+* The Moon view is no mission phase.
+SPAN TRACK=PIN SIT=6

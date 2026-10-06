@@ -27,8 +27,16 @@ function syncUI() {
 const $ = id => document.getElementById(id);
 function addSceneButton(s) { const b = document.createElement("button"); b.textContent = s + " " + SCENES[s - 1]; b.dataset.scene = s; b.onclick = () => setScene(s); $("scenes").appendChild(b); }
 SCENES.forEach((n, i) => addSceneButton(i + 1));
+// The number keys pick scenes 1 to 9, as many as there are situations.
+const KEY_SCENES = Math.min(9, SCENES.length);
+$("hintscenes").textContent = KEY_SCENES > 1 ? `1-${KEY_SCENES}` : "1";
 document.querySelectorAll("[data-mode]").forEach(b => { b.onclick = () => startMode(b.dataset.mode); });
-for (const id in JUMPS) $(id).onclick = () => liveJump(JUMPS[id]);
+// The jump buttons, one per JUMP span of the Live scenario: its button text and its start time, h:mm:ss.
+for (const j of JUMPS) {
+  const b = document.createElement("button"), g = Math.round(j.get);
+  b.textContent = `${j.button} ${Math.floor(g / 3600)}:${pad2(Math.floor(g / 60) % 60)}:${pad2(g % 60)}`;
+  b.onclick = () => liveJump(j); $("jumps").appendChild(b);
+}
 const bump = d => { if (mode === "beam") beamIdx = Math.max(0, Math.min(BEAM_SPEEDS.length - 1, beamIdx + d)); else if (mode === "live") liveIdx = Math.max(0, Math.min(LIVE_RATES.length - 1, liveIdx + d)); else speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, speedIdx + d)); syncUI(); };
 const parseGet = t => {
   const u = /^\s*(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})\s*Z?\s*$/.exec(t);   // a UTC timestamp
@@ -109,7 +117,7 @@ window.addEventListener("keydown", e => {
   if (k.length === 1 || k.startsWith("Arrow")) leaveAttract();
   let h = true;
   if (KEY_ACT[k]) ACT[KEY_ACT[k]]();
-  else if (k >= "1" && k <= "9" && hasScene(+k)) setScene(+k);
+  else if (/^[1-9]$/.test(k) && +k <= KEY_SCENES) setScene(+k);
   else h = false;
   if (h) e.preventDefault();
 });
