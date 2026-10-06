@@ -37,8 +37,11 @@ is chosen.
 | `hide()` | stop rendering (the page is shown) |
 | `setTarget(name, open?)` | fly to a placed equipment (`null`: the overview); a terminal ends at its arrival pose and holds there until a click, `E` or Enter eases to its handover pose and calls `hooks.arrive` (with `open`, straight to the handover pose and on arrival) |
 | `back()` | at a terminal's close-up, step back out in front of it, as Esc or a walking key does there (calls `hooks.leave`); `false` when not at one |
+| `stations` | the station table (`src/stations.ts`): the page derives what each terminal opens, its tab and the terminal a tab belongs to from it |
+| `escLock()`, `home()` | the page's Esc stack (`web/src/esc.js`): `escLock()` is true when an Esc reaching the page while the room shows was the pointer lock's (it releases a lock still held); `home()` is the stack's bottom entry, walking back to the overview (`false` when already there) |
+| `walkup(on)` | walk-up auto-entry on or off, remembered as `view1108.walkup` (off by default) |
 | `event(e)` | pass a page event to every placed equipment |
-| `info()`, `project(name)` | for tests: quality, draw calls and triangles of the last frame, the last handover's mismatch, the walk (`x`, `z`, `yaw`, `pitch`, `near`), `locked` (pointer lock) and `hover`; a placed equipment's screen in client px |
+| `info()`, `project(name)` | for tests: quality, draw calls and triangles of the last frame, the last handover's mismatch, the walk (`x`, `z`, `yaw`, `pitch`, `near`), `walkup`, `locked` (pointer lock), `hover`, the top line's text (`line`) and the loaded state as the lab reads it (`loaded`, with `reel` and `playing`); a placed equipment's screen in client px |
 | `plan(px?)`, `layout()`, `stand(x, z, yaw, pitch?)` | for tests: the room from above as a PNG data URL; the footprints, door and terminals; stand somewhere walking |
 | `lights(on?)` | the light switch: set the troffers on or off (omitted: leave them); returns the state |
 
@@ -47,7 +50,7 @@ is chosen.
 and returns the client rect of the element the terminal's screen becomes (null for the library: the flight ends at the
 piece's `anchors.camera`); `arrive(opens, name)` hands over to the page, which shows the tab (`"workbench"`: the last
 plot tab, `"source"`: Source) or the overlay (`"listing"`, `"library"`; `name` "binder:<id>" picks that document),
-fades the lab out and calls `hide()`; `leave(opens)` undoes what `screenRect` laid out when the viewer steps back from the close-up instead (the printer's hidden listing).
+fades the lab out and calls `hide()`; `leave(opens)` undoes what `screenRect` laid out when the viewer steps back from the close-up instead (the printer's hidden listing). `drive()` is the drive's STOP/START (the page toggles its playback clock); `esc(key, pop)` pushes `key` onto the page's Esc stack with what Esc does while it is on top, or with `null` takes it off: the lab pushes `"closeup"` at a terminal's close-up (step back) and `"pulled"` when a binder is pulled out there (put it back).
 
 ### Handover
 
@@ -72,12 +75,9 @@ first-person game's: a mouse click on the room away from a machine requests poin
 plain); while locked the mouse turns 0.12° per count (right looks right, down looks down), a crosshair shows, the
 machine under it is the hover target, and a click, `E` or Enter uses it. A flight into a terminal, `hide()` and
 `stop()` release the lock; the browser's Esc releases it, and that Esc does nothing else. Unlocked, a click on a
-machine uses it, and a drag turns (touch, pen, or a refused lock). Until the first lock a line at the bottom says
-how ("Drag to look around" once a lock was refused). `info()` gives `locked` and `hover`. The body is a 0.25 m circle against the walls and every `footprint`, pushed out along the shallower side so it
+machine uses it, and a drag turns (touch, pen, or a refused lock). A line at the top left says what the drive has mounted and whether it runs (`LabState.reel` and `playing`: "DEMO · running · ... · drive: stop") and, until the viewer first looks, walks or clicks, how to take control ("drag to look" where a lock was refused or there is no mouse). `info()` gives `locked` and `hover`. The body is a 0.25 m circle against the walls and every `footprint`, pushed out along the shallower side so it
 slides. While the room is shown a capture listener on `window` keeps every key from the page but Esc, Tab, `M`,
-function keys and modifier chords, so the plot's keys cannot act behind the room. Each terminal (`opens` and
-`anchors.screen`) has a zone: within 1.3 m of its screen, in front of it, facing it within 35°. There a hint names it,
-and a 0.4 s dwell or `E`/Enter flies in as a click does; the terminal re-arms once the viewer is 1.7 m out. Footsteps
+function keys and modifier chords, so the plot's keys cannot act behind the room; Esc goes to the page's stack. Each terminal (`opens` and `anchors.screen`), and each piece used in place (the light switch, the drive), has a zone: within 1.3 m of its screen, in front of it, facing it within 35°. There a hint names it, and `E`/Enter flies in as a click does (or uses the piece); with walk-up on (the WALK-UP button at the bottom right, beside the quality button; `view1108.walkup`, off by default, #20) a 0.4 s dwell flies in too. The terminal re-arms once the viewer is 1.7 m out. Footsteps
 come from `src/audio/roomsound.ts` (`footstep`), one per 0.77 m actually walked.
 
 ### Rendering
@@ -102,7 +102,7 @@ Budget at the overview (1600 × 900): high about 230 draw calls and 140k triangl
 (`info()`). The room keeps it there with `src/room/batch.ts`, run after placement: each kind of machine's baked parts
 merge into one mesh per material, repeated loose parts (reels, glass) become instanced meshes and the machines'
 lamp grids one instanced mesh per geometry and material, copied from the hidden originals each frame, which the
-machines keep animating and the picking keeps hitting. Equipment that opens a tab is not batched.
+machines keep animating and the picking keeps hitting. The stations (`src/stations.ts`: what opens a tab or an overlay, and the drive) are not batched.
 
 The light switch (ours) is on the south wall by the door's latch, a `"switch"` placed piece with a `use()`: a click, `E` in its zone or `L` while the room is shown flips it, and `view1108.lights` remembers it. `room.lightsOn` is its state (the soundscape's ballasts follow it). Off, `lighting.ts` darkens the troffers (per tube, through their instance colour), the area lights and the key, drops the fill to a faint blue, raises the exposure (1.0 lit, 1.7 dark; the high tier's tone pass, the low tier's renderer) and adds `room.glows`, dim lights standing for what stays lit: the 1558's, UNISCOPE's and film recorder's screens, the tape units' lamp row and the EXIT sign (their lamps and screens are unlit materials and shine regardless). Each glow is a face (`Glow.face`: a screen's own face half as large again, the lamp row a 5.6 m strip, the sign its panel): at high an area light over it, facing out, so the light falls off softly; at low a point light 0.35 m out with linear decay. The CPU's and the console's lamp panels (`anchors.lamps`) are glows too, `always`, lit with the troffers on as well; the dust motes take the glows' colours near them. On, each tube strikes after up to half a second (two of them a second or two late), flickers for a quarter to half a second, then warms up over a second; the glows go when the last tube is steady, so the lit room pays nothing for them. The door's lever handle (`"door"`, room.ts) is used the same way, without a dwell, and opens its `anchors.href`, the repository, in a new tab; `lab.ts` releases the pointer lock first.
 
@@ -147,7 +147,9 @@ and registered by kind in `src/equipment/index.ts`. `BuildContext` gives `vector
 | `anchors.camera` | `{ position, target, fov }` in the equipment's frame: the zoom-in pose, framing the screen |
 | `anchors.view` | a console's arrival pose, where it has one: its screen and keyboard as its operator sees them |
 | `anchors.*` | anything else a room needs, e.g. the desk's `top` (a `Vector3`: where things stand on it) |
-| `opens` | `"workbench"`, `"source"`, `"print"`, `"listing"` or `"library"`: clicking the equipment flies to `anchors.view`, the handover pose or `anchors.camera`, then a click there opens that |
+| `opens` | `"workbench"`, `"source"`, `"print"`, `"listing"` or `"library"`: clicking the equipment flies to `anchors.view`, the handover pose or `anchors.camera`, then a click there opens that. Set by the room from the station table (`src/stations.ts`) by placed name, not by the module |
+| `status()` | the piece's state, added to its hover label (the drive: its reel, running or stopped) |
+| `putBack()` | a shelf at its close-up: put back what is out (Esc on a pulled binder); `false` when nothing is |
 | `select(on)` | called with true on the piece a flight is going to, false on every piece when the room is shown or the camera steps back (a binder comes out and goes back) |
 | `pull()` | at a close-up, a click on the piece: it comes out of its shelf; true when it was already out and opens (the lab then opens it under its placed name) |
 | `pulled()` | it is out and opens: E or Enter at the close-up opens it, as a second click would |
@@ -177,7 +179,7 @@ The registry (`EQUIPMENT`, with sizes in `FOOTPRINT`, W x H x D in metres; sourc
 |---|---|---|
 | `vector` | | UNIVAC 1558 graphic console, 0.9 x 1.5 x 1.25; its screen is the plot; opens the workbench |
 | `glass` | | UNISCOPE 100, 0.46 x 0.33 x 0.69, standing on a desk top; shows the kernel source; opens Source |
-| `uniservo` | `number` (head plate, 60, 61, ...), `index` (top strip) | UNISERVO VIII-C tape unit, 0.75 x 1.8 x 0.75 |
+| `uniservo` | `number` (head plate, 60, 61, ...), `index` (top strip), `drive` | UNISERVO VIII-C tape unit, 0.75 x 1.8 x 0.75; with `drive`, the unit with the mounted reel: a paper label across the window names it (`LabState.reel`), RUN and STOP lamps show `LabState.playing`, the label is its screen anchor, and its reels read in bursts only while it runs |
 | `cpu` | `lampPanel` | 1108 cabinet, 0.8 x 1.9 x 0.8; with the lamp panel, the processor's maintenance panel |
 | `powercab` | | the power distribution cabinet (HYPOTHETICAL), low, 1.0 x 1.13 x 0.7: a sloped meter panel over a pair of doors with breakers and bus bars behind; placed as `"power"`, named on hover; `use` opens and shuts its doors; `anchors.selector`, placed as `"power:selector"`, turns the voltmeter selector (`anchors.panel` holds both states for the soundscape) |
 | `console4009` | | 1108 Display Console with Day Clock, CRT and PAGEWRITER, 2.8 x 1.25 x 0.95; `anchors.seat` (`{ position, yaw }`) is where the room stands the operator's chair |
@@ -203,13 +205,11 @@ two rows under three-point lighting, with a stand-in plot. The flags are `?view=
 (`{ name, equipment }` for each piece it placed, `equipment.object.userData.placed` set to the name for picking),
 `footprints` (each floor-standing piece's own bounding box seen from above, placed and turned: what the plan's
 checks and walking use), `door`, `overview` (the zoomed-out `CameraPose`), `labels` (hover text by name), `air` (the
-dust's box), `update` and `dispose`. The page addresses these names: `"vector"` (the 1558, which opens the
-workbench), `"glass"` (the UNISCOPE 100, which opens Source), `"filmrecorder"` (which opens Print), `"printer"` (the
-listing) and `"library"` (the bookcase, which opens the library; its binders are `"binder:<id>"`).
+dust's box), `update` and `dispose`. The page addresses the station table's names: `"vector"` (the 1558, which opens the workbench), `"glass"` (the UNISCOPE 100, which opens Source), `"filmrecorder"` (which opens Print), `"printer"` (the listing), `"library"` (the bookcase, which opens the library; its binders are `"binder:<id>"`) and `"drive"` (the middle tape unit, STOP/START; the lab gives it its `use`, `hooks.drive`). Their hover labels come from the same table.
 `src/room/shell.ts` builds the 9 m × 7 m × 2.75 m shell: one textured plane for the raised floor's 0.6 m tiles
 (`surfaces.ts`), an acoustic-tile ceiling, two instanced meshes for the 20 troffers, walls, a door in the south wall
 with an EXIT sign over it, and a wall clock. `room.ts` places by registry name, with options where a module takes
-them (`uniservo` `{ number, index }`, `cpu` `{ lampPanel }`), and casts and receives shadows on everything it
+them (`uniservo` `{ number, index, drive }`, `cpu` `{ lampPanel }`), and casts and receives shadows on everything it
 places. Nothing stands in the door's swing, its aisle runs clear 2 m into the room, and every machine's front has at
 least 0.9 m clear (the UNISCOPE's desk, beside the 1558, only on its chair side). A name the registry lacks becomes a
 grey stand-in box of its `FOOTPRINT`, so the room composes before every module exists.

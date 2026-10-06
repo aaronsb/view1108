@@ -110,7 +110,7 @@ async function main() {
   camera.position.copy(pose.position); camera.fov = pose.fov; camera.lookAt(pose.target); camera.updateProjectionMatrix();
 
   // The gallery has no page: a fixed sample of its state, Apollo 11 (range zero 1969-07-16 13:32:00 UTC, its EPOCH card) at touchdown.
-  const state: LabState = { tab: "review", mode: "attract", playing: UP.has("play"), get: 102 * 3600 + 45 * 60 + 40, situation: 1, scenario: 1, mission: "APOLLO 11", epoch: 0, zero: Date.UTC(1969, 6, 16, 13, 32, 0), frameNo: 0, sound: { ctx: null, out: null, on: false } };
+  const state: LabState = { tab: "review", mode: "attract", playing: UP.has("play"), reel: "DEMO", get: 102 * 3600 + 45 * 60 + 40, situation: 1, scenario: 1, mission: "APOLLO 11", epoch: 0, zero: Date.UTC(1969, 6, 16, 13, 32, 0), frameNo: 0, sound: { ctx: null, out: null, on: false } };
   const fire = (type: "tape" | "beamFrame") => { for (const q of placed) q.eq.event?.({ type, at: performance.now() }, state); };
   if (UP.has("tape")) setTimeout(() => fire("tape"), 300);
 

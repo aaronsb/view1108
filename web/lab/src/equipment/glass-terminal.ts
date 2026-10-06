@@ -198,7 +198,6 @@ export function build(ctx: BuildContext): Equipment {
   const target = screen.getWorldPosition(new THREE.Vector3());
   return {
     object,
-    opens: "source",
     anchors: {
       screen: { mesh: screen, uvRect: [0, 0, 1, 1] },
       camera: { position: target.clone().addScaledVector(normal, fitDist(SH * 1.5, FOV)), target, fov: FOV },

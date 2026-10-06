@@ -7,11 +7,16 @@
 // Motion: an idle unit is mostly still, with an occasional short shuttle; a `tape` event (the engine ran) sets some
 // units running bursts of reads, sometimes ending in a rewind. The reels turn at the tape speed over the pack radius,
 // so the emptier reel spins faster; the packs trade radius as tape moves, at 12 times the real rate so a burst shows.
+//
+// The drive (`drive: true`, the station table's "drive", ours): the unit with the mounted reel. A paper label across
+// the window's lower edge names the reel (DEMO while the demo plays, else the situation's title; LabState.reel) and a
+// RUN and a STOP lamp beside it say whether its playback clock runs (LabState.playing). Using it (a click, E) is the
+// page's STOP/START (lab.ts gives it its `use`). While it runs its reels read in bursts; stopped, they hold still.
 import * as THREE from "three";
-import type { BuildContext, Equipment, LabEvent } from "../types";
+import type { BuildContext, Equipment, LabEvent, LabState } from "../types";
 import { PAL, Parts, at, canvasTex, grid, lampMat, lensGeo, paint, plateFontReady, plateText, rng, satinMetal, sharedGeo, smoked, chrome, plastic, poseFrom } from "./kit";
 
-export interface UniservoOptions { number?: number; index?: number }
+export interface UniservoOptions { number?: number; index?: number; drive?: boolean }
 
 const IPS = 0.0254;
 const SPEED = 120 * IPS, REWIND = 240 * IPS;    // m/s
@@ -87,6 +92,52 @@ function numberPlate(n: string, light: boolean, w: number, h: number): THREE.Mes
 // busy, rewind, fault.
 const OFF = 0x2a2a26, LAMP_ON = [0x6cf08a, 0xf4f1e6, 0xff6a3c, 0xffb040, 0xf4f1e6, 0xff3020];
 
+/** The drive's reel label and RUN/STOP lamps (ours): a paper label 0.4 x 0.085 m across the window's lower band, the
+ *  reel's name in the nameplate face, the lamps' captions at its right end, under two lenses that light. */
+const LABEL = { w: 0.4, h: 0.085, y: 1.18, z: 0.3855 };
+const RUN_ON = 0x6cf08a, STOP_ON = 0xffa030;
+function reelLabel(mine: { dispose(): void }[]) {
+  const W = 512, H = Math.round(W * LABEL.h / LABEL.w);
+  let title = "", drawn = "";
+  const draw = (g: CanvasRenderingContext2D) => {
+    g.fillStyle = "#efe9d8"; g.fillRect(0, 0, W, H);
+    g.strokeStyle = "#8a8474"; g.lineWidth = 2; g.strokeRect(1, 1, W - 2, H - 2);
+    g.fillStyle = "#6a6458"; plateText(g, "REEL", 14, 18, 13, 0.14, "left", 0);
+    g.fillStyle = "#161616";
+    const t = title || "—", room = W * 0.66;
+    let px = 44;
+    while (px > 14 && plateText(measure, t, 0, 0, px, 0.06) > room) px -= 2;
+    plateText(g, t, 14, H * 0.62, px, 0.06);
+    g.fillStyle = "#2a2a26";
+    plateText(g, "RUN", W * 0.80, H * 0.82, 13, 0.14, "center", 0);
+    plateText(g, "STOP", W * 0.92, H * 0.82, 13, 0.14, "center", 0);
+  };
+  const measure = document.createElement("canvas").getContext("2d")!;
+  const tex = canvasTex(W, H, g => draw(g), 4);
+  const card = new THREE.Mesh(new THREE.PlaneGeometry(LABEL.w, LABEL.h), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }));
+  card.position.set(0, LABEL.y, LABEL.z);
+  const lens = new THREE.CircleGeometry(0.0095, 16);
+  const lamp = (x: number) => {
+    const m = new THREE.Mesh(lens, new THREE.MeshBasicMaterial({ color: OFF, toneMapped: false }));
+    m.position.set(-LABEL.w / 2 + LABEL.w * x, LABEL.y + LABEL.h * 0.12, LABEL.z + 0.0012);
+    mine.push(m.material as THREE.Material);
+    return m;
+  };
+  const run = lamp(0.80), stop = lamp(0.92);
+  mine.push(card.geometry, card.material as THREE.Material, tex, lens);
+  void plateFontReady().then(ok => { if (ok) { drawn = ""; set(title); } });
+  const set = (t: string) => {
+    if (t === drawn) return;
+    title = drawn = t;
+    draw((tex.image as HTMLCanvasElement).getContext("2d")!); tex.needsUpdate = true;
+  };
+  const lit = (playing: boolean) => {
+    (run.material as THREE.MeshBasicMaterial).color.set(playing ? RUN_ON : OFF);
+    (stop.material as THREE.MeshBasicMaterial).color.set(playing ? OFF : STOP_ON);
+  };
+  return { card, run, stop, set, lit };
+}
+
 interface Move { v: number; t: number }
 
 export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment {
@@ -125,6 +176,11 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
   const reels = [reel(), reel()];
   reels.forEach((q, i) => { q.group.position.set(i ? 0.17 : -0.17, 1.37, 0.366); q.group.rotation.z = r() * 6; object.add(q.group); });
 
+  const label = opts.drive ? reelLabel(mine) : null;
+  if (label) object.add(label.card, label.run, label.stop);
+  /** The drive's last reading of the page: whether its clock runs, and the reel's name. */
+  const mounted = { playing: true, reel: "", read: false };
+
   // State: tape position p (0 all on the file reel, at left), speed v (m/s, + forward), the queue of moves.
   let p = 0.15 + r() * 0.7, v = 0, idle = 4 + r() * 20, runs = 0;
   const queue: Move[] = [];
@@ -146,9 +202,19 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
 
   return {
     object,
-    anchors: { camera: poseFrom(new THREE.Vector3(0, 1.3, 0.37), [0.25, 0.1, 1], 1.5, 40), motion },
-    update(dt) {
-      if (!queue.length && (idle -= dt) < 0) {
+    // The drive's label is its screen anchor: what the walk's zone faces (E uses it).
+    anchors: { camera: poseFrom(new THREE.Vector3(0, 1.3, 0.37), [0.25, 0.1, 1], 1.5, 40), motion, ...(label ? { screen: { mesh: label.card, uvRect: [0, 0, 1, 1] as [number, number, number, number] } } : {}) },
+    ...(label ? { status: () => `${mounted.reel} · ${mounted.playing ? "running · click to stop" : "stopped · click to start"}` } : {}),
+    update(dt, s: LabState) {
+      if (label) {
+        if (s.playing !== mounted.playing || s.reel !== mounted.reel || !mounted.read) {
+          mounted.playing = s.playing; mounted.reel = s.reel; mounted.read = true;
+          label.set(s.reel); label.lit(s.playing);
+          if (!s.playing) queue.length = 0;
+        }
+        // Running: bursts of reads, a second or few apart. Stopped: still.
+        if (s.playing && !queue.length && (idle -= dt) < 0) { idle = 1.5 + r() * 3; run(); }
+      } else if (!queue.length && (idle -= dt) < 0) {
         idle = 8 + r() * 25;   // an occasional short shuttle
         const d = r() < 0.5 ? 1 : -1;
         queue.push({ v: d * SPEED, t: 0.2 + r() * 0.5 }, { v: 0, t: 0.15 }, { v: -d * SPEED, t: 0.1 + r() * 0.3 }, { v: 0, t: 0.1 });
@@ -172,7 +238,7 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
       }
     },
     event(e: LabEvent) {
-      if (e.type !== "tape") return;
+      if (e.type !== "tape" || (label && !mounted.playing)) return;
       runs++;
       if ((num + runs) % 3 !== 0) { queue.length = 0; run(); }   // about two in three units take part
     },
