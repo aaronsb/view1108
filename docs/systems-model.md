@@ -201,7 +201,7 @@ The tape tables carry the samples the kernel's tape holds: time, position and ve
 
 A manifest entry can be a URL instead of a file, so material we may not copy is referenced, not packed (#26). The page fetches it at run time and the reel still loads without it. Photographs use this where their licence does not allow redistribution.
 
-Material held only locally is never put in a published reel or referenced from the repo by path. The 16 mm film "Commander's Window View for LM Landing at Taurus-Littrow" (Flight Performance Branch, Mission Planning and Analysis Division, 1972; JSC reel FR-9438, archive id jsc2014m002233), sent to the maintainer by Ben Feist (NASA JSC), is the case in point (#24): it is described by title and credit, and its frames go only into a private reel.
+Material held only locally is never put in a published reel or referenced from the repo by path. The 16 mm film "Commander's Window View for LM Landing at Taurus-Littrow" (Flight Performance Branch, Mission Planning and Analysis Division, 1972; JSC reel FR-9438, archive id jsc2014m002233), shared with the maintainer by a NASA JSC contact, is the case in point (#24): it is described by title and credit, and its frames go only into a private reel.
 
 ### Private reels
 
