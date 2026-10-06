@@ -30,9 +30,6 @@ import type { BuildContext, Equipment, LabState } from "../types";
 import { PAL, Parts, at, badgeTex, canvasTex, fitDist, fontTex, grid, lampMat, laminate, nameplate, own, paint, plastic, plateText, rng, tileGeo, tubeGlass } from "./kit";
 import { UNISCOPE_KEYBOARD, uniscopeKeyboard } from "./keyboard";
 
-const A11_RANGE_ZERO = Date.UTC(1969, 6, 16, 13, 32, 0);   // ms
-const A8_OFFSET = -17887260;                                // s, scene 9's epoch from Apollo 11's (CLAUDE.md, hdr(16))
-
 // ---- proportions (metres; x across, y up, z toward the operator; origin on the floor under the centre) ----
 /** The desk: its top's x span, depth span, height and thickness; the display unit stands in a notch from `notch` to
  *  the wing. */
@@ -51,10 +48,12 @@ const PANEL = { x: -0.27, w: 0.94, z: -0.12, y: 0.755, h: 0.36, lean: 8 * Math.P
 /** The PAGEWRITER's pedestal (x span, depth, height) and the machine on it (depth, height). */
 const PW = { x0: -1.40, x1: -0.86, d: 0.56, h: 0.66, depth: 0.48, height: 0.15 };
 
-/** The replay's UTC, ms, for the page's state. */
+/** The replay's UTC, ms, for the page's state: the loaded scenario's range zero plus the g.e.t. */
 export function replayUTC(s: LabState): number {
-  return A11_RANGE_ZERO + ((s.get || 0) + (s.scene === 9 ? A8_OFFSET : 0)) * 1000;
+  return (s.zero || 0) + (s.get || 0) * 1000;
 }
+/** The run's name on the console log (ours): VIEW and the mission's number, VIEW11 for APOLLO 11. */
+const runName = (s: LabState) => "VIEW" + String((/\d+/.exec(s.mission || "") || ["0"])[0]).padStart(2, "0");
 
 const pad = (n: number, w = 2) => String(Math.floor(n)).padStart(w, "0");
 const fmtGet = (g: number) => `${pad(g / 3600, 3)}:${pad(g / 60 % 60)}:${pad(g % 60)}`;
@@ -274,13 +273,13 @@ export function build(ctx: BuildContext): Equipment {
   crt.position.set(dux + CRT.u * ty(CRT.v), fby + CRT.v * fc + cn * fs, fbz - CRT.v * fs + cn * fc); crt.rotation.x = -lean; object.add(crt);
   let crtKey = "";
   const drawCrt = (s: LabState) => {
-    const run = s.scene === 9 ? "VIEW08" : "VIEW11", now = replayUTC(s), g = Math.max(0, s.get || 0), blink = Math.floor(performance.now() / 530) % 2;
+    const run = runName(s), now = replayUTC(s), g = Math.max(0, s.get || 0), blink = Math.floor(performance.now() / 530) % 2;
     const recent: string[] = [];
     for (let k = 4; k >= 0; k--) { const f = Math.floor(s.frameNo / 16) * 16 - k * 16; if (f > 0) recent.push(`${hhmm(now)} ${run} PLTTAP FRAME ${pad(f, 6)} GET ${fmtGet(Math.max(0, g - k))}`); }
     const lines = [
       `UNIVAC 1108 EXEC 8          MSC HOUSTON                ${hhmm(now)}`,
       ...prologue(run, now), ...recent,
-      `${hhmm(now)} ${run} ${s.playing ? "RUNNING" : "HOLD   "} SCENE ${pad(s.scene)} FRAMES ${pad(s.frameNo, 7)}`,
+      `${hhmm(now)} ${run} ${s.playing ? "RUNNING" : "HOLD   "} SCENE ${pad(s.situation)} FRAMES ${pad(s.frameNo, 7)}`,
       `>${blink ? "_" : " "}`,
     ].slice(0, 16);
     const k = lines.join("\n");

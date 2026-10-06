@@ -8,24 +8,23 @@ const LAB_LEVELS = ["off", "primary", "secondary", "all"];  // in_lablv
 const STATION_FOV = 100;
 let stFov = null;   // [the field before a station, the station's]: restored on leaving it
 const FEAT = { view: false, target: false, lablv: false, cabin: false, walls: false };
-let viewMode = 0, targetId = 0, cabin = true;   // cabin: the CM or LM interior in a station view (in_flags bit 4)
+let cabin = true;   // cabin: the CM or LM interior in a station view (in_flags bit 4)
 let walls = true;   // walls: with the cabin, the outside seen only through its windows (in_flags bit 5)
 // Attract and Tour draw the cabin, with its walls, in their station shots.
 const cabinFlag = () => FEAT.cabin && (cabin || auto()) ? 16 : 0;
 const wallsFlag = () => FEAT.walls && cabinFlag() && (walls || auto()) ? 32 : 0;
 // EXTERNAL, like the body-centred Moon view (its recipe, BODYCTR), orbits the target: drag and the look keys turn
 // azimuth and elevation around it.
-const orbiting = () => sitOf(scene).recipe === "BODYCTR" || viewMode === 1;
+const orbiting = () => sitOf(LS.situation).recipe === "BODYCTR" || LS.view === 1;
 function featInputs() {   // every frame, before view_frame
-  if (FEAT.view) wi("in_view", viewMode);
-  if (FEAT.target) wi("in_target", targetId);
-  if (FEAT.lablv) wi("in_lablv", labLv);
+  if (FEAT.view) wi("in_view", LS.view);
+  if (FEAT.target) wi("in_target", LS.target);
+  if (FEAT.lablv) wi("in_lablv", LS.labLv);
 }
 function featSyncUI() {
-  $("jumps").hidden = String(sitOf(scene).scenario) !== LIVE_SCN;   // the jump buttons are times of the Live scenario
-  if (FEAT.view) document.querySelectorAll("#viewgrp button:not(#bcab):not(#bwal)").forEach((b, i) => b.classList.toggle("on", i === viewMode));
-  if (FEAT.target) document.querySelectorAll("#targrp button").forEach((b, i) => b.classList.toggle("on", i === targetId));
-  if (FEAT.cabin) { const b = $("bcab"); b.classList.toggle("on", cabin); b.disabled = viewMode !== 2 && viewMode !== 3; }
+  if (FEAT.view) document.querySelectorAll("#viewgrp button:not(#bcab):not(#bwal)").forEach((b, i) => b.classList.toggle("on", i === LS.view));
+  if (FEAT.target) document.querySelectorAll("#targrp button").forEach((b, i) => b.classList.toggle("on", i === LS.target));
+  if (FEAT.cabin) { const b = $("bcab"); b.classList.toggle("on", cabin); b.disabled = LS.view !== 2 && LS.view !== 3; }
   if (FEAT.walls) { const b = $("bwal"); b.classList.toggle("on", walls); b.disabled = $("bcab").disabled || !cabin; }
 }
 // hdr(22): the crew stations the scene offers (1 CM, 2 LM; 4 set by every kernel that has it). Without it, hdr(21),
@@ -55,21 +54,13 @@ function featInit() {
   // 263): a scene's own field (8 deg in Earthrise) shows none of the cabin, and with its walls none of the outside.
   document.querySelectorAll("#viewgrp button:not(#bcab):not(#bwal)").forEach((b, i) => { b.onclick = () => {
     leaveAttract(); tlManual();
-    if (i >= 2 && viewMode < 2) { stFov = [fov, clampFov(Math.max(fov, STATION_FOV))]; fov = stFov[1]; }
-    else if (i < 2 && viewMode >= 2 && stFov && fov === stFov[1]) fov = stFov[0];   // back out, unless zoomed since
+    let f = null;
+    if (i >= 2 && LS.view < 2) { stFov = [LS.fov, clampFov(Math.max(LS.fov, STATION_FOV))]; f = stFov[1]; }
+    else if (i < 2 && LS.view >= 2 && stFov && LS.fov === stFov[1]) f = stFov[0];   // back out, unless zoomed since
     if (i < 2) stFov = null;
-    viewMode = i; syncUI();
+    loadReel(P({ view: i, fov: f }));
   }; });
-  document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); tlManual(); targetId = i; syncUI(); }; });
-}
-// ?view=window|external|cm|lm and ?target=default|earth|moon|sun|csm|lm|sivb (or their numbers).
-function featParams() {
-  const pick = (k, names) => { const v = UP.get(k); if (v === null) return null; const i = names.indexOf(v.toLowerCase()); return i >= 0 ? i : /^\d$/.test(v) && +v < names.length ? +v : null; };
-  const v = pick("view", VIEWS), t = pick("target", TARGETS);
-  if (FEAT.view && v !== null) viewMode = v;
-  if (FEAT.target && t !== null) targetId = t;
-  if (FEAT.cabin && (UP.get("cabin") === "0" || UP.get("cabin") === "1")) cabin = UP.get("cabin") === "1";
-  if (FEAT.walls && (UP.get("walls") === "0" || UP.get("walls") === "1")) walls = UP.get("walls") === "1";
+  document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); tlManual(); loadReel(P({ target: i })); }; });
 }
 function toggleCabin() { if (!FEAT.cabin) return; leaveAttract(); cabin = !cabin; syncUI(); }
 function toggleWalls() { if (!FEAT.walls) return; leaveAttract(); walls = !walls; syncUI(); }

@@ -9,7 +9,7 @@ const NAMES = (typeof VIEW_NAMES !== "undefined") ? VIEW_NAMES : (window.MOCK_NA
 // build/names.js); the page holds no list of its own. A scene number is a situation's ID, 1..N. The mock kernel
 // (?mock, no names.js) gets one stand-in situation.
 const SITS = NAMES.SITUATIONS || [{ id: 1, title: "Mock", scenario: 1, mission: "", recipe: "", stations: {} }];
-const SCNS = NAMES.SCENARIOS || { 1: { mission: "", epoch: 0, spans: { follow: [[null, 1, 0, 0, null]], live: [[null, 1, ""]], jump: [], pin: [] } } };
+const SCNS = NAMES.SCENARIOS || { 1: { mission: "", epoch: 0, zero: 0, spans: { follow: [[null, 1, 0, 0, null]], live: [[null, 1, ""]], jump: [], pin: [] } } };
 const SCENES = SITS.map(s => s.title);
 const hasScene = s => !!SITS[s - 1];
 const sitOf = s => SITS[s - 1] || {};

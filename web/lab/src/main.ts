@@ -25,7 +25,8 @@ const VIEW_LAB = {
   back(): boolean { return lab ? lab.back() : false; },
   event(e: LabEvent): void { lab?.event(e); },
   get running(): boolean { return !!lab; },
-  /** Quality tier, draw calls and triangles of the last frame, the last handover's mismatch (px): for tests. */
+  /** Quality tier, draw calls and triangles of the last frame, the last handover's mismatch (px), the page's loaded
+   *  state as the lab reads it and the UTC its clocks show: for tests. */
   info() { return lab?.info ?? null; },
   /** Client px of a placed equipment's screen: for tests. */
   project(name: string) { return lab?.project(name) ?? null; },

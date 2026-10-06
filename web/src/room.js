@@ -21,7 +21,8 @@ let roomState = null;
 
 function labState() {
   const s = roomState || (roomState = { sound: {} });
-  s.tab = tab; s.mode = mode; s.playing = playing; s.get = get; s.scene = scene; s.frameNo = drawNo;
+  s.tab = tab; s.mode = LS.mode; s.playing = LS.playing; s.get = LS.get; s.frameNo = drawNo;
+  s.situation = LS.situation; s.scenario = LS.scenario; s.mission = LS.mission; s.epoch = LS.epoch; s.zero = LS.zero;
   s.sound.ctx = sndCtx; s.sound.out = sndOut; s.sound.on = sndOn; s.sound.bed = soundBed; s.sound.whine = whineNode(); s.sound.printer = printerRoute;
   return s;
 }

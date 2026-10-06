@@ -39,6 +39,8 @@ tools/build.sh    gen_data -> lfortran (per file) -> clang -> wasm-ld -> wasm-op
 web/              The page: film-recorder renderer, controls, text lettering.
 ```
 
+The page's state flow (`docs/systems-model.md`, sections 3 and 4): one record, `LS` in `web/src/state.js`, holds what is loaded and where the viewer is in it (situation, scenario, mission, epoch and range zero, g.e.t., look, view, target, label level, mode and clock). `loadReel(params)` in `web/src/loader.js` is the only code that changes the situation, scenario or mission or jumps the time or look by command; the URL, the scene buttons and keys, the mode and jump buttons, Live's phases, Following, the shot player and the Fusion photo pick all build URL-style params and call it. Continuous changes (the clock, a drag, the scrubber) go through `track()`. Tabs and the Room only show: choosing one never changes the mode, scene or time. The room reads the same record (`LabState`).
+
 Kernel elements, each compiled on its own and linked by the build, as the 1108's Collector
 gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.1; see
 `docs/batch-pipeline.md`). The list is also in the header of `src/vdrive.f`.

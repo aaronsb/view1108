@@ -610,6 +610,7 @@ def situations(mis, evs, sits):
 # The page's copy of the situations and of each scenario's SPAN cards (#17), in build/names.js:
 # VIEW_NAMES.SITUATIONS (in id order) and VIEW_NAMES.SCENARIOS.  The page reads these and holds no
 # list of its own (docs/systems-model.md, section 4, rules 3 and 4).
+JD_UNIX = 2440587.5   # JD of 1970-01-01 00:00 UTC, the page's Date origin
 SPAN_KEYS = {"FOLLOW": {"VIEW", "TARGET", "FOV"}, "LIVE": set(), "JUMP": set(), "PIN": set()}   # optional
 SPAN_NEED = {"FOLLOW": {"SIT", "UNTIL"}, "LIVE": {"SIT", "UNTIL", "NAME"},                         # required
              "JUMP": {"SIT", "FROM", "LEN", "BUTTON"}, "PIN": {"SIT"}}
@@ -661,7 +662,9 @@ def page_situations(sits, raw, mis, evs):
 
 def page_scenarios(mis, legs, evs, spans, sits):
     """VIEW_NAMES.SCENARIOS: per scenario its mission, its epoch (s from scenario 1's range zero, as
-    hdr(16)) and its SPAN cards by track.  follow: [until, situation, in_view, in_target, field],
+    hdr(16)), its range zero as UTC ms (zero: the page's and the room's clocks; the EPOCH card's JD to
+    the whole second, since every EPOCH card's source gives range zero to the second and six decimals
+    of a day are 0.0864 s) and its SPAN cards by track.  follow: [until, situation, in_view, in_target, field],
     until None for END, field None for the situation's own; live: [until, situation, name]; jump:
     {scene, get, len, button}; pin: situation ids.  Every span time lies within the scenario's
     legs; LIVE cards are in exactly one scenario (the one Live follows)."""
@@ -717,7 +720,7 @@ def page_scenarios(mis, legs, evs, spans, sits):
         for t in ("follow", "live"):
             assert not tr[t] or tr[t][-1][0] is None, f"scenario {m['n']}: the last {t.upper()} span ends at END"
         out[str(m["n"])] = {"mission": m["mname"], "epoch": round((m["jd"] - jd1) * 86400, 3),
-                            "spans": tr}
+                            "zero": round((m["jd"] - JD_UNIX) * 86400) * 1000, "spans": tr}
     live = [k for k, v in out.items() if v["spans"]["live"]]
     assert len(live) == 1, f"LIVE spans: Live follows one scenario, found them in {len(live)} ({', '.join(live)})"
     return out

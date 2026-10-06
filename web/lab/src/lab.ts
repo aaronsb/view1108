@@ -25,6 +25,7 @@ import { Post, markScreens } from "./post";
 import { RoomSound } from "./audio/roomsound";
 import { ROOM } from "./room/shell";
 import { PLATE_FONT } from "./equipment/kit";
+import { replayUTC } from "./equipment/console4009";
 import { Walk, type Terminal } from "./walk";
 import type { CameraPose, LabEvent, LabHooks, Opens, Placed, Quality, Room } from "./types";
 
@@ -359,9 +360,11 @@ export class Lab {
   }
 
   get info() {
-    const w = this.walk;
+    const w = this.walk, s = this.hooks.state();
     return { locked: this.locked, at: this.at?.name ?? null, hover: this.hover?.name ?? null, lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
-      walk: { x: w.pos.x, z: w.pos.y, yaw: w.yaw / D2R, pitch: w.pitch / D2R, near: w.near?.name ?? null } };
+      walk: { x: w.pos.x, z: w.pos.y, yaw: w.yaw / D2R, pitch: w.pitch / D2R, near: w.near?.name ?? null },
+      // what the lab reads of the page's loaded state, and the UTC its clocks show (console4009.ts replayUTC)
+      loaded: { mode: s.mode, situation: s.situation, scenario: s.scenario, mission: s.mission, get: s.get, tab: s.tab }, clock: new Date(replayUTC(s)).toISOString() };
   }
 
   dispose(): void {

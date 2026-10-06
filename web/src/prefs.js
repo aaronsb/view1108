@@ -5,7 +5,7 @@ const prefs = { jitter: null, bloom: null, dust: null, fps: null, catalog: "nav"
 const NAV_MAG = NAMES.NAV_MAG || 3.8;   // magnitude limit passing the 391 brightest stars (tools/gen_data.py -> build/names.js)
 try { Object.assign(prefs, JSON.parse(localStorage.getItem("view1108.prefs") || "{}")); } catch (e) { /* storage unavailable */ }
 const savePrefs = () => { try { localStorage.setItem("view1108.prefs", JSON.stringify(prefs)); } catch (e) { /* ignore */ } };
-const auto = () => mode === "attract" || mode === "tour";
+const auto = () => LS.mode === "attract" || LS.mode === "tour";
 const filmAuto = () => auto() || tab === "print";
 // URL parameters override stored prefs for this visit only, and are never written to storage. A toggle clicked
 // by the viewer drops the URL value for that effect and saves the viewer's own choice.
@@ -21,16 +21,16 @@ const dispChoice = () => urlOv.disp || prefs.disp;
 const effDisp = () => {
   if (roomShown) return "scope";
   const d = dispChoice();
-  return d !== "auto" ? d : roomIn && mode !== "attract" && tab !== "print" ? "scope" : "film";
+  return d !== "auto" ? d : roomIn && LS.mode !== "attract" && tab !== "print" ? "scope" : "film";
 };
 const isFilm = () => effDisp() === "film";
 // SCOPE refresh: "16" redraws the frame as a beam pass every 1/16 s on a decaying phosphor; "steady" holds it still.
 const scopeHz = () => (urlOv.hz || prefs.hz) === "steady" ? "steady" : "16";
-const scopeLive = () => !isFilm() && scopeHz() === "16" && mode !== "beam";   // Beam traces itself (beam.js)
+const scopeLive = () => !isFilm() && scopeHz() === "16" && LS.mode !== "beam";   // Beam traces itself (beam.js)
 const effJit = () => !isFilm() ? false : urlFlag("jitter") !== null ? urlFlag("jitter") : prefs.jitter !== null ? prefs.jitter : filmAuto();
 const effBloom = () => !isFilm() ? false : urlFlag("bloom") !== null ? urlFlag("bloom") : prefs.bloom !== null ? prefs.bloom : filmAuto();
 const effDust = () => !isFilm() ? false : urlFlag("dust") !== null ? urlFlag("dust") : prefs.dust !== null ? prefs.dust : filmAuto();
-const effFps = () => mode === "beam" || !isFilm() ? false : urlFlag("fps") !== null ? urlFlag("fps") : prefs.fps !== null ? prefs.fps : filmAuto();   // film rate: present at 16 fps
+const effFps = () => LS.mode === "beam" || !isFilm() ? false : urlFlag("fps") !== null ? urlFlag("fps") : prefs.fps !== null ? prefs.fps : filmAuto();   // film rate: present at 16 fps
 const effCatalog = () => (urlOv.catalog || prefs.catalog) === "full" ? "full" : "nav";
 const toggleCatalog = () => { const c = effCatalog() === "full" ? "nav" : "full"; delete urlOv.catalog; prefs.catalog = c; savePrefs(); syncUI(); };
 const toggle = k => {
