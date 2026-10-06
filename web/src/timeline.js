@@ -1,7 +1,7 @@
 // Timeline (Review): the scenario's TIMELINE cards (SP-4029's event lists, build/names.js) as chapter marks under the
 // time scrubber and as a jump list, and the Apollo in Real Time companion window (Apollo 11 only).
 "use strict";
-const tlScenario = () => String(sitOf(LS.situation).scenario);   // the scene's scenario, from its SITUATION card
+const tlScenario = () => String(LS.scenario);   // the loaded scenario
 const TL = NAMES.TIMELINE || {}, TL_KINDS = NAMES.TL_KINDS || [];
 // Noteworthy: our own short list of the mission's milestones, matched by kind and a pattern on the SP-4029 row name.
 const TL_NOTE = [
@@ -23,16 +23,16 @@ function airtUrl(g) {
   return "https://apolloinrealtime.org/11/?t=" + (g < 0 ? "-" + s.slice(1) : s);
 }
 let airt = null;   // the companion window's handle, from its button's click
-const airtOn = () => sitOf(LS.situation).mission === "APOLLO 11";   // the companion site's mission (its address above)
+const airtOn = () => LS.mission === "APOLLO 11";   // the companion site's mission (its address above)
 function airtSync() { if (airt && !airt.closed && airtOn()) try { airt.location = airtUrl(LS.get); } catch (e) { airt = null; } }   // refused: wait for the button
 
 // Apollo in Real Time plays at 1x, so a link to it puts the replay at 1x and playing too (Tour and Attract,
 // which drive time themselves, give way to Free-look; Live keeps its clock at 1x).
 // In Free-look it also starts Following: the scene tracks the g.e.t. (tlFit) until a manual scene or time change.
 function airtRealTime() {
-  if (LS.mode === "attract" || LS.mode === "tour") startMode("free");
+  leaveAttract();
   if (LS.mode === "live") liveIdx = LIVE_RATES.indexOf(1); else speedIdx = SPEEDS.indexOf(1);
-  LS.playing = true; follow = LS.mode === "free"; syncUI();
+  track({ playing: true }); follow = LS.mode === "free"; syncUI();
 }
 
 // The camera for a g.e.t., outside Live (whose phases are coarser and pin the windowed scenes through its jumps): each
@@ -54,20 +54,15 @@ const tlSuits = g => {
   if ((v && LS.view !== v) || (t && LS.target !== t)) return false;
   return !(tlPut && ((!v && tlPut[0] && LS.view === tlPut[0]) || (!t && tlPut[1] && LS.target === tlPut[1])));
 };
-function tlFit(g) {   // put the scene and look for g.e.t. g: the span's view, target and field, else the scene's
-  const [, s, v = 0, t = 0, w = null] = tlFor(g), f = follow;
-  setScene(s); follow = f;
-  const named = FEAT.view && (v || t);
-  LS.view = named ? v : 0; LS.target = named ? t : 0; tlPut = named ? [v, t] : null;
-  if (w != null && (named || (!v && !t))) LS.fov = LS.fov0 = w;
-  LS.get = LS.get0 = g; syncUI();
+function tlFit(g) {   // load the span for g.e.t. g: its scene, view, target and field (loader.js, by="follow")
+  const [, s, v = 0, t = 0, w = null] = tlFor(g);
+  loadReel(P({ by: "follow", scene: s, view: v, target: t, fov: w, get: g }));
+  tlPut = FEAT.view && (v || t) ? [v, t] : null;
 }
 // A jump to an event: the scene that suits its time (tlFit), else only the time, with the scrubber re-centred on it.
 function tlJump(g) {
-  leaveAttract(); livePin = null;
-  if (LS.mode === "live") LS.get = Math.max(LIVE_MIN, Math.min(LIVE_MAX, g));
-  else if (!tlSuits(g)) tlFit(g);
-  else LS.get = LS.get0 = g;
+  leaveAttract();
+  if (LS.mode !== "live" && !tlSuits(g)) tlFit(g); else loadReel(P({ by: "event", get: g }));
   airtSync();
 }
 const tlTitle = g => {
@@ -151,5 +146,5 @@ tlChips(); tlList();
 setInterval(tlTick, 200);
 if (DEBUG) {   // test hooks: the companion's address, the view a jump or Following leaves, and a time to play from
   window.VIEW_AIRT = airtUrl;
-  window.VIEW_TL = { state: () => ({ scene: LS.situation, viewMode: LS.view, targetId: LS.target, fov: LS.fov, get: LS.get, mode: LS.mode, follow }), seek: g => { LS.get = g; } };
+  window.VIEW_TL = { state: () => ({ scene: LS.situation, viewMode: LS.view, targetId: LS.target, fov: LS.fov, get: LS.get, mode: LS.mode, follow }), seek: g => track({ get: g }) };
 }

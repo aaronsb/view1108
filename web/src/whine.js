@@ -102,4 +102,4 @@ function whineFrame() {
   whineG = ctx.createGain(); whineG.gain.setValueAtTime(0, t); whineG.gain.linearRampToValueAtTime(live ? 1 : 0.5, t + WHINE_XFADE);
   whineSrc.connect(whineG).connect(whineIn); whineSrc.start(t, (t - whineT0) % dur);
 }
-if (DEBUG) window.VIEW_WHINE = { chain: whineChain, buffer: whineBuffer, gates: () => whineGates && { scope: whineGates.scope.gain.value, recorder: whineGates.recorder.gain.value }, scene: s => { setScene(s); K.view_frame(); } };   // test hooks (?debug)
+if (DEBUG) window.VIEW_WHINE = { chain: whineChain, buffer: whineBuffer, gates: () => whineGates && { scope: whineGates.scope.gain.value, recorder: whineGates.recorder.gain.value }, scene: s => { loadReel(P({ scene: s })); K.view_frame(); } };   // test hooks (?debug)

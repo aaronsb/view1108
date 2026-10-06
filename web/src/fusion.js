@@ -36,22 +36,16 @@ const hasBracket = p => p.get === "" && p.get_lo !== "" && p.get_hi !== "";
 const photoGet = p => p.get !== "" ? +p.get : hasBracket(p) ? (+p.get_lo + +p.get_hi) / 2 : +p.get_lo;
 const plotHalf = () => { const h = new Float64Array(buf(), K.hdr.value, 16)[14]; return h > 0 ? h : LS.fov / 2; };   // hdr(15)
 
-// The photo's view: its scene in the window view, its g.e.t. held, the fitted pointing, the lens's field.
-function fusionView() {
-  if (!fCur) return;
-  const p = fCur;
-  LS.view = 0; LS.target = 0;
-  setScene(+p.scene); fCam0 = [LS.yaw, LS.pitch, LS.roll];
-  const c = fFit(p).cam; LS.yaw += c[0]; LS.pitch += c[1]; LS.roll += c[2];
-  LS.get = LS.get0 = photoGet(p); LS.playing = false;
-  LS.fov = lensFov(p) || LS.fov0;
-  fPinned = true; fusionUI();
-}
-function fusionPick(i) {
-  fCur = PHOTOS[i]; fImg = new Image(); fImg.src = fCur.img;
-  fusionView(); fusionList();
+// After the loader has put a photograph's view (loader.js loadPhoto: its scene in the window view, its g.e.t. held, the
+// fitted pointing, the lens's field): photograph i, its row and its controls. cam0: the scene's default look; atGet:
+// the load named a g.e.t. (a link's get=), which the time slider takes.
+function fusionShow(i, cam0, atGet) {
+  if (fCur !== PHOTOS[i]) { fCur = PHOTOS[i]; fImg = new Image(); fImg.src = fCur.img; }
+  fCam0 = cam0; fPinned = true;
+  fusionList(); fusionUI();
   const b = $("fget"); $("fgetw").hidden = !hasBracket(fCur);
-  if (hasBracket(fCur)) { b.min = fCur.get_lo; b.max = fCur.get_hi; b.value = LS.get; }
+  if (hasBracket(fCur)) { b.min = fCur.get_lo; b.max = fCur.get_hi; }
+  if (hasBracket(fCur) || atGet) b.value = LS.get;
 }
 
 // Drawn after present(): over the film, under nothing.
@@ -79,7 +73,7 @@ function fusionList() {
     r.disabled = !p.img;
     r.title = p.img ? p.window_or_vehicle : "Not shown yet, no matching scene: " + p.needs;
     r.classList.toggle("on", p === fCur);
-    r.onclick = () => fusionPick(i);
+    r.onclick = () => loadReel(P({ photo: p.frame }));
     box_.appendChild(r);
   });
 }
@@ -108,9 +102,9 @@ $("fop").oninput = e => { fz.op = e.target.value / 100; fzSave(); };
 document.querySelectorAll("#fblend button").forEach(b => { b.onclick = () => { fz.blend = b.dataset.blend; fzSave(); fusionUI(); }; });
 for (const [id, key] of [["fax", "x"], ["fay", "y"], ["far", "rot"], ["fas", "scale"]])
   $(id).onchange = e => { const v = parseFloat(e.target.value); if (fCur && isFinite(v)) { fEdit()[key] = v; fzSave(); } fusionUI(); };
-$("fget").oninput = e => { LS.get = +e.target.value; LS.playing = false; fusionUI(); };
+$("fget").oninput = e => { track({ get: +e.target.value, playing: false }); fusionUI(); };
 $("funpin").onclick = () => { fPinned = !fPinned; fusionUI(); };
-$("fret").onclick = () => { fusionView(); if (hasBracket(fCur)) $("fget").value = LS.get; };
+$("fret").onclick = () => { if (fCur) loadReel(P({ photo: fCur.frame })); };
 $("fmove").onclick = () => { fMoving = !fMoving; fusionUI(); };
 $("freset").onclick = () => { if (!fCur) return; delete fz.align[fCur.frame]; fzSave(); fusionUI(); };
 $("fcopy").onclick = () => {
@@ -144,19 +138,5 @@ window.addEventListener("keydown", e => {
   else return;
   e.preventDefault(); e.stopImmediatePropagation();
 }, true);
-// ?photo=FRAME opens that photograph in its view; a link's own get, fov, yaw, pitch and roll then apply (main.js).
-function fusionParams() {
-  const i = PHOTOS.findIndex(p => p.frame === UP.get("photo") && p.img);
-  if (i < 0) return;
-  if (tab !== "fusion") setTab("fusion");
-  fusionPick(i);
-  const num = k => UP.has(k) && isFinite(+UP.get(k)) && UP.get(k).trim() !== "" ? +UP.get(k) : null;
-  const g = UP.has("get") ? parseGet(UP.get("get")) : null; if (g !== null && isFinite(g)) { LS.get = g; $("fget").value = g; }
-  if (num("fov") !== null) LS.fov = clampFov(num("fov"));
-  if (num("yaw") !== null) LS.yaw = num("yaw");
-  if (num("pitch") !== null) LS.pitch = num("pitch");
-  if (num("roll") !== null) LS.roll = num("roll");
-  fusionUI();
-}
 fusionList(); fusionUI();
-if (DEBUG) window.VIEW_FUSION = { pick: f => fusionPick(PHOTOS.findIndex(p => p.frame === f)), fz, align: () => fCur && fAlign(), state: () => ({ scene: LS.situation, get: LS.get, fov: LS.fov, yaw: LS.yaw, pitch: LS.pitch, roll: LS.roll, mode: LS.mode, tab, link: linkURL() }) };
+if (DEBUG) window.VIEW_FUSION = { pick: f => loadReel(P({ photo: f })), fz, align: () => fCur && fAlign(), state: () => ({ scene: LS.situation, get: LS.get, fov: LS.fov, yaw: LS.yaw, pitch: LS.pitch, roll: LS.roll, mode: LS.mode, tab, link: linkURL() }) };

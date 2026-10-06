@@ -1,9 +1,8 @@
 // Time strings and the recorder's stroke font.
 "use strict";
 const pad2 = n => String(n).padStart(2, "0");
-const LIFTOFF_MS = Date.UTC(1969, 6, 16, 13, 32, 0);   // Apollo 11 lift-off 1969-07-16 13:32:00 UTC (CLAUDE.md)
-// The scene's scenario may start from another lift-off: hdr(16) is its epoch offset from Apollo 11's, in seconds (kernel.js).
-const utcStr = g => new Date(LIFTOFF_MS + (LS.epoch + g) * 1000).toISOString().slice(0, 19).replace("T", " ");
+// UTC of a g.e.t. of the loaded scenario, from its range zero (LS.zero: its MISSION's EPOCH card, VIEW_NAMES.SCENARIOS).
+const utcStr = g => new Date(LS.zero + g * 1000).toISOString().slice(0, 19).replace("T", " ");
 function getStr(s) { const t = Math.floor(Math.abs(s)); return (s < 0 ? "-" : "") + Math.floor(t / 3600) + ":" + pad2(Math.floor(t / 60) % 60) + ":" + pad2(t % 60); }
 
 // ---- stroke font: the recorder's character generator ----

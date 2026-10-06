@@ -15,8 +15,7 @@ const SIMK = {
   // Re-aim the scene with the new source (scene 1's Earthrise aim is computed in view_init), keeping time and look.
   reinit: sim => {
     wi("in_flags", (ri("in_flags") & ~SIM_FLAG) | (sim ? SIM_FLAG : 0));
-    const g = LS.get, g0 = LS.get0, y = LS.yaw, p = LS.pitch, r = LS.roll, f = LS.fov;
-    viewInit(LS.situation); readDefaults(); LS.get = g; LS.get0 = g0; LS.yaw = y; LS.pitch = p; LS.roll = r; LS.fov = f;
+    loadReel(P({ by: "source" }));
   },
   readout: () => { const H = new Float64Array(buf(), K.hdr.value, 24); return { src: H[16] | 0, perr: H[17], verr: H[18], rget: H[19] }; }
 };

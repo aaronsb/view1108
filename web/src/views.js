@@ -22,7 +22,7 @@ function featInputs() {   // every frame, before view_frame
   if (FEAT.lablv) wi("in_lablv", LS.labLv);
 }
 function featSyncUI() {
-  $("jumps").hidden = String(sitOf(LS.situation).scenario) !== LIVE_SCN;   // the jump buttons are times of the Live scenario
+  $("jumps").hidden = String(LS.scenario) !== LIVE_SCN;   // the jump buttons are times of the Live scenario
   if (FEAT.view) document.querySelectorAll("#viewgrp button:not(#bcab):not(#bwal)").forEach((b, i) => b.classList.toggle("on", i === LS.view));
   if (FEAT.target) document.querySelectorAll("#targrp button").forEach((b, i) => b.classList.toggle("on", i === LS.target));
   if (FEAT.cabin) { const b = $("bcab"); b.classList.toggle("on", cabin); b.disabled = LS.view !== 2 && LS.view !== 3; }
@@ -55,21 +55,13 @@ function featInit() {
   // 263): a scene's own field (8 deg in Earthrise) shows none of the cabin, and with its walls none of the outside.
   document.querySelectorAll("#viewgrp button:not(#bcab):not(#bwal)").forEach((b, i) => { b.onclick = () => {
     leaveAttract(); tlManual();
-    if (i >= 2 && LS.view < 2) { stFov = [LS.fov, clampFov(Math.max(LS.fov, STATION_FOV))]; LS.fov = stFov[1]; }
-    else if (i < 2 && LS.view >= 2 && stFov && LS.fov === stFov[1]) LS.fov = stFov[0];   // back out, unless zoomed since
+    let f = null;
+    if (i >= 2 && LS.view < 2) { stFov = [LS.fov, clampFov(Math.max(LS.fov, STATION_FOV))]; f = stFov[1]; }
+    else if (i < 2 && LS.view >= 2 && stFov && LS.fov === stFov[1]) f = stFov[0];   // back out, unless zoomed since
     if (i < 2) stFov = null;
-    LS.view = i; syncUI();
+    loadReel(P({ view: i, fov: f }));
   }; });
-  document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); tlManual(); LS.target = i; syncUI(); }; });
-}
-// ?view=window|external|cm|lm and ?target=default|earth|moon|sun|csm|lm|sivb (or their numbers).
-function featParams() {
-  const pick = (k, names) => { const v = UP.get(k); if (v === null) return null; const i = names.indexOf(v.toLowerCase()); return i >= 0 ? i : /^\d$/.test(v) && +v < names.length ? +v : null; };
-  const v = pick("view", VIEWS), t = pick("target", TARGETS);
-  if (FEAT.view && v !== null) LS.view = v;
-  if (FEAT.target && t !== null) LS.target = t;
-  if (FEAT.cabin && (UP.get("cabin") === "0" || UP.get("cabin") === "1")) cabin = UP.get("cabin") === "1";
-  if (FEAT.walls && (UP.get("walls") === "0" || UP.get("walls") === "1")) walls = UP.get("walls") === "1";
+  document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); tlManual(); loadReel(P({ target: i })); }; });
 }
 function toggleCabin() { if (!FEAT.cabin) return; leaveAttract(); cabin = !cabin; syncUI(); }
 function toggleWalls() { if (!FEAT.walls) return; leaveAttract(); walls = !walls; syncUI(); }
