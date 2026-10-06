@@ -58,7 +58,7 @@ C       coordinate transformations   vmath.f, the frames in vdrive.f
 C       three-dimensional display    pen.f, models.f
 C       window outlines              window and cabin models (to come)
 C       input/output                 vtext.f, the plot-tape buffers,
-C                                    the scenarios (data/scenarios),
+C                                    the scenarios (data/missions),
 C                                    the tape (tape.f)
 C     OUR READING: THE REPORT NAMES FUNCTIONS, NOT FILES.
 C

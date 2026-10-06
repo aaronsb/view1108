@@ -6,7 +6,7 @@ C     (1978); FORTRAN V wrote PARAMETER I = 2 (UP-4046 sec. 10.4.1)
       PARAMETER (NSTAR=921, NNAV=37, NCPT=5128, NCST=134)
       PARAMETER (NCRAT=7968, NMARE=56)
 C     RESTOMOD END
-C     Scenarios (data/scenarios): scenarios, trajectory legs of
+C     Scenarios (data/missions): scenarios, trajectory legs of
 C     NLGP parameters, events; leg types and event kinds.
       INTEGER NSN, NLEG, NEVT, NLGP
       INTEGER KCIRC, KCONIC, KLUNAR, KLCON, KTABL
@@ -21,7 +21,7 @@ C     Simulation cards (START, BURN, REF): array sizes, at least 1.
 C     Timeline rows (TIMELINE cards, all scenarios): at least 1.
       INTEGER NTL
       PARAMETER (NTL=435)
-C     Burn cue rows (BURN_CUES in tools/gen_data.py): at least 1.
+C     Burn cue rows (BURNCUE cards, data/missions): at least 1.
       INTEGER NBRN
       PARAMETER (NBRN=16)
       PARAMETER (KCIRC=1, KCONIC=2, KLUNAR=3, KLCON=4, KTABL=5)

@@ -1,7 +1,9 @@
 * APOLLO 8 AS FLOWN: A VIEW-1108 SCENARIO (A RUN DECK, IN 1969 TERMS).
 *
 * The mission as flown, from the post-flight reports.  Card types and units as
-* in apollo11-asflown.scn (its header lists them).  VIEW made Apollo 8 views:
+* in ../apollo11/asflown.scn (its header lists them); the mission's name,
+* range zero and pad are in mission.scn beside this file.
+* VIEW made Apollo 8 views:
 * "Preflight views produced for the Apollo 8 mission included views as seen
 * through the spacecraft windows during various critical maneuvers of the
 * flight" (TN D-6853, printed p. 3).  None of them survive; the scene built on
@@ -18,9 +20,7 @@
 *        A. Chaikin, 2013), https://svs.gsfc.nasa.gov/4129: the spacecraft's
 *        position in its head-up display for each Earthrise frame.
 *
-SCENARIO ID=2 MISSION="APOLLO 8" NAME="AS FLOWN"
-EPOCH JD=2440212.035417 SRC="MR8 p. 2-1: Range zero for this mission was 12:51:00 G.m.t. (21 December 1968)"
-PAD NAME="LC-39A" LATTYPE=GC LAT=28.4470 LON=-80.6041 SRC="SP p. 45, Apollo 8 ascent phase table, Liftoff 000:00:00.67: geocentric latitude 28.4470 deg N, longitude -80.6041 deg E; SP p. 34: Apollo 8 was launched from Launch Complex 39, Pad A, at the Kennedy Space Center, Florida"
+SCENARIO ID=2 NAME="AS FLOWN"
 *
 * The powered ascent, as Apollo 11's: SP p. 45's ascent table, lift-off to
 * S-IVB first cutoff.
@@ -338,3 +338,19 @@ REF T=73:35:16 BODY=MOON LAT=-11.66 LON=159.79 ALT=60.7 V=5345 FPA=-0.02 SRC="lu
 REF T=89:22:40.3 BODY=MOON LAT=-11.17 LON=160.19 ALT=66.1 V=8842 FPA=5.10 SRC="transearth injection cutoff"
 * REF T=103:59:54 BODY=EARTH LATTYPE=GD LAT=-5.67 LON=-57.27 ALT=165561.5 V=4299 FPA=-80.59 HDG=52.65 SRC="third midcourse correction ignition"
 REF T=146:46:12.8 BODY=EARTH LATTYPE=GD LAT=20.83 LON=-179.89 ALT=65.90 V=36221 FPA=-6.50 HDG=121.57 SRC="MR8 Table 5-V p. 5-10, entry interface; flight-path angle printed unsigned"
+*
+* Burn cue (src/lburn.f; ours, a modern addition): the main-engine firings,
+* each opened and closed by two TIMELINE rows of this scenario (SP-4029's
+* timelines, by exact name; a pair whose names occur more than once takes the
+* first ignition and the first cutoff after it), with whose engine it is.
+* VEH=CSM|LM|S-IVB, ENG=SPS|DPS (descent)|APS (ascent)|J-2 (the S-IVB's).
+* SRC says where the engine comes from.
+* RCS firings and the S-IVB's APS slingshot burn are left out, as in
+* ../apollo11/asflown.scn: the cue is for the main engines.
+*
+BURNCUE IGN="S-IVB 1st burn ignition" CUT="S-IVB 1st burn cutoff" VEH=S-IVB ENG=J-2 SRC="the rows name the stage"
+BURNCUE IGN="S-IVB 2nd burn ignition" CUT="S-IVB 2nd burn cutoff" VEH=S-IVB ENG=J-2 SRC="the rows name the stage"
+BURNCUE IGN="Midcourse correction ignition" CUT="Midcourse correction cutoff" VEH=CSM ENG=SPS SRC="ours: the BURN card's 20.4 ft/s in 2.4 s (SP p. 46) is beyond the SM RCS (the first such pair)"
+BURNCUE IGN="Lunar orbit insertion ignition" CUT="Lunar orbit insertion cutoff" VEH=CSM ENG=SPS SRC="ours: the BURN card's 2,997 ft/s (SP p. 46) is the SPS's"
+BURNCUE IGN="Lunar orbit circularization ignition" CUT="Lunar orbit circularization cutoff" VEH=CSM ENG=SPS SRC="ours: the BURN card's 134.8 ft/s in 9.6 s (SP p. 46) is beyond the SM RCS"
+BURNCUE IGN="Transearth injection ignition (SPS)" CUT="Transearth injection cutoff" VEH=CSM ENG=SPS SRC="the row's SPS (SP p. 49)"

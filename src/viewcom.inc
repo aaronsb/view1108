@@ -123,7 +123,7 @@ C     camera distance from the Moon's centre (km).
      &              FXB, FXU, FXDT, S6LAT, S6LON, S6DST
 C
 C     /CSCEN/, /CSCENI/ the scenarios, one mission's data each, run
-C     decks in 1969 terms (BLOCK DATA from data/scenarios by
+C     decks in 1969 terms (BLOCK DATA from data/missions by
 C     tools/gen_data.py; field layout in src/viewdata.f).
       DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)
       DOUBLE PRECISION SNSAZ(NSN)
@@ -172,8 +172,8 @@ C     are the page's (build/names.js).
       COMMON /CTLNI/ TLK, TLSN
 C
 C     /CBRN/, /CBRNI/ the burn cue's main-engine firings (lburn.f; a
-C     modern addition), from the TIMELINE rows by tools/gen_data.py's
-C     BURN_CUES: row K of scenario BRSN(K) burns from g.e.t. BRT1(K)
+C     modern addition), from the TIMELINE rows by the scenarios'
+C     BURNCUE cards: row K of scenario BRSN(K) burns from g.e.t. BRT1(K)
 C     to BRT2(K) (s), vehicle BRVH(K) (1 CSM, 2 LM, 3 S-IVB), engine
 C     BREN(K) (1 SPS, 2 DPS, 3 APS, 4 J-2); NBR rows.  IBRTX: the
 C     engine whose BURN text TXALL letters this frame (DBURN), 0 none.

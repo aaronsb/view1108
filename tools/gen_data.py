@@ -6,8 +6,10 @@ Inputs (all in data/):
   stars.6.json                  d3-celestial star catalog (J2000 RA/Dec, V mag)
   ne_110m_coastline.geojson     Natural Earth 1:110m coastlines
   MOON_nomenclature_center_pts.dbf   IAU lunar gazetteer (crater centres and diameters)
-  scenarios/*.scn               scenarios (run decks): epoch, trajectory legs, events
+  missions/<id>/mission.scn     a mission's identity: name, epoch (range zero), landing site, pad
+  missions/<id>/*.scn           its scenarios (run decks): trajectory legs, events, timeline
   meeus47.txt                   Meeus ch. 47 lunar periodic terms (tables 47.A and 47.B)
+  scenes.scn                    each scene and its scenario -> build/scenes.json (Makefile, selftest)
 
 Everything is written in the J2000 equatorial frame. AGC star vectors are precessed
 from 1969.5 to J2000 so they share a frame with the catalog.
@@ -167,55 +169,23 @@ EVENT_PARAMS = {"TDATT": "KETDA", "SEP": "KESEP", "APPR": "KEAPR", "DOCK": "KEDO
 TL_KINDS = {"LAUNCH": 1, "BURN": 2, "STAGING": 3, "ORBIT": 4, "SEP": 5, "SURFACE": 6, "TV": 7,
             "CREW": 8, "PHOTO": 9, "ENTRY": 10, "MARK": 11}
 NLGP = 17   # leg parameters, see scenarios()
-# The burn cue (src/lburn.f; ours, a modern addition): the main-engine firings, each opened and
-# closed by two TIMELINE rows of its scenario (SP-4029's timelines, by exact name), with whose
-# engine it is.  Vehicles: 1 CSM, 2 LM, 3 S-IVB.  Engines: 1 SPS, 2 DPS (descent), 3 APS
-# (ascent), 4 the S-IVB's J-2.  The last field says where the engine comes from.  RCS firings
-# (the CSM's separation manoeuvres, Apollo 11's second midcourse correction, SM RCS by MR Table
-# 7-VI p. 7-11; the LM's rendezvous burns CSI, CDH, TPI, TPF, whose engine no source we hold
-# names) and the S-IVB's APS slingshot burn are left out: the cue is for the main engines.
+# The burn cue (src/lburn.f; ours, a modern addition): the main-engine firings, from each
+# scenario's BURNCUE cards, each naming the two TIMELINE rows of its scenario that open and close
+# it and whose engine it is.  Vehicles: 1 CSM, 2 LM, 3 S-IVB.  Engines: 1 SPS, 2 DPS (descent),
+# 3 APS (ascent), 4 the S-IVB's J-2.
 BURN_VEH = {"CSM": 1, "LM": 2, "S-IVB": 3}
 BURN_ENG = {"SPS": 1, "DPS": 2, "APS": 3, "J-2": 4}
-BURN_CUES = [
-    (1, "S-IVB 1st burn ignition", "S-IVB 1st burn cutoff", "S-IVB", "J-2", "the rows name the stage"),
-    (1, "S-IVB 2nd burn ignition (STDV open)", "S-IVB 2nd burn cutoff", "S-IVB", "J-2",
-     "the rows name the stage"),
-    (1, "CSM/LM evasive maneuver from S-IVB ignition", "CSM/LM evasive maneuver from S-IVB cutoff",
-     "CSM", "SPS", "MR Table 7-III p. 7-10, the scenario's BURN card"),
-    (1, "Midcourse correction ignition", "Midcourse correction cutoff", "CSM", "SPS",
-     "MR Table 7-III p. 7-10, the scenario's BURN card (the first such pair, 26:44:58.64)"),
-    (1, "Lunar orbit insertion ignition", "Lunar orbit insertion cutoff", "CSM", "SPS",
-     "MR Table 7-V p. 7-11, the scenario's BURN card"),
-    (1, "Lunar orbit circularization ignition", "Lunar orbit circularization cutoff", "CSM", "SPS",
-     "MR Table 7-V p. 7-11, the scenario's BURN card"),
-    (1, "LM descent orbit insertion ignition (LM SPS)", "LM descent orbit insertion cutoff", "LM",
-     "DPS", "the row's LM SPS, the descent stage's engine (SP p. 107)"),
-    (1, "LM powered descent engine ignition", "LM powered descent engine cutoff", "LM", "DPS",
-     "the rows (SP p. 107)"),
-    (1, "LM lunar liftoff ignition (LM APS)", "LM orbit insertion cutoff", "LM", "APS",
-     "the row's LM APS (SP p. 108)"),
-    (1, "Transearth injection ignition (SPS)", "Transearth injection cutoff", "CSM", "SPS",
-     "the row's SPS (SP p. 109)"),
-    (2, "S-IVB 1st burn ignition", "S-IVB 1st burn cutoff", "S-IVB", "J-2", "the rows name the stage"),
-    (2, "S-IVB 2nd burn ignition", "S-IVB 2nd burn cutoff", "S-IVB", "J-2", "the rows name the stage"),
-    (2, "Midcourse correction ignition", "Midcourse correction cutoff", "CSM", "SPS",
-     "ours: the BURN card's 20.4 ft/s in 2.4 s (SP p. 46) is beyond the SM RCS (the first such pair)"),
-    (2, "Lunar orbit insertion ignition", "Lunar orbit insertion cutoff", "CSM", "SPS",
-     "ours: the BURN card's 2,997 ft/s (SP p. 46) is the SPS's"),
-    (2, "Lunar orbit circularization ignition", "Lunar orbit circularization cutoff", "CSM", "SPS",
-     "ours: the BURN card's 134.8 ft/s in 9.6 s (SP p. 46) is beyond the SM RCS"),
-    (2, "Transearth injection ignition (SPS)", "Transearth injection cutoff", "CSM", "SPS",
-     "the row's SPS (SP p. 49)"),
-]
 
 
-def burn_cues(tl):
-    """The burn cue table from BURN_CUES and the TIMELINE rows tl: (scenario, ignition s,
-    cutoff s, vehicle code, engine code, comment), sorted by scenario and ignition.  A pair
-    whose names occur more than once takes the first ignition and the first cutoff after it."""
+def burn_cues(sim):
+    """The burn cue table from the BURNCUE cards and the TIMELINE rows of sim: (scenario,
+    ignition s, cutoff s, vehicle code, engine code, comment), sorted by scenario and ignition.
+    A pair whose names occur more than once takes the first ignition and the first cutoff
+    after it."""
     out = []
-    for m, ign, cut, veh, eng, why in BURN_CUES:
-        rows = sorted((r for r in tl if r["m"] == m), key=lambda r: r["t"])
+    for c in sim["cue"]:
+        m, ign, cut, veh, eng, why = c["m"], c["ign"], c["cut"], c["veh"], c["eng"], c["src"]
+        rows = sorted((r for r in sim["tl"] if r["m"] == m), key=lambda r: r["t"])
         t1 = [r for r in rows if r["name"] == ign]
         assert t1, f"burn cue: scenario {m} has no TIMELINE row {ign!r}"
         t2 = [r for r in rows if r["name"] == cut and r["t"] > t1[0]["t"]]
@@ -226,9 +196,10 @@ def burn_cues(tl):
 # Keys each card type reads.  Other keys are ignored with a warning, so cards can grow
 # (a BURN's TRIGGER= and TARGET= are planned, docs/simulation.md) without breaking old decks.
 CARD_KEYS = {
-    "SCENARIO": {"ID", "MISSION", "NAME", "SRC"},
+    "MISSION": {"NAME", "SRC"},
+    "SCENARIO": {"ID", "NAME", "SRC"},
     "EPOCH": {"JD", "SRC"},
-    "SITE": {"LAT", "LON", "AZ", "SRC"},
+    "SITE": {"NAME", "LAT", "LON", "AZ", "SRC"},
     "PAD": {"NAME", "LAT", "LON", "LATTYPE", "SRC"},
     "LEG": {"TYPE", "FROM", "TO", "T", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG",
             "TB", "LATB", "LONB", "N", "VEH", "DV", "P", "R", "ALTB", "SRC"},
@@ -238,6 +209,8 @@ CARD_KEYS = {
     "START": {"T", "END", "BODY", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG", "SRC"},
     "REF": {"T", "BODY", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG", "SRC"},
     "BURN": {"T", "DV", "BODY", "P", "R", "N", "SRC"},
+    "BURNCUE": {"IGN", "CUT", "VEH", "ENG", "SRC"},
+    "SCENE": {"ID", "SCENARIO"},
 }
 
 
@@ -270,99 +243,171 @@ def table_legs(name, tab):
     return out
 
 
+# The mission's cards: data/missions/<id>/mission.scn holds these and nothing else.
+MISSION_CARDS = {"MISSION", "EPOCH", "SITE", "PAD"}
+
+
+def cards(path):
+    """One deck's cards as (kind, keys), comment and blank lines skipped, ending with ("*END", {}).
+    Unknown cards and keys are dropped with a warning."""
+    name = path.relative_to(D)
+    for ln in path.read_text().splitlines():
+        if not ln.strip() or ln.startswith("*"):
+            continue
+        tok = shlex.split(ln)
+        kind, kv = tok[0], dict(t.split("=", 1) for t in tok[1:])
+        if kind not in CARD_KEYS:
+            print(f"warning: {name}: unknown card {kind}, ignored")
+            continue
+        for k in sorted(set(kv) - CARD_KEYS[kind]):
+            print(f"warning: {name}: {kind} card: unknown key {k}, ignored")
+        yield kind, kv
+    yield "*END", {}
+
+
+def mission(path):
+    """A mission card deck (data/missions/<id>/mission.scn): name, epoch (JD of range zero),
+    landing site, launch pad, and each card's source, shared by the mission's scenarios."""
+    m = {"name": None, "jd": None, "site": (0.0, 0.0, 0.0), "sitename": "",
+         "pad": ("", 0.0, 0.0, 0), "src": []}
+    for kind, kv in cards(path):
+        if kind == "*END":
+            break
+        assert kind in MISSION_CARDS, f"{path.relative_to(D)}: {kind} card belongs in a scenario"
+        if kind == "MISSION":
+            m["name"] = kv["NAME"]
+        elif kind == "EPOCH":
+            m["jd"] = float(kv["JD"]); m["src"].append("EPOCH: " + kv.get("SRC", ""))
+        elif kind == "SITE":
+            m["site"] = (float(kv["LAT"]), float(kv["LON"]), float(kv["AZ"]))
+            m["sitename"] = kv.get("NAME", "")
+            m["src"].append("SITE: " + kv.get("SRC", ""))
+        elif kind == "PAD":
+            assert len(kv["NAME"]) <= 7, "PAD NAME: at most 7 characters"
+            m["pad"] = (kv["NAME"], float(kv["LAT"]), float(kv["LON"]),
+                        1 if kv.get("LATTYPE", "GD") == "GC" else 0)
+            m["src"].append("PAD: " + kv.get("SRC", ""))
+    assert m["name"] and m["jd"] is not None, f"{path.relative_to(D)}: needs MISSION and EPOCH"
+    return m
+
+
 def scenarios():
-    """Parse data/scenarios/*.scn.  Returns scenarios (dicts with id, mission, name, jd,
-    site, sources), legs and events, each carrying its scenario id and source string."""
-    mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": [], "tl": []}
-    for path in sorted((D / "scenarios").glob("*.scn")):
-        cur, tab = None, None
-        for ln in path.read_text().splitlines() + ["*END"]:
-            if not ln.strip() or (ln.startswith("*") and ln != "*END"):
-                continue
-            tok = shlex.split(ln) if ln != "*END" else ["*END"]
-            kind, kv = tok[0], dict(t.split("=", 1) for t in tok[1:])
-            if tab is not None and kind != "ROW":
-                legs += table_legs(path.name, tab)
-                tab = None
-            if kind == "*END":
-                break
-            if kind not in CARD_KEYS:
-                print(f"warning: {path.name}: unknown card {kind}, ignored")
-                continue
-            for k in sorted(set(kv) - CARD_KEYS[kind]):
-                print(f"warning: {path.name}: {kind} card: unknown key {k}, ignored")
-            if kind == "ROW":
-                assert tab is not None, f"{path.name}: ROW card outside a LEG TYPE=TABLE"
-                assert kv.get("VEL", "SF") in ("SF", "EF"), f"{path.name}: ROW VEL= SF or EF"
-                tab["rows"].append({"t": get_s(kv["T"]),
-                                    "f": [float(kv[k]) for k in ("LAT", "LON", "ALT", "V", "FPA",
-                                                                 "HDG")],
-                                    "ef": 1 if kv.get("VEL", "SF") == "EF" else 0,
-                                    "src": kv.get("SRC", "")})
-            elif kind == "LEG" and kv["TYPE"] == "TABLE":
-                tab = {"m": cur["n"], "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
-                       "veh": LEG_VEH[kv.get("VEH", "CSM")], "src": kv.get("SRC", ""),
-                       "rows": []}
-            elif kind == "SCENARIO":
-                cur = {"n": int(kv["ID"]), "name": kv["MISSION"] + " " + kv["NAME"], "jd": None,
-                       "site": (0.0, 0.0, 0.0), "pad": ("", 0.0, 0.0, 0), "src": []}
-                mis.append(cur)
-            elif kind == "EPOCH":
-                cur["jd"] = float(kv["JD"]); cur["src"].append("EPOCH: " + kv.get("SRC", ""))
-            elif kind == "SITE":
-                cur["site"] = (float(kv["LAT"]), float(kv["LON"]), float(kv["AZ"]))
-                cur["src"].append("SITE: " + kv.get("SRC", ""))
-            elif kind == "PAD":
-                assert len(kv["NAME"]) <= 7, "PAD NAME: at most 7 characters"
-                cur["pad"] = (kv["NAME"], float(kv["LAT"]), float(kv["LON"]),
-                              1 if kv.get("LATTYPE", "GD") == "GC" else 0)
-                cur["src"].append("PAD: " + kv.get("SRC", ""))
-            elif kind == "LEG":
-                t = kv["TYPE"]
-                p = [get_s(kv["FROM"]), get_s(kv["TO"]), get_s(kv["T"]),
-                     float(kv.get("LAT", 0)), float(kv.get("LON", 0)), float(kv.get("ALT", 0)),
-                     float(kv.get("V", 0)), float(kv.get("FPA", 0)), float(kv.get("HDG", 0)),
-                     get_s(kv.get("TB", "0")), float(kv.get("LATB", 0)), float(kv.get("LONB", 0))]
-                # LCONIC: DV= (ft/s) and its direction P= R= N= at T (mid-burn) on the
-                # vehicle's previous leg, or (no DV=) a state T= LAT= LON= ALT= V= FPA=.
-                lc = t == "LCONIC"
-                p += [float(kv.get("DV", 0)), float(kv.get("P", 0)), float(kv.get("R", 0)),
-                      float(kv.get("N", 0)) if lc else 0.0,
-                      float(kv.get("ALTB", kv.get("ALT", 0)))]
-                if lc and "DV" not in kv:
-                    for k in ("LAT", "LON", "ALT", "V", "FPA"):
-                        assert k in kv, f"{path.name}: LCONIC state needs {k}="
-                legs.append({"m": cur["n"], "type": LEG_TYPES[t], "p": p,
-                             "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
-                             "veh": LEG_VEH[kv.get("VEH", "CSM")],
-                             "n": 0 if lc else int(kv.get("N", 0)),
-                             "src": f"{t}: " + kv.get("SRC", "")})
-            elif kind in ("START", "REF"):
-                p = [get_s(kv["T"]), get_s(kv.get("END", "0")), get_s(kv["T"]),
-                     float(kv["LAT"]), float(kv["LON"]), float(kv["ALT"]),
-                     float(kv["V"]), float(kv["FPA"]), float(kv.get("HDG", 0)), 0.0, 0.0, 0.0]
-                p += [0.0] * (NLGP - len(p))
-                sim["start" if kind == "START" else "ref"].append(
-                    {"m": cur["n"], "p": p, "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
-                     "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
-                     "src": kind + ": " + kv.get("SRC", "")})
-            elif kind == "BURN":
-                sim["burn"].append({"m": cur["n"], "t": get_s(kv["T"]), "dv": float(kv["DV"]),
-                                    "dir": (float(kv["P"]), float(kv["R"]), float(kv["N"])),
-                                    "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
-                                    "src": "BURN: " + kv.get("SRC", "")})
-            elif kind == "TIMELINE":
-                assert kv["KIND"] in TL_KINDS, f"{path.name}: TIMELINE KIND {kv['KIND']}"
-                sim["tl"].append({"m": cur["n"], "t": get_s(kv["T"]), "kind": kv["KIND"],
-                                  "name": kv["NAME"], "src": kv.get("SRC", "")})
-            elif kind == "EVENT":
-                evs.append({"m": cur["n"], "kind": EVENT_KINDS[kv["KIND"]], "t": get_s(kv["T"]),
-                            "src": kv["KIND"] + ": " + kv.get("SRC", "")})
+    """Parse data/missions/*/: each mission's mission.scn and its scenario .scn files, missions
+    and files in name order.  Returns scenarios (dicts with id, mission, name, jd, site, pad,
+    sources; the mission's cards are copied into each of its scenarios), legs and events, each
+    carrying its scenario id and source string."""
+    mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": [], "tl": [], "cue": []}
+    for mdir in sorted(p for p in (D / "missions").iterdir() if p.is_dir()):
+        mpath = mdir / "mission.scn"
+        assert mpath.is_file(), f"{mdir.relative_to(D)}: no mission.scn (the mission's cards)"
+        ms = mission(mpath)
+        nmis = len(mis)
+        for path in sorted(p for p in mdir.glob("*.scn") if p.name != "mission.scn"):
+            name = path.relative_to(D)
+            cur, tab = None, None
+            for kind, kv in cards(path):
+                if tab is not None and kind != "ROW":
+                    legs += table_legs(name, tab)
+                    tab = None
+                if kind == "*END":
+                    break
+                assert kind not in MISSION_CARDS, f"{name}: {kind} card belongs in mission.scn"
+                if kind == "SCENARIO":
+                    cur = {"n": int(kv["ID"]), "mission": mdir.name,
+                           "name": ms["name"] + " " + kv["NAME"], "jd": ms["jd"],
+                           "site": ms["site"], "sitename": ms["sitename"], "pad": ms["pad"],
+                           "src": list(ms["src"])}
+                    mis.append(cur)
+                else:
+                    assert cur is not None, f"{name}: {kind} card before the SCENARIO card"
+                    tab = scenario_card(name, kind, kv, cur, tab, legs, evs, sim)
+        assert len(mis) > nmis, f"{mdir.relative_to(D)}: no scenario (a .scn with a SCENARIO card)"
     mis.sort(key=lambda m: m["n"])
     assert [m["n"] for m in mis] == list(range(1, len(mis) + 1)), "scenario ids must be 1..N"
     for m in mis:
         assert sum(1 for x in sim["start"] if x["m"] == m["n"]) <= 1, "one START per scenario"
     return mis, legs, evs, sim
+
+
+def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
+    """One card of scenario cur into legs, evs and sim.  Returns the open LEG TYPE=TABLE (its
+    ROW cards follow it), or None."""
+    if kind == "ROW":
+        assert tab is not None, f"{name}: ROW card outside a LEG TYPE=TABLE"
+        assert kv.get("VEL", "SF") in ("SF", "EF"), f"{name}: ROW VEL= SF or EF"
+        tab["rows"].append({"t": get_s(kv["T"]),
+                            "f": [float(kv[k]) for k in ("LAT", "LON", "ALT", "V", "FPA", "HDG")],
+                            "ef": 1 if kv.get("VEL", "SF") == "EF" else 0,
+                            "src": kv.get("SRC", "")})
+    elif kind == "LEG" and kv["TYPE"] == "TABLE":
+        return {"m": cur["n"], "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
+                "veh": LEG_VEH[kv.get("VEH", "CSM")], "src": kv.get("SRC", ""), "rows": []}
+    elif kind == "LEG":
+        t = kv["TYPE"]
+        p = [get_s(kv["FROM"]), get_s(kv["TO"]), get_s(kv["T"]),
+             float(kv.get("LAT", 0)), float(kv.get("LON", 0)), float(kv.get("ALT", 0)),
+             float(kv.get("V", 0)), float(kv.get("FPA", 0)), float(kv.get("HDG", 0)),
+             get_s(kv.get("TB", "0")), float(kv.get("LATB", 0)), float(kv.get("LONB", 0))]
+        # LCONIC: DV= (ft/s) and its direction P= R= N= at T (mid-burn) on the
+        # vehicle's previous leg, or (no DV=) a state T= LAT= LON= ALT= V= FPA=.
+        lc = t == "LCONIC"
+        p += [float(kv.get("DV", 0)), float(kv.get("P", 0)), float(kv.get("R", 0)),
+              float(kv.get("N", 0)) if lc else 0.0,
+              float(kv.get("ALTB", kv.get("ALT", 0)))]
+        if lc and "DV" not in kv:
+            for k in ("LAT", "LON", "ALT", "V", "FPA"):
+                assert k in kv, f"{name}: LCONIC state needs {k}="
+        legs.append({"m": cur["n"], "type": LEG_TYPES[t], "p": p,
+                     "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
+                     "veh": LEG_VEH[kv.get("VEH", "CSM")],
+                     "n": 0 if lc else int(kv.get("N", 0)),
+                     "src": f"{t}: " + kv.get("SRC", "")})
+    elif kind in ("START", "REF"):
+        p = [get_s(kv["T"]), get_s(kv.get("END", "0")), get_s(kv["T"]),
+             float(kv["LAT"]), float(kv["LON"]), float(kv["ALT"]),
+             float(kv["V"]), float(kv["FPA"]), float(kv.get("HDG", 0)), 0.0, 0.0, 0.0]
+        p += [0.0] * (NLGP - len(p))
+        sim["start" if kind == "START" else "ref"].append(
+            {"m": cur["n"], "p": p, "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
+             "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
+             "src": kind + ": " + kv.get("SRC", "")})
+    elif kind == "BURN":
+        sim["burn"].append({"m": cur["n"], "t": get_s(kv["T"]), "dv": float(kv["DV"]),
+                            "dir": (float(kv["P"]), float(kv["R"]), float(kv["N"])),
+                            "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
+                            "src": "BURN: " + kv.get("SRC", "")})
+    elif kind == "TIMELINE":
+        assert kv["KIND"] in TL_KINDS, f"{name}: TIMELINE KIND {kv['KIND']}"
+        sim["tl"].append({"m": cur["n"], "t": get_s(kv["T"]), "kind": kv["KIND"],
+                          "name": kv["NAME"], "src": kv.get("SRC", "")})
+    elif kind == "BURNCUE":
+        assert kv["VEH"] in BURN_VEH and kv["ENG"] in BURN_ENG, f"{name}: BURNCUE VEH= or ENG="
+        sim["cue"].append({"m": cur["n"], "ign": kv["IGN"], "cut": kv["CUT"], "veh": kv["VEH"],
+                           "eng": kv["ENG"], "src": kv.get("SRC", "")})
+    elif kind == "EVENT":
+        evs.append({"m": cur["n"], "kind": EVENT_KINDS[kv["KIND"]], "t": get_s(kv["T"]),
+                    "src": kv["KIND"] + ": " + kv.get("SRC", "")})
+    else:
+        raise AssertionError(f"{name}: {kind} card not valid in a scenario")
+    return tab
+
+
+def scenes(mis):
+    """data/scenes.scn: each scene's scenario, scenes 1..N, checked against the scenarios and
+    against the kernel's own copy, DATA ISNSC in src/vdrive.f (until #17 retires both)."""
+    scn = {}
+    for kind, kv in cards(D / "scenes.scn"):
+        if kind == "*END":
+            break
+        assert kind == "SCENE", f"scenes.scn: {kind} card"
+        scn[int(kv["ID"])] = int(kv["SCENARIO"])
+    ids = sorted(scn)
+    assert ids == list(range(1, len(ids) + 1)), "scenes.scn: scene ids must be 1..N"
+    assert set(scn.values()) <= {m["n"] for m in mis}, "scenes.scn: unknown SCENARIO="
+    m = re.search(r"^\s+DATA ISNSC /([^/]*)/", (R / "src" / "vdrive.f").read_text(), re.M)
+    assert m and [int(v) for v in m.group(1).split(",")] == [scn[k] for k in ids], \
+        "scenes.scn and DATA ISNSC in src/vdrive.f disagree"
+    return {"scenes": ids, "scenario": {str(k): scn[k] for k in ids}}
 
 
 def comment_wrap(txt, lead="C       "):
@@ -469,7 +514,7 @@ def main():
     mis, legs, evs, sim = scenarios()
     m47a, m47b = meeus47()
     nst, nbn, nrf = (max(1, len(sim[k])) for k in ("start", "burn", "ref"))
-    cues = burn_cues(sim["tl"])
+    cues = burn_cues(sim)
     ns, npt, nln, ncr = len(sx), len(clon), len(coast), len(crat)
     inc = ["C     Generated by tools/gen_data.py from data/. Do not edit.",
            "C     Table sizes shared by the kernel (src/*.f) and its BLOCK DATA.",
@@ -479,7 +524,7 @@ def main():
            f"      PARAMETER (NSTAR={ns}, NNAV=37, NCPT={npt}, NCST={nln})",
            f"      PARAMETER (NCRAT={ncr}, NMARE={len(mar)})",
            "C     RESTOMOD END",
-           "C     Scenarios (data/scenarios): scenarios, trajectory legs of",
+           "C     Scenarios (data/missions): scenarios, trajectory legs of",
            "C     NLGP parameters, events; leg types and event kinds.",
            "      INTEGER NSN, NLEG, NEVT, NLGP",
            "      INTEGER KCIRC, KCONIC, KLUNAR, KLCON, KTABL",
@@ -493,7 +538,7 @@ def main():
            "C     Timeline rows (TIMELINE cards, all scenarios): at least 1.",
            "      INTEGER NTL",
            f"      PARAMETER (NTL={max(1, len(sim['tl']))})",
-           "C     Burn cue rows (BURN_CUES in tools/gen_data.py): at least 1.",
+           "C     Burn cue rows (BURNCUE cards, data/missions): at least 1.",
            "      INTEGER NBRN",
            f"      PARAMETER (NBRN={max(1, len(cues))})",
            "      PARAMETER (" + ", ".join(f"K{k}={v}" for k, v in
@@ -596,8 +641,8 @@ def main():
          "      INTEGER TLK(NTL), TLSN(NTL)",
          "      COMMON /CTLN/ TLT",
          "      COMMON /CTLNI/ TLK, TLSN",
-         "C     /CBRN/   the burn cue's main-engine firings (BURN_CUES in",
-         "C              tools/gen_data.py, from the TIMELINE rows): row K of",
+         "C     /CBRN/   the burn cue's main-engine firings (BURNCUE cards, *.scn",
+         "C              in data/missions, from the TIMELINE rows): row K of",
          "C              scenario BRSN(K) burns from g.e.t. BRT1(K) to BRT2(K)",
          "C              (s), vehicle BRVH(K) (1 CSM, 2 LM, 3 S-IVB), engine",
          "C              BREN(K) (1 SPS, 2 DPS, 3 APS, 4 J-2); NBR used.",
@@ -622,7 +667,10 @@ def main():
     for nm in ("SUN", "EARTH", "MOON"):
         bodch += [ord(ch) for ch in nm] + [0] * (5 - len(nm))
     body += fdata("NAVCH", navch, "%d", 10) + fdata("BODCH", bodch, "%d", 10)
-    body += fdata("SITECH", [ord(ch) for ch in "APOLLO 11 LANDING SITE"], "%d", 10)
+    # The landing site lettered in scene 6 (kind 7): the one mission whose SITE card names it.
+    site = sorted({m["sitename"] for m in mis if m["sitename"]})
+    assert len(site) == 1 and len(site[0]) <= 22, f"one SITE NAME= of 22 characters at most: {site}"
+    body += fdata("SITECH", [ord(ch) for ch in site[0]] + [0] * (22 - len(site[0])), "%d", 10)
     mrch = []
     for m in mar:
         nm = m[3][:24]
@@ -721,6 +769,7 @@ def main():
              "TL_KINDS": list(TL_KINDS)}
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
+    (R / "build" / "scenes.json").write_text(json.dumps(scenes(mis)) + "\n")
     print(f"stars {len(sx)} (nav 37), coast {len(coast)} lines / {len(clon)} pts, "
           f"craters {len(crat)}, scenarios {len(mis)} ({len(legs)} legs, {len(evs)} events, "
           f"{len(sim['start'])} start, {len(sim['burn'])} burns, {len(sim['ref'])} reference rows, "

@@ -10,7 +10,7 @@ C     VIEW marking an engine firing: its burn plots (MSC IN 69-FM-197,
 C     figures 5.1-1, 6.1-1, 7.1-1, PDF pp. 53, 113, 203) show only the
 C     view out of the window.  While a vehicle fires a main engine
 C     (the firings of /CBRN/: SP-4029's ignition and cutoff rows of the
-C     scenario's timeline, paired by tools/gen_data.py's BURN_CUES):
+C     scenario's timeline, paired by its BURNCUE cards):
 C       Exhaust: its placed model gets NPL lines out of the engine's
 C         exit rim, along the model's -X, opening at APL each side and
 C         three of the model's lengths long, hidden by the placed solids
