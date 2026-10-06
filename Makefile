@@ -11,7 +11,7 @@ KSRC    = $(filter-out src/viewdata.f,$(wildcard src/*.f))
 export LF_BIN
 
 .DEFAULT_GOAL := help
-.PHONY: help sheet build data native test lint check serve stop status clean
+.PHONY: help sheet build data native test lint check golden golden-check serve stop status clean
 
 help: ## Show this list
 	@echo "VIEW-1108 — make <target>   (LF_BIN=$(LF_BIN)  PORT=$(PORT))"
@@ -50,6 +50,12 @@ check: native ## Render every scene natively to build/check/scene<N>.png for eye
 	for s in $(SCENES); do build/viewsvg $$s > build/check/scene$$s.svg && \
 	  rsvg-convert -b black build/check/scene$$s.svg -o build/check/scene$$s.png; done
 	@ls build/check/*.png
+
+golden: ## Capture the golden master (generated tables, native renders) into build/golden
+	./tools/golden.sh capture
+
+golden-check: ## Re-capture and diff against build/golden; fails on any difference
+	./tools/golden.sh check
 
 serve: ## Start a local web server for web/ in the background (PORT=8108)
 	@mkdir -p build
