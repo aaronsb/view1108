@@ -10,7 +10,9 @@
 ! (sim_run flags n: bit 0 correction on); add 8 to FLAGS to draw from
 ! the tape.  VIEW_VIEW, VIEW_TARGET and VIEW_LABLV set in_view,
 ! in_target and in_lablv (default 0).  With VIEW_HDR set, prints
-! hdr(1..24) to stderr.
+! hdr(1..24) to stderr.  With VIEW_DUMP set, writes the run tables
+! (tools/vdump.f: every scenario-specific COMMON table's used entries,
+! doubles as hex bit patterns) to stdout instead and stops.
 program viewsvg
   implicit none
   integer, parameter :: MAXV = 60000, MAXS = 4000, MAXL = 200
@@ -40,7 +42,15 @@ program viewsvg
     subroutine vsetin(iv, it, il)
       integer :: iv, it, il
     end subroutine vsetin
+    subroutine vdump()
+    end subroutine vdump
   end interface
+
+  call get_environment_variable('VIEW_DUMP', tv)
+  if (len_trim(tv) > 0) then
+    call vdump()
+    stop
+  end if
 
   na = command_argument_count()
   isc = 1

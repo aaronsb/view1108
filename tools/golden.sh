@@ -12,6 +12,12 @@
 #   scenes.json                byte for byte (the scene list make check and the selftest read)
 #   names.js                   byte for byte, plus names.pretty.json (the same JSON, indented) so a
 #                              difference shows as readable lines
+#   tables.txt                 the run tables as data: build/viewsvg with VIEW_DUMP=1 (tools/vdump.f)
+#                              writes every scenario-specific COMMON table's used entries (legs and
+#                              the TABLE legs from ROW cards, events, timeline, START, REF and BURN
+#                              rows, burn cues, situations, the scenarios' epoch, site and pad), each
+#                              double as its bit pattern in hex, so a changed value shows as data and
+#                              not only through a render.  The page's SPAN tables are in names.js.
 #   render/*.txt               build/viewsvg's SVG on stdout and hdr(1..24) on stderr (VIEW_HDR) for
 #                              every case in CASES
 #
@@ -176,6 +182,8 @@ capture() {
   { echo "commit $(git rev-parse HEAD)"
     if [ -n "$(git status --porcelain)" ]; then echo "tree dirty"; else echo "tree clean"; fi
   } > "$out/source.txt"
+  env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_HDR VIEW_DUMP=1 \
+    build/viewsvg > "$out/tables.txt"
   cp build/names.js "$out/names.js"
   cp build/scenes.json "$out/scenes.json"
   python3 -c 'import json,sys; t=open(sys.argv[1]).read(); j=json.loads(t[t.index("=")+1:].rstrip().rstrip(";")); print(json.dumps(j, indent=1))' \
@@ -184,11 +192,11 @@ capture() {
   while IFS='|' read -r name envs args; do
     name=$(echo $name)
     # shellcheck disable=SC2086
-    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV VIEW_HDR=1 $envs \
+    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP VIEW_HDR=1 $envs \
       build/viewsvg $args > "$out/render/$name.txt" 2>&1
     n=$((n + 1))
   done <<< "$CASES"
-  echo "golden: captured 6 tables and $n renders into $out"
+  echo "golden: captured 6 tables, the run-table dump ($(wc -l < "$out/tables.txt") entries) and $n renders into $out"
 }
 
 case "${1:-}" in

@@ -36,6 +36,7 @@ data/missions/    one folder per mission: mission.scn (name, epoch, site, pad) a
                   scenarios (*.scn: trajectory legs, events, timeline, situations)
 data/reels/       playlist reels, <id>/run.scn: a REEL card and its SHOT cards (demo, tour)
 tools/viewsvg.f90 Native driver (gfortran): renders a scene/time to SVG for validation.
+tools/vdump.f     The native driver's VIEW_DUMP=1: the run tables as hex, for the golden gate.
 tools/build.sh    gen_data -> lfortran (per file) -> clang -> wasm-ld -> wasm-opt -> wasm2js -> page
 web/              The page: film-recorder renderer, controls, text lettering.
 ```
