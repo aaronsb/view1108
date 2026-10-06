@@ -1,5 +1,6 @@
 // Timeline (Review): the scenario's TIMELINE cards (SP-4029's event lists, build/names.js) as chapter marks under the
-// time scrubber and as a jump list, and the Apollo in Real Time companion window (Apollo 11 only).
+// time scrubber and as a jump list; Follow, for any scenario with FOLLOW spans; and the Apollo in Real Time companion
+// window (Apollo 11 only), whose buttons start Following too.
 "use strict";
 const tlScenario = () => String(LS.scenario);   // the loaded scenario
 const TL = NAMES.TIMELINE || {}, TL_KINDS = NAMES.TL_KINDS || [];
@@ -37,12 +38,11 @@ function airtRealTime() {
 
 // The camera for a g.e.t., outside Live (whose phases are coarser and pin the windowed scenes through its jumps): each
 // scenario's FOLLOW spans (its SPAN cards, which carry their sources; config.js), [until, scene, view, target, fov],
-// the span applying while g.e.t. < until. view and target are in_view and in_target (0: the scene's own); fov the
-// field in degrees (null: the scene's default).
+// the span applying while g.e.t. < until (config.js followAt). view and target are in_view and in_target (0: the
+// scene's own); fov the field in degrees (null: the scene's default).
 const EXT_NOTE = "external view of the Earth";
 const WIN_NOTE = "the CSM window aimed at the Earth";
-const TL_SCENES = Object.fromEntries(Object.keys(SCNS).map(k => [k, spansOf(k).follow.map(([u, ...r]) => [u ?? Infinity, ...r])]));
-const tlFor = g => { const t = TL_SCENES[tlScenario()]; return t.find(s => g < s[0]) || t[t.length - 1]; };
+const tlFor = g => followAt(tlScenario(), g);
 // The current view suits g if it is the span's scene, in the view and target the span names (where FEAT.view offers
 // them) and, where the span leaves one to the scene, not still in the one tlFit put for an earlier span; a station or
 // external view the viewer chose where the span leaves the view to the scene is kept.
@@ -121,7 +121,8 @@ function tlTick() {
   }
   if (LS.mode !== "free") follow = false;
   if (follow && !tlSuits(LS.get)) { tlFit(LS.get); tlScene = LS.situation; }   // the companion plays on at this time: not re-pointed
-  $("bfollow").hidden = !follow;
+  const fb = $("bfollow"); fb.hidden = !spansOf(tlScenario()).follow.length;   // Follow: any scenario with FOLLOW spans
+  fb.classList.toggle("on", follow); fb.textContent = follow ? "Following" : "Follow";
   if (LS.situation !== tlScene) { tlScene = LS.situation; if (!auto()) airtSync(); }
   const ev = tlEvents(); let c = -1;
   for (let i = 0; i < ev.length && ev[i][0] <= LS.get; i++) c = i;
@@ -137,7 +138,13 @@ $("bairt").onclick = () => { airtRealTime(); airt = window.open(airtUrl(LS.get),
 $("bairtre").onclick = () => { airtRealTime(); airtSync(); };
 // A view, target or time the user picks ends Following and forgets the view and target the last jump put.
 function tlManual() { follow = false; tlPut = null; }
-$("bfollow").onclick = tlManual;
+// Follow, on its own (#35): Free-look (from any mode; a reel gives way as to any input), the span for the current time.
+function tlFollow() {
+  if (follow) { tlManual(); return; }
+  if (LS.mode !== "free") loadReel(P({ mode: "free" }));
+  follow = true; tlPut = null; tlTick(); syncUI();
+}
+$("bfollow").onclick = tlFollow;
 $("scrub").addEventListener("input", tlManual);
 $("scrub").addEventListener("change", airtSync);   // a released scrub, not each step of the drag
 $("geti").addEventListener("change", () => { tlManual(); airtSync(); });    // after controls.js's handler has set the time
