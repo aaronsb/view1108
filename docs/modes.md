@@ -63,7 +63,7 @@ Speeds 1 and 2 are our estimates, worked out in [univac-1108.md](univac-1108.md)
 | 6 | Moon view | The whole Moon from 35,000 km; drag to spin it. Maria, craters, the terminator and the landing site. A modern addition, not reconstructed 1969 output. | [scene=6](https://aaronsb.github.io/view1108/?mode=free&scene=6) |
 | 7 | Transposition & docking | Through the CSM's docking sight, down onto the LM stowed on the S-IVB, closing from 100 ft to docking at 3:24:03. Hidden-line LM and S-IVB. | [scene=7](https://aaronsb.github.io/view1108/?mode=free&scene=7) |
 | 8 | Translunar stack | The CSM and LM docked, in translunar coast, seen from outside or from a crew station (View). A modern addition, not reconstructed 1969 output. | [scene=8](https://aaronsb.github.io/view1108/?mode=free&scene=8&view=external) |
-| 9 | Apollo 8 Earthrise | The Earth rising over the lunar limb from Apollo 8's lunar orbit, 24 Dec 1968; the status line names APOLLO 8 and the UTC follows Apollo 8's lift-off. Built from Apollo 8 data in the Apollo 11 note's formats: VIEW did make Apollo 8 views: "Preflight views produced for the Apollo 8 mission included views as seen through the spacecraft windows during various critical maneuvers of the flight. These maneuvers were at TLI, LOI, transearth insertion (TEI), and the entry phase." (TN D-6853, printed p. 3; also p. 2, "the window view of the lunar horizon at the Apollo 8 LOI ignition time and attitude"). None survive that we know of. Shown only when the kernel has it; Live and the jump buttons follow Apollo 11, so this scene opens in Free-look and hides the jumps. | [scene=9](https://aaronsb.github.io/view1108/?mode=free&scene=9) |
+| 9 | Apollo 8 Earthrise | The Earth rising over the lunar limb from Apollo 8's lunar orbit, 24 Dec 1968; the status line names APOLLO 8 and the UTC follows Apollo 8's lift-off. Built from Apollo 8 data in the Apollo 11 note's formats: VIEW did make Apollo 8 views: "Preflight views produced for the Apollo 8 mission included views as seen through the spacecraft windows during various critical maneuvers of the flight. These maneuvers were at TLI, LOI, transearth insertion (TEI), and the entry phase." (TN D-6853, printed p. 3; also p. 2, "the window view of the lunar horizon at the Apollo 8 LOI ignition time and attitude"). None survive that we know of. Its SITUATION card sits in the Apollo 8 deck; Live and the jump buttons follow the scenario with LIVE and JUMP `SPAN` cards (Apollo 11), so this scene opens in Free-look and hides the jumps. | [scene=9](https://aaronsb.github.io/view1108/?mode=free&scene=9) |
 
 ### Scene 7 sources and guesses
 
@@ -102,7 +102,7 @@ Keys act in the plot tabs (Review, Simulate, Print, Fusion), not in Source.
 | Space | Pause |
 | `[` `]` | Slower / faster (the Live rate, the Beam speed, or the Free-look speed) |
 | `R` | Reset the view |
-| `1`–`9` | Scenes (`8` and `9` when the kernel has them) |
+| `1`–`9` | Scenes: the situations, from the SITUATION cards, as many as there are up to 9 |
 | `T` | Beam on or off (opens the Print tab) |
 | `L` | Copy a link to the current view |
 | Esc | Back to the machine room, in Room (when Esc has nothing else to close) |
