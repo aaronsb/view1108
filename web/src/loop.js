@@ -26,7 +26,7 @@ let lastStatus = "", flashMsg = "", flashUntil = 0;
 const flash = m => { flashMsg = m; flashUntil = performance.now() + 1800; };
 function updateStatus() {
   const rate = mode === "beam" ? `${BEAM_SPEEDS[beamIdx].name} ${BEAM_SPEEDS[beamIdx].vps ? BEAM_SPEEDS[beamIdx].vps + " VEC/S" : "1/15 S FRAME"}` : mode === "live" ? LIVE_RATES[liveIdx] + "X" : mode === "free" ? (playing ? SPEEDS[speedIdx] + "X" : "HOLD") : "AUTO";
-  const t = (performance.now() < flashUntil ? flashMsg + "  " : "") + `${epoch ? (SCENE_MISSION[scene] || "OTHER MISSION") + "  " : ""}MODE ${mode}  G.E.T. ${getStr(get)}  UTC ${utcStr(get)}  ${mode === "beam" ? "FRAME " + beamFrameNo + "  " : ""}${rate}  ${isFilm() ? `BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  DUST ${effDust() ? "ON" : "OFF"}` : `SCOPE ${scopeHz() === "16" ? "16 HZ" : "STEADY"}`}  STARS ${effCatalog().toUpperCase()}${effFps() ? "  16 FPS" : ""}`;
+  const t = (performance.now() < flashUntil ? flashMsg + "  " : "") + `${epoch ? (sitOf(scene).mission || "OTHER MISSION") + "  " : ""}MODE ${mode}  G.E.T. ${getStr(get)}  UTC ${utcStr(get)}  ${mode === "beam" ? "FRAME " + beamFrameNo + "  " : ""}${rate}  ${isFilm() ? `BLOOM ${effBloom() ? "ON" : "OFF"}  JITTER ${effJit() ? "ON" : "OFF"}  DUST ${effDust() ? "ON" : "OFF"}` : `SCOPE ${scopeHz() === "16" ? "16 HZ" : "STEADY"}`}  STARS ${effCatalog().toUpperCase()}${effFps() ? "  16 FPS" : ""}`;
   if (t !== lastStatus) { lastStatus = t; document.getElementById("status").textContent = t; }
 }
 // Film rate: with the toggle on, the kernel is stepped and a frame presented only every 1/16 s and held in between

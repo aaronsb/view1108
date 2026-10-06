@@ -28,15 +28,13 @@ const TOUR = [
   { name: "LM descent",     scene: 5, dur: 115, fl: 2, p: [-64, 225] },
   { name: "Moon view \u2014 spin to explore", scene: 6, dur: 75, fl: 3, yaw: u => -180 + 360 * u, pitch: u => 14 * Math.sin(2 * Math.PI * u), p: [0, 0] }
 ];
-// Live: the scene follows the mission phase from GET.
+// Live: the scene follows the mission phase from GET: the Live scenario's LIVE spans (SPAN cards, config.js), each
+// the phase while g.e.t. < to. Its JUMP spans pin a windowed situation for a while (the jump buttons), named by its
+// title; its PIN spans are situations that are no phase, pinned at the current time when picked in Live.
 const LIVE_MIN = 700, LIVE_MAX = TETP;     // kernel's Earth-orbit scene is valid from about 700 s
-const PHASES = [
-  { to: 10200, scene: 3, name: "Earth parking orbit" },
-  { to: 75 * 3600 + 50 * 60, scene: 2, name: "Translunar coast" },
-  { to: 135 * 3600 + 24 * 60, scene: 1, name: "Lunar orbit" },
-  { to: Infinity, scene: 2, name: "Transearth coast" }
-];
-const JUMPS = { jtd: { scene: 7, get: 12030, len: 280, name: "Transposition & docking" }, jundock: { scene: 4, get: 360720, len: 1800, name: "LM rendezvous" }, jdesc: { scene: 5, get: 369720, len: 280, name: "LM descent" } };
+const PHASES = spansOf(LIVE_SCN).live.map(([to, scene, name]) => ({ to: to ?? Infinity, scene, name }));
+const JUMPS = spansOf(LIVE_SCN).jump.map(j => ({ scene: j.scene, get: j.get, len: j.len, name: sitOf(j.scene).title, button: j.button }));
+const LIVE_PINS = spansOf(LIVE_SCN).pin;
 const LIVE_RATES = [1, 10, 60, 300, 1000];
 function lerpTab(t, u) { for (let i = 1; i < t.length; i++) if (u <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (u - t[i - 1][0]) / (t[i][0] - t[i - 1][0]); return t[t.length - 1][1]; }
 // Plot units to view angle: the kernel plots a direction at angle theta off the boresight at radius k tan(theta / k)
@@ -56,20 +54,23 @@ function steerToEarth(L) {
 }
 const QP = k => { const m = new RegExp("[?&]" + k + "=([^&]+)").exec(location.search); return m ? m[1] : null; };
 const filmQ = /[?&]film=([\d.]+)/.exec(location.search);
-// Scene 8 (a modern addition), appended to the Tour when the kernel has it (views.js): orbit the stack from outside,
+// Scene 8 (a modern addition), appended to the Tour where the situation exists (below): orbit the stack from outside,
 // then look out of the CM's left rendezvous window (yaw -4, pitch 21 from the CM station's +X: the window's
 // centre seen from the eye, CMINT in src/models.f). view: 0 WINDOW, 1 EXTERNAL, 2 CM, 3 LM station.
-// Attract, after the film's four shots, when the kernel has scene 8: orbit the stack from outside, captioned as ours.
+// Attract, after the film's four shots, where scene 8 exists: orbit the stack from outside, captioned as ours.
 // Yaw circles the stack's long axis, which looks alike from every side, so the shot rises in elevation from side-on
 // toward the LM end and drifts a little in azimuth, with the stack about half the frame.
 const ATTRACT8 = { name: "Translunar stack - a modern addition, not 1969 film", scene: 8, dur: 12, fl: 0, cap: true, view: 1, fov: 24, yaw: u => 150 + 50 * u, pitch: u => -10 + 45 * u, p: [0, 12] };
-// Scene 9, Apollo 8 Earthrise (24 Dec 1968), appended to the Tour when the kernel has it: the Earth rises at 4x.
+// Scene 9, Apollo 8 Earthrise (24 Dec 1968), appended to the Tour where the situation exists: the Earth rises at 4x.
 // The GET span around the scene's default is our first guess; tune it against the kernel's scene.
 const TOUR9 = [{ name: "Apollo 8 Earthrise", scene: 9, dur: 120, fl: 2, p: [-120, 360] }];
 const TOUR8 = [
   { name: "Translunar stack - external", scene: 8, dur: 90, fl: 2, view: 1, fov: 24, yaw: u => 120 + 120 * u, pitch: u => -10 + 45 * (1 - Math.cos(2 * Math.PI * u)) / 2, p: [0, 90] },
   { name: "Translunar stack - CM window", scene: 8, dur: 60, fl: 2, view: 2, yaw: -4, pitch: 21, p: [90, 150] }
 ];
+// The added shots join the lists where their situation exists (build/names.js; #18 replaces these lists).
+if (hasScene(ATTRACT8.scene)) ATTRACT.push(ATTRACT8);
+TOUR.push(...[...TOUR8, ...TOUR9].filter(sh => hasScene(sh.scene)));
 const LEN = { attract: ATTRACT.reduce((a, s) => a + s.dur, 0), tour: TOUR.reduce((a, s) => a + s.dur, 0) };
 const val = (x, u) => typeof x === "function" ? x(u) : x;
 let autoCap = false;   // caption an unframed Attract shot (the added, non-film ones)
@@ -155,9 +156,9 @@ function readDefaults() {
 }
 function setScene(s) {
   follow = false;
-  if (mode === "live" && s === 6) {   // Moon view is not a mission phase: in Live it is pinned until the viewer scrubs or types a time
-    const g = get; livePin = { scene: 6, from: -Infinity, until: Infinity, name: SCENE_CAPTION[6] };
-    scene = 6; viewInit(6); readDefaults(); get = g; get0 = g; capName = SCENE_CAPTION[6]; syncUI(); return;
+  if (mode === "live" && LIVE_PINS.includes(s)) {   // not a mission phase (the Moon view): in Live it is pinned until the viewer scrubs or types a time
+    const g = get, name = sitCaption(s) || SCENES[s - 1]; livePin = { scene: s, from: -Infinity, until: Infinity, name };
+    scene = s; viewInit(s); readDefaults(); get = g; get0 = g; capName = name; syncUI(); return;
   }
   if (mode !== "beam") mode = "free"; else beamNextStart = 0; capName = ""; scene = s; viewInit(s); readDefaults(); syncUI();
 }

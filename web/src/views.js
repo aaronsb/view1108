@@ -1,28 +1,28 @@
-// View point, target and label level, the cabin and its walls, and scene 8. Each control appears only when the kernel
-// has its input (in_view, in_target, in_lablv; in_flags bits 4 and 5 when a station frame changes with them), and
-// scene 8 only when view_init accepts it; an older kernel runs as before.
+// View point, target and label level, the cabin and its walls. Each control appears only when the kernel has its
+// input (in_view, in_target, in_lablv; in_flags bits 4 and 5 when a station frame changes with them); an older
+// kernel runs as before.
 "use strict";
 const VIEWS = ["window", "external", "cm", "lm"];          // in_view: 0 WINDOW, 1 EXTERNAL, 2 CM station, 3 LM station
 const TARGETS = ["default", "earth", "moon", "sun", "csm", "lm", "sivb"];   // in_target: 0 the scene's own
 const LAB_LEVELS = ["off", "primary", "secondary", "all"];  // in_lablv
 const STATION_FOV = 100;
 let stFov = null;   // [the field before a station, the station's]: restored on leaving it
-const FEAT = { view: false, target: false, lablv: false, cabin: false, walls: false, scene8: false, scene9: false };
-const SCENE_MISSION = { 9: "APOLLO 8" };   // named in the status line when the scene's scenario is not Apollo 11
+const FEAT = { view: false, target: false, lablv: false, cabin: false, walls: false };
 let viewMode = 0, targetId = 0, cabin = true;   // cabin: the CM or LM interior in a station view (in_flags bit 4)
 let walls = true;   // walls: with the cabin, the outside seen only through its windows (in_flags bit 5)
 // Attract and Tour draw the cabin, with its walls, in their station shots.
 const cabinFlag = () => FEAT.cabin && (cabin || auto()) ? 16 : 0;
 const wallsFlag = () => FEAT.walls && cabinFlag() && (walls || auto()) ? 32 : 0;
-// EXTERNAL, like the Moon view, orbits the target: drag and the look keys turn azimuth and elevation around it.
-const orbiting = () => scene === 6 || viewMode === 1;
+// EXTERNAL, like the body-centred Moon view (its recipe, BODYCTR), orbits the target: drag and the look keys turn
+// azimuth and elevation around it.
+const orbiting = () => sitOf(scene).recipe === "BODYCTR" || viewMode === 1;
 function featInputs() {   // every frame, before view_frame
   if (FEAT.view) wi("in_view", viewMode);
   if (FEAT.target) wi("in_target", targetId);
   if (FEAT.lablv) wi("in_lablv", labLv);
 }
 function featSyncUI() {
-  $("jumps").hidden = epoch !== 0;   // the jump buttons are Apollo 11 times
+  $("jumps").hidden = String(sitOf(scene).scenario) !== LIVE_SCN;   // the jump buttons are times of the Live scenario
   if (FEAT.view) document.querySelectorAll("#viewgrp button:not(#bcab):not(#bwal)").forEach((b, i) => b.classList.toggle("on", i === viewMode));
   if (FEAT.target) document.querySelectorAll("#targrp button").forEach((b, i) => b.classList.toggle("on", i === targetId));
   if (FEAT.cabin) { const b = $("bcab"); b.classList.toggle("on", cabin); b.disabled = viewMode !== 2 && viewMode !== 3; }
@@ -37,26 +37,17 @@ function featTick() {
   if (m === stMask) return; stMask = m;
   const b = document.querySelectorAll("#viewgrp button"); b[2].disabled = !(m & 1); b[3].disabled = !(m & 2);
 }
-// After boot, before the first scene. The scene 8 probe: a kernel without it falls back to scene 1 (hdr(7) = 1).
+// After boot, before the first scene.
 function featInit() {
   FEAT.view = !!K.in_view; FEAT.target = !!K.in_target; FEAT.lablv = !!K.in_lablv;
-  const probe = s => { K.view_init(s); K.view_frame(); return new Float64Array(buf(), K.hdr.value, 7)[6] === s; };
-  FEAT.scene8 = probe(8); FEAT.scene9 = probe(9);
-  // The cabin probe: scene 1 from the CM station with a 170 deg field draws more with bit 4 than without.
+  // The cabin probe: the first situation that always offers the CM station (Earthrise), from it with a 170 deg field,
+  // draws more with bit 4 than without.
   if (FEAT.view) {
-    const nv = fl => { K.view_init(1); wi("in_view", 2); wr("in_fov", 170); wi("in_flags", fl); K.view_frame(); return new Int32Array(buf(), K.nvec.value, 1)[0]; };
+    const cm = (SITS.find(s => s.stations.cm === "ALWAYS") || SITS[0]).id;
+    const nv = fl => { K.view_init(cm); wi("in_view", 2); wr("in_fov", 170); wi("in_flags", fl); K.view_frame(); return new Int32Array(buf(), K.nvec.value, 1)[0]; };
     FEAT.cabin = nv(16) > nv(0);
     // The walls probe: the same frame with bit 5 too draws less (the Moon and stars only through the windows).
     FEAT.walls = FEAT.cabin && nv(48) < nv(16); wi("in_view", 0); wi("in_flags", 0);
-  }
-  if (FEAT.scene8) {
-    SCENES[7] = "Translunar stack"; addSceneButton(8);
-    TOUR.push(...TOUR8); ATTRACT.push(ATTRACT8);
-  }
-  if (FEAT.scene9) { SCENES[8] = "Apollo 8 Earthrise"; addSceneButton(9); TOUR.push(...TOUR9); }
-  if (FEAT.scene8 || FEAT.scene9) {
-    $("hint").textContent = $("hint").textContent.replace("1-7: scene", `1-${SCENES.length}: scene`);
-    LEN.tour = TOUR.reduce((a, s) => a + s.dur, 0); LEN.attract = ATTRACT.reduce((a, s) => a + s.dur, 0);
   }
   $("viewgrp").hidden = !FEAT.view; $("targrp").hidden = !FEAT.target; $("bcab").hidden = !FEAT.cabin; $("bwal").hidden = !FEAT.walls;
   $("bcab").onclick = toggleCabin; $("bwal").onclick = toggleWalls;

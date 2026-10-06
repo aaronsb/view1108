@@ -45,7 +45,8 @@ const box = () => framed ? { x: W * (1 - BOXF) / 2, y: W * HDR, s: W * BOXF } : 
 // 10 n mi (60,761 ft; ours): the kernel gives it wherever both states are known, the LM often far out of the picture.
 function captionText(H) {
   const sc = H[6] | 0, liveTag = mode === "live" ? `LIVE ${LIVE_RATES[liveIdx]}x   ` : mode === "tour" ? "TOUR   " : "";
-  return liveTag + (capName || SCENE_CAPTION[sc] || SCENES[sc - 1] || "") + (H[5] && !autoCap && !(SCENE_CAPTION[sc] && (!capName || capName === SCENE_CAPTION[sc])) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 && H[8] < 60761 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (roll ? `   roll ${roll.toFixed(0)}°` : "");
+  const cap = sitCaption(sc);
+  return liveTag + (capName || cap || SCENES[sc - 1] || "") + (H[5] && !autoCap && !(cap && (!capName || capName === cap)) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 && H[8] < 60761 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (roll ? `   roll ${roll.toFixed(0)}°` : "");
 }
 // Text records the page letters, in plot degrees: x, y the lower-left of the first character, h its height. The
 // kernel's tbuf/tchr records; names follow the label level (the kernel picks them by level when it has in_lablv),
