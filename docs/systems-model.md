@@ -18,20 +18,22 @@ What the viewer meets, from the outside in. The layers and the station table are
 
 ### Stations
 
-From #27. This is the one declared equipment→purpose table that #20 asks for (section 6).
+From #27. This is the one declared equipment→purpose table that #20 asks for (section 6). It drives both presentations: in the room a station is equipment you walk to; in Tiled the same row is a tab or panel (#27, requirement of 2026-10-06).
 
-| Station | Purpose |
-|---|---|
-| Tape library shelf (#19) | choose a reel |
-| UNISERVO drive | shows the mounted reel; the demo reel when idle (#18, #20) |
-| Graphical console (1558 vector terminal) | dynamic interaction: fly, look, change camera origin and target, diverge |
-| Glass terminal | inspection: the FORTRAN source (as now) and the loaded tape (run deck, states, events, burns, divergence point) |
-| Microfilm recorder | takes the current scenario state (master or work tape, a GET or a span) and records or prints it (as Print does now) |
-| Line printer | kernel listing |
-| Bookcase | reference library |
-| Console / reel-table clock | Houston time and GET of the mounted reel |
+| Station | Purpose | Tiled |
+|---|---|---|
+| Tape library shelf (#19) | choose a reel | reel list |
+| UNISERVO drive | shows the mounted reel; the demo reel when idle (#18, #20) | mounted-reel status, start and stop |
+| Graphical console (1558 vector terminal) | dynamic interaction: fly, look, change camera origin and target, diverge | plot view |
+| Glass terminal | inspection: the FORTRAN source (as now) and the loaded tape (run deck, states, events, burns, divergence point) | source and tape inspection |
+| Microfilm recorder | takes the current scenario state (master or work tape, a GET or a span) and records or prints it (as Print does now) | print |
+| Line printer | kernel listing | listing |
+| Bookcase | reference library | library |
+| Console / reel-table clock | Houston time and GET of the mounted reel | status line |
 
-**Only the shelf and the drive change what is loaded.** Mounting a reel is the one way to change the reel. The graphical console changes time, look and the work tape inside the mounted reel, through the same loaded-state object and `loadReel` (rule 1). Arriving at a station, opening it or leaving it changes nothing (rule 2). The other stations read the loaded state and never write it.
+**Tiled is a full peer of the room**, for usability and on phones (#27). Both presentations are generated from this one table and call the same `loadReel`, so neither has a capability the other lacks (rule 7). Tiled stays the default where WebGL is unavailable or the screen is narrow, as today: the room runs only when the lab is supported and a wide-screen media query matches (`web/src/room.js:10`, `:142`), and a link naming a view opens Tiled for that visit (`room.js:15-16`).
+
+**Only the shelf and the drive change what is loaded**, in the room or as the reel list and drive panel in Tiled. Mounting a reel is the one way to change the reel. The graphical console changes time, look and the work tape inside the mounted reel, through the same loaded-state object and `loadReel` (rule 1). Arriving at a station, opening it or leaving it changes nothing (rule 2). The other stations read the loaded state and never write it.
 
 ## 2. Problem
 
@@ -147,6 +149,8 @@ Presentation is the tab bar, Room or Tiled, the room's equipment and camera flig
    - **One kernel core, no forks.** New capability, such as #24's contour terrain, is a new element in the one `src/` tree. A kernel build is the shared core plus a named set of elements, linked as the Collector gathers "one or more relocatable elements to produce a program" (UE-637 sec. 5.1). There is no per-reel FORTRAN.
    - **Controls as declared options.** The kernel publishes its input table (names, types, ranges, `in_flags` bits), generated from source. A reel's manifest lists which inputs to expose and how, from a closed vocabulary; the page owns the widgets and validates the reel against the input table at load. Period parallel: `@XQT` option letters "generate a 26 bit mask with bit position 25 set to a 1 bit for an A option letter, bit 24 for a B, etc." (UE-637 sec. 2.14.1), which the program read through `ER OPT$` (same section); `in_flags` is that mask today.
 
+7. **Two presentations, one table.** The room and Tiled are both generated from the station table (section 1) and both call the same `loadReel`. Anything a viewer can do at a station in the room can be done on its Tiled tab or panel, and the reverse (#27). A capability added to one is added to the row, not to a presentation.
+
 Rules 4 and 6 together: mission, scenario and situation data live only in the run deck; kernel tables, page names, the input table's page copy and the shelf index are generated from the deck or from `src/`.
 
 ## 5. Reel package
@@ -219,17 +223,17 @@ This is also the more faithful shape. VIEW was a general program fed per-mission
 
 ## 6. Room
 
-The room (`web/lab/`) is presentation. These rules apply rules 1 and 2 to it.
+The room (`web/lab/`) is presentation. These rules apply rules 1, 2 and 7 to it. Tiled is its peer (section 1): every room station below has a Tiled tab or panel generated from the same row, and Tiled is the default without WebGL or on a narrow screen.
 
 ### Tape library shelf
 
 A shelf in the machine room holds one reel per package in the site reel index, labelled from its manifest (#19). The pattern is the bookcase: `equipment/bookcase.ts` builds one binder per `web/library/library.json` entry, placed as `binder:<id>` (`room.ts:97-100`), pulled then opened through `pullable.ts`. Reels are `reel:<id>` pullables on the shelf or the existing reel table (`web/lab/src/equipment/reeltable.ts`, placed at `room.ts:73`).
 
-**Mounting a reel on a UNISERVO drive is the load gesture.** Pull a reel, carry it to one of the seven drives (`room.ts:65`), mount it: that calls `loadReel` with the reel's params, with no page reload. This is our design. Tapes and run decks belong to the period picture (TN D-6855 printed pp. 7-8 documents an ephemeris tape between MSC programs; `docs/batch-pipeline.md`), but no source says VIEW's inputs were mounted this way, and the shelf and drive gesture are a restoration.
+**Mounting a reel on a UNISERVO drive is the load gesture.** Pull a reel, carry it to one of the seven drives (`room.ts:65`), mount it: that calls `loadReel` with the reel's params, with no page reload. In Tiled the same step is picking a reel from the reel list, which calls the same `loadReel` with the same params. This is our design. Tapes and run decks belong to the period picture (TN D-6855 printed pp. 7-8 documents an ephemeris tape between MSC programs; `docs/batch-pipeline.md`), but no source says VIEW's inputs were mounted this way, and the shelf and drive gesture are a restoration.
 
 ### Idle by default
 
-The room starts idle: the demo reel is mounted on a UNISERVO drive with a visible DEMO label, and nothing is chosen (#20, refinement of 2026-10-06). Choosing a reel from the shelf replaces it. Idle also means the room does not change state on its own:
+The room starts idle: the demo reel is mounted on a UNISERVO drive with a visible DEMO label, and nothing is chosen (#20, refinement of 2026-10-06). In Tiled the drive panel shows the same: the demo reel mounted, labelled DEMO, with start and stop. Choosing a reel from the shelf replaces it. Idle also means the room does not change state on its own:
 
 - Entering the room, walking about and arriving at a terminal leave the loaded state as it is (rule 2).
 - Walk-up auto-entry (0.4 s dwell within 1.3 m, `web/lab/src/walk.ts:15,136`) becomes an option, off by default (#20).
@@ -237,7 +241,7 @@ The room starts idle: the demo reel is mounted on a UNISERVO drive with a visibl
 
 ### One station table
 
-The station table in section 1 is the one declared table (#20, #27). Each row gives a piece of equipment's purpose, what it opens (its tab, overlay or the shelf) and its hover label. `ROOM_OPENS`, `roomOver`, `roomTermOf`, the `Opens` type, `AT_HINT` and the hover labels are generated from or read it. A new kind (the shelf, `scenario` in `Opens`) is one row.
+The station table in section 1 is the one declared table (#20, #27). Each row gives a piece of equipment's purpose, what it opens (its tab, overlay or the shelf), its hover label and its Tiled tab or panel. `ROOM_OPENS`, `roomOver`, `roomTermOf`, the `Opens` type, `AT_HINT` and the hover labels are generated from or read it, and so are the Tiled tab bar and panels (today's `TABS` and `TAB_OF` in `web/src/tabs.js:4-5`). A new kind (the shelf, `scenario` in `Opens`) is one row, and appears in both presentations.
 
 ### One Esc stack
 
@@ -336,7 +340,7 @@ Our proposed order. Each step keeps output identical where it touches existing s
 | 5 | #26 | Packer, site reel index, package loader, run-time kernel input; kernel library and generated input table; manifest `kernel` and `controls` | Apollo 11 and Apollo 8 load from packages with identical frames |
 | 6 | #22 | Canonical URL keys; colliding keys renamed with aliases; one URL table | parser test against the table |
 | 7 | #20 | Idle room, one equipment table, one Esc stack, walk-up off by default | — |
-| 8 | #19 | Tape library shelf and UNISERVO mount | mounting loads without reload |
+| 8 | #19 | Tape library shelf and UNISERVO mount; the Tiled reel list and drive panel from the same rows | mounting, or picking from the Tiled reel list, loads the same state without reload |
 | 9 | #21 | Room set dressing from period UNIVAC 1108 photographs, labelled ours | — |
 | 10 | #24 | **Acceptance test:** Apollo 17 LM descent at Taurus-Littrow as a new reel | see below |
 | 11 | #27 | Operator interaction: the station table as the room's one table; the engine starting from a tape state; work tapes branched at a GET; console, glass-terminal and recorder roles | a work tape branched with one edited burn, flown, viewed on the console, inspected on the glass terminal and printed by the recorder, with the master unchanged |
