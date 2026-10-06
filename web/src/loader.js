@@ -1,31 +1,35 @@
 // The one loader (#16; docs/systems-model.md, section 4, rules 1 and 2). loadReel(params) is the only code that
 // changes the situation, and with it the scenario, mission and epoch, or that jumps the time or the look by command.
 // Every way in builds params and calls it: the URL (openLink, link.js), the scene buttons and number keys, the mode
-// buttons, Live's phases and jump buttons, Following and the timeline's events, the Attract and Tour shot player,
+// buttons, Live's phases and jump buttons, Following and the timeline's events, the playlist player (Attract, Tour),
 // the Fusion photo pick, the view and target buttons and the look's reset. Continuous changes inside the loaded
 // situation (the clock running, a drag, a key or the wheel on the look, the scrubber) go through track() (state.js).
 // Tabs, the room and its terminals only read LS: choosing what is shown never loads anything.
 //
 // params: a URLSearchParams, or anything with get(k) and has(k); P() makes one from an object. The keys are the URL's
-// (docs/modes.md): mode, scene, get, utc, fov, yaw, pitch, roll, rate, bspeed, labels, lab, view, target, cabin,
-// walls, frame, hidden, photo. One more, `by`, names the page's own callers whose rule differs from a viewer's pick;
+// (docs/modes.md): reel, mode, scene, get, utc, fov, yaw, pitch, roll, rate, bspeed, labels, lab, view, target, cabin,
+// walls, frame, hidden, photo. reel names a playlist reel (VIEW_NAMES.REELS); mode=attract and mode=tour, the demo and
+// tour reels' ALIASes, mount them too. One more, `by`, names the page's own callers whose rule differs from a viewer's pick;
 // openLink sets it to "url" and never passes the URL's own:
-//   url     a link: the mode (default Attract), its situation, time, look, labels and display flags (loadLink)
+//   url     a link: the reel or mode (default the demo reel, Attract), its situation, time, look, labels and display flags (loadLink)
 //   phase   Live's phase changed: the phase's situation, the time and look kept, the field its own, aimed at the body
-//   shot    the Attract or Tour shot changed: its situation at its defaults, with its view, labels and frame
+//   shot    the playlist player's shot changed: its situation at its defaults, with its view, labels and frame, and
+//           its target where it names one
 //   follow  Following's span changed, or a timeline event lies outside the view on screen: the span's situation,
 //           view, target and field, at a time
 //   event   a timeline event inside the view on screen: its time, re-centring the scrubber
 //   reset   the look and field back to the situation's own, the time kept
 //   source  the state source changed (sim.js): the situation set up again in the kernel, time and look kept
-// Without `by` the keys are a viewer's pick: mode (a mode button), then scene (a scene button or key: Live pins it if
+// Without `by` the keys are a viewer's pick: reel or mode (a mode button; the player's handover to the NEXT reel), then scene (a scene button or key: Live pins it if
 // it can, else Free-look; Beam stays), get (a typed time), fov, view, target. mode=live with a scene is a jump button:
 // as a link with those keys.
 "use strict";
 const P = o => new URLSearchParams(Object.entries(o).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => [k, String(v)]));
-const MODES = ["attract", "tour", "live", "free", "beam"];
+const MODES = [...Object.values(REELS).map(r => r.alias), "live", "free", "beam"];   // the reels' ALIASes, then the others
 const pNum = (p, k) => { if (!p.has(k) || p.get(k).trim() === "") return null; const n = Number(p.get(k)); return isFinite(n) ? n : null; };
 const pFlag = (p, k) => p.get(k) === "1" ? true : p.get(k) === "0" ? false : null;
+// The mode params ask for: a playlist reel's (reel=, by id) or mode=; null for neither.
+const pMode = p => { const r = REELS[(p.get("reel") || "").toLowerCase()]; return r ? r.alias : MODES.includes(p.get("mode")) ? p.get("mode") : null; };
 const pPick = (p, k, names) => { const v = p.get(k); if (v === null) return null; const i = names.indexOf(v.toLowerCase()); return i >= 0 ? i : /^\d$/.test(v) && +v < names.length ? +v : null; };
 // get or utc, read after the situation is mounted: a utc is converted with its scenario's range zero.
 const pGet = (p, keys = ["get", "utc"]) => { let g = null; for (const k of keys) if (p.has(k)) { const v = parseGet(p.get(k)); if (v !== null && isFinite(v)) g = v; } return g; };
@@ -38,19 +42,20 @@ function loadReel(p) {
     case "shot": loadShot(p); break;
     case "follow": loadFollow(p); break;
     case "event": loadEvent(pNum(p, "get")); break;
-    case "reset": { const g = LS.get; mount(LS.situation); LS.get = g; break; }
-    case "source": { const keep = { ...LS }; mount(LS.situation); Object.assign(LS, { get: keep.get, get0: keep.get0, yaw: keep.yaw, pitch: keep.pitch, roll: keep.roll, fov: keep.fov }); break; }
+    case "reset": { const g = LS.get, t = LS.target; mount(LS.situation); LS.get = g; LS.target = t; break; }
+    case "source": { const keep = { ...LS }; mount(LS.situation); Object.assign(LS, { get: keep.get, get0: keep.get0, yaw: keep.yaw, pitch: keep.pitch, roll: keep.roll, fov: keep.fov, target: keep.target }); break; }
     default: loadPick(p);
   }
   if (p.has("photo")) loadPhoto(p);
 }
 
 // ---- steps ----
-// Mount situation s: the kernel sets it up (view_init) and its defaults become the look and time. Its scenario,
-// mission and epoch come from the generated tables (config.js SITS, SCNS).
+// Mount situation s: the kernel sets it up (view_init) and its defaults become the look and time, with its own target
+// (in_target 0), so a playlist shot's TARGET does not carry into the next shot or Free-look. Its scenario, mission and
+// epoch come from the generated tables (config.js SITS, SCNS).
 function mount(s) {
   const sit = sitOf(s), scn = SCNS[sit.scenario] || {};
-  Object.assign(LS, { situation: s, scenario: sit.scenario, mission: scn.mission || "", epoch: scn.epoch || 0, zero: scn.zero || 0 });
+  Object.assign(LS, { situation: s, scenario: sit.scenario, mission: scn.mission || "", epoch: scn.epoch || 0, zero: scn.zero || 0, target: 0 });
   viewInit(s);
   LS.get = LS.get0 = rd("in_get"); LS.yaw = rd("in_yaw"); LS.pitch = rd("in_pitch"); LS.roll = rd("in_roll"); LS.fov = LS.fov0 = rd("in_fov");
 }
@@ -62,11 +67,13 @@ function pickSituation(s) {
     const g = LS.get, name = sitCaption(s) || SCENES[s - 1]; livePin = { scene: s, from: -Infinity, until: Infinity, name };
     mount(s); LS.get = g; LS.get0 = g; capName = name; syncUI(); return;
   }
-  if (LS.mode !== "beam") LS.mode = "free"; else beamNextStart = 0; capName = ""; mount(s); syncUI();
+  if (LS.mode !== "beam") { LS.mode = "free"; LS.reel = ""; } else beamNextStart = 0; capName = ""; mount(s); syncUI();
 }
-// The mode setter: attract -> tour (loops), live, free, beam. Live mounts the phase of the current time.
+// The mode setter: a playlist reel's alias (attract, the demo reel, then tour, which loops; player.js), live, free,
+// beam. A reel's alias mounts that reel; Live mounts the phase of the current time.
 function enterMode(m) {
-  LS.mode = m; follow = false; autoT = (m === "attract" && filmQ) ? +filmQ[1] : 0; autoShot = -1; fadeA = 0; LS.playing = true;
+  const r = reelOfMode(m); LS.reel = r ? r.id : "";
+  LS.mode = m; follow = false; autoT = (r && r.id === DEFAULT_REEL && filmQ) ? +filmQ[1] : 0; autoShot = -1; fadeA = 0; LS.playing = true;
   if (m === "live") {
     LS.get = clampLive(LS.get); livePin = null;
     const g = LS.get; mount(livePhase(g).scene); LS.get = g; LS.get0 = g; frame = true; LS.labLv = 3; liveSync(); Object.assign(LS, aimAtBody());
@@ -93,8 +100,8 @@ function loadLive(p, scn) {
 // ---- by caller ----
 // A link (loadLink, which replaced applyParams): everything it names, over the situation mounted at start-up.
 function loadLink(p) {
-  const md = MODES.includes(p.get("mode")) ? p.get("mode") : "attract";
-  if (md === "attract" || md === "tour") { enterMode(md); return; }
+  const md = pMode(p) || REELS[DEFAULT_REEL].alias;
+  if (reelOfMode(md)) { enterMode(md); return; }
   const sc = pNum(p, "scene") === null ? SITS[0].id : Math.round(pNum(p, "scene")), scn = hasScene(sc) ? sc : SITS[0].id;
   const other = String(sitOf(scn).scenario) !== LIVE_SCN;   // another scenario's situation: Live follows its own, so it opens in Free-look
   if (md === "free" || md === "beam" || other) {
@@ -118,7 +125,7 @@ function loadLink(p) {
 }
 // A viewer's pick: a mode button, a scene button or key, a jump button, a typed time, the view and target buttons.
 function loadPick(p) {
-  const m = MODES.includes(p.get("mode")) ? p.get("mode") : null, sc = pNum(p, "scene");
+  const m = pMode(p), sc = pNum(p, "scene");
   if (m === "live" && sc !== null) loadLive(p, sc);
   else {
     if (m) enterMode(m);
@@ -135,14 +142,15 @@ function loadPick(p) {
 // Live's phase changed: keep the viewer's look and the time across it; the field returns to the situation's own,
 // and the look is aimed once at the reference body if it is in front.
 function loadPhase(s) {
-  const g = LS.get, y = LS.yaw, pt = LS.pitch, r = LS.roll;
-  mount(s); LS.get = g; LS.yaw = y; LS.pitch = pt; LS.roll = r; LS.get0 = g; Object.assign(LS, aimAtBody()); syncUI();
+  const g = LS.get, y = LS.yaw, pt = LS.pitch, r = LS.roll, t = LS.target;
+  mount(s); LS.get = g; LS.yaw = y; LS.pitch = pt; LS.roll = r; LS.target = t; LS.get0 = g; Object.assign(LS, aimAtBody()); syncUI();
 }
-// The shot player's next shot: its situation at its defaults, its view, labels and frame; the shot then drives the
-// time and look through track() (modes.js autoStep).
+// The playlist player's next shot: its situation at its defaults, its view, labels and frame, its target where it
+// names one; the shot then drives the time and look through track() (player.js reelStep).
 function loadShot(p) {
   mount(+p.get("scene"));
   LS.labLv = pNum(p, "lab"); LS.view = pNum(p, "view"); frame = pFlag(p, "frame");
+  if (p.has("target")) LS.target = pNum(p, "target");
 }
 // Following: the span's situation with the span's view and target where the kernel has them, and its field where it
 // names one, at the time.

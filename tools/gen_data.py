@@ -12,6 +12,7 @@ Inputs (all in data/):
   missions/<id>/*.scn           also each scenario's situations (SITUATION, RECIPE, VIEWS, HDRREF
                                 cards) -> src/viewsit.f, src/viewsit.inc and build/scenes.json,
                                 and with its SPAN cards -> build/names.js (SITUATIONS, SCENARIOS)
+  reels/<id>/run.scn            playlist reels (REEL and SHOT cards) -> build/names.js (REELS)
 
 Everything is written in the J2000 equatorial frame. AGC star vectors are precessed
 from 1969.5 to J2000 so they share a frame with the catalog.
@@ -220,6 +221,9 @@ CARD_KEYS = {
     "HDRREF": {"OBJ", "OFFSET", "RADIUS", "SRC"},
     "SPAN": {"TRACK", "SIT", "UNTIL", "FROM", "LEN", "VIEW", "TARGET", "FOV", "NAME", "BUTTON",
              "SRC"},
+    "REEL": {"ID", "TITLE", "KIND", "ALIAS", "NEXT", "FADE", "FILM", "TAG", "SRC"},
+    "SHOT": {"SIT", "NAME", "DUR", "GET", "RATE", "TO", "AT", "TTE", "LIMB", "FOV", "YAW", "PITCH",
+             "ROLL", "VIEW", "TARGET", "LABELS", "FRAME", "CAPTION", "SRC"},
 }
 
 
@@ -726,6 +730,163 @@ def page_scenarios(mis, legs, evs, spans, sits):
     return out
 
 
+# Playlist reels (#18): data/reels/<id>/run.scn, a REEL card and its SHOT cards in playing order
+# (the format: data/reels/demo/run.scn's header).  The page's copy is VIEW_NAMES.REELS in
+# build/names.js, which the playlist player (web/src/player.js) reads; the kernel never reads them.
+# Every shot names a situation by its ID and an absolute g.e.t., never an offset from the
+# situation's default, so retuning a default does not move a shot.  The one time computed at run
+# time is ERFIND's Earthrise (ERISE+-offset), which the kernel exports as out_terise.
+REEL_NEED = {"ID", "TITLE", "KIND", "ALIAS"}
+REEL_MODES = {"LIVE", "FREE", "BEAM"}   # the page's other modes: no reel may take their name
+SHOT_NEED = {"SIT", "NAME", "DUR"}
+SHOT_LAWS = ({"GET", "RATE"}, {"GET", "TO"}, {"AT", "TTE"})   # the time laws: exactly one
+LOOK_LAWS = {"LIN", "SIN", "HAV"}   # a + (b - a) u; a + b sin(2 pi u); a + (b - a) (1 - cos(2 pi u)) / 2
+FLAGS = {"YES": True, "NO": False}
+
+
+def page_reels(mis, legs, evs, sits):
+    """VIEW_NAMES.REELS: {id: {id, title, alias, next, fade, film, tag, shots}} from
+    data/reels/*/run.scn.  Each shot: name, sit, dur (s), get [from, to] (g.e.t. s at the shot's
+    start and end, linear between; with rule "ERISE" both are offsets from the kernel's Earthrise,
+    out_terise) or at and tte (the entry interface's g.e.t. and [u, s to it] rows,
+    log-interpolated), lab (0 or 3), frame, view (0..3), and where its cards name them target, cap,
+    fov, yaw, pitch, roll (a number, or [law, a, b] in the shot fraction u) and limb ([u, deg])."""
+    sit = {r["id"]: r for r in sits}
+    span = {}
+    for m in mis:
+        ml = [lg["p"] for lg in legs if lg["m"] == m["n"]]
+        span[m["n"]] = (min(q[0] for q in ml), max(q[1] for q in ml))
+    out = {}
+    rdir = D / "reels"
+    for path in sorted(rdir.glob("*/run.scn")) if rdir.is_dir() else []:
+        deck, folder = path.relative_to(D), path.parent.name
+        reel, shots = None, []
+        for kind, kv in cards(path):
+            if kind == "*END":
+                break
+            where = f"{deck}: {kind}" if kind != "SHOT" else \
+                f"{deck}: SHOT {len(shots) + 1}" + (f" ({kv['NAME']})" if "NAME" in kv else "")
+
+            def num(txt, key):
+                try:
+                    v = float(txt)
+                except ValueError:
+                    raise AssertionError(f"{where}: {key}={txt}: not a number") from None
+                assert math.isfinite(v), f"{where}: {key}={txt}: not a finite number"
+                return v
+            if kind == "REEL":
+                assert reel is None, f"{deck}: one REEL card per deck"
+                miss = sorted(REEL_NEED - set(kv))
+                assert not miss, f"{where} needs {', '.join(k + '=' for k in miss)}"
+                assert kv["KIND"] == "PLAYLIST", f"{where} KIND={kv['KIND']}: only PLAYLIST so far"
+                assert kv["ID"].lower() == folder, f"{where} ID={kv['ID']}: the folder is {folder}"
+                assert kv["ALIAS"].upper() not in REEL_MODES, \
+                    f"{where} ALIAS={kv['ALIAS']}: that is one of the page's modes ({', '.join(sorted(REEL_MODES))})"
+                fade = num(kv.get("FADE", "0"), "FADE")
+                assert fade >= 0, f"{where} FADE={kv['FADE']}: must not be negative"
+                reel = {"id": folder, "title": kv["TITLE"], "alias": kv["ALIAS"].lower(),
+                        "next": kv["NEXT"].lower() if "NEXT" in kv else None, "fade": fade,
+                        "film": enum(FLAGS, kv.get("FILM", "NO"), where, "FILM"), "tag": kv.get("TAG", ""),
+                        "shots": shots}
+                continue
+            assert kind == "SHOT", f"{deck}: {kind} card in a playlist reel (REEL and SHOT only)"
+            assert reel is not None, f"{deck}: SHOT card before the REEL card"
+            miss = sorted(SHOT_NEED - set(kv))
+            assert not miss, f"{where}: needs {', '.join(k + '=' for k in miss)}"
+
+            def table(key):
+                rows = [q.split(":") for q in kv[key].split(",")]
+                assert all(len(q) == 2 for q in rows), f"{where}: {key}=u:value,u:value,..."
+                rows = [[num(u, key), num(v, key)] for u, v in rows]
+                us = [q[0] for q in rows]
+                assert len(rows) >= 2 and us[0] == 0 and us[-1] == 1 and us == sorted(set(us)), \
+                    f"{where}: {key}: u rising from 0 to 1"
+                return rows
+
+            def when(key):
+                """A g.e.t. on the shot: (rule, seconds); rule "ERISE" for ERFIND's Earthrise
+                plus an offset (the seconds are that offset), else "" and the g.e.t."""
+                txt = kv[key]
+                gk, _, off = get_rule(txt, EVENT_KINDS) if re.fullmatch(r"ERISE(?:[+-].+)?", txt) else (0, 0, 0)
+                if gk == GET_RULES["ERISE"]:
+                    # As situations() checks for a SITUATION card: the Earthrise is ERFIND's,
+                    # which VINIT runs only for a LOCALVERT view turned to the Earth's sightline.
+                    assert s["rcp"] == 1 and s["az"] == 1, \
+                        f"{where}: {key}={txt}: situation {sid} runs no Earthrise search (RECIPE LOCALVERT AZ=EARTH)"
+                    return "ERISE", round(off, 3)
+                t = static_get(txt, evt, f"{where}: {key}")
+                assert t is not None, f"{where}: {key}=END"
+                return "", t
+            try:
+                sid = int(kv["SIT"])
+            except ValueError:
+                raise AssertionError(f"{where}: SIT={kv['SIT']}: not a situation ID") from None
+            assert sid in sit, f"{where}: SIT={sid}: no such situation (the SITUATION cards' IDs)"
+            s = sit[sid]
+            evt, (t0, t1) = event_times(evs, s["m"]), span[s["m"]]
+            dur = num(kv["DUR"], "DUR")
+            assert dur > 0, f"{where}: DUR={kv['DUR']}: must be more than 0"
+            laws = [law for law in SHOT_LAWS if law <= set(kv)]
+            assert len(laws) == 1 and not (set().union(*SHOT_LAWS) - laws[0]) & set(kv), \
+                f"{where}: one time law: GET= with RATE= or TO=, or AT= with TTE="
+            sh = {"name": kv["NAME"], "sit": sid, "dur": dur}
+            rule = ""
+            if "TTE" in kv:
+                rule, at = when("AT")
+                assert not rule, f"{where}: AT={kv['AT']}: a g.e.t. or an EVENT plus or minus an offset"
+                sh["at"], sh["tte"] = at, table("TTE")
+                assert all(q[1] > 0 for q in sh["tte"]), f"{where}: TTE: seconds to AT, more than 0"
+                g = [at - sh["tte"][0][1], at - sh["tte"][-1][1]]
+            else:
+                rule, g0 = when("GET")
+                if "RATE" in kv:
+                    g = [g0, round(g0 + num(kv["RATE"], "RATE") * dur, 3)]
+                else:
+                    rule1, g1 = when("TO")
+                    assert rule1 == rule, f"{where}: GET= and TO= from the same origin (both ERISE, or neither)"
+                    g = [g0, g1]
+                assert g[1] >= g[0], f"{where}: it ends ({g[1]} s) before it starts ({g[0]} s)"
+                if rule:
+                    sh["rule"] = rule
+                sh["get"] = g
+            if not rule:   # an ERISE shot's times are known at run time only: the selftest checks those
+                for k, t in zip(("start", "end"), g):
+                    assert t0 <= t <= t1, \
+                        f"{where}: its {k} ({t} s) is outside situation {sid}'s scenario, {t0} to {t1} s"
+            sh["lab"] = 3 if enum(FLAGS, kv.get("LABELS", "NO"), where, "LABELS") else 0
+            sh["frame"] = enum(FLAGS, kv.get("FRAME", "NO"), where, "FRAME")
+            sh["view"] = enum(VIEWS_, kv.get("VIEW", "WINDOW"), where, "VIEW")
+            if "TARGET" in kv:
+                sh["target"] = enum(TARGETS, kv["TARGET"], where, "TARGET")
+            if enum(FLAGS, kv.get("CAPTION", "NO"), where, "CAPTION"):
+                sh["cap"] = True
+            if "FOV" in kv:
+                sh["fov"] = num(kv["FOV"], "FOV")
+                assert 0 < sh["fov"] < 180, f"{where}: FOV={kv['FOV']}: between 0 and 180 deg"
+            for key in ("YAW", "PITCH", "ROLL"):
+                if key not in kv:
+                    continue
+                law, _, ab = kv[key].partition(":")
+                if not ab:
+                    sh[key.lower()] = num(law, key)
+                    continue
+                enum({x: x for x in sorted(LOOK_LAWS)}, law, where, key + " law")
+                ab = ab.split(",")
+                assert len(ab) == 2, f"{where}: {key}={law}:a,b"
+                sh[key.lower()] = [law, num(ab[0], key), num(ab[1], key)]
+            if "LIMB" in kv:
+                sh["limb"] = table("LIMB")
+            shots.append(sh)
+        assert reel is not None, f"{deck}: no REEL card"
+        assert shots, f"{deck}: no SHOT cards"
+        out[folder] = reel
+    for r in out.values():
+        assert r["next"] is None or r["next"] in out, f"reels/{r['id']}: NEXT={r['next']}: no such reel"
+    aliases = [r["alias"] for r in out.values()]
+    assert len(set(aliases)) == len(aliases), f"reels: ALIAS used twice ({', '.join(aliases)})"
+    return out
+
+
 def datas(pairs):
     """Fixed-form DATA statements naming each element: pairs of (element, literal), packed within
     72 columns and 19 continuation lines."""
@@ -1199,6 +1360,8 @@ def main():
     # The situations and each scenario's SPAN cards: the page's only copy of them.
     names["SITUATIONS"] = page_situations(sits, sim["sit"], mis, evs)
     names["SCENARIOS"] = page_scenarios(mis, legs, evs, sim["span"], sits)
+    # The playlist reels (REEL and SHOT cards, data/reels/*/run.scn): the page's only copy.
+    names["REELS"] = page_reels(mis, legs, evs, sits)
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
     write_situations(sits)

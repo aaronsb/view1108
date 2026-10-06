@@ -59,7 +59,7 @@ function svgFrame(paper) {
     centred(pg, `${H[5] === 1 ? "R_E" : "R_M"} = ${Math.round(H[2])} n. mi.   h = ${Math.round(H[3])} stat. mi.   V_I = ${Math.round(H[4])} fps`, cx, b.y - fs * 0.8, fs * 0.95);
     centred(pg, "X, deg", cx, b.y + b.s + fs * 2 + fs * 0.7, fs);
   }
-  if (fr || LS.mode !== "attract" || autoCap) {
+  if (fr || !filmReel() || autoCap) {
     centred(pg, "g.e.t. = " + getStr(H[0]), cx, b.y + b.s + fs * (fr ? 4.0 : 0.5) + fs * 1.1 * 0.7, fs * 1.1);
     centred(cap, captionText(H), cx, b.y + b.s + fs * (fr ? 5.7 : 2.0) + fs * 0.7, fs);
   }

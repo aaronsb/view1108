@@ -1,0 +1,43 @@
+* THE TOUR: A PLAYLIST RUN DECK (VIEW-1108, #18).
+*
+* The situations at slow real-time rates, each shot dipping to black at both
+* ends; the tour loops.  The demo reel hands over to it when its last shot
+* ends.  Card format: data/reels/demo/run.scn.  The shots, their order,
+* rates and looks are all ours.
+*
+REEL ID=TOUR TITLE="TOUR" KIND=PLAYLIST ALIAS=TOUR FADE=0.8 TAG="TOUR" SRC="ours"
+*
+* Earthrise from 60 s before ERFIND's Earthrise (102:14:03.686 in today's
+* kernel), at 1x, the camera lifting 4 deg.
+SHOT SIT=1 NAME="Earthrise" DUR=200 GET=ERISE-60 RATE=1 FOV=14 ROLL=-3 PITCH=LIN:0,4 FRAME=YES SRC="ours"
+*
+* Earth approach: the demo reel's law, over 150 s.
+SHOT SIT=2 NAME="Earth approach" DUR=150 AT=195:03:06 TTE=0:11600,0.14:6500,0.62:900,1:600 LIMB=0:-11,0.14:-11.6,0.62:-13,1:-6 FOV=60 SRC="ours"
+*
+* Earth parking orbit at 1:30:00, panning 30 deg.
+SHOT SIT=3 NAME="Earth limb" DUR=90 GET=1:30:00 RATE=1 YAW=LIN:-15,15 FRAME=YES SRC="ours"
+*
+* Transposition and docking: from the docking approach (APPR, 3:20:30) to
+* just after docking (DOCK, 3:24:03.1), at 2x.
+SHOT SIT=7 NAME="Transposition & docking" DUR=110 GET=APPR RATE=2 FRAME=YES SRC="ours"
+*
+* The LM's pirouette after undocking, at 2x.
+SHOT SIT=4 NAME="LM pirouette" DUR=120 GET=UNDOCK+120 RATE=2 SRC="ours"
+*
+* The LM descent, from the demo reel's start to 102:45:45, six seconds after
+* touchdown (TOUCH, 102:45:39.9).
+SHOT SIT=5 NAME="LM descent" DUR=115 GET=102:40:56 TO=102:45:45 FRAME=YES SRC="ours"
+*
+* The Moon view at touchdown, held, spun once around in longitude with a
+* nod in latitude.
+SHOT SIT=6 NAME="Moon view — spin to explore" DUR=75 GET=TOUCH RATE=0 YAW=LIN:-180,180 PITCH=SIN:0,14 LABELS=YES FRAME=YES SRC="ours"
+*
+* The docked stack, a modern addition: orbit it from outside, then look out
+* of the CM's left rendezvous window (yaw -4, pitch 21 from the CM station's
+* +X: the window's centre seen from the eye, CMINT in src/models.f).
+SHOT SIT=8 NAME="Translunar stack - external" DUR=90 GET=PTC+1800 RATE=1 VIEW=EXTERNAL FOV=24 YAW=LIN:120,240 PITCH=HAV:-10,35 FRAME=YES SRC="ours, a modern addition"
+SHOT SIT=8 NAME="Translunar stack - CM window" DUR=60 GET=PTC+1890 RATE=1 VIEW=CM YAW=-4 PITCH=21 FRAME=YES SRC="ours, a modern addition"
+*
+* Apollo 8 Earthrise (24 Dec 1968): from 2 minutes before the photograph
+* (PHOTO, 75:48:39.7) at 4x, the Earth rising.  The span is our first guess.
+SHOT SIT=9 NAME="Apollo 8 Earthrise" DUR=120 GET=PHOTO-120 RATE=4 FRAME=YES SRC="ours"

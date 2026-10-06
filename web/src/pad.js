@@ -9,7 +9,7 @@ function padRelease(id) {
   const h = padHeld.get(id); if (!h) return;
   clearTimeout(h.timer); h.b.classList.remove("held"); padHeld.delete(id);
 }
-// The pause key starts a demo the drive stopped (modes.js demoHeld) rather than taking control.
+// The pause key starts a demo the drive stopped (player.js demoHeld) rather than taking control.
 function padAct(a) { if (a === "pause" && demoHeld()) drivePlay(); else { leaveAttract(); ACT[a](); } }
 function padPress(b, id) {
   const a = b.dataset.act, h = { b, timer: 0 };
