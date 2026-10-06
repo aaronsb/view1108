@@ -603,7 +603,7 @@ VIEWS VIEW=WINDOW TARGET=MOON RIDES=CSM CM=ALWAYS LM=PLACED
 * Earth approach on the transearth coast: attitude held inertially from 10 h
 * before entry interface, so the disc climbs in from below, grows and leaves
 * only its limb arc as the spacecraft closes on entry.  Times and field ours.
-SITUATION ID=2 NAME="EARTH APPROACH" TITLE="Translunar coast" GET=EI-5:00:00 FOV=60 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN SRC="the film's second shot (t08.png to t20.png); times and field ours"
+SITUATION ID=2 NAME="EARTH APPROACH" TITLE="Transearth coast" GET=EI-5:00:00 FOV=60 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN SRC="the film's second shot (t08.png to t20.png); times and field ours"
 RECIPE NAME=INERTIAL ATT=SIGHTLINE BODY=EARTH AT=EI FIX=10:00:00 DRIFT=1:00:00 ELOFF=0
 VIEWS VIEW=WINDOW TARGET=EARTH RIDES=CSM CM=ALWAYS LM=PLACED
 *

@@ -18,7 +18,7 @@ What the viewer meets, from the outside in. The layers and the station table are
 
 ### Stations
 
-From #27. This is the one declared equipment→purpose table that #20 asks for (section 6). It drives both presentations: in the room a station is equipment you walk to; in Tabbed the same row is a tab or panel (#27, requirement of 2026-10-06).
+From #27. This is the one declared equipment→purpose table that #20 asks for (section 6). It drives both presentations: in the room a station is equipment you walk to; in Tabbed the same row is a tab or panel (#27, requirement of 2026-10-06). The rows built so far are code: `STATIONS` in `web/lab/src/stations.ts` (#20; section 6 says what reads it). The shelf and the clock rows are not in it yet; the drive's Tabbed panel is, for now, only the Time group's DEMO label: Play restarts a demo the drive stopped, but Pause on a running demo takes control into Free-look, so Tabbed has no plain STOP of the demo yet (rule 7 is not met for this row).
 
 | Station | Purpose | Tabbed (tab or panel) |
 |---|---|---|
@@ -49,7 +49,7 @@ What is simulated is decided in many places, and some of them disagree.
 - **Scenario facts live outside the scenario files:** `BURN_CUES` (`tools/gen_data.py:179-210`) and the string `"APOLLO 11 LANDING SITE"` (`gen_data.py:625`).
 - **Shot lists are tied to scene defaults:** Attract and Tour are scene numbers plus offsets from each scene's default g.e.t. (`modes.js:15-30`, `:65-72`; `ATTRACT8`, `TOUR8`, `TOUR9` pushed in at `views.js:54-56`), so retuning a default moves the shots.
 - **Presentation changes state as a side effect.** `setTab` starts a mode: Simulate starts Live, Review starts Tour, Print or Fusion starts Free-look out of Attract or Tour (`web/src/tabs.js:11-22`). Room arrival calls it (`web/src/room.js:129-131`), so walking up to a terminal can change mode, scene and clock during the camera flight. Six paths set the scene: scene buttons and keys (`web/src/controls.js:112`), the Attract/Tour shot lists (`modes.js` `autoStep`), Live's `PHASES`/`JUMPS`, Following via `TL_SCENES` (both now from `SPAN` cards, #17), the Fusion photo pick (`web/src/fusion.js:44`) and the URL (`web/src/link.js:47`). Resolved by #16: `setTab` and room arrival only show (`web/src/tabs.js` `setTab`), and all six paths build params and call `loadReel` (`web/src/loader.js`), which alone writes the loaded-state object (`web/src/state.js` `LS`).
-- **The room restates one mapping five times** (`ROOM_OPENS`, `roomOver`, `roomTermOf` at `room.js:51-54`; the `Opens` type at `web/lab/src/types.ts:6`; `AT_HINT` at `web/lab/src/lab.ts:48-51`; hover labels at `web/lab/src/room/room.ts:148-152`), and Esc has seven handlers whose meaning depends on order (`room.js` three times, `lab.ts` `onKey` and `onKeyCapture`, `web/src/library.js:69`, `web/src/printout.js:72`).
+- **The room restates one mapping five times** (`ROOM_OPENS`, `roomOver`, `roomTermOf` at `room.js:51-54`; the `Opens` type at `web/lab/src/types.ts:6`; `AT_HINT` at `web/lab/src/lab.ts:48-51`; hover labels at `web/lab/src/room/room.ts:148-152`), and Esc has seven handlers whose meaning depends on order (`room.js` three times, `lab.ts` `onKey` and `onKeyCapture`, `web/src/library.js:69`, `web/src/printout.js:72`). Resolved by #20: the station table is declared once (`web/lab/src/stations.ts`) and the rest read it, and Esc is one stack (`web/src/esc.js`); section 6.
 
 The cost shows when adding a mission. An Apollo 17 LM-descent view today touches about 16-18 files across FORTRAN, Python, JavaScript, TypeScript and docs: a new `.scn`; `gen_data.py` (`BURN_CUES`, `SITECH`); `vdrive.f`, `vlayer.f`, `vview.f` and possibly `pen.f`, `lvlab.f`, `lmoon.f`; `config.js`, `views.js`, `timeline.js`, `modes.js`, `controls.js`; `console4009.ts`; `page.template.html`; `selftest.mjs`; `Makefile`; `photos.tsv`; and `CLAUDE.md`, `README.md`, `docs/modes.md`, `docs/vision.md` (#23).
 
@@ -236,16 +236,16 @@ A shelf in the machine room holds one reel per package in the site reel index, l
 The room starts idle: the demo reel is mounted on a UNISERVO drive with a visible DEMO label, and nothing is chosen (#20, refinement of 2026-10-06). In Tabbed the drive panel shows the same: the demo reel mounted, labelled DEMO, with start and stop. Choosing a reel from the shelf replaces it. Idle also means the room does not change state on its own:
 
 - Entering the room, walking about and arriving at a terminal leave the loaded state as it is (rule 2).
-- Walk-up auto-entry (0.4 s dwell within 1.3 m, `web/lab/src/walk.ts:15,136`) becomes an option, off by default (#20).
-- A control at the drive starts and stops the mounted reel. Whether the demo reel's tape is moving when the viewer first enters is open (section 10); our proposal is stopped, so the screens, clocks and lamps hold still until the viewer starts it.
+- Walk-up auto-entry (0.4 s dwell within 1.3 m, `web/lab/src/walk.ts`) is an option, off by default (#20): the room's WALK-UP button, remembered as `view1108.walkup` beside the room's other preferences.
+- A control at the drive starts and stops the mounted reel (#20). **Decision (2026-10-06, maintainer, on #20): the demo reel runs when the viewer enters, clearly labelled.** Attract plays on the 1558 as on page load; the drive (the middle UNISERVO, placed as `drive`) carries a paper label reading DEMO (the situation's title once another one is loaded) and lit RUN and STOP lamps; clicking it, or `E` in front of it, stops the playback clock and starts it again, through the clock setter (`track`), never by loading a situation; a line at the room's top left says what is playing and how to take control. In Tabbed the Time group labels the demo DEMO and Play starts a demo the drive stopped; Pause still takes control into Free-look. In Beam, which paces its own clock, the drive shows no state and the hint line drops it. Choosing other reels arrives with #19.
 
 ### One station table
 
-The station table in section 1 is the one declared table (#20, #27). Each row gives a piece of equipment's purpose, what it opens (its tab, overlay or the shelf), its hover label and its Tabbed tab or panel. `ROOM_OPENS`, `roomOver`, `roomTermOf`, the `Opens` type, `AT_HINT` and the hover labels are generated from or read it, and so are the Tabbed tab bar and panels (today's `TABS` and `TAB_OF` in `web/src/tabs.js:4-5`). A new kind (the shelf, `scenario` in `Opens`) is one row, and appears in both presentations.
+The station table in section 1 is the one declared table (#20, #27). Each row gives a piece of equipment's purpose, what it opens (its tab, overlay or the shelf), its hover label and its Tabbed tab or panel. In code it is `STATIONS` in `web/lab/src/stations.ts` (#20): per row the placed name, the equipment kind, what using it does (`tab`, `overlay` or `control`), what it opens, the page tabs it stands for, the hover label, the line at its close-up and its Tabbed counterpart. The lab reads it for each placed piece's `opens` and hover label (`room.ts`) and the close-up's line (`lab.ts`, which replaced `AT_HINT`); the `Opens` type is derived from it; the page reads it as `VIEW_LAB.stations` and derives `ROOM_OPENS`, `roomOver`, `roomTabOf` and `roomTermOf` (`web/src/room.js`). The page carries it with the lab bundle because only the room uses it today. The Tabbed tab bar and panels (`TABS` and `TAB_OF` in `web/src/tabs.js`) are not generated from it yet. A new kind (the shelf, `scenario` in `Opens`) is one row, and appears in both presentations.
 
 ### One Esc stack
 
-Opening anything (a terminal, an overlay, a pulled binder or reel) pushes onto one stack; Esc pops the top. The seven handlers in section 2 go. The stack never touches the loaded state.
+Opening anything (a terminal, an overlay, a pulled binder or reel) pushes onto one stack; Esc pops the top. The seven handlers in section 2 go. The stack never touches the loaded state. Built by #20 as `web/src/esc.js`: `escPush(key, pop)` when something opens, `escDrop(key)` when it closes by any route, and one listener that runs the top entry; the lab pushes through `hooks.esc`. Entries stack in the order things open, so from the top: `printing` (a fresh copy of the listing printing: finish it), `library` and `listing` (close; opened from the bookcase or the printer, back to it), `terminal` (a terminal's page in the room: back to the room in front of it), `pulled` (a binder pulled out at the bookcase's close-up: put it back), `closeup` (a terminal's close-up: step back), `room` (the bottom entry while the room runs: walk back to the overview). Source's own overlays and Fusion's Move photo keep their Esc and take it first; an Esc the pointer lock took is swallowed.
 
 ## 7. Divergence: master and work tapes
 
@@ -339,7 +339,7 @@ Our proposed order. Each step keeps output identical where it touches existing s
 | 4 | #18 | Demo and Tour as playlist `.scn` with absolute g.e.t.; one playlist player; no Attract or Tour mode | frame-identical playback from reel data |
 | 5 | #26 | Packer, site reel index, package loader, run-time kernel input; kernel library and generated input table; manifest `kernel` and `controls` | Apollo 11 and Apollo 8 load from packages with identical frames |
 | 6 | #22 | Canonical URL keys; colliding keys renamed with aliases; one URL table | parser test against the table |
-| 7 | #20 | Idle room, one equipment table, one Esc stack, walk-up off by default | — |
+| 7 | #20 | Idle room (the demo running, labelled DEMO, STOP/START at the drive), one equipment table, one Esc stack, walk-up off by default | entering any terminal changes nothing; Esc pops in order |
 | 8 | #19 | Tape library shelf and UNISERVO mount; the Tabbed reel list and drive panel from the same rows | mounting, or picking from the Tabbed reel list, loads the same state without reload |
 | 9 | #21 | Room set dressing from period UNIVAC 1108 photographs, labelled ours | — |
 | 10 | #24 | **Acceptance test:** Apollo 17 LM descent at Taurus-Littrow as a new reel | see below |
@@ -351,7 +351,7 @@ Our proposed order. Each step keeps output identical where it touches existing s
 ## 10. Open questions
 
 1. **Leaving the demo.** Does the first input that takes control load the scenario reel of the shot on screen at the current g.e.t. and look (our proposal), or return to a reel chooser?
-2. **The idle room's tape.** In the room the demo reel is mounted; is it running or stopped when the viewer enters? Running is the page-load behaviour; stopped is what #20 asked for.
+2. **The idle room's tape.** Resolved (maintainer, 2026-10-06, on #20): running, clearly labelled DEMO, with STOP/START at the drive and a hint line saying what plays and how to take control (section 6).
 3. **Kernel builds.** One build with every element, or several named builds a reel picks between? And how a layer list in a SITUATION card names layers that only some builds have (refuse at load, as for controls, is our proposal).
 4. **The run-time kernel entry point.** Its name and shape (one call per card table, or one buffer the kernel parses as cards), and whether the native driver `tools/viewsvg.f90` reads the same reel files.
 5. **Links to private reels.** A link cannot name a private reel. Should the page say so when it falls back to the site reel, or refuse the link?

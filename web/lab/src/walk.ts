@@ -1,9 +1,10 @@
 // Walking the room (ours): the viewer stands at eye height and moves with WASD or the arrow keys (Shift walks
 // faster), turns (lab.ts: the locked mouse or a drag), steps with the wheel, and collides with the walls and every floor-standing machine's
 // footprint (a circle against rectangles: pushed out along the shallower side, so it slides along them). Near a
-// terminal that opens a tab, in front of its screen and facing it, a short dwell or E/Enter flies in; a terminal
-// re-arms only once the viewer has stepped back out of a slightly larger zone, so leaving one does not pull back in.
-// Something used in place (the light switch) has the same zone but no dwell: E uses it.
+// terminal that opens a tab, in front of its screen and facing it, E/Enter flies in, and so does a short dwell when
+// walk-up (`auto`) is on: an option, off by default and remembered with the room's preferences (lab.ts; #20). A
+// terminal re-arms only once the viewer has stepped back out of a slightly larger zone, so leaving one does not pull
+// back in. Something used in place (the light switch, the drive) has the same zone but no dwell: E uses it.
 import * as THREE from "three";
 import type { Footprint } from "./types";
 
@@ -35,8 +36,11 @@ export class Walk {
   private dwell = 0;
   private armed = new Map<string, boolean>();
 
-  constructor(private footprints: Footprint[], private half: { x: number; z: number }, readonly terminals: Terminal[],
-    private on: { step(fast: boolean): void; enter(name: string): void; use(name: string): void }) {}
+  /** Walk-up auto-entry: the dwell in a terminal's zone flies in. */
+  auto: boolean;
+
+  constructor(private footprints: Footprint[], private half: { x: number; z: number }, readonly terminals: Terminal[], auto: boolean,
+    private on: { step(fast: boolean): void; enter(name: string): void; use(name: string): void }) { this.auto = auto; }
 
   /** Stand where the camera is, looking where it looks. */
   setFrom(position: THREE.Vector3, quaternion: THREE.Quaternion): void {
@@ -133,7 +137,7 @@ export class Walk {
     }
     if (near !== this.near) this.dwell = 0;
     this.near = near;
-    if (near && !near.use && (this.dwell += dt) >= ZONE.dwell) this.enter();
+    if (near && !near.use && this.auto && (this.dwell += dt) >= ZONE.dwell) this.enter();
   }
 
   /** Where to stand after leaving a terminal: `back` metres out from its screen, outside its re-arm zone. */

@@ -13,10 +13,12 @@
 // at least 0.9 m (the plan's check, `footprints`, is what the walk collides with).
 //
 // A name the registry lacks is placed as a neutral grey box of its FOOTPRINT, so the room composes before every
-// module exists.
+// module exists. What a station opens and its hover label come from the station table (stations.ts), by placed name;
+// the drive is the middle tape unit, the one the overview sees best (ours).
 import * as THREE from "three";
 import { EQUIPMENT, FOOTPRINT } from "../equipment";
 import type { BuildContext, Equipment, Footprint, Glow, Placed, Room } from "../types";
+import { STATIONS, stationNamed } from "../stations";
 import { DOOR, ROOM, buildShell } from "./shell";
 import { batch } from "./batch";
 import type { Binder, Prop } from "../equipment/bookcase";
@@ -47,6 +49,8 @@ export function build(ctx: BuildContext): Room {
    *  Standing on the floor, it gets a footprint: its own bounding box seen from above, placed and turned. */
   const place = (kind: string, at: [number, number, number], turn: number, name = `${kind}-${++count}`, opts?: Record<string, unknown>) => {
     const equipment = EQUIPMENT[kind] ? (EQUIPMENT[kind] as Builder)(ctx, opts) : standIn(kind);
+    const st = stationNamed(name);
+    if (st && st.does !== "control") equipment.opens = st.opens;   // narrowed to a tab or overlay row: an Opens
     const o = equipment.object, b = new THREE.Box3().setFromObject(o);
     o.position.set(...at); o.rotation.y = turn; o.updateMatrixWorld();
     o.userData.placed = name;
@@ -62,7 +66,7 @@ export function build(ctx: BuildContext): Room {
   const top = (e: Equipment, dflt: number) => (e.anchors.top as THREE.Vector3 | undefined)?.y ?? dflt;
 
   const nW = ROOM.d / 2, wW = ROOM.w / 2;
-  for (let i = 0; i < 7; i++) place("uniservo", [-2.7 + i * 0.82, 0, -nW + 0.45], S, undefined, { number: 60 + i, index: i + 1 });
+  for (let i = 0; i < 7; i++) place("uniservo", [-2.7 + i * 0.82, 0, -nW + 0.45], S, i === 3 ? "drive" : undefined, { number: 60 + i, index: i + 1, drive: i === 3 });
   for (let i = 0; i < 5; i++) place("cpu", [-wW + 0.48, 0, -1.64 + i * 0.82], E, undefined, { lampPanel: i === 2 });
   // The operator's chair at the 4009's seat (its keyboard end), facing it; without the anchor, centred in front of it.
   // The console stands far enough south that the chair leaves the tape units' 0.9 m aisle.
@@ -96,7 +100,7 @@ export function build(ctx: BuildContext): Room {
   // The bookcase; each of its binders is placed under its own name, so it is picked, labelled and flown to alone.
   const library = place("bookcase", [wW - 0.19, 0, -2.2], W, "library");
   const binders = library.anchors.binders as Binder[];
-  for (const b of binders) { b.object.userData.placed = `binder:${b.doc.id}`; placed.push({ name: b.object.userData.placed, equipment: b }); }
+  for (const b of binders) { b.object.userData.placed = `binder:${b.doc.id}`; b.opens = library.opens; placed.push({ name: b.object.userData.placed, equipment: b }); }
   const props = library.anchors.props as Prop[];   // for looks: named on hover, inert
   for (const p of props) { p.object.userData.placed = `prop:${p.id}`; placed.push({ name: p.object.userData.placed, equipment: p }); }
 
@@ -146,8 +150,7 @@ export function build(ctx: BuildContext): Room {
     footprints,
     door: { x: DOOR.x, z: nW, w: DOOR.w },
     overview: { position: new THREE.Vector3(2.4, 1.62, 3.15), target: new THREE.Vector3(0.1, 1.0, -1.6), fov: 55 },
-    labels: { vector: "UNIVAC 1558 — workbench", glass: "UNISCOPE 100 — source", filmrecorder: "Microfilm recorder (S-C 4020, hypothetical) — print",
-      printer: "Line printer — listing", switch: "Lights", power: "Power distribution — click to open/close the doors", "power:selector": "Voltmeter selector — click to turn", door: "Exit — github.com/aaronsb/view1108", library: "Reference library",
+    labels: { ...Object.fromEntries(STATIONS.map(st => [st.name, st.label])), switch: "Lights", power: "Power distribution — click to open/close the doors", "power:selector": "Voltmeter selector — click to turn", door: "Exit — github.com/aaronsb/view1108",
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
       ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },
     lightsOn: true,

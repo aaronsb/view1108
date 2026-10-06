@@ -4,6 +4,7 @@
 function syncUI() {
   document.querySelectorAll("#scenes button").forEach(b => b.classList.toggle("on", +b.dataset.scene === LS.situation));
   document.getElementById("bplay").textContent = LS.playing ? "Pause" : "Play";
+  document.getElementById("reel").hidden = !auto();   // the mounted reel is the demo (modes.js reelLabel)
   document.querySelector("#ppause small").textContent = LS.playing ? "PAUSE" : "PLAY";
   document.getElementById("spd").textContent = LS.mode === "beam" ? BEAM_SPEEDS[beamIdx].short : (LS.mode === "live" ? LIVE_RATES[liveIdx] : SPEEDS[speedIdx]) + "x";
   document.getElementById("spd").title = LS.mode === "beam" ? BEAM_SPEEDS[beamIdx].name + ". " + BEAM_TIP : "";
@@ -54,7 +55,7 @@ $("bcat").onclick = toggleCatalog;
 document.querySelectorAll("[data-disp]").forEach(b => { b.onclick = () => setDisp(b.dataset.disp); });
 document.querySelectorAll("[data-hz]").forEach(b => { b.onclick = () => setHz(b.dataset.hz); });
 $("bhid").onclick = () => { leaveAttract(); hidden = !hidden; syncUI(); };
-$("bplay").onclick = () => { leaveAttract(); track({ playing: !LS.playing }); syncUI(); };
+$("bplay").onclick = () => { if (demoHeld()) { drivePlay(); return; } leaveAttract(); track({ playing: !LS.playing }); syncUI(); };
 $("bslow").onclick = () => { leaveAttract(); bump(-1); };
 $("bfast").onclick = () => { leaveAttract(); bump(1); };
 $("breset").onclick = () => { leaveAttract(); loadReel(P({ by: "reset" })); };
@@ -100,8 +101,7 @@ const KEY_ACT = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDo
 const typingIn = () => { const a = document.activeElement; return !!a && (a.tagName === "TEXTAREA" || a.tagName === "SELECT" || (a.tagName === "INPUT" && !["range", "button", "checkbox", "radio"].includes(a.type))); };
 window.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if ($("list").classList.contains("open")) { if (e.key === "Escape") $("list").classList.remove("open"); return; }
-  if (libraryIsOpen()) return;   // its own Esc (library.js)
+  if ($("list").classList.contains("open") || libraryIsOpen()) return;   // overlays: Esc is the stack's (esc.js)
   if (!canvasTab() || typingIn()) return;
   const k = e.key;
   if (k === "j" || k === "J") { toggle("jitter"); e.preventDefault(); return; }
@@ -115,6 +115,7 @@ window.addEventListener("keydown", e => {
   if (k === "h" || k === "H") { setHz(scopeHz() === "16" ? "steady" : "16"); e.preventDefault(); return; }
   if ((k === "i" || k === "I") && FEAT.cabin) { toggleCabin(); e.preventDefault(); return; }
   if ((k === "w" || k === "W") && FEAT.walls) { toggleWalls(); e.preventDefault(); return; }
+  if (k === " " && demoHeld()) { drivePlay(); e.preventDefault(); return; }
   if (k.length === 1 || k.startsWith("Arrow")) leaveAttract();
   let h = true;
   if (KEY_ACT[k]) ACT[KEY_ACT[k]]();

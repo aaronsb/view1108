@@ -61,6 +61,8 @@ export class Shelf {
     this.outItem = item;
     for (const p of this.items) p.want = p === item ? 1 : 0;
   }
+  /** Put back whatever is out; false when nothing is. */
+  putBack(): boolean { if (!this.outItem) return false; this.set(null); return true; }
   /** Put `item` back if it is the one out. */
   back(item: Pullable): void { if (this.outItem === item) this.set(null); }
   /** A click on `item`: true when it was already out and opens (the caller opens it); otherwise it comes out. */

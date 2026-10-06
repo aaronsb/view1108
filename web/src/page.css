@@ -82,6 +82,9 @@ button::after { content:" ]"; }
 button:hover { color:var(--fg); }
 button.on { color:#000; background:var(--fg); }
 button:disabled { opacity:.35; cursor:default; }
+/* While the room shows, no tab is open: the last terminal's tab is not lit beside Room (#20). */
+body.room #tabs button[data-tab].on { color:var(--dim); background:#000; }
+body.room #tabs button[data-tab].on:hover { color:var(--fg); }
 button:focus-visible, input:focus-visible { outline:2px solid var(--fg); outline-offset:1px; }
 input[type=range] { accent-color:var(--fg); width:220px; max-width:60vw; }
 /* Timeline (timeline.js): chapter marks under the scrubber, and a compact scrolling event list. */

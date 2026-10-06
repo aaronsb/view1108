@@ -2,6 +2,7 @@
 // exists and no animation frame is requested until start().
 import { Lab } from "./lab";
 import type { LabEvent, LabHooks } from "./types";
+import { STATIONS } from "./stations";
 
 let lab: Lab | null = null;
 
@@ -23,6 +24,14 @@ const VIEW_LAB = {
   setTarget(name: string | null, open?: boolean): boolean { return lab ? lab.setTarget(name, open) : false; },
   /** At a terminal's close-up: step back out in front of it (false when not at one). */
   back(): boolean { return lab ? lab.back() : false; },
+  /** The station table (stations.ts), which the page's room.js reads: what each terminal opens, and the tabs it is. */
+  stations: STATIONS,
+  /** An Esc that reached the page while the room is shown: true when it was the pointer lock's (web/src/esc.js). */
+  escLock(): boolean { return lab ? lab.escLock() : false; },
+  /** The room's bottom Esc: walk back to the overview (false when already there, or not walking). */
+  home(): boolean { return lab ? lab.home() : false; },
+  /** Walk-up auto-entry on or off (remembered); off by default. */
+  walkup(on: boolean): void { lab?.setWalkup(on); },
   event(e: LabEvent): void { lab?.event(e); },
   get running(): boolean { return !!lab; },
   /** Quality tier, draw calls and triangles of the last frame, the last handover's mismatch (px), the page's loaded

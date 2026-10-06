@@ -97,7 +97,6 @@ export function build(_ctx: BuildContext): Equipment {
 
   return {
     object,
-    opens: "listing",
     anchors: {
       screen: { mesh: sheet, uvRect: [0, 0, 1, 1], fit: "width" },
       camera: poseFrom(new THREE.Vector3(-0.3, 1.12, 0.2), [0, 1.6, 1], 0.75, 40),

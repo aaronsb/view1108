@@ -145,7 +145,6 @@ export function build(ctx: BuildContext): Equipment {
 
   return {
     object,
-    opens: "print",
     anchors: {
       screen: { mesh: port, uvRect: [0, 0, 1, 1] },
       camera: { position: new THREE.Vector3(PX - 0.12, PY + 0.02, ZF + 0.62), target: new THREE.Vector3(PX, 1.4, ZF), fov: 40 },

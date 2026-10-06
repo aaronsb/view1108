@@ -83,9 +83,10 @@ function shotGet(sh, u) {
   return LS.get0 + p[0] + (p[1] - p[0]) * u;
 }
 // The shot player: each frame drives the time and look of the shot on screen (track); a new shot is loaded (loader.js).
+// Its clock runs while LS.playing: the drive's STOP holds it where it is (drivePlay, below).
 function autoStep(dt) {
   const L = LS.mode === "attract" ? ATTRACT : TOUR, len = LEN[LS.mode];
-  if (!filmQ) autoT += dt;
+  if (!filmQ && LS.playing) autoT += dt;
   if (LS.mode === "attract" && !filmQ && autoT >= len) { loadReel(P({ mode: "tour" })); return; }
   let t = autoT % len, i = 0;
   while (i < L.length - 1 && t >= L[i].dur) { t -= L[i].dur; i++; }
@@ -126,6 +127,15 @@ function liveSync() {
   if (ph.scene !== LS.situation) loadReel(P({ by: "phase", scene: ph.scene }));
 }
 const leaveAttract = () => { if (auto()) loadReel(P({ mode: "free" })); };   // the viewer takes control
+// The mounted reel (docs/systems-model.md, section 1: the UNISERVO drive; #20): DEMO while Attract or Tour plays, else
+// the situation on screen, by its title.
+const reelLabel = () => auto() ? "DEMO" : sitOf(LS.situation).title || "";
+// The drive's STOP/START: the playback clock stops or runs again, through the clock setter (track); the mode, the
+// situation and the shot stay. In the room it is the drive (room.js); on the page, Play/Pause, which starts a demo the
+// drive stopped (demoHeld) and otherwise, as before, takes control out of it.
+// Beam paces its own clock (loop.js), so there the drive has nothing to stop until Beam honours LS.playing.
+function drivePlay() { if (LS.mode === "beam") return; track({ playing: !LS.playing }); syncUI(); }
+const demoHeld = () => auto() && !LS.playing;
 if (DEBUG) {   // test hooks, enabled by ?debug
   window.VIEW_STEP = () => step(performance.now());
   window.VIEW_SEEK = t => { autoT = t; step(performance.now()); };   // with ?film=, jump to auto-mode second t
