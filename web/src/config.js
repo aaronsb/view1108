@@ -10,6 +10,11 @@ const NAMES = (typeof VIEW_NAMES !== "undefined") ? VIEW_NAMES : (window.MOCK_NA
 // (?mock, no names.js) gets one stand-in situation.
 const SITS = NAMES.SITUATIONS || [{ id: 1, title: "Mock", scenario: 1, mission: "", recipe: "", stations: {} }];
 const SCNS = NAMES.SCENARIOS || { 1: { mission: "", epoch: 0, zero: 0, spans: { follow: [[null, 1, 0, 0, null]], live: [[null, 1, ""]], jump: [], pin: [] } } };
+// Playlist reels (#18): the REEL and SHOT cards of data/reels/*/run.scn, by id; the demo reel is mounted when none is
+// chosen. The mock kernel gets a one-shot demo and tour on its stand-in situation.
+const REELS = NAMES.REELS || Object.fromEntries([["demo", "attract"], ["tour", "tour"]].map(([id, alias]) => [id,
+  { id, title: id.toUpperCase(), alias, next: null, fade: 0, shots: [{ name: SITS[0].title, sit: SITS[0].id, dur: 60, get: [0, 60], lab: 0, frame: true, view: 0 }] }]));
+const DEFAULT_REEL = "demo";
 const SCENES = SITS.map(s => s.title);
 const hasScene = s => !!SITS[s - 1];
 const sitOf = s => SITS[s - 1] || {};

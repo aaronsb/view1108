@@ -3,7 +3,7 @@
 // ---- main loop ----
 function step(now) {
   const dt = last ? Math.min(0.25, (now - last) / 1000) : 0; last = now;
-  if (LS.mode === "attract" || LS.mode === "tour") autoStep(dt);
+  if (LS.reel) reelStep(dt);
   else if (LS.mode === "live") { if (LS.playing) track({ get: Math.max(LIVE_MIN, Math.min(LIVE_MAX, LS.get + dt * LIVE_RATES[liveIdx])) }); liveSync(); }
   else if (LS.mode === "beam") {   // time advances one frame per completed trace, by the real time it took x the rate
     beamNew = now >= beamNextStart;

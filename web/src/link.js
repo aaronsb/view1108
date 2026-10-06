@@ -6,7 +6,7 @@ function linkURL() {
   add("mode", LS.mode);
   if (tab !== TAB_OF[LS.mode]) add("tab", tab);
   if (tab === "fusion" && fCur) add("photo", fCur.frame);
-  if (LS.mode !== "attract" && LS.mode !== "tour") {
+  if (!auto()) {
     if (LS.mode !== "live" || livePin) add("scene", LS.situation);
     add("get", getStr(LS.get)); add("fov", rnd(LS.fov)); add("yaw", rnd(LS.yaw)); add("pitch", rnd(LS.pitch)); add("roll", rnd(LS.roll));
     if (LS.mode === "live") add("rate", LIVE_RATES[liveIdx]); else if (LS.mode === "beam") add("bspeed", beamIdx + 1); else add("rate", SPEEDS[speedIdx]);
@@ -47,7 +47,7 @@ function openLink() {
   let p = new URLSearchParams(UP);
   const t = UP.get("tab");
   if (!UP.has("mode") && TABS.includes(t)) {
-    p = P({ mode: TAB_MODE[t] || "attract" });
+    p = P({ mode: TAB_MODE[t] || REELS[DEFAULT_REEL].alias });
     if (UP.has("photo")) for (const k of ["photo", "get", "fov", "yaw", "pitch", "roll"]) if (UP.has(k)) p.set(k, UP.get(k));
   }
   p.set("by", "url");

@@ -4,7 +4,7 @@
 function syncUI() {
   document.querySelectorAll("#scenes button").forEach(b => b.classList.toggle("on", +b.dataset.scene === LS.situation));
   document.getElementById("bplay").textContent = LS.playing ? "Pause" : "Play";
-  document.getElementById("reel").hidden = !auto();   // the mounted reel is the demo (modes.js reelLabel)
+  const reel = document.getElementById("reel"); reel.hidden = !auto(); reel.textContent = reelLabel();   // the mounted playlist reel's TITLE (player.js)
   document.querySelector("#ppause small").textContent = LS.playing ? "PAUSE" : "PLAY";
   document.getElementById("spd").textContent = LS.mode === "beam" ? BEAM_SPEEDS[beamIdx].short : (LS.mode === "live" ? LIVE_RATES[liveIdx] : SPEEDS[speedIdx]) + "x";
   document.getElementById("spd").title = LS.mode === "beam" ? BEAM_SPEEDS[beamIdx].name + ". " + BEAM_TIP : "";

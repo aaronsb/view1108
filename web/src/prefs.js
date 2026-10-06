@@ -5,7 +5,7 @@ const prefs = { jitter: null, bloom: null, dust: null, fps: null, catalog: "nav"
 const NAV_MAG = NAMES.NAV_MAG || 3.8;   // magnitude limit passing the 391 brightest stars (tools/gen_data.py -> build/names.js)
 try { Object.assign(prefs, JSON.parse(localStorage.getItem("view1108.prefs") || "{}")); } catch (e) { /* storage unavailable */ }
 const savePrefs = () => { try { localStorage.setItem("view1108.prefs", JSON.stringify(prefs)); } catch (e) { /* ignore */ } };
-const auto = () => LS.mode === "attract" || LS.mode === "tour";
+const auto = () => !!LS.reel;   // a playlist reel plays (Attract, Tour; player.js)
 const filmAuto = () => auto() || tab === "print";
 // URL parameters override stored prefs for this visit only, and are never written to storage. A toggle clicked
 // by the viewer drops the URL value for that effect and saves the viewer's own choice.

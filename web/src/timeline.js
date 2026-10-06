@@ -122,7 +122,7 @@ function tlTick() {
   if (LS.mode !== "free") follow = false;
   if (follow && !tlSuits(LS.get)) { tlFit(LS.get); tlScene = LS.situation; }   // the companion plays on at this time: not re-pointed
   $("bfollow").hidden = !follow;
-  if (LS.situation !== tlScene) { tlScene = LS.situation; if (LS.mode !== "attract" && LS.mode !== "tour") airtSync(); }
+  if (LS.situation !== tlScene) { tlScene = LS.situation; if (!auto()) airtSync(); }
   const ev = tlEvents(); let c = -1;
   for (let i = 0; i < ev.length && ev[i][0] <= LS.get; i++) c = i;
   if (c === tlCur) return; tlCur = c;

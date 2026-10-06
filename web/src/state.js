@@ -15,7 +15,8 @@ const LS = {
   yaw: 0, pitch: 0, roll: 0, fov: 12, fov0: 12,        // the look; fov0 the situation's own field
   view: 0, target: 0,                                  // in_view, in_target (views.js)
   labLv: 3,                                            // label level: 0 off, 1 primary, 2 secondary, 3 all (views.js)
-  mode: "attract", playing: true                       // playback: the mode (modes.js) and whether the clock runs
+  reel: DEFAULT_REEL,                                  // the mounted playlist reel (player.js), "" when none plays
+  mode: REELS[DEFAULT_REEL].alias, playing: true       // playback: the mode (its alias while a reel plays) and whether the clock runs
 };
 // The one setter for continuous changes: the fields given, nothing reloaded.
 const track = patch => { Object.assign(LS, patch); };
