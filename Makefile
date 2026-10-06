@@ -4,7 +4,8 @@ LF_BIN ?= $(HOME)/lf/bin
 PORT   ?= 8108
 PIDFILE = build/serve.pid
 LOGFILE = build/serve.log
-SCENES  = 1 2 3 4 5 6 7 8
+# Scene numbers, from build/scenes.json (tools/gen_data.py, data/scenes.scn); read when a recipe runs.
+SCENES  = $(shell python3 -c 'import json; print(*json.load(open("build/scenes.json"))["scenes"])')
 # Kernel elements: every fixed-form file in src/ but the generated BLOCK DATA.
 KSRC    = $(filter-out src/viewdata.f,$(wildcard src/*.f))
 
@@ -47,6 +48,7 @@ lint: ## Check kernel dialect, compile warnings, and script syntax
 
 check: native ## Render every scene natively to build/check/scene<N>.png for eyeballing
 	mkdir -p build/check
+	@test -n "$(SCENES)" || { echo 'check: no scenes in build/scenes.json' >&2; exit 1; }
 	for s in $(SCENES); do build/viewsvg $$s > build/check/scene$$s.svg && \
 	  rsvg-convert -b black build/check/scene$$s.svg -o build/check/scene$$s.png; done
 	@ls build/check/*.png

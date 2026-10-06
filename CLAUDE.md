@@ -30,6 +30,8 @@ src/shell.f90     CHASSIS. Modern Fortran: bind(c) globals and entry points for 
 tools/gen_data.py data/ -> src/viewdata.f, src/viewdims.inc and build/names.js
 data/missions/    one folder per mission: mission.scn (name, epoch, site, pad) and its
                   scenarios (*.scn: trajectory legs, events, timeline)
+data/scenes.scn   each scene's scenario -> build/scenes.json, the list make check and the
+                  selftest read (the kernel's copy is ISNSC in VINIT; gen_data checks both)
 tools/viewsvg.f90 Native driver (gfortran): renders a scene/time to SVG for validation.
 tools/build.sh    gen_data -> lfortran (per file) -> clang -> wasm-ld -> wasm-opt -> wasm2js -> page
 web/              The page: film-recorder renderer, controls, text lettering.
@@ -491,7 +493,7 @@ burns). The Apollo 11 as-flown scenario uses the Mission Report's Table 7-II and
 7-VII states and SP-4029's ascent table; the Apollo 8 one the Apollo 8 Mission Report's
 (MSC-PA-R-69-1) Table 5-II and 5-V states, SP-4029's ascent table and the SVS 4129 position
 at the Earthrise photograph; see the scenarios' comments and `src/traj.f`. `VINIT` maps each
-scene to a scenario: 1-8 Apollo 11, 9 Apollo 8. Code keyed to a mission's events looks them
+scene to a scenario: 1-8 Apollo 11, 9 Apollo 8 (`ISNSC`; the same map is `data/scenes.scn`). Code keyed to a mission's events looks them
 up by kind (`EVGET`) and copes with their absence: without a TOUCH event (Apollo 8) the
 Earthrise search (`ERFIND`) ends its revolution at the PHOTO event, and no LM is marked.
 

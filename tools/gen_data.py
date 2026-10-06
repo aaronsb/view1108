@@ -9,6 +9,7 @@ Inputs (all in data/):
   missions/<id>/mission.scn     a mission's identity: name, epoch (range zero), landing site, pad
   missions/<id>/*.scn           its scenarios (run decks): trajectory legs, events, timeline
   meeus47.txt                   Meeus ch. 47 lunar periodic terms (tables 47.A and 47.B)
+  scenes.scn                    each scene and its scenario -> build/scenes.json (Makefile, selftest)
 
 Everything is written in the J2000 equatorial frame. AGC star vectors are precessed
 from 1969.5 to J2000 so they share a frame with the catalog.
@@ -209,6 +210,7 @@ CARD_KEYS = {
     "REF": {"T", "BODY", "LATTYPE", "LAT", "LON", "ALT", "V", "FPA", "HDG", "SRC"},
     "BURN": {"T", "DV", "BODY", "P", "R", "N", "SRC"},
     "BURNCUE": {"IGN", "CUT", "VEH", "ENG", "SRC"},
+    "SCENE": {"ID", "SCENARIO"},
 }
 
 
@@ -381,6 +383,24 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
         evs.append({"m": cur["n"], "kind": EVENT_KINDS[kv["KIND"]], "t": get_s(kv["T"]),
                     "src": kv["KIND"] + ": " + kv.get("SRC", "")})
     return tab
+
+
+def scenes(mis):
+    """data/scenes.scn: each scene's scenario, scenes 1..N, checked against the scenarios and
+    against the kernel's own copy, DATA ISNSC in src/vdrive.f (until #17 retires both)."""
+    scn = {}
+    for kind, kv in cards(D / "scenes.scn"):
+        if kind == "*END":
+            break
+        assert kind == "SCENE", f"scenes.scn: {kind} card"
+        scn[int(kv["ID"])] = int(kv["SCENARIO"])
+    ids = sorted(scn)
+    assert ids == list(range(1, len(ids) + 1)), "scenes.scn: scene ids must be 1..N"
+    assert set(scn.values()) <= {m["n"] for m in mis}, "scenes.scn: unknown SCENARIO="
+    m = re.search(r"^\s+DATA ISNSC /([^/]*)/", (R / "src" / "vdrive.f").read_text(), re.M)
+    assert m and [int(v) for v in m.group(1).split(",")] == [scn[k] for k in ids], \
+        "scenes.scn and DATA ISNSC in src/vdrive.f disagree"
+    return {"scenes": ids, "scenario": {str(k): scn[k] for k in ids}}
 
 
 def comment_wrap(txt, lead="C       "):
@@ -742,6 +762,7 @@ def main():
              "TL_KINDS": list(TL_KINDS)}
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
+    (R / "build" / "scenes.json").write_text(json.dumps(scenes(mis)) + "\n")
     print(f"stars {len(sx)} (nav 37), coast {len(coast)} lines / {len(clon)} pts, "
           f"craters {len(crat)}, scenarios {len(mis)} ({len(legs)} legs, {len(evs)} events, "
           f"{len(sim['start'])} start, {len(sim['burn'])} burns, {len(sim['ref'])} reference rows, "
