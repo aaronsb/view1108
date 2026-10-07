@@ -186,10 +186,11 @@ contains
     character(len=*), intent(in) :: list
     character(len=4096) :: line
     integer :: ic(1024), i0, i1, u, ios, n, k, ierr, icard, nwarn, ncard, nf
-    integer :: fend(64), fs(64), fe(64)
+    integer :: fend(0:64), fs(64), fe(64)
     call crdopn()
     ncard = 0
     nf = 0
+    fend(0) = 0
     i0 = 1
     do while (i0 <= len(list))
       i1 = index(list(i0:), ':')
@@ -209,7 +210,7 @@ contains
         n = len_trim(line)
         if (ios > 0 .or. n == len(line)) then
           write (0, '(a,a,a,i0)') 'VIEW_DECK: cannot read ', list(i0:i1 - 1), ' after line ', &
-            ncard - merge(fend(nf), 0, nf > 0)
+            ncard - fend(nf)
           stop 2
         end if
         do k = 1, min(n, 1024)
@@ -233,7 +234,7 @@ contains
       end do
       k = min(k, nf)
       write (0, '(a,i2.2,a,a,a,i0)') 'DECK ERROR ', ierr, ' AT ', list(fs(k):fe(k)), ':', &
-        icard - merge(fend(k - 1), 0, k > 1)
+        icard - fend(k - 1)
       stop 2
     end if
   end subroutine loaddk

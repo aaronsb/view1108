@@ -16,8 +16,10 @@ C     its situations name) and gives the first deck error, its card
 C     number and the warnings.  A refused deck leaves the run tables
 C     empty, and VINIT then selects nothing.  CRDSUM is a hash total of
 C     the run tables (ours; vdksum.f), so two loads can be compared
-C     word for word.  The card semantics are in vdkscn.f, the field
-C     readers (words, numbers, lists, text) in vdkfld.f.
+C     word for word.  The card semantics are in vdkscn.f (the
+C     mission's and scenario's cards) and vdksit.f (the situation
+C     cards), the field readers (words, numbers, lists, text) in
+C     vdkfld.f.
 C     tools/gen_data.py still checks the rest of a deck (each recipe's
 C     keys, poses).
 C
@@ -81,6 +83,7 @@ C     The deck in hand, and no scenario or tape left from the last.
       NCQ = 0
       NCQC = 0
       ISN = 0
+      ISCN = 0
       ITPSN = 0
       P10(1) = 1.0D0
       DO 30 K = 2, 23
@@ -214,7 +217,7 @@ C     cards with * in column 1 are comments.
    30 IF (ICRD(1) .EQ. ICSTR) RETURN
       CALL DKTOK
       IF (IDKER .NE. 0) RETURN
-      DO 35 K = 1, NVOCW
+      DO 35 K = 1, NVOCK
         KSLT(K) = 0
    35 CONTINUE
       KCRD = 0
@@ -305,7 +308,7 @@ C     Each scenario a CSM leg; each situation's events in its scenario.
         DO 15 J = 1, NLEG
           IF (LGSN(J) .EQ. M .AND. LGVEH(J) .EQ. 1) IHAS = 1
    15   CONTINUE
-        IF (IHAS .EQ. 0) CALL DKERRC(26, NDKCD)
+        IF (IHAS .EQ. 0) CALL DKERRC(26, SNCD(M))
    16 CONTINUE
       GO TO 21
    20 CALL DKERRC(26, NDKCD)

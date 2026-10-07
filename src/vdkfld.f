@@ -80,7 +80,7 @@ C     RESTOMOD END
       END
 C
 C     DKNMS: the decimal number at ITKB(IS) for N codes into X: sign,
-C     digits, a point, an exponent after E or D.
+C     digits, a point, an exponent of three digits at most after E.
       SUBROUTINE DKNMS(IS, N, X)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -126,16 +126,15 @@ C     The exponent.
    40 IES = 1
       NE = 0
       IF (I .GT. IE) GO TO 90
-      IF (ITKB(I) .EQ. ICPLS) I = I + 1
-      IF (I .GT. IE) GO TO 90
+      IF (ITKB(I) .EQ. ICPLS) GO TO 44
       IF (ITKB(I) .NE. ICMIN) GO TO 45
       IES = -1
-      I = I + 1
+   44 I = I + 1
    45 IF (I .GT. IE) GO TO 48
       C = ITKB(I)
       I = I + 1
       IF (C .LT. ICD0 .OR. C .GT. ICD9) GO TO 90
-      IF (IEX .GT. 999) GO TO 91
+      IF (NE .GE. 3) GO TO 91
       IEX = IEX * 10 + (C - ICD0)
       NE = NE + 1
       GO TO 45
@@ -168,7 +167,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'vdvoc.inc'
       INCLUDE 'vdeck.inc'
 C     RESTOMOD END
-      INTEGER IS, N, I, IE, C, NP, ND, NF, IDOT
+      INTEGER IS, N, I, IE, C, NP, ND, NS, NF, IDOT
       DOUBLE PRECISION X, SG, HM(3)
       X = 0.0D0
       IE = IS + N - 1
@@ -184,12 +183,14 @@ C     RESTOMOD END
       SG = -1.0D0
       I = I + 1
 C     Up to three fields: hours, minutes, seconds; ND digits in each,
-C     NF of the seconds' after the point.
+C     NS of them significant (15 at most), NF of the seconds' after the
+C     point.
     9 NP = 1
       HM(1) = 0.0D0
       HM(2) = 0.0D0
       HM(3) = 0.0D0
       ND = 0
+      NS = 0
       NF = 0
       IDOT = 0
    10 IF (I .GT. IE) GO TO 50
@@ -201,16 +202,18 @@ C     NF of the seconds' after the point.
       GO TO 90
    20 HM(NP) = HM(NP) * 10.0D0 + DBLE(C - ICD0)
       ND = ND + 1
+      IF (NS .GT. 0 .OR. C .GT. ICD0) NS = NS + 1
       IF (IDOT .EQ. 1) NF = NF + 1
-      IF (ND .GT. 15) GO TO 91
+      IF (NS .GT. 15 .OR. NF .GT. 15) GO TO 91
       GO TO 10
    30 IF (ND .EQ. 0 .OR. NP .EQ. 3) GO TO 90
       NP = NP + 1
       ND = 0
+      NS = 0
       GO TO 10
    40 IDOT = 1
       GO TO 10
-   50 IF (ND .EQ. 0 .OR. NF .GT. 15) GO TO 90
+   50 IF (ND .EQ. 0) GO TO 90
       X = (HM(1) * 3600.0D0 + HM(2) * 60.0D0) * P10(NF+1) + HM(3)
       IF (X .GE. 9.0D15) GO TO 91
       X = SG * (X / P10(NF+1))

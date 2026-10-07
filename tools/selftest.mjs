@@ -335,6 +335,13 @@ if (W.deck_open) {
   const [e2] = load(K, LINES), again = sum(K);
   if (!(e1 !== 0 && empty && e2 === 0 && again === sumBD))
     wrong.push(`a refused deck, then a good one: errors ${e1}, ${e2}, empty frame ${empty}, hash ${again}`);
+  // view_frame straight after a reload, without view_init: nothing from the last deck's situation.
+  K.view_init(1); K.view_frame();
+  load(K, cases[0][2]); K.view_frame();
+  const emptyAfter = i32(K, 'nvec') === 0;
+  load(K, LINES); K.view_frame();
+  if (!(emptyAfter && i32(K, 'nvec') > 0))
+    wrong.push(`view_frame after a reload without view_init: empty ${emptyAfter}, then ${i32(K, 'nvec')} vectors`);
   console.log(`deck errors: ${cases.length} planted faults, then a good deck after a refused one` +
     `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'each refused, reload clean'}`);
   if (wrong.length) ok = false;

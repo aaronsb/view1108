@@ -194,7 +194,14 @@ C     RESTOMOD END
       CALL MOONRT(P(3), M)
       CALL MXV(M, S, U)
       K = LEGAT(P(3), 2, 1)
-      CALL VCRS(LGEL(1,K), LGEL(4,K), HN)
+C     No lunar leg of the CSM (a deck without one): no state.
+      IF (K .GT. 0) GO TO 5
+      DO 4 I = 1, 3
+        R(I) = 0.0D0
+        V(I) = 0.0D0
+    4 CONTINUE
+      RETURN
+    5 CALL VCRS(LGEL(1,K), LGEL(4,K), HN)
       CALL VCRS(HN, U, W)
       CALL VUNIT(W)
       RA = RM + P(6) * 1.852D0
@@ -410,8 +417,15 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION GET, R(3), V(3), TH, C, S, GM, RA
       INTEGER K, I
+C     No leg (LEGAT found none for that body and vehicle): no state.
+      IF (K .GT. 0) GO TO 5
+      DO 4 I = 1, 3
+        R(I) = 0.0D0
+        V(I) = 0.0D0
+    4 CONTINUE
+      RETURN
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (LGTYP(K) .EQ. KCONIC .OR. LGTYP(K) .EQ. KLCON) THEN
+    5 IF (LGTYP(K) .EQ. KCONIC .OR. LGTYP(K) .EQ. KLCON) THEN
         GM = GME
         IF (LGTYP(K) .EQ. KLCON) GM = GMM
         CALL KEPLER(LGEL(1,K), LGEL(4,K), LGEL(7,K), LGEL(8,K),
@@ -936,12 +950,17 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION T, T1, T2, TM, F1, FM, P, ERCLR, TR, EVGET
-      INTEGER I, LEGAT
+      INTEGER I, K, LEGAT
 C     The revolution ends at touchdown, or, in a scenario with no
-C     landing (Apollo 8), at its PHOTO event.
+C     landing (Apollo 8), at its PHOTO event.  Without a lunar leg of
+C     the CSM there is no Earthrise: half an hour before that time, as
+C     when the search finds none.
       TR = LUT0
       IF (TR .LE. 0.0D0) TR = EVGET(KEPHO)
-      P = 2.0D0 * PI / LGEL(11, LEGAT(TR, 2, 1))
+      TERISE = TR - 1800.0D0
+      K = LEGAT(TR, 2, 1)
+      IF (K .EQ. 0) RETURN
+      P = 2.0D0 * PI / LGEL(11, K)
       T1 = TR - P
       F1 = ERCLR(T1)
       DO 10 I = 1, 720

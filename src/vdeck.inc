@@ -16,7 +16,7 @@ C     each scenario that follows: IMHV 0 none, 1 its MISSION card read,
 C     2 its EPOCH too; MJD epoch, MSIT landing site lat, lon, azimuth,
 C     MPAD pad lat, lon, MPGC its latitude geocentric, MPCH its name (8
 C     codes).  IDSN the scenario in hand (0 none), ISNHV(M) 1 once
-C     scenario M is read.  IDST the situation in hand (0 none);
+C     scenario M is read, SNCD(M) its SCENARIO card's number.  IDST the situation in hand (0 none);
 C     ISTHV(K) the cards situation K has: 0 none, 1 its SITUATION, 2 its
 C     RECIPE, 3 its VIEWS, 4 its HDRREF; STCD(K) its SITUATION card's
 C     number.
@@ -45,9 +45,9 @@ C     PARAMETER list is FORTRAN 77 (1978).
      &           ICUE=69, ICLE=101, ICTIL=126)
 C     RESTOMOD END
       INTEGER ICRD(MXCRD), NCRD, ITKB(MXCRD), NTOK, TKS(MXTOK)
-      INTEGER TKL(MXTOK), TVS(MXTOK), TVL(MXTOK), KCRD, KSLT(NVOCW)
+      INTEGER TKL(MXTOK), TVS(MXTOK), TVL(MXTOK), KCRD, KSLT(NVOCK)
       INTEGER IDKER, IDKCD, NDKWN, NDKCD
-      INTEGER IMHV, MPGC, MPCH(8), IDSN, ISNHV(MXSN), IDST
+      INTEGER IMHV, MPGC, MPCH(8), IDSN, ISNHV(MXSN), SNCD(MXSN), IDST
       INTEGER ISTHV(MXSIT), STCD(MXSIT)
       INTEGER ITBON, ITBSN, ITBGC, ITBVH, NTBR, TBEF(MXTBR)
       INTEGER TLNS(MXTL), TLNL(MXTL), NTNC, TNCH(MXTNC)
@@ -57,7 +57,7 @@ C     RESTOMOD END
       DOUBLE PRECISION MJD, MSIT(3), MPAD(2), TBR(7,MXTBR), P10(23)
       COMMON /CDECK/ ICRD, NCRD, ITKB, NTOK, TKS, TKL, TVS, TVL, KCRD,
      &               KSLT, IDKER, IDKCD, NDKWN, NDKCD, IMHV, MPGC, MPCH,
-     &               IDSN, ISNHV, IDST, ISTHV, STCD, ITBON, ITBSN,
+     &               IDSN, ISNHV, SNCD, IDST, ISTHV, STCD, ITBON, ITBSN,
      &               ITBGC, ITBVH, NTBR, TBEF, TLNS, TLNL, NTNC, TNCH,
      &               NCQ, CQSN, CQVH, CQEN, CQIS, CQIL, CQCS, CQCL,
      &               CQCD, NCQC, CQCH

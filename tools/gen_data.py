@@ -246,11 +246,11 @@ class Num(float):
 
 
 # A card's number and g.e.t., the grammar the kernel's card reader takes (src/vdeck.f DKNMS,
-# DKGTS): one sign, digits with one point at most, an E exponent; h:mm or h:mm:ss.s with one
-# leading - at most.  15 significant digits at most and a power of ten within 10**22, so the
-# reader's integer-and-one-scale read is exact.
-NUM_RE = re.compile(r"([+-]?)(\d+\.?\d*|\.\d+)(?:[eE]([+-]?\d+))?")
-GET_RE = re.compile(r"(-?)(\d+):(\d+)(?::(\d+\.?\d*|\.\d+))?")
+# DKGTS): one sign, digits with one point at most, an E exponent of three digits at most; h:mm or
+# h:mm:ss.s with one leading - at most.  15 significant digits at most and a power of ten within
+# 10**22, so the reader's integer-and-one-scale read is exact.  ASCII digits only.
+NUM_RE = re.compile(r"([+-]?)(\d+\.?\d*|\.\d+)(?:[eE]([+-]?\d{1,3}))?", re.ASCII)
+GET_RE = re.compile(r"(-?)(\d+):(\d+)(?::(\d+\.?\d*|\.\d+))?", re.ASCII)
 
 
 def exact_digits(mant, scale, where):
@@ -264,10 +264,6 @@ def exact_digits(mant, scale, where):
 def cnum(tok):
     """A card's decimal number (or a default, such as 0) as a Num carrying its digits."""
     tok = str(tok)
-    m = NUM_RE.fullmatch(tok)
-    assert m, f"{tok!r}: not a number (one sign, digits, one point, an E exponent)"
-    frac = len(m.group(2).split(".")[1]) if "." in m.group(2) else 0
-    exact_digits(m.group(2), int(m.group(3) or 0) - frac, tok)
     return Num(float(tok), dlit(tok))
 
 
@@ -535,8 +531,12 @@ def enum(table, val, where, what):
 
 def dlit(tok):
     """A card's decimal number as a FORTRAN double precision literal with the same digits (E
-    exponent to D, D0 added), so the BLOCK DATA holds exactly the constant the code had."""
-    float(tok)
+    exponent to D, D0 added), so the BLOCK DATA holds exactly the constant the code had.  The
+    card reader's number grammar (NUM_RE) is checked here, for every number a card gives."""
+    m = NUM_RE.fullmatch(tok)
+    assert m, f"{tok!r}: not a number (one sign, digits, one point, an E exponent)"
+    frac = len(m.group(2).split(".")[1]) if "." in m.group(2) else 0
+    exact_digits(m.group(2), int(m.group(3) or 0) - frac, tok)
     t = tok.upper().replace("E", "D")
     if "D" not in t:
         t += "D0"
@@ -673,7 +673,7 @@ def situations(mis, evs, sits):
         r["lm"] = enum(STATION_RULES, vw["LM"], where, "LM")
         r["fix_"] = enum(YES_NO, vw.get("FIXED", "NO"), where, "FIXED")
         xs = vw.get("XSTART")
-        r["xo"], r["xy"] = (1, [dlit(x) for x in xs.split(",")]) if xs else (0, ["0.0D0"] * 2)
+        r["xo"], r["xy"] = (1, [dlit(x) for x in xs.split(",")]) if xs is not None else (0, ["0.0D0"] * 2)
         assert len(r["xy"]) == 2, f"{where}: XSTART=yaw,pitch"
         # Header reference object.
         r["hk"] = enum(HDR_OBJS, hr["OBJ"], where, "HDRREF OBJ")
@@ -1126,6 +1126,9 @@ def write_vocab():
             consts += [(pre + w.replace("-", "")[:5], v) for w, v in table.items()]
     keys = lists[1][2]
     cardid = lists[0][2]
+    assert list(cardid.values()) == list(range(1, len(cardid) + 1)) and len(cardid) <= 31, \
+        "card kinds: codes 1..N, 31 at most (KYCARD's bits)"
+    assert list(keys.values()) == list(range(1, len(keys) + 1)), "keys: codes 1..N"
     kycard = [sum(2 ** (cardid[c] - 1) for c, ks in CARD_KEYS.items() if k in ks) for k in keys]
     allnames = names + [c for c, _ in consts]
     assert len(set(allnames)) == len(allnames), "vocabulary PARAMETER names collide"
