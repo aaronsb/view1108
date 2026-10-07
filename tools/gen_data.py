@@ -231,6 +231,9 @@ CARD_KEYS = {
     "REEL": {"ID", "TITLE", "KIND", "ALIAS", "NEXT", "FADE", "FILM", "TAG", "SRC"},
     "SHOT": {"SIT", "NAME", "DUR", "GET", "RATE", "TO", "AT", "TTE", "LIMB", "FOV", "YAW", "PITCH",
              "ROLL", "VIEW", "TARGET", "LABELS", "FRAME", "CAPTION", "SRC"},
+    # A tape (#26 slice 6): its header card, then rows of seven numbers with no card word (the
+    # kernel's reader takes them; tools/vtape.f writes them).  No deck this script reads has one.
+    "TAPE": {"SCN", "CHAN", "SRC"},
 }
 
 
@@ -250,18 +253,20 @@ class Num(float):
 
 # A card's number and g.e.t., the grammar the kernel's card reader takes (src/vdeck.f DKNMS,
 # DKGTS): one sign, digits with one point at most, an E exponent of three digits at most; h:mm or
-# h:mm:ss.s with one leading - at most.  15 significant digits at most and a power of ten within
-# 10**22, so the reader's integer-and-one-scale read is exact.  ASCII digits only.
+# h:mm:ss.s with one leading - at most.  17 significant digits at most and a power of ten from
+# 10**-44 to 10**22: the reader reads 15 digits within 10**22 with one exact scale, and the rest
+# (DKDD) in two doubles, rounded once; both give the decimal correctly rounded.  A g.e.t.
+# h:mm:ss.s holds 15 digits.  ASCII digits only.
 NUM_RE = re.compile(r"([+-]?)(\d+\.?\d*|\.\d+)(?:[eE]([+-]?\d{1,3}))?", re.ASCII)
 GET_RE = re.compile(r"(-?)(\d+):(\d+)(?::(\d+\.?\d*|\.\d+))?", re.ASCII)
 
 
 def exact_digits(mant, scale, where):
-    """Check a number the reader takes exactly: its mantissa's significant digits (15 at most)
-    and its power of ten (within 10**22 unless it is zero)."""
+    """Check a number the reader takes: its mantissa's significant digits (17 at most) and its
+    power of ten (10**-44 to 10**22 unless it is zero)."""
     digits = mant.replace(".", "").lstrip("0")
-    assert len(digits) <= 15, f"{where}: more than 15 significant digits"
-    assert not digits or abs(scale) <= 22, f"{where}: exponent out of range"
+    assert len(digits) <= 17, f"{where}: more than 17 significant digits"
+    assert not digits or -44 <= scale <= 22, f"{where}: exponent out of range"
 
 
 def cnum(tok):

@@ -22,6 +22,17 @@
 #   render/*.txt               build/viewsvg's SVG on stdout and hdr(1..24) on stderr (VIEW_HDR) for
 #                              every case in CASES, the decks loaded the same way
 #
+# The tape round trip (#26 slice 6), run by capture and check, writes no file into the capture:
+# for each case in TAPES the engine runs (VIEW_SIM), its tape is written as a deck (VIEW_TAPEW,
+# tools/vtape.f), and the frame drawn from that tape read back by the card reader (VIEW_DECK:
+# build/decks.txt's decks, then the tape; FLAGS 11) must equal the frame drawn from the engine's
+# own tape: the SVG line for line and hdr(1..16, 21..24) digit for digit.  Only the source and its
+# reference errors differ, and they must read as a deck tape's: hdr(17) 3 where the tape is drawn,
+# hdr(18..20) 0, the SVG's "source" line to match.  Each case also says which source its frame
+# must report (TAPES' last column), so the step cannot pass with no tape drawn, and the tape read
+# back, written again (VIEW_TAPEW after the decks), must be the first tape's rows text for text.
+# Any other difference fails the step.
+#
 # The mask: in viewdata.f, viewdims.inc, vdvoc.f and vdvoc.inc, comment lines (C in column 1) that quote a source
 # location are dropped: a path or file name under data/ or tools/, a *.scn or *.py name, or the name
 # of tools/gen_data.py's BURN_CUES table.  These lines say where the tables came from, which a
@@ -170,6 +181,73 @@ s2-ext-cmsep      | VIEW_VIEW=1 VIEW_LABLV=2     | 2 701500
 EOF
 )
 
+# The tape round trip: NAME | VIEW_SIM | scene GET | the source the frame from the read-back tape must
+# report, hdr(17): 3 where the tape is drawn (after the scenario's START and before entry
+# interface), 0 where it is not (s3-tape1's 1:30:00 is before START, s2-ei after entry interface).
+TAPES=$(cat <<'EOF'
+s1-tape1          | 1 | 1 -      | 3
+s1-tape0          | 0 | 1 -      | 3
+s2-tape1          | 1 | 2 600000 | 3
+s2-tape0          | 0 | 2 600000 | 3
+s2-ei             | 1 | 2 702500 | 0
+s3-tape1          | 1 | 3 -      | 0
+s3-tape-40000     | 1 | 3 40000  | 3
+s4-tape1          | 1 | 4 360600 | 3
+s7-tape0          | 0 | 7 12500  | 3
+s8-tape1          | 1 | 8 -      | 3
+s8-tape0          | 0 | 8 80000  | 3
+s9-tape1          | 1 | 9 -      | 3
+s9-tape0          | 0 | 9 250000 | 3
+EOF
+)
+
+roundtrip() {
+  local tmp=build/tape-rt decks n=0 bad=0 name sim args want sc get src
+  local E="env -u VIEW_TIME -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP -u VIEW_DKSUM"
+  rm -rf "$tmp"; mkdir -p "$tmp"
+  decks=$(paste -sd: build/decks.txt)
+  while IFS='|' read -r name sim args want; do
+    name=$(echo $name); sim=$(echo $sim); want=$(echo $want)
+    read -r sc get <<< "$args"
+    $E -u VIEW_DECK -u VIEW_HDR VIEW_SIM=$sim VIEW_TAPEW=1 build/viewsvg $sc > "$tmp/$name.tsv"
+    $E -u VIEW_DECK VIEW_HDR=1 VIEW_SIM=$sim build/viewsvg $sc $get 0 0 0 - 11 \
+      > "$tmp/$name.a.svg" 2> "$tmp/$name.a.hdr"
+    if ! $E -u VIEW_SIM VIEW_HDR=1 VIEW_DECK="$decks:$tmp/$name.tsv" \
+         build/viewsvg $sc $get 0 0 0 - 11 > "$tmp/$name.b.svg" 2> "$tmp/$name.b.hdr"; then
+      echo "golden: tape round trip $name: the card reader refused the tape:" >&2
+      sed 's/^/  /' "$tmp/$name.b.hdr" >&2; bad=$((bad + 1)); n=$((n + 1)); continue
+    fi
+    # The source the frame reports, against the case's: the tape drawn where it should be.
+    src=$(sed -nE 's/^hdr\(17\) = +([0-9])\..*/\1/p' "$tmp/$name.b.hdr")
+    if [ "$src" != "$want" ]; then
+      echo "golden: tape round trip $name: source $src, not $want" >&2; bad=$((bad + 1))
+    fi
+    # The tape read back, written again: the same rows, text for text (its bits, through 17 digits).
+    $E -u VIEW_SIM -u VIEW_HDR VIEW_DECK="$decks:$tmp/$name.tsv" VIEW_TAPEW=1 build/viewsvg $sc \
+      > "$tmp/$name.again.tsv"
+    if ! diff -q <(grep -v '^\*' "$tmp/$name.tsv") <(grep -v '^\*' "$tmp/$name.again.tsv") > /dev/null; then
+      echo "golden: tape round trip $name: the tape read back and written again differs" >&2; bad=$((bad + 1))
+    fi
+    # The engine's frame with its source lines turned into what a deck tape gives: hdr(17) 3 and
+    # hdr(18..20) 0 where the engine's tape was drawn (hdr(17) 1 or 2), hdr(18..20) 0 elsewhere.
+    sed -E 's/^(hdr\(17\) = +)[12]\./\13./; s/^(hdr\((18|19|20)\) = +).*/\10.000000000000000E+00/' \
+      "$tmp/$name.a.hdr" > "$tmp/$name.x.hdr"
+    sed -E 's/^  source [12]  err .*/  source 3  err .0 km .0 ft\/s at .0/' \
+      "$tmp/$name.a.svg" > "$tmp/$name.x.svg"
+    if ! cmp -s "$tmp/$name.x.svg" "$tmp/$name.b.svg" || ! cmp -s "$tmp/$name.x.hdr" "$tmp/$name.b.hdr"; then
+      echo "golden: tape round trip $name: the frame from the tape read back differs:" >&2
+      { diff "$tmp/$name.x.svg" "$tmp/$name.b.svg"; diff "$tmp/$name.x.hdr" "$tmp/$name.b.hdr"; } | head -8 >&2
+      bad=$((bad + 1))
+    fi
+    n=$((n + 1))
+  done <<< "$TAPES"
+  if [ $bad -ne 0 ]; then
+    echo "golden: tape round trip FAIL: $bad of $n cases (files in $tmp)" >&2; exit 1
+  fi
+  rm -rf "$tmp"
+  echo "golden: tape round trip PASS: $n cases, each frame drawn from the tape read back equals the engine's"
+}
+
 capture() {
   local out=$1
   ./tools/build.sh native >/dev/null
@@ -203,6 +281,7 @@ capture() {
     n=$((n + 1))
   done <<< "$CASES"
   echo "golden: captured 6 tables, the run-table dump ($(wc -l < "$out/tables.txt") entries) and $n renders into $out"
+  roundtrip
 }
 
 case "${1:-}" in

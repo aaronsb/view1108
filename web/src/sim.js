@@ -5,7 +5,8 @@
 // Every kernel access for the simulation is in SIMK, so a change in the kernel interface is a change here only
 // (contract in CLAUDE.md; engine in docs/simulation.md). sim_run(flags) fills the tape, bit 0 = state vector updates
 // on; in_flags bit 3 draws the CSM from the tape where it covers the time (before TLI the kernel falls back to the
-// replay); hdr(17) the source used this frame (0 replay, 1 sim with updates, 2 sim free), hdr(18) and hdr(19) the
+// replay); hdr(17) the source used this frame (0 replay, 1 sim with updates, 2 sim free, 3 a tape read from the deck,
+// src/vdktap.f: the page loads none yet, #26 slice 7), hdr(18) and hdr(19) the
 // position (km) and velocity (ft/s) error at the reference row nearest GET, hdr(20) that row's GET.
 const SIM_FLAG = 8;
 const SIMK = {
@@ -32,7 +33,8 @@ const simFlags = () => simAvail ? SIMK.flags(simOn) : 0;
 function simTick() {
   if (!simAvail) return;
   const r = SIMK.readout();
-  const t = !simOn ? "SOURCE REPLAY" : r.src === 0 ? "SIM - BEFORE TLI, REPLAY" : (r.src === 1 ? "SIM - UPDATES ON" : "SIM - FREE") +
+  const t = !simOn ? "SOURCE REPLAY" : r.src === 0 ? "SIM - BEFORE TLI, REPLAY" : r.src === 3 ? "TAPE - FROM THE DECK" :
+    (r.src === 1 ? "SIM - UPDATES ON" : "SIM - FREE") +
     (r.rget ? `   ERR ${r.perr.toFixed(1)} KM ${r.verr.toFixed(1)} FT/S   VS ${getStr(r.rget)}` : "");
   const el = $("simread"); if (el.textContent !== t) el.textContent = t;
 }

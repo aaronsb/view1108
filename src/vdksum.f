@@ -14,7 +14,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'vdvoc.inc'
       INCLUDE 'vdeck.inc'
 C     RESTOMOD END
-      INTEGER ISUM(4), I, K
+      INTEGER ISUM(4), I, K, C
       DO 5 I = 1, 4
         ISUM(I) = 0
     5 CONTINUE
@@ -117,6 +117,21 @@ C     RESTOMOD END
         CALL DKHSIT(K, ISUM)
    30 CONTINUE
   130 CONTINUE
+C     A tape read from the deck (vdktap.f; ISIMF -1), not one the
+C     engine wrote, and only if there is one: a deck without a tape
+C     sums as before.
+      IF (ITPSN .EQ. 0 .OR. ISIMF .GE. 0) RETURN
+      CALL DKHI(ITPSN, ISUM)
+      DO 43 C = 1, MXCHN
+        CALL DKHI(NTP(C), ISUM)
+        IF (NTP(C) .EQ. 0) GO TO 43
+        DO 42 K = 1, NTP(C)
+          CALL DKHD(TPT(K,C), ISUM)
+          DO 41 I = 1, 6
+            CALL DKHD(TPS(I,K,C), ISUM)
+   41     CONTINUE
+   42   CONTINUE
+   43 CONTINUE
       RETURN
       END
 C

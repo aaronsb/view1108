@@ -19,7 +19,8 @@ C     the run tables (ours; vdksum.f), so two loads can be compared
 C     word for word.  The card semantics are in vdkscn.f (the
 C     mission's and scenario's cards) and vdksit.f (the situation
 C     cards), the field readers (words, numbers, lists, text) in
-C     vdkfld.f.
+C     vdkfld.f, the tape cards (a TAPE card, then rows of numbers into
+C     /CTAPE/) in vdktap.f.
 C     tools/gen_data.py still checks the rest of a deck (each recipe's
 C     keys, poses).
 C
@@ -32,8 +33,13 @@ C     an integer (15 at most),
 C     then one multiply or divide by a power of ten up to 10**22, both
 C     exact, so the double is the decimal correctly rounded, the value
 C     a compiler gives the same digits as a constant (Clinger 1990,
-C     the fast path).  A g.e.t. h:mm:ss.s folds h and mm into that
-C     integer.  RESTOMOD: free-field input was a FORTRAN V extension
+C     the fast path).  A number of 16 or 17 significant digits, as a
+C     tape row carries (a double from about 10**-28 to 10**38 in
+C     magnitude, written with 17 digits, reads back the same), or with
+C     a power of ten down to 10**-44, is carried in two doubles and
+C     rounded once (DKDD, vdkfld.f).  A g.e.t. h:mm:ss.s folds h and
+C     mm into that integer (15 digits at most).  RESTOMOD: free-field
+C     input was a FORTRAN V extension
 C     (UP-4046 sec. 10.4.1); this hand reader of KEY=VALUE cards stands
 C     in for NAMELIST, which LFortran does not have.  Every DO here
 C     whose count can be 0 is guarded: no FORTRAN V source we hold says
@@ -41,7 +47,8 @@ C     such a loop is skipped (#26; ours).
 C
 C     Deck errors (IDKER; the first one stands, the deck is refused):
 C      1 card longer than MXCRD     2 bad number
-C      3 more than 15 digits, or exponent out of range
+C      3 more than 17 significant digits (15 in a g.e.t. h:mm:ss),
+C        or a power of ten outside 10**-44 to 10**22
 C      4 unknown word               5 a required key missing
 C      6 card out of place          7 ID out of range
 C      8 ID (or a scenario's START) given twice
@@ -60,6 +67,12 @@ C        MISSION, then EPOCH, before the mission's scenarios)
 C     26 a scenario without a CSM leg, or with an LM leg about the Moon
 C        but no CSM leg about the Moon (the LM's legs are built on it)
 C     27 a situation's GET= or AT= event not in its scenario
+C     28 tape full (MXSAM samples on a channel)
+C     29 tape rows out of time order, or a tape of fewer than two
+C     30 TAPE: its scenario not read yet, or a second scenario's tape
+C        (/CTAPE/ holds one)
+C     A card that starts with a number is a tape row: deck error 6 if
+C     no tape is open, 22 if it has not seven numbers.
 C
       SUBROUTINE CRDOPN
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -83,9 +96,9 @@ C     The deck in hand, and no scenario or tape left from the last.
       NTNC = 0
       NCQ = 0
       NCQC = 0
+      ITPON = 0
       ISN = 0
       ISCN = 0
-      ITPSN = 0
       P10(1) = 1.0D0
       DO 30 K = 2, 23
         P10(K) = P10(K-1) * 10.0D0
@@ -93,7 +106,8 @@ C     The deck in hand, and no scenario or tape left from the last.
       RETURN
       END
 C
-C     DKCLR: the run tables emptied, every row and count, and SITECH.
+C     DKCLR: the run tables emptied, every row and count, SITECH, and
+C     the tape (no scenario on it).
       SUBROUTINE DKCLR
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -149,6 +163,7 @@ C     RESTOMOD END
         RFSN(K) = 0
         RFBOD(K) = 0
         RFGC(K) = 0
+        RFOK(K) = 0
    19 CONTINUE
       DO 20 K = 1, MXBURN
         BNT(K) = 0.0D0
@@ -184,6 +199,9 @@ C     RESTOMOD END
       NTL = 0
       NBR = 0
       NSIT = 0
+      CALL TPCLR
+      ITPSN = 0
+      ISIMF = 0
       RETURN
       END
 C
@@ -197,7 +215,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'vdeck.inc'
 C     RESTOMOD END
       INTEGER IC(MXCRD), NC
-      INTEGER I, J, K, W, IB, DKLOOK
+      INTEGER I, J, K, W, IB, C, DKLOOK
       NDKCD = NDKCD + 1
       IF (IDKER .NE. 0) RETURN
       IF (NC .GE. 0 .AND. NC .LE. MXCRD) GO TO 5
@@ -218,6 +236,17 @@ C     cards with * in column 1 are comments.
    30 IF (ICRD(1) .EQ. ICSTR) RETURN
       CALL DKTOK
       IF (IDKER .NE. 0) RETURN
+C     A card that starts with a number: a row of the open tape.
+      IF (TKL(1) .EQ. 0) GO TO 34
+      C = ITKB(TKS(1))
+      IF ((C .LT. ICD0 .OR. C .GT. ICD9) .AND. C .NE. ICPLS .AND.
+     &    C .NE. ICMIN .AND. C .NE. ICPT) GO TO 34
+      IF (ITPON .EQ. 1) GO TO 32
+      CALL DKERR(6)
+      RETURN
+   32 CALL DKTROW
+      RETURN
+   34 CONTINUE
       DO 35 K = 1, NVOCK
         KSLT(K) = 0
    35 CONTINUE
@@ -225,7 +254,9 @@ C     cards with * in column 1 are comments.
       W = DKLOOK(VCARD, TKS(1), TKL(1))
       IF (W .GT. 0) KCRD = VOCV(W)
       IF (KCRD .GT. 0) GO TO 40
+C     An unknown card: skipped and counted; it ends an open tape.
       NDKWN = NDKWN + 1
+      IF (ITPON .EQ. 1) CALL DKTPCL
       RETURN
 C     The keys: a word without = is refused; an unknown key is skipped
 C     and counted, and a key of another card kind counted and read.
@@ -248,14 +279,15 @@ C       Bit KCRD-1 of the key's card kinds.
    50 CONTINUE
    60 CONTINUE
       IF (ITBON .EQ. 1 .AND. KCRD .NE. QROW) CALL DKTBCL
+      IF (ITPON .EQ. 1) CALL DKTPCL
       IF (IDKER .NE. 0) RETURN
       CALL DKCARD
       RETURN
       END
 C
 C     CRDEOF: the end of a file of the deck.  Its open TABLE leg ends,
-C     and its scenario: the next file's cards start with a SCENARIO
-C     card (or a MISSION card).
+C     its open tape, and its scenario: the next file's cards start with
+C     a SCENARIO card (or a MISSION card, or a TAPE card).
       SUBROUTINE CRDEOF
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -265,6 +297,8 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'vdeck.inc'
 C     RESTOMOD END
       IF (IDKER .EQ. 0 .AND. ITBON .EQ. 1) CALL DKTBCL
+      IF (IDKER .EQ. 0 .AND. ITPON .EQ. 1) CALL DKTPCL
+      ITPON = 0
       IDSN = 0
       IDST = 0
       RETURN
