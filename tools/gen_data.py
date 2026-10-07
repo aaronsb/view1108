@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Generate src/viewdata.f (BLOCK DATA, the static catalogs), src/viewdims.inc and build/names.js
-from data/, and check the run decks (data/missions) the kernel's card reader (src/vdeck.f) loads.
+"""Generate src/viewdata.f (BLOCK DATA, the static catalogs), src/viewdims.inc, build/names.js and
+build/page/ from data/, and check the run decks (data/missions) the kernel's card reader (src/vdeck.f) loads.
 
 Inputs (all in data/):
   Comanche055_STAR_TABLES.agc   the 37 Apollo nav stars as AGC unit vectors (1969.5 epoch)
@@ -11,8 +11,9 @@ Inputs (all in data/):
   missions/<id>/*.scn           its scenarios (run decks): trajectory legs, events, timeline
   meeus47.txt                   Meeus ch. 47 lunar periodic terms (tables 47.A and 47.B)
   missions/<id>/*.scn           also each scenario's situations (SITUATION, RECIPE, VIEWS, HDRREF
-                                cards) -> build/scenes.json, and with its SPAN cards ->
-                                build/names.js (SITUATIONS, SCENARIOS)
+                                cards) -> build/scenes.json, and with its SPAN and TIMELINE
+                                cards -> build/page/<reel id>.json, its scenario reel's page.json
+                                (tools/pack.py packs it; <reel id> is <mission folder>-<file stem>)
   reels/<id>/run.scn            playlist reels (REEL and SHOT cards) -> build/names.js (REELS)
 
 Also the card reader's vocabulary (its card kinds, keys and code words, from the tables below)
@@ -22,7 +23,7 @@ driver and the gates; the page's copies are the reel packages, tools/pack.py).
 Everything is written in the J2000 equatorial frame. AGC star vectors are precessed
 from 1969.5 to J2000 so they share a frame with the catalog.
 """
-import decimal, json, math, pathlib, re, shlex, struct
+import decimal, json, math, pathlib, re, shlex, shutil, struct
 
 R = pathlib.Path(__file__).resolve().parent.parent
 D = R / "data"
@@ -382,6 +383,7 @@ def scenarios():
                 assert kind not in MISSION_CARDS, f"{name}: {kind} card belongs in mission.scn"
                 if kind == "SCENARIO":
                     cur = {"n": int(kv["ID"]), "mission": mdir.name, "mname": ms["name"],
+                           "reel": f"{mdir.name}-{path.stem}",
                            "name": ms["name"] + " " + kv["NAME"], "jd": ms["jd"],
                            "site": ms["site"], "sitename": ms["sitename"], "pad": ms["pad"],
                            "src": list(ms["src"])}
@@ -646,9 +648,10 @@ def situations(mis, evs, sits):
     return out
 
 
-# The page's copy of the situations and of each scenario's SPAN cards (#17), in build/names.js:
-# VIEW_NAMES.SITUATIONS (in id order) and VIEW_NAMES.SCENARIOS.  The page reads these and holds no
-# list of its own (docs/systems-model.md, section 4, rules 3 and 4).
+# The page's copy of each scenario's situations, SPAN cards (#17) and TIMELINE cards: its scenario
+# reel's page.json (#26 slice 7d), written as build/page/<reel id>.json and packed by tools/pack.py.
+# The page reads these and holds no list of its own (docs/systems-model.md, section 4, rules 3 and 4).
+# Interim (operator, 2026-10-07): it reopens when private reels need the page to read card text itself.
 JD_UNIX = 2440587.5   # JD of 1970-01-01 00:00 UTC, the page's Date origin
 SPAN_KEYS = {"FOLLOW": {"VIEW", "TARGET", "FOV", "CAPTION"}, "LIVE": set(), "JUMP": set(), "PIN": set()}   # optional
 SPAN_NEED = {"FOLLOW": {"SIT", "UNTIL"}, "LIVE": {"SIT", "UNTIL", "NAME"},                         # required
@@ -675,7 +678,7 @@ def static_get(txt, evt, where):
 
 
 def page_situations(sits, raw, mis, evs):
-    """VIEW_NAMES.SITUATIONS: what the page needs of each situation, from its cards.  get is the
+    """page.json's situations: what the page needs of each situation, from its cards.  get is the
     default g.e.t. where the cards fix it (None for a computed rule, get_rule); fov None for a
     DISC: field (fov_rule)."""
     card = {t["id"]: t for t in raw}
@@ -700,16 +703,16 @@ def page_situations(sits, raw, mis, evs):
 
 
 def page_scenarios(mis, legs, evs, spans, sits):
-    """VIEW_NAMES.SCENARIOS: per scenario its mission, its epoch (s from scenario 1's range zero, as
-    hdr(16)), its range zero as UTC ms (zero: the page's and the room's clocks; the EPOCH card's JD to
-    the whole second, since every EPOCH card's source gives range zero to the second and six decimals
-    of a day are 0.0864 s) and its SPAN cards by track.  follow: [until, situation, in_view, in_target, field],
+    """page.json's scenario, by scenario id: its mission, its range zero as UTC ms (zero: the page's
+    and the room's clocks; the EPOCH card's JD to the whole second, since every EPOCH card's source
+    gives range zero to the second and six decimals of a day are 0.0864 s) and its SPAN cards by
+    track.  Its offset from Apollo 11's range zero is not here: the page reads it from the kernel,
+    hdr(16), after view_init (#26 slice 7d).  follow: [until, situation, in_view, in_target, field],
     until None for END, field None for the situation's own, and a sixth item, the caption, where the card has
     CAPTION=; live: [until, situation, name]; jump:
     {scene, get, len, button}; pin: situation ids.  Every span time lies within the scenario's
     legs; LIVE cards are in exactly one scenario (the one Live follows)."""
     sit_m = {r["id"]: r["m"] for r in sits}
-    jd1 = next(m["jd"] for m in mis if m["n"] == 1)
     out = {}
     for m in mis:
         evt = event_times(evs, m["n"])
@@ -759,7 +762,7 @@ def page_scenarios(mis, legs, evs, spans, sits):
                 tr["pin"].append(sid)
         for t in ("follow", "live"):
             assert not tr[t] or tr[t][-1][0] is None, f"scenario {m['n']}: the last {t.upper()} span ends at END"
-        out[str(m["n"])] = {"mission": m["mname"], "epoch": round((m["jd"] - jd1) * 86400, 3),
+        out[str(m["n"])] = {"mission": m["mname"],
                             "zero": round((m["jd"] - JD_UNIX) * 86400) * 1000, "spans": tr}
     live = [k for k, v in out.items() if v["spans"]["live"]]
     assert len(live) == 1, f"LIVE spans: Live follows one scenario, found them in {len(live)} ({', '.join(live)})"
@@ -1234,22 +1237,29 @@ def main():
     names = {"NAV": NAV_NAMES, "NAV_MAG": nav_mag,
              "CRATER": [c[3] if (c[4] == "AA" and c[2] >= 20) else "" for c in crat],
              "CRATER_KM": [round(c[2], 1) for c in crat],
-             # Each scenario's timeline (TIMELINE cards) for chapter marks: g.e.t. (s from that
-             # scenario's range zero; hdr(16) gives its offset from Apollo 11's), kind, name.
-             "TIMELINE": {str(m["n"]): {"name": m["name"],
-                                        "events": [[round(r["t"], 3), r["kind"], r["name"]]
-                                                   for r in sorted(sim["tl"], key=lambda r: r["t"])
-                                                   if r["m"] == m["n"]]}
-                          for m in mis},
              "TL_KINDS": list(TL_KINDS)}
     sits = situations(mis, evs, sim["sit"])
-    # The situations and each scenario's SPAN cards: the page's only copy of them.
-    names["SITUATIONS"] = page_situations(sits, sim["sit"], mis, evs)
-    names["SCENARIOS"] = page_scenarios(mis, legs, evs, sim["span"], sits)
     # The playlist reels (REEL and SHOT cards, data/reels/*/run.scn): the page's only copy.
     names["REELS"] = page_reels(mis, legs, evs, sits)
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
+    # Each scenario reel's page.json (tools/pack.py packs it): its situations (in id order), its
+    # mission, range zero and SPAN cards, and its timeline (TIMELINE cards) for chapter marks:
+    # g.e.t. (s from that scenario's range zero), kind, name.  The page's only copy of them.
+    psit = page_situations(sits, sim["sit"], mis, evs)
+    pscn = page_scenarios(mis, legs, evs, sim["span"], sits)
+    pdir = R / "build" / "page"
+    if pdir.exists():
+        shutil.rmtree(pdir)
+    pdir.mkdir()
+    for m in mis:
+        page = {"scenario": {"id": m["n"], **pscn[str(m["n"])]},
+                "situations": [s for s in psit if s["scenario"] == m["n"]],
+                "timeline": {"name": m["name"],
+                             "events": [[round(r["t"], 3), r["kind"], r["name"]]
+                                        for r in sorted(sim["tl"], key=lambda r: r["t"])
+                                        if r["m"] == m["n"]]}}
+        (pdir / f"{m['reel']}.json").write_text(json.dumps(page) + "\n")
     write_vocab()
     # The decks in load order (the order above: missions by folder, each mission.scn and then its
     # scenarios), for the card reader's gates: tools/golden.sh and the selftest load them.

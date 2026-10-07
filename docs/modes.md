@@ -169,7 +169,9 @@ Each control group in the dock has a header: `[-]` shows the group is open, `[+]
 | `mode` | `attract`, `tour`, `live`, `free`, `beam` | `?mode=live` |
 | `reel` | a playlist reel's id: `demo` (Attract) or `tour`; it wins over `mode` | `?reel=tour` |
 | `tab` | `review`, `simulate`, `print`, `fusion`, `source`. Without it, the mode's tab (Live: Simulate, Beam: Print, else Review). With no `mode`, the link loads that tab's mode at the first scene (Simulate: Live; Print and Fusion: Free-look; Review and Source: Attract) and its other view keys are ignored, except that with `photo` the photograph's `get`, `fov`, `yaw`, `pitch` and `roll` still apply. Beam is always in Print | `?tab=simulate` |
-| `scene` | `1`–`9` (in Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase; `9` opens in Free-look) | `?mode=free&scene=7` |
+| `scn` | a scenario reel's id: `apollo11-asflown` or `apollo8-asflown` (#26 slice 7d; `reel` names playlist reels, so the scenario reel has its own key, the Scenario key of `docs/systems-model.md` section 3; ours). Alone, its first situation | `?mode=free&scn=apollo8-asflown` |
+| `sit` | a situation of that reel, by its id or its card's NAME (any case); without `scn`, the first reel holding it. The LINK button writes `scn` and `sit` | `?mode=free&scn=apollo11-asflown&sit=7` |
+| `scene` | kept for old links (#22): `1`–`9`, the Nth situation across the reels in load order, which is situation N until each reel numbers its own (#26 slice 7e). `scn` and `sit` win over it. In Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase; `9` opens in Free-look | `?mode=free&scene=7` |
 | `photo` | a frame in `data/photos.tsv` with a scene: opens it in Fusion, then `get`, `fov`, `yaw`, `pitch` and `roll` apply on top | `?tab=fusion&photo=AS08-14-2383` |
 | `get` | g.e.t. as `h:mm:ss` or seconds | `?get=102:45:40` |
 | `utc` | `YYYY-MM-DDTHH:MM:SS` (the scene's mission lift-off plus g.e.t.; Apollo 11: 1969-07-16T13:32:00Z) | `?utc=1969-07-20T20:17:40` |

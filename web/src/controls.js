@@ -26,19 +26,26 @@ function syncUI() {
   document.getElementById("bfrm").classList.toggle("on", frame);
 }
 const $ = id => document.getElementById(id);
-function addSceneButton(s) { const b = document.createElement("button"); b.textContent = s + " " + SCENES[s - 1]; b.dataset.scene = s; b.onclick = () => loadReel(P({ scene: s })); $("scenes").appendChild(b); }
-SCENES.forEach((n, i) => addSceneButton(i + 1));
+// The scene buttons, the number keys and the jump buttons, from the page's data once it is set at boot (main.js).
 // The number keys pick scenes 1 to 9, as many as there are situations.
-const KEY_SCENES = Math.min(9, SCENES.length);
-$("hintscenes").textContent = KEY_SCENES > 1 ? `1-${KEY_SCENES}` : "1";
-document.querySelectorAll("[data-mode]").forEach(b => { b.onclick = () => loadReel(P({ mode: b.dataset.mode })); });
-// The jump buttons, one per JUMP span of the Live scenario: its button text and its start time, h:mm:ss. Each loads
-// Live at the jump, as a link with mode=live, its scene and its time would.
-for (const j of JUMPS) {
-  const b = document.createElement("button"), g = Math.round(j.get);
-  b.textContent = `${j.button} ${Math.floor(g / 3600)}:${pad2(Math.floor(g / 60) % 60)}:${pad2(g % 60)}`;
-  b.onclick = () => loadReel(P({ mode: "live", scene: j.scene, get: j.get })); $("jumps").appendChild(b);
+let KEY_SCENES = 0;
+function sceneButtons() {
+  SCENES.forEach((n, i) => {
+    const b = document.createElement("button"), s = i + 1;
+    b.textContent = s + " " + n; b.dataset.scene = s; b.onclick = () => loadReel(P({ scene: s })); $("scenes").appendChild(b);
+  });
+  KEY_SCENES = Math.min(9, SCENES.length);
+  $("hintscenes").textContent = KEY_SCENES > 1 ? `1-${KEY_SCENES}` : "1";
+  // The jump buttons, one per JUMP span of the Live scenario: its button text and its start time, h:mm:ss. Each loads
+  // Live at the jump, as a link with mode=live, its scene and its time would, and re-points the Apollo in Real Time
+  // window (timeline.js).
+  for (const j of JUMPS) {
+    const b = document.createElement("button"), g = Math.round(j.get);
+    b.textContent = `${j.button} ${Math.floor(g / 3600)}:${pad2(Math.floor(g / 60) % 60)}:${pad2(g % 60)}`;
+    b.onclick = () => { loadReel(P({ mode: "live", scene: j.scene, get: j.get })); airtSync(); }; $("jumps").appendChild(b);
+  }
 }
+document.querySelectorAll("[data-mode]").forEach(b => { b.onclick = () => loadReel(P({ mode: b.dataset.mode })); });
 const bump = d => { if (LS.mode === "beam") beamIdx = Math.max(0, Math.min(BEAM_SPEEDS.length - 1, beamIdx + d)); else if (LS.mode === "live") liveIdx = Math.max(0, Math.min(LIVE_RATES.length - 1, liveIdx + d)); else speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, speedIdx + d)); syncUI(); };
 const parseGet = t => {
   const u = /^\s*(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})\s*Z?\s*$/.exec(t);   // a UTC timestamp

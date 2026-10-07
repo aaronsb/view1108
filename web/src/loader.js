@@ -7,10 +7,12 @@
 // Tabs, the room and its terminals only read LS: choosing what is shown never loads anything.
 //
 // params: a URLSearchParams, or anything with get(k) and has(k); P() makes one from an object. The keys are the URL's
-// (docs/modes.md): reel, mode, scene, get, utc, fov, yaw, pitch, roll, rate, bspeed, labels, lab, view, target, cabin,
-// walls, frame, hidden, photo. reel names a playlist reel (VIEW_NAMES.REELS); mode=attract and mode=tour, the demo and
-// tour reels' ALIASes, mount them too. One more, `by`, names the page's own callers whose rule differs from a viewer's pick;
-// openLink sets it to "url" and never passes the URL's own:
+// (docs/modes.md): reel, mode, scn, sit, scene, get, utc, fov, yaw, pitch, roll, rate, bspeed, labels, lab, view, target,
+// cabin, walls, frame, hidden, photo. reel names a playlist reel (VIEW_NAMES.REELS); mode=attract and mode=tour, the
+// demo and tour reels' ALIASes, mount them too. scn and sit name a situation (scenario reel, situation id or name) and
+// only a link reads them (reelpkg.js sceneOfLink); everywhere else scene is the page's handle for a situation (config.js
+// sitOf), which a link's scene=N still is for old links (#22). One more, `by`, names the page's own callers whose rule
+// differs from a viewer's pick; openLink sets it to "url" and never passes the URL's own:
 //   url     a link: the reel or mode (default the demo reel, Attract), its situation, time, look, labels and display flags (loadLink)
 //   phase   Live's phase changed: the phase's situation, the time and look kept, the field its own, aimed at the body
 //   shot    the playlist player's shot changed: its situation at its defaults, with its view, labels and frame, and
@@ -50,13 +52,15 @@ function loadReel(p) {
 }
 
 // ---- steps ----
-// Mount situation s: the kernel sets it up (view_init) and its defaults become the look and time, with its own target
-// (in_target 0), so a playlist shot's TARGET does not carry into the next shot or Free-look. Its scenario, mission and
-// epoch come from the generated tables (config.js SITS, SCNS).
+// Mount scene s: the kernel sets its situation up (view_init, by the situation's id) and its defaults become the look
+// and time, with its own target (in_target 0), so a playlist shot's TARGET does not carry into the next shot or
+// Free-look. Its reel, scenario, mission and range zero come from the reels' page.json (config.js SITS, SCNS); the
+// scenario's offset from Apollo 11's range zero is the kernel's, hdr(16), from the frame view_init draws (#26 slice 7d).
 function mount(s) {
-  const sit = sitOf(s), scn = SCNS[sit.scenario] || {};
-  Object.assign(LS, { situation: s, scenario: sit.scenario, mission: scn.mission || "", epoch: scn.epoch || 0, zero: scn.zero || 0, target: 0 });
-  viewInit(s);
+  const sit = sitOf(s), scn = SCNS[sit.reel] || {};
+  Object.assign(LS, { situation: s, scn: sit.reel || "", scenario: sit.scenario, mission: scn.mission || "", zero: scn.zero || 0, target: 0 });
+  viewInit(sit.id);
+  LS.epoch = new Float64Array(buf(), K.hdr.value, 16)[15];
   LS.get = LS.get0 = rd("in_get"); LS.yaw = rd("in_yaw"); LS.pitch = rd("in_pitch"); LS.roll = rd("in_roll"); LS.fov = LS.fov0 = rd("in_fov");
 }
 // A viewer picks situation s. In Live a situation that is no mission phase (a PIN span, the Moon view) is pinned at
@@ -102,8 +106,8 @@ function loadLive(p, scn) {
 function loadLink(p) {
   const md = pMode(p) || REELS[DEFAULT_REEL].alias;
   if (reelOfMode(md)) { enterMode(md); return; }
-  const sc = pNum(p, "scene") === null ? SITS[0].id : Math.round(pNum(p, "scene")), scn = hasScene(sc) ? sc : SITS[0].id;
-  const other = String(sitOf(scn).scenario) !== LIVE_SCN;   // another scenario's situation: Live follows its own, so it opens in Free-look
+  const sc = pNum(p, "scene"), scn = sceneOfLink(SITS, p.get("scn"), p.get("sit"), sc === null ? null : Math.round(sc)) ?? 1;
+  const other = sitOf(scn).reel !== LIVE_SCN;   // another scenario's situation: Live follows its own, so it opens in Free-look
   if (md === "free" || md === "beam" || other) {
     pickSituation(scn); const g = pGet(p); if (g !== null) LS.get = g;
     if (md === "beam") { const b = Math.round(pNum(p, "bspeed") ?? 0); if (b >= 1 && b <= BEAM_SPEEDS.length) beamIdx = b - 1; enterMode("beam"); }

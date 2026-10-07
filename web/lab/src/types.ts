@@ -15,11 +15,11 @@ export interface LabState {
   playing: boolean;       // the playback clock runs (the drive's RUN/STOP)
   reel: string;           // the mounted reel's label: DEMO while Attract or Tour plays, else the situation's title
   get: number;            // g.e.t., s, of the loaded scenario
-  situation: number;      // the loaded situation's ID (the kernel's scene number)
+  situation: number;      // the loaded situation, as the page's scene (its place among the reels' situations)
   scenario: number;       // its scenario's ID
   mission: string;        // that scenario's mission, as its MISSION card names it ("APOLLO 8")
-  epoch: number;          // the scenario's range zero, s from scenario 1's (hdr(16))
-  zero: number;           // the scenario's range zero, UTC ms (VIEW_NAMES.SCENARIOS)
+  epoch: number;          // the scenario's range zero, s from Apollo 11's (the kernel's hdr(16))
+  zero: number;           // the scenario's range zero, UTC ms (its reel's page.json)
   frameNo: number;        // kernel frames drawn since boot; the vector screen is stale when this moves
   /** web/src/sound.js sndCtx, sndOut, sndOn, and soundBed (the page's ambience bed on or off; the room's sound
    *  replaces it while the room runs), and whineNode (the deflection whine at the 1558 and the film recorder,

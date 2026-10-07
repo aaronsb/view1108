@@ -34,11 +34,13 @@ src/vdvoc.f, .inc BLOCK DATA VDVOCB: the card reader's vocabulary (card kinds, k
 src/vdeck.inc     The card reader's state (/CDECK/): the card in hand, the deck's errors.
 src/shell.f90     CHASSIS. Modern Fortran: bind(c) globals and entry points for wasm.
 tools/gen_data.py data/ -> src/viewdata.f, src/viewdims.inc, src/vdvoc.f, src/vdvoc.inc,
-                  build/names.js, build/scenes.json (the scene list make check and the selftest
-                  read) and build/decks.txt (the decks in load order, for the native gates); it
-                  also checks the decks' cards
+                  build/names.js (catalog names, the playlist reels), build/page/<reel id>.json
+                  (each scenario reel's page.json), build/scenes.json (the scene list make check
+                  and the selftest read) and build/decks.txt (the decks in load order, for the
+                  native gates); it also checks the decks' cards
 tools/pack.py     The reel packer (#26 slice 7): each scenario as build/reels/<id>.reel.tar.gz
-                  (manifest.json, mission.scn, the scenario's .scn, byte for byte; reproducible),
+                  (manifest.json, mission.scn, the scenario's .scn, byte for byte, and page.json,
+                  the page's situations, spans and timeline from build/page/; reproducible),
                   the manifest naming the kernel build by the SHA-256 of build/view.opt.wasm;
                   build/reels.js embeds them, base64, in the page
 data/missions/    one folder per mission: mission.scn (name, epoch, site, pad) and its
@@ -348,7 +350,7 @@ Fidelity rule: best effort within the spirit of what VIEW had in 1969 (trajector
 catalogs, engineering drawings, a vector recorder). Where a source is silent, choose what a
 1969 programmer could plausibly have done and say so in a comment.
 
-Each scene is a situation (`docs/systems-model.md`, section 3): a SITUATION card in its scenario's deck, followed by its RECIPE and VIEWS cards and, where the header's reference object is not the reference body, an HDRREF card (the card types are listed in the SITUATIONS section of `data/missions/apollo11/asflown.scn`). The card holds the default g.e.t. (a g.e.t., an event plus an offset, or the Earthrise search's time plus an offset), field, look, window, layer list, pose, drawing switches, camera recipe and its parameters, the default view and targets, the vehicle the camera rides, and the CM and LM stations offered. The situation's ID is the scene number. The kernel's card reader reads the cards into the situation tables (`src/vdksit.f`, `src/viewsit.inc`; `tools/gen_data.py` checks them too); `VINIT` loads one (`SITSET`) and the kernel tests the recipe and the card's switches, never a scene number. The recipes: `LOCALVERT` (1, 3, 4, 9), `INERTIAL` (2, 7), `CREWSTN` (5, the LM), `BODYCTR` (6), `EXTSEED` (8). A new view of an existing kind is a new card; a new kind of camera is a new recipe in `SCNCAM`. The page's names (`TITLE=`, `CAPTION=`) are on the SITUATION card too, and its time scripts are `SPAN` cards in the same deck (FOLLOW: the timeline's camera; LIVE: Live's phases; JUMP: Live's jump buttons; PIN: a situation Live pins when picked; the SPANS section of the Apollo 11 deck lists the format). `tools/gen_data.py` writes both into `build/names.js` (`VIEW_NAMES.SITUATIONS`, `VIEW_NAMES.SCENARIOS`); the page holds no scene list of its own.
+Each scene is a situation (`docs/systems-model.md`, section 3): a SITUATION card in its scenario's deck, followed by its RECIPE and VIEWS cards and, where the header's reference object is not the reference body, an HDRREF card (the card types are listed in the SITUATIONS section of `data/missions/apollo11/asflown.scn`). The card holds the default g.e.t. (a g.e.t., an event plus an offset, or the Earthrise search's time plus an offset), field, look, window, layer list, pose, drawing switches, camera recipe and its parameters, the default view and targets, the vehicle the camera rides, and the CM and LM stations offered. The situation's ID is the scene number. The kernel's card reader reads the cards into the situation tables (`src/vdksit.f`, `src/viewsit.inc`; `tools/gen_data.py` checks them too); `VINIT` loads one (`SITSET`) and the kernel tests the recipe and the card's switches, never a scene number. The recipes: `LOCALVERT` (1, 3, 4, 9), `INERTIAL` (2, 7), `CREWSTN` (5, the LM), `BODYCTR` (6), `EXTSEED` (8). A new view of an existing kind is a new card; a new kind of camera is a new recipe in `SCNCAM`. The page's names (`TITLE=`, `CAPTION=`) are on the SITUATION card too, and its time scripts are `SPAN` cards in the same deck (FOLLOW: the timeline's camera; LIVE: Live's phases; JUMP: Live's jump buttons; PIN: a situation Live pins when picked; the SPANS section of the Apollo 11 deck lists the format). `tools/gen_data.py` writes both into each scenario reel's `page.json` (`build/page/<reel id>.json`, packed by `tools/pack.py`; #26 slice 7d), which the page reads at boot (`web/src/reelpkg.js` `reelPages`); the page holds no scene list of its own. Outside the page a situation is its reel and id, `scn=<reel id>&sit=<id or NAME>` in a link; inside it, a scene is its place among the reels' situations in load order, which an old link's `scene=N` still names (#22; equal to the id until each reel numbers its own situations, #26 slice 7e).
 
 1. **Earthrise** — CSM in 60 n.mi. circular retrograde lunar orbit, looking forward at the horizon (`LOCALVERT` about the Moon, turned in azimuth to the Earth's sightline), FOV 8°, default GET one minute before the Earth's disc clears the horizon on the revolution before the landing (`ERFIND`), Earth climbing over the limb with its night side hatched; the lunar surface is IAU gazetteer craters drawn as rim circles on the sphere (foreshortened to ellipses). (`t04.png`)
 2. **Transearth coast / Earth approach** — inertially fixed camera (`INERTIAL` from the Earth's sightline 10 h before entry interface), default GET 5 h before entry interface, FOV 60°; a small Earth disc grows until only the limb arc remains, arriving at entry interface (GET 195:03:06). (`t08.png` through `t20.png`)
@@ -527,9 +529,9 @@ cards (`T=` g.e.t., negative before range zero; `KIND=`; `NAME=`; `SRC=`), disti
 SP-4029's timelines (Apollo 8 printed pp. 47-50, Apollo 11 pp. 105-110), one card per row
 of the book, so the PDFs can stay local. The card reader puts them in
 `/CTLN/` (`TLT`, `TLK`, `TLSN`, sorted by scenario and g.e.t., `NTL` rows) and `tools/gen_data.py` in
-`build/names.js` as `VIEW_NAMES.TIMELINE[id] = {name, events: [[get, kind, name], ...]}`
+the scenario reel's `page.json` as `timeline: {name, events: [[get, kind, name], ...]}`
 (sorted by g.e.t.; g.e.t. from that scenario's range zero, `hdr(16)` its offset from Apollo
-11's) with `VIEW_NAMES.TL_KINDS` the kind names in code order. The `EVENT` cards stay the
+11's, which the page reads from the kernel after `view_init`), with `VIEW_NAMES.TL_KINDS` (`build/names.js`) the kind names in code order. The `EVENT` cards stay the
 kernel's keys (`EVGET`) and are unchanged. KIND is ours, a small enum:
 
 | Code | KIND | Rows |

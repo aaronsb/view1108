@@ -33,9 +33,10 @@ function untar(t) {
     o += 512 + Math.ceil(size / 512) * 512;
   }
 }
-// One package (base64; `id` the name it is shipped under) -> {manifest, files: Map(name -> text)}. Refused, with the
-// reel's id in the message, unless it unpacks, its manifest is first, in this format, under that id, names kernel
-// build `sha`, lists at least one run deck, and its other members are exactly the files it lists, once each.
+// One package (base64; `id` the name it is shipped under) -> {manifest, files: Map(name -> text), page}. Refused, with
+// the reel's id in the message, unless it unpacks, its manifest is first, in this format, under that id, names kernel
+// build `sha`, lists at least one run deck, its other members are exactly the files it lists, once each, and a
+// scenario reel lists one page.json (type "page") that parses. page is that page.json's object, else null.
 async function readReel(b64, sha, id) {
   const no = why => new Error(`REEL ${id}: ${why}`);
   let bytes, files;
@@ -62,7 +63,53 @@ async function readReel(b64, sha, id) {
   const listed = new Set(c.map(e => e && e.path));
   for (const e of c) if (!text.has(e && e.path)) throw no(`${e && e.path} is listed but missing`);
   for (const n of text.keys()) if (!listed.has(n)) throw no(`${n} is in it but not listed`);
-  return { manifest, files: text };
+  const pages = c.filter(e => e.type === "page");
+  if (manifest.kind === "scenario" && pages.length !== 1) throw no(`it lists ${pages.length} page.json, not one`);
+  let page = null;
+  if (pages.length) try { page = JSON.parse(text.get(pages[0].path)); } catch (e) { throw no(`${pages[0].path}: ${e.message}`); }
+  return { manifest, files: text, page };
 }
 // A reel's run decks, in its manifest's order: [[path, text]], each path "<reel id>/<file>".
 const reelDecks = r => r.manifest.contents.filter(c => c.type === "scn").map(c => [`${r.manifest.id}/${c.path}`, r.files.get(c.path)]);
+
+// The page's data from the scenario reels' page.json (#26 slice 7d; tools/gen_data.py), in the reels' load order:
+//   sits  every situation, each its page.json row plus `reel` (its reel's id) and `scene`, its place among all the
+//         reels' situations, 1..N (config.js sitOf). A situation is (reel, id) outside the page: the URL's scn= and
+//         sit= (loader.js). scene is the page's handle for it, and the old links' scene=N (#22). Until each reel
+//         numbers its own situations (#26 slice 7e) a situation's id is its scene.
+//   scns  by reel id: {id (the kernel's scenario number), mission, zero, spans}, the spans' situations as scenes
+//   tl    by reel id: the timeline, {name, events: [[get, kind, name], ...]}
+// A span naming a situation its reel does not hold is refused with the reel's id.
+function reelPages(reels) {
+  const sits = [], scns = {}, tl = {};
+  for (const r of reels) {
+    const id = r.manifest.id, pg = r.page;
+    for (const s of pg.situations) sits.push({ ...s, reel: id, scene: sits.length + 1 });
+    const scene = n => {
+      const s = sits.find(x => x.reel === id && x.id === n);
+      if (!s) throw new Error(`REEL ${id}: page.json: a span names situation ${n}, which the reel does not hold`);
+      return s.scene;
+    };
+    const { follow, live, jump, pin } = pg.scenario.spans;
+    scns[id] = { id: pg.scenario.id, mission: pg.scenario.mission, zero: pg.scenario.zero, spans: {
+      follow: follow.map(([until, s, ...rest]) => [until, scene(s), ...rest]),
+      live: live.map(([until, s, name]) => [until, scene(s), name]),
+      jump: jump.map(j => ({ ...j, scene: scene(j.scene) })),
+      pin: pin.map(scene) } };
+    tl[id] = pg.timeline;
+  }
+  return { sits, scns, tl };
+}
+// The situation a link names, as its scene, or null (loader.js loadLink). scn: a scenario reel's id; sit: a situation
+// id or NAME (any case) in it. Without scn, the first reel in load order holding sit; without sit, scn's first
+// situation. scene: the old links' scene=N (#22), the Nth situation across the reels in load order, which before
+// #26 slice 7d (one numbering for all situations) was situation N: kept so those links still open what they did.
+// scn and sit win over scene. Ours.
+function sceneOfLink(sits, scn, sit, scene) {
+  if (scn !== null || sit !== null) {
+    const v = sit === null ? null : String(sit).trim().toUpperCase();
+    const s = sits.find(x => (scn === null || x.reel === scn) && (v === null || String(x.id) === v || x.name.toUpperCase() === v));
+    return s ? s.scene : null;
+  }
+  return scene !== null && sits[scene - 1] ? scene : null;
+}
