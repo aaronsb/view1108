@@ -4,9 +4,10 @@
 !
 ! Exports (see CLAUDE.md, "Interface contract"):
 !   view_init(scene), view_frame(), sim_run(flags)
+!   deck_open(), deck_card(n), deck_file(), deck_close(), deck_sum()
 !   in_get, in_yaw, in_pitch, in_roll, in_fov, in_flags, in_src,
-!   in_view, in_target, in_lablv
-!   out_terise (read-only)
+!   in_view, in_target, in_lablv, in_card
+!   out_terise, out_dkerr, out_dkcrd, out_dkwrn, out_dksum (read-only)
 !   vbuf, nvec, sbuf, nstar, lbuf, nlab, hdr, tbuf, ntxt, tchr, nchr
 module view_shell
   use iso_c_binding, only: c_double, c_int
@@ -33,6 +34,16 @@ module view_shell
   ! GET rule is ERISE; copied out after each view_init.  The page's
   ! playlist reels time their ERISE shots from it (web/src/player.js).
   real(c_double), bind(c, name="out_terise") :: out_terise = 0
+  ! The card reader (src/vdeck.f): the host writes one card image's
+  ! character codes into in_card and calls deck_card(n).  After
+  ! deck_close: the first deck error (0 none; codes in vdeck.f), its
+  ! card number, and the cards and keys skipped.  out_dksum: the run
+  ! tables' hash total after deck_sum().
+  integer(c_int), bind(c, name="in_card") :: in_card(1024)
+  integer(c_int), bind(c, name="out_dkerr") :: out_dkerr = 0
+  integer(c_int), bind(c, name="out_dkcrd") :: out_dkcrd = 0
+  integer(c_int), bind(c, name="out_dkwrn") :: out_dkwrn = 0
+  integer(c_int), bind(c, name="out_dksum") :: out_dksum(4)
 
   real(c_double), bind(c, name="vbuf") :: vbuf(5, MAXV)
   integer(c_int), bind(c, name="nvec") :: nvec = 0
@@ -65,6 +76,19 @@ module view_shell
     subroutine simrun(ifl)
       integer :: ifl
     end subroutine simrun
+    subroutine crdopn()
+    end subroutine crdopn
+    subroutine crdin(ic, nc)
+      integer :: ic(1024), nc
+    end subroutine crdin
+    subroutine crdeof()
+    end subroutine crdeof
+    subroutine crdend(ierr, icard, nwarn)
+      integer :: ierr, icard, nwarn
+    end subroutine crdend
+    subroutine crdsum(isum)
+      integer :: isum(4)
+    end subroutine crdsum
   end interface
 
 contains
@@ -120,5 +144,38 @@ contains
     ifl = flags
     call simrun(ifl)
   end subroutine sim_run
+
+  ! The card reader: deck_open() empties the run tables, deck_card(n)
+  ! reads the n codes in in_card as one card, deck_file() ends each
+  ! file of the deck, deck_close() ends the deck and sets out_dkerr,
+  ! out_dkcrd, out_dkwrn.  Then view_init, after a deck with no error.
+  subroutine deck_open() bind(c, name="deck_open")
+    call crdopn()
+  end subroutine deck_open
+
+  subroutine deck_card(n) bind(c, name="deck_card")
+    integer(c_int), value :: n
+    integer :: nc
+    nc = n
+    call crdin(in_card, nc)
+  end subroutine deck_card
+
+  subroutine deck_file() bind(c, name="deck_file")
+    call crdeof()
+  end subroutine deck_file
+
+  subroutine deck_close() bind(c, name="deck_close")
+    integer :: ierr, icard, nwarn
+    call crdend(ierr, icard, nwarn)
+    out_dkerr = ierr
+    out_dkcrd = icard
+    out_dkwrn = nwarn
+  end subroutine deck_close
+
+  subroutine deck_sum() bind(c, name="deck_sum")
+    integer :: isum(4)
+    call crdsum(isum)
+    out_dksum = isum
+  end subroutine deck_sum
 
 end module view_shell
