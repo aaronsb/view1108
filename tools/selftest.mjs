@@ -393,4 +393,23 @@ if (W.sim_run && fs.existsSync(VSVG)) {
     `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'same tables and frames, each fault refused'}`);
   if (wrong.length) ok = false;
 }
+// A situation's defaults are its deck's whatever source the last frame drew from (vdrive.f VINIT reads the replay for
+// its set-up: the Earthrise search, the camera's turn and held attitude): view_init after a frame from the engine's
+// tape gives the same default g.e.t., look and field, and the same frame at them, as in a fresh instance.
+if (W.sim_run) {
+  const fresh = async () => (await WebAssembly.instantiate(mod, { env: imports })).exports;
+  const defaults = K => ['in_get', 'in_yaw', 'in_pitch', 'in_roll', 'in_fov'].map(g => f64(K, g, 1)[0]);
+  const wrong = [];
+  for (const scene of SCENES) {
+    const A = await fresh(), B = await fresh();
+    load(A, LINES); load(B, LINES);
+    const a = run(A, scene, 3), da = defaults(A);
+    B.view_init(scene); B.sim_run(0); run(B, scene, 3 | 8, 0, 0, 0, a.init + 3600);
+    const b = run(B, scene, 3), db = defaults(B);
+    if (da.some((v, i) => v !== db[i]) || maxdiff(a.vbuf, b.vbuf) !== 0 || a.nvec !== b.nvec)
+      wrong.push(`scene ${scene}: defaults ${da.join(',')} then ${db.join(',')}`);
+  }
+  console.log(`defaults after a tape frame: ${SCENES.length} situations  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'the same as fresh'}`);
+  if (wrong.length) ok = false;
+}
 console.log(ok ? 'PASS' : 'FAIL'); process.exit(ok ? 0 : 1);
