@@ -197,6 +197,10 @@ contains
       read (u, '(a)', iostat=ios) line
       if (ios /= 0) exit
       if (len_trim(line) == 0) cycle
+      if (len_trim(line) == len(line) .or. len_trim(list) + len_trim(line) + 1 > len(list)) then
+        write (0, '(a,a,a)') 'viewsvg: ', fn, ': the deck list is longer than viewsvg holds'
+        stop 2
+      end if
       if (len_trim(list) > 0) list = trim(list) // ':'
       list = trim(list) // trim(line)
     end do

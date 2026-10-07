@@ -29,7 +29,7 @@ const F = ctx.VIEW1108_ASM(imports);
 // a card, each file closed with deck_file; the kernel has no other source of its scenarios and situations.
 const DECKS = fs.readFileSync(path.join(R, 'build/decks.txt'), 'utf8').split('\n').filter(Boolean);
 const EOF = '\u0000end of file';
-const LINES = DECKS.flatMap(p => [...fs.readFileSync(path.join(R, p), 'utf8').split('\n'), EOF]);
+const LINES = DECKS.flatMap(p => [...fs.readFileSync(path.join(R, p), 'utf8').replace(/\n$/, '').split('\n'), EOF]);
 const enc = new TextEncoder();
 function load(K, lines) {
   K.deck_open();
@@ -259,7 +259,7 @@ if (W.sim_run) {
 // The card reader (src/vdeck.f, #26): the run tables the decks give, as a hash total (deck_sum), are the same in wasm,
 // in the fallback and in the native driver (gfortran, its own reader; build/viewsvg with VIEW_DKSUM).  Then planted
 // faults in a deck, each refused with its own deck error, and a refused deck leaving nothing behind for the next load.
-if (W.deck_open) {
+{
   const sum = K => { K.deck_sum(); return Array.from(new Int32Array(K.memory.buffer, K.out_dksum.value, 4)).join(' '); };
   const fresh = async () => (await WebAssembly.instantiate(mod, { env: imports })).exports;
   const sumW = sum(W), sumF = sum(F);
@@ -303,7 +303,7 @@ if (W.deck_open) {
     ['a GET= event the scenario lacks', 27, LINES.map((l, j) => j === a8sit ? l.replace(/GET=\S+/, 'GET=SLING+10') : l)],
     ['a scenario file without its SCENARIO card', 6, LINES.filter((l, j) => j !== LINES.findLastIndex(x => x.startsWith('SCENARIO ')))],
   ];
-  const wrong = [], sumBD = sumW;
+  const wrong = [];
   for (const [what, want, lines] of cases) {
     const K = await fresh(), [e, c] = load(K, lines);
     if (e !== want || i32(K, 'out_dkerr') !== want) wrong.push(`${what}: deck error ${e} at card ${c}, not ${want}`);
@@ -313,7 +313,7 @@ if (W.deck_open) {
   K.view_init(1); K.view_frame();
   const empty = i32(K, 'nvec') === 0 && i32(K, 'nstar') === 0;
   const [e2] = load(K, LINES), again = sum(K);
-  if (!(e1 !== 0 && empty && e2 === 0 && again === sumBD))
+  if (!(e1 !== 0 && empty && e2 === 0 && again === sumW))
     wrong.push(`a refused deck, then a good one: errors ${e1}, ${e2}, empty frame ${empty}, hash ${again}`);
   // view_frame straight after a reload, without view_init: nothing from the last deck's situation.
   K.view_init(1); K.view_frame();

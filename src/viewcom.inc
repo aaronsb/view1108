@@ -302,7 +302,8 @@ C     JWIN window code (hdr 8): 1 CSM window, 2 LM front window.
 C     JPOS the pose routine placing the situation's models: 0 none,
 C       1 LMPIRO, 2 S7POSE, 3 S8POSE.  JDRW drawing switches, bits:
 C       1 no Earth night shading, 2 the whole-disc Moon, 4 no LM
-C       marker while landed.  JLL the layers in order, ended by 0.
+C       marker while landed.  JLL the layers in order, ended by 0
+C       (12: MXLAY of viewsit.inc, which is included after this file).
 C     JVW the view used when in_view is 0 (0 window, 1 external,
 C       2 CM station, 3 LM station).  JTGT the external view's
 C       default target (as ITARG), JTGF the same where JFAL applies.

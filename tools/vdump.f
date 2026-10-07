@@ -140,7 +140,7 @@ C     Situations: /CSIT/, /CSITI/.
         CALL VDI('SIFX', K, 0, SIFX(K))
         CALL VDI('SIXO', K, 0, SIXO(K))
         CALL VDI('SIHK', K, 0, SIHK(K))
-        DO 71 I = 1, 12
+        DO 71 I = 1, MXLAY
           CALL VDI('SILY', I, K, SILY(I,K))
    71   CONTINUE
    72 CONTINUE

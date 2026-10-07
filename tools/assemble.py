@@ -36,7 +36,8 @@ if missing:
     sys.exit("assemble.py: missing inputs (run tools/build.sh first):\n" + "\n".join(missing))
 
 KSRC = sorted((f for f in (R / "src").glob("*.f") if f.name != "viewdata.f"), key=lambda f: (f.name not in ("vdrive.f", "view.f"), f.name))
-KSRC += [R / "src" / n for n in ("viewdims.inc", "viewcom.inc") if (R / "src" / n).is_file()]
+KSRC += [R / "src" / n for n in ("viewdims.inc", "viewcom.inc", "viewsit.inc", "vdeck.inc", "vdvoc.inc")
+         if (R / "src" / n).is_file()]
 if not KSRC:
     sys.exit("assemble.py: no kernel sources src/*.f")
 t = INPUTS["template"].read_text()

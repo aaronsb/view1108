@@ -3,9 +3,9 @@
 * A mission's identity, shared by every scenario in this folder: its name,
 * range zero, lunar landing site and launch pad.  The scenarios (asflown.scn;
 * a pre-flight nominal would be a second file) hold the trajectory, events and
-* timeline.  tools/gen_data.py reads data/missions/*/mission.scn and the
-* scenario files beside it into BLOCK DATA (src/viewdata.f); each card's SRC
-* is carried into viewdata.f as a comment next to every scenario's data.
+* timeline.  The kernel's card reader (src/vdeck.f) loads
+* data/missions/*/mission.scn and the scenario files beside it, in that order,
+* into its run tables; each card's SRC is its source, for readers.
 * Card format as in asflown.scn: one card per line, KEY=VALUE fields, a card
 * starting with * a comment.
 *

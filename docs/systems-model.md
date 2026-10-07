@@ -213,7 +213,7 @@ Conjecture: how many builds the library needs is open. One build holding every e
 
 ### Kernel input moves to run time
 
-Today scenario data is compiled in: `tools/gen_data.py` turns `data/missions/*/*.scn` into `BLOCK DATA` in `src/viewdata.f` (`/CSCEN/`, `/CTLN/`; `CLAUDE.md`, Architecture), and `docs/vision.md` planned the same for new scenarios. With reels, the shell writes the run deck and tapes into the kernel's COMMON tables when a reel is loaded, through a new shell entry point (#26). Static catalogs (stars, coastlines, craters, the Moon series) stay compiled in as `BLOCK DATA`: they are the program's, not the run's.
+Until #26 slice 5 (2026-10-07) scenario data was compiled in: `tools/gen_data.py` turned `data/missions/*/*.scn` into `BLOCK DATA` in `src/viewdata.f`. Since then the kernel reads the decks itself at load (below). With reels, the shell writes the run deck and tapes into the kernel's COMMON tables when a reel is loaded, through a new shell entry point (#26). Static catalogs (stars, coastlines, craters, the Moon series) stay compiled in as `BLOCK DATA`: they are the program's, not the run's.
 
 The 2026-10-06 decision on #26 makes this the kernel reading the `.scn` run deck itself, one card at a time, so numbers are parsed once, in FORTRAN, each built from an exact integer mantissa and one exact power of ten to equal the BLOCK DATA literal with the same digits. The golden gate checks this as data: its run-table dump (`tables.txt`, `tools/vdump.f`) writes every scenario-specific COMMON table's used entries as 64-bit patterns, and the reader must reproduce it bit for bit, on native and wasm, before BLOCK DATA is retired. For that, BLOCK DATA first had to hold each card's own digits (#40); that change was the one reviewed re-baseline of the gate (PR #42), and every other #26 slice is byte-identical.
 
@@ -330,7 +330,7 @@ Open decisions, from #23:
 
 ## 9. Migration order
 
-Our proposed order. Each step keeps output identical where it touches existing scenes: the wasm-vs-JS selftest and the golden master (`make golden-check`: the generated tables, the native SVG renders, and the run-table dump, every scenario-specific COMMON value as its 64-bit pattern), compared byte for byte, the gate `docs/vision.md` set for the kernel split. The one reviewed re-baseline so far was #40 (PR #42, 2026-10-06): BLOCK DATA now holds each card's own digits instead of values rounded to fixed decimals, which moved 72 table values (up to 56 m, 0.01 s) and 18 golden renders (at most 0.012 plot degrees). The epic's checklist lists #26 first; this order puts it after the steps that make the data clean, so the first packages are packed from a tree that already has one source per fact.
+Our proposed order. Each step keeps output identical where it touches existing scenes: the wasm-vs-JS selftest and the golden master (`make golden-check`: the generated tables, the native SVG renders, and the run-table dump, every scenario-specific COMMON value as its 64-bit pattern), compared byte for byte, the gate `docs/vision.md` set for the kernel split. Reviewed re-baselines so far: #40 (PR #42, 2026-10-06), BLOCK DATA holding each card's own digits instead of values rounded to fixed decimals, which moved 72 table values (up to 56 m, 0.01 s) and 18 golden renders (at most 0.012 plot degrees); and #26 slice 5 (PR #47, 2026-10-07), the card reader replacing the scenario BLOCK DATA, with every render unchanged and five count lines added to the table dump. The epic's checklist lists #26 first; this order puts it after the steps that make the data clean, so the first packages are packed from a tree that already has one source per fact.
 
 | Step | Issue | What lands | Gate |
 |---|---|---|---|
@@ -355,7 +355,7 @@ Our proposed order. Each step keeps output identical where it touches existing s
 1. **Leaving the demo.** Does the first input that takes control load the scenario reel of the shot on screen at the current g.e.t. and look (our proposal), or return to a reel chooser?
 2. **The idle room's tape.** Resolved (maintainer, 2026-10-06, on #20): running, clearly labelled DEMO, with STOP/START at the drive and a hint line saying what plays and how to take control (section 6).
 3. **Kernel builds.** One build with every element, or several named builds a reel picks between? And how a layer list in a SITUATION card names layers that only some builds have (refuse at load, as for controls, is our proposal).
-4. **The run-time kernel entry point.** Its name and shape (one call per card table, or one buffer the kernel parses as cards), and whether the native driver `tools/viewsvg.f90` reads the same reel files.
+4. **The run-time kernel entry point.** Resolved (#26, 2026-10-06; built in #45 and #47): one buffer the kernel parses as cards (`deck_open`, `deck_card`, `deck_file`, `deck_close`; `src/vdeck.f`), and the native driver reads the same deck files.
 5. **Links to private reels.** A link cannot name a private reel. Should the page say so when it falls back to the site reel, or refuse the link?
 6. **Situation versus scenario reel granularity.** One reel per scenario (as #26's example) or per mission with several scenarios inside?
 7. **Generated tables committed or not, and the `web/library` PDF policy** (section 8).

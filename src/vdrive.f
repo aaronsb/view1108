@@ -184,8 +184,9 @@ C     to 0.1 deg (BODYCTR's distance).
       END
 C
 C-----------------------------------------------------------------------
-C     SITSET: copy situation K's row of the tables (viewsit.inc, BLOCK
-C     DATA VIEWSB) into the current situation, /CSITU/ (viewcom.inc).
+C     SITSET: copy situation K's row of the tables (viewsit.inc, filled
+C     by the card reader) into the current situation, /CSITU/
+C     (viewcom.inc).
 C-----------------------------------------------------------------------
       SUBROUTINE SITSET(K)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -223,7 +224,7 @@ C     RESTOMOD END
    10 CONTINUE
       QXY(1) = SIXY(1,K)
       QXY(2) = SIXY(2,K)
-      DO 20 I = 1, 12
+      DO 20 I = 1, MXLAY
         JLL(I) = SILY(I,K)
    20 CONTINUE
       RETURN

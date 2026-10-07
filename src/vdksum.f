@@ -170,7 +170,7 @@ C     RESTOMOD END
       CALL DKHI(SIFX(K), ISUM)
       CALL DKHI(SIXO(K), ISUM)
       CALL DKHI(SIHK(K), ISUM)
-      DO 20 I = 1, 12
+      DO 20 I = 1, MXLAY
         CALL DKHI(SILY(I,K), ISUM)
    20 CONTINUE
       RETURN

@@ -57,6 +57,7 @@ function loadDecks() {
   K.deck_open();
   for (const [path, text] of VIEW_DECKS) {
     const lines = text.split("\n");
+    if (lines.at(-1) === "") lines.pop();   // the file's last newline ends a card, as natively
     lines.forEach((ln, i) => {
       const b = enc.encode(ln.replace(/\r$/, "")), card = new Int32Array(K.memory.buffer, K.in_card.value, 1024);
       for (let j = 0; j < Math.min(b.length, 1024); j++) card[j] = b[j];
@@ -67,7 +68,8 @@ function loadDecks() {
   }
   K.deck_close();
   const err = new Int32Array(K.memory.buffer, K.out_dkerr.value, 1)[0];
-  if (err) throw new Error(`DECK ERROR ${String(err).padStart(2, "0")} AT ${at[new Int32Array(K.memory.buffer, K.out_dkcrd.value, 1)[0] - 1]}`);
+  const card = new Int32Array(K.memory.buffer, K.out_dkcrd.value, 1)[0];
+  if (err) throw new Error(`DECK ERROR ${String(err).padStart(2, "0")} AT ${at[card - 1] ?? "the end of the decks"}`);
 }
 
 // ---- kernel access (views are re-made on every access; memory may grow) ----
