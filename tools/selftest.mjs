@@ -400,16 +400,20 @@ if (W.sim_run) {
   const fresh = async () => (await WebAssembly.instantiate(mod, { env: imports })).exports;
   const defaults = K => ['in_get', 'in_yaw', 'in_pitch', 'in_roll', 'in_fov'].map(g => f64(K, g, 1)[0]);
   const wrong = [];
+  let drawn = 0;
   for (const scene of SCENES) {
     const A = await fresh(), B = await fresh();
     load(A, LINES); load(B, LINES);
     const a = run(A, scene, 3), da = defaults(A);
-    B.view_init(scene); B.sim_run(0); run(B, scene, 3 | 8, 0, 0, 0, a.init + 3600);
+    B.view_init(scene); B.sim_run(0);
+    if (run(B, scene, 3 | 8, 0, 0, 0, a.init + 3600).hdr[16] > 0) drawn++;
     const b = run(B, scene, 3), db = defaults(B);
     if (da.some((v, i) => v !== db[i]) || maxdiff(a.vbuf, b.vbuf) !== 0 || a.nvec !== b.nvec)
       wrong.push(`scene ${scene}: defaults ${da.join(',')} then ${db.join(',')}`);
   }
-  console.log(`defaults after a tape frame: ${SCENES.length} situations  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'the same as fresh'}`);
+  if (drawn === 0) wrong.push('no frame drew from the tape');
+  console.log(`defaults after a tape frame: ${SCENES.length} situations, ${drawn} drawn from the tape first  ` +
+    `${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'the same as fresh'}`);
   if (wrong.length) ok = false;
 }
 console.log(ok ? 'PASS' : 'FAIL'); process.exit(ok ? 0 : 1);
