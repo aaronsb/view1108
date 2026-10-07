@@ -43,6 +43,7 @@ data/missions/    one folder per mission: mission.scn (name, epoch, site, pad) a
 data/reels/       playlist reels, <id>/run.scn: a REEL card and its SHOT cards (demo, tour)
 tools/viewsvg.f90 Native driver (gfortran): renders a scene/time to SVG for validation.
 tools/vdump.f     The native driver's VIEW_DUMP=1: the run tables as hex, for the golden gate.
+tools/vtape.f     The native driver's VIEW_TAPEW=1: the tape (the engine's, or a deck's) written as a deck of TAPE cards.
 tools/build.sh    gen_data -> lfortran (per file) -> clang -> wasm-ld -> wasm-opt -> wasm2js -> page
 web/              The page: film-recorder renderer, controls, text lettering.
 ```
@@ -60,7 +61,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Core | `ephem.f` | time, Sun, Moon, Moon orientation |
 | Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon, `LEGRV` one leg), events (`EVGET`), the LM's and the S-IVB's state rules (`LMSTAT`, `SIVST`), the LM descent, the Earthrise search |
 | Core | `sim.f` | the engine: flies the CSM from the scenario's START through its score (BURN cards), with state vector updates at its REF rows (optional), and writes the tape (`SIMRUN`) |
-| Core | `vdeck.f`, `vdkscn.f`, `vdksit.f`, `vdkfld.f`, `vdksum.f` | the card reader (#26): `CRDOPN`, `CRDIN` (one card image), `CRDEOF` (a file's end), `CRDEND` read the run decks into the run tables (numbers exact: an integer mantissa and one power of ten), and refuse a deck the kernel could not draw (numbered deck errors, listed in `vdeck.f`); `vdkscn.f` and `vdksit.f` are what each card writes (mission and scenario cards; situation cards), `vdkfld.f` the field readers, `vdksum.f` `CRDSUM`, a hash total of the tables. `gen_data.py` reads the same grammar and still checks the rest (each recipe's keys, poses). The kernel's only source of its run tables: the page, the native driver and the selftest load the decks at start |
+| Core | `vdeck.f`, `vdkscn.f`, `vdksit.f`, `vdkfld.f`, `vdktap.f`, `vdksum.f` | the card reader (#26): `CRDOPN`, `CRDIN` (one card image), `CRDEOF` (a file's end), `CRDEND` read the run decks into the run tables (numbers exact: 15 digits and a power of ten to 10**22 as an integer mantissa and one power of ten, 16-17 digits or a power down to 10**-44 through `DKDD`, a double-double rounded once, so a double from about 10**-28 to 10**38 in magnitude written with 17 digits reads back bit for bit; RESTOMOD: the 1108's double had a 60-bit fraction, "18-digit precision", UP-4046 Rev 3, pp. 4-10, `docs/univac-1108.md`), and refuse a deck the kernel could not draw (numbered deck errors, listed in `vdeck.f`); `vdkscn.f` and `vdksit.f` are what each card writes (mission and scenario cards; situation cards), `vdkfld.f` the field readers, `vdktap.f` the tape cards (below), `vdksum.f` `CRDSUM`, a hash total of the tables. `gen_data.py` reads the same grammar and still checks the rest (each recipe's keys, poses). A `TAPE SCN=n CHAN=c` card (CHAN default 1, 1..4; channel 1 is the CSM, the one the state source reads) and the cards after it that start with a number fill `/CTAPE/` as the engine would: seven numbers per row, g.e.t. (s or h:mm:ss.s), geocentric EQ position km, velocity km/s; the tape ends at the next card that does not start with a number (comments and blank cards excepted) or at the file's end, and marks are not read from decks. `/CTAPE/` holds one scenario's tape, whichever came last, the engine's (`sim_run` empties it first) or the deck's. A deck tape reports `hdr(17)` 3 and `hdr(18..20)` 0. Deck errors 28 tape full (`MXSAM` samples on a channel), 29 rows out of time order or fewer than two, 30 `TAPE` for a scenario not yet read or a second scenario's tape; a numeric row with no tape open is error 6, one without seven numbers error 22. The kernel's only source of its run tables: the page, the native driver and the selftest load the decks at start |
 | Core | `tape.f` | the tape: time-tagged states, 4 vehicle channels, event marks; cubic Hermite reads (`TPGET`) |
 | Core | `vview.f` | camera pointing: the target and the external view (`VIEWPT`), applied after the scene's camera and models |
 | Core | `vsrc.f` | the state source: the one entry point (`VSTATE(GET, IVEH, IBODY, R, V, IOK)`) scenes use for the CSM's state (`CSMST`: replay or tape), the LM's (`LMSTAT`) and the S-IVB's (`SIVST`), `IVEH` 1, 2, 3; `IOK` 0 none, 1 its own, 2 docked or with the CSM. `LMSTAT` and `SIVST` read the CSM through `CSMST`, not `VSTATE` (no recursion) |
@@ -173,7 +174,7 @@ Inputs (written by JS):
   its centre; `in_roll` still rolls about the boresight.
 - `in_fov` real(8): full field of view in degrees (the frame covers ±fov/2 off the boresight,
   which is ±hdr(15) in plot units; see Projection).
-- `in_src` int32: state source, 0 replay (the scenario's legs), 1 the tape (the last `sim_run`),
+- `in_src` int32: state source, 0 replay (the scenario's legs), 1 the tape (the last `sim_run`, or the deck's),
   where the tape covers the time; the chassis passes it to the kernel as `in_flags` bit 3, which
   may also be set directly.
 - `in_flags` int32: bit 0 labels on, bit 1 draw plot frame and tick marks, bit 2 draw hidden
@@ -261,9 +262,9 @@ Outputs (written by the kernel):
   zero, seconds (0 for Apollo 11, -17,887,260 for Apollo 8: its range zero is 1968-12-21
   12:51:00 UTC, MR8 p. 2-1; the kernel gives -17,887,259.98 from the scenario's JD rounded to
   six decimals). hdr is 24 long: 17 the state source used this frame (0
-  replay, 1 sim with state vector updates, 2 sim without), 18, 19 the last engine run's position (km)
+  replay, 1 sim with state vector updates, 2 sim without, 3 a tape read from the deck), 18, 19 the last engine run's position (km)
   and velocity (ft/s) error at the reference row nearest the frame's GET, 20 that row's GET
-  (s; 18-20 are 0 before any run), 21 the vehicles in this frame's world, a bitmask: 1 the
+  (s; 18-20 are 0 before any run and with a deck tape), 21 the vehicles in this frame's world, a bitmask: 1 the
   CSM, 2 the LM, 4 the S-IVB, each set if it is placed as a model or known by its state
   (`VSTATE`; the LM docked too, the S-IVB docked to the stack too, but not before SEP, while it
   carries the CSM); the vehicle the camera rides (`IRIDE` in `vview.f`: the CSM in
@@ -552,9 +553,11 @@ build/viewsvg 1 > f.svg             # scene [GET|-] [yaw pitch roll fov|-] [flag
 make golden                         # capture the golden master into build/golden
 make golden-check                   # re-capture and diff against it
 VIEW_DECK=a.scn:b.scn build/viewsvg 1   # load these decks instead
+VIEW_SIM=1 VIEW_TAPEW=1 build/viewsvg   # write scenario 1's engine tape as a tape deck to stdout;
+                                        # put it in VIEW_DECK after its scenario's decks, FLAGS + 8 draws from it
 ```
 
-The golden master (`tools/golden.sh`, kept in `build/golden`, gitignored) holds the generated tables, 129 native renders with their hdr words, and the run-table dump (`tables.txt`, `VIEW_DUMP=1 build/viewsvg`, `tools/vdump.f`): the counts and every scenario-specific table's used entries as the card reader loaded them from `build/decks.txt`'s decks, each double as its 64-bit pattern in hex, so a changed value shows as data and not only through a render. A data or kernel refactor must pass it byte for byte. Reviewed re-baselines so far: #40 (2026-10-06, PR #42), gen_data writing each card's own digits instead of rounding them to fixed decimals, which moved 72 table values and 18 renders by at most 0.012 plot degrees; and #26 slice 5 (2026-10-07), the switch from BLOCK DATA to the card reader: renders, `names.js` and `scenes.json` unchanged, `tables.txt` gaining five count lines, the generated files losing the scenario tables.
+The golden master (`tools/golden.sh`, kept in `build/golden`, gitignored) holds the generated tables, 129 native renders with their hdr words, and the run-table dump (`tables.txt`, `VIEW_DUMP=1 build/viewsvg`, `tools/vdump.f`): the counts and every scenario-specific table's used entries as the card reader loaded them from `build/decks.txt`'s decks, each double as its 64-bit pattern in hex, so a changed value shows as data and not only through a render. A tape round trip (13 cases, `TAPES` in `golden.sh`) runs during capture and check and writes no capture files: the frame drawn from the read-back tape must equal the engine's own, except the source words, each case's frame must report the source its row names (3 where the tape is drawn, 0 where not), and the tape read back and written again must match the first text for text. The dump and `CRDSUM` include a deck tape only when there is one, so a deck without a tape dumps and sums as before. The selftest's `tapes:` line compares the wasm and fallback readers' hash totals with the native one over both scenarios' tapes, with 12 planted faults. The page labels source 3 "TAPE - FROM THE DECK" and loads no tapes yet (#26 slice 7). A data or kernel refactor must pass it byte for byte. Reviewed re-baselines so far: #40 (2026-10-06, PR #42), gen_data writing each card's own digits instead of rounding them to fixed decimals, which moved 72 table values and 18 renders by at most 0.012 plot degrees; and #26 slice 5 (2026-10-07), the switch from BLOCK DATA to the card reader: renders, `names.js` and `scenes.json` unchanged, `tables.txt` gaining five count lines, the generated files losing the scenario tables; and #26 slice 6 (2026-10-07, PR #49), the TAPE card: only `vdvoc.f` and `vdvoc.inc` changed, gaining QTAPE, YCHAN and YSCN with every other code as it was.
 
 ## Sources and history
 

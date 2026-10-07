@@ -282,7 +282,7 @@ if (W.sim_run) {
   const cases = [
     ['a card of 1100 codes', 1, at(/^EVENT /, l => l + ' SRC="' + 'x'.repeat(1100) + '"')],
     ['a number with two points', 2, at(/^EVENT /, l => l.replace(/ T=\S+/, ' T=1.2.3'))],
-    ['sixteen digits', 3, at(/^EPOCH /, l => l.replace(/JD=\S+/, 'JD=2440419.063889000'))],
+    ['eighteen digits', 3, at(/^EPOCH /, l => l.replace(/JD=\S+/, 'JD=2440419.06388900000'))],
     ['an unknown event kind', 4, at(/^EVENT /, l => l.replace(/KIND=\S+/, 'KIND=NOPE'))],
     ['an EVENT without T=', 5, at(/^EVENT /, l => l.replace(/ T=\S+/, ''))],
     ['a ROW outside a TABLE leg', 6, at(/^EVENT /, l => l + '\nROW T=1 LAT=0 LON=0 ALT=0 V=0 FPA=0 HDG=0').flatMap(l => l.split('\n'))],
@@ -324,6 +324,73 @@ if (W.sim_run) {
     wrong.push(`view_frame after a reload without view_init: empty ${emptyAfter}, then ${i32(K, 'nvec')} vectors`);
   console.log(`deck errors: ${cases.length} planted faults, then a good deck after a refused one` +
     `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'each refused, reload clean'}`);
+  if (wrong.length) ok = false;
+}
+// Tapes as data (src/vdktap.f, #26 slice 6): the engine's tape, written by the native driver as a deck (tools/vtape.f,
+// VIEW_TAPEW) and read back by the wasm and fallback card readers after the run decks, gives the native reader's hash
+// total: the same bits, so the 17-digit numbers read exactly here too.  The frame drawn from it (in_flags bit 3), in
+// fresh instances, is the same in wasm and the fallback, with the source a deck tape: hdr(17) 3, hdr(18..20) 0.  (That
+// it equals the engine's own frame is the golden gate's tape round trip, natively: the gfortran and wasm engines
+// differ in their last digits.)  One scenario's first situation each.  Then planted faults in a tape, each refused
+// with its own deck error.
+const VSVG = path.join(R, 'build/viewsvg');
+if (W.sim_run && fs.existsSync(VSVG)) {
+  const { execFileSync } = await import('child_process');
+  const fresh = async () => (await WebAssembly.instantiate(mod, { env: imports })).exports;
+  const sum = K => { K.deck_sum(); return Array.from(new Int32Array(K.memory.buffer, K.out_dksum.value, 4)).join(' '); };
+  const nenv = extra => { const e = { ...process.env, ...extra }; for (const k of ['VIEW_DECK', 'VIEW_SIM', 'VIEW_TAPEW',
+    'VIEW_DKSUM', 'VIEW_DUMP', 'VIEW_HDR', 'VIEW_TIME']) if (!(k in extra)) delete e[k]; return e; };
+  const tapeFile = path.join(R, 'build/selftest-tape.tsv'), wrong = [];
+  let rows = 0;
+  for (const scn of [...new Set(SIT.map(x => x.scenario))]) {
+    const scene = SIT.find(x => x.scenario === scn).id;
+    const tape = execFileSync(VSVG, [String(scene)], { cwd: R, env: nenv({ VIEW_SIM: '1', VIEW_TAPEW: '1' }),
+      maxBuffer: 1 << 26 }).toString();
+    fs.writeFileSync(tapeFile, tape);
+    const lines = [...LINES, ...tape.replace(/\n$/, '').split('\n'), EOF];
+    rows += lines.length - LINES.length - 4;
+    const Kw = await fresh(), Kf = ctx.VIEW1108_ASM(imports), [ew, cw] = load(Kw, lines), [ef] = load(Kf, lines);
+    const native = execFileSync(VSVG, [], { cwd: R, env: nenv({ VIEW_DKSUM: '1',
+      VIEW_DECK: [...DECKS, tapeFile].join(':') }) }).toString().trim();
+    if (ew || ef || sum(Kw) !== native || sum(Kf) !== native)
+      wrong.push(`scenario ${scn}: deck errors ${ew} at ${cw}, ${ef}; hash ${sum(Kw)}, fallback ${sum(Kf)}, native ${native}`);
+    const t = run(Kw, scene, 3 | 8), tf = run(Kf, scene, 3 | 8);
+    if (!(t.nvec === tf.nvec && t.nvec > 0 && maxdiff(t.vbuf, tf.vbuf) === 0 && maxdiff(t.hdr, tf.hdr) === 0 &&
+          t.hdr[16] === 3 && t.hdr[17] === 0 && t.hdr[18] === 0 && t.hdr[19] === 0))
+      wrong.push(`scenario ${scn} scene ${scene}: the frame from the tape (source ${t.hdr[16]}, ${t.nvec} vectors) ` +
+        `differs from the fallback's (source ${tf.hdr[16]}, ${tf.nvec})`);
+  }
+  fs.rmSync(tapeFile, { force: true });
+  // Planted faults: a small tape for scenario 1 after the run decks, changed one way each.
+  const row = t => `${t} 6578.0 0 0 0 7.784 0`, TP = ['TAPE SCN=1 CHAN=1', row(10000), row(10060), row(10120)];
+  const tcase = (what, want, tp) => [what, want, [...LINES, ...tp, EOF]];
+  const tcases = [
+    tcase('a tape row of six numbers', 22, [...TP, '10180 6578.0 0 0 0 7.784']),
+    tcase('a tape row with no tape open', 6, [row(10000)]),
+    tcase('tape rows out of time order', 29, [...TP, row(10100)]),
+    tcase('a tape of one row', 29, TP.slice(0, 2)),
+    tcase('a tape over its maximum', 28, ['TAPE SCN=1', ...Array.from({ length: 30001 }, (_, i) => row(10000 + i))]),
+    tcase('a channel past the table', 7, ['TAPE SCN=1 CHAN=5', ...TP.slice(1)]),
+    tcase('a scenario not read', 30, ['TAPE SCN=3', ...TP.slice(1)]),
+    tcase("two scenarios' tapes", 30, [...TP, 'TAPE SCN=2 CHAN=2', ...TP.slice(1)]),
+    tcase('a channel given twice', 8, [...TP, ...TP]),
+    tcase('eighteen digits in a tape row', 3, [...TP, '10180 6578.00000000000000001 0 0 0 7.784 0']),
+    tcase('a tape row after an unknown card', 6, [...TP, 'TAPEE SCN=1 CHAN=2', row(10180)]),
+    tcase('a value below the 17-digit range', 3, [...TP, '10180 1.2345678901234567E-30 0 0 0 7.784 0']),
+  ];
+  for (const [what, want, lines] of tcases) {
+    const K = await fresh(), [e, c] = load(K, lines);
+    if (e !== want) wrong.push(`${what}: deck error ${e} at card ${c}, not ${want}`);
+  }
+  // A good small tape: drawn where it covers the time (the source 3), the replay elsewhere.
+  {
+    const K = await fresh(), [e] = load(K, [...LINES, ...TP, EOF]);
+    const scene = SIT.find(x => x.scenario === 1).id;
+    const inT = run(K, scene, 3 | 8, 0, 0, 0, 10030).hdr[16], outT = run(K, scene, 3 | 8, 0, 0, 0, 20000).hdr[16];
+    if (e || inT !== 3 || outT !== 0) wrong.push(`a small tape: deck error ${e}, source ${inT} inside, ${outT} outside`);
+  }
+  console.log(`tapes: the engine's tape read back (${rows} rows, both scenarios), ${tcases.length} planted faults` +
+    `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'same tables and frames, each fault refused'}`);
   if (wrong.length) ok = false;
 }
 console.log(ok ? 'PASS' : 'FAIL'); process.exit(ok ? 0 : 1);

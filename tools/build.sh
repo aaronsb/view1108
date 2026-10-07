@@ -32,7 +32,10 @@ native() {
   done
   # The run-table dump (VIEW_DUMP=1) for the golden gate: native driver only, not the kernel.
   gfortran -O2 -std=legacy -Isrc -c tools/vdump.f -o build/vdump_native.o
-  gfortran -O2 -ffree-line-length-none tools/viewsvg.f90 $objs build/vdump_native.o -o build/viewsvg
+  # The engine's tape as a deck (VIEW_TAPEW=1), for the tape round trip: native driver only.
+  gfortran -O2 -std=legacy -Isrc -c tools/vtape.f -o build/vtape_native.o
+  gfortran -O2 -ffree-line-length-none tools/viewsvg.f90 $objs build/vdump_native.o \
+    build/vtape_native.o -o build/viewsvg
   rm -f viewsvg*.mod
   echo "native: build/viewsvg"
 }

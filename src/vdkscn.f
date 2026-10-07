@@ -9,7 +9,8 @@ C     DKCARD: the card in hand (KCRD) to its routine.  A mission's
 C     cards come first, MISSION once and then EPOCH (SITE and PAD
 C     anywhere among them), before its scenarios; a scenario's cards
 C     after its SCENARIO card.  SPAN, REEL and SHOT are the page's and
-C     are passed over.
+C     are passed over.  A TAPE card may come anywhere after its
+C     scenario's cards.
       SUBROUTINE DKCARD
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -34,8 +35,12 @@ C     RESTOMOD END
       IF (KCRD .EQ. QSITE) CALL DKSITE
       IF (KCRD .EQ. QPAD) CALL DKPAD
       RETURN
-   20 IF (KCRD .NE. QSCENA) GO TO 30
+   20 IF (KCRD .NE. QSCENA) GO TO 25
       CALL DKSCN
+      RETURN
+C     A tape names its scenario (vdktap.f).
+   25 IF (KCRD .NE. QTAPE) GO TO 30
+      CALL DKTAP
       RETURN
    30 IF (IDSN .EQ. 0) GO TO 90
       IF (KCRD .EQ. QLEG) CALL DKLEG

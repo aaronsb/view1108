@@ -6,8 +6,8 @@ C     The one place the display side gets the CSM's, the LM's and
 C     the S-IVB's states.  It reads
 C     the replay (the scenario's legs, traj.f) or, when the frame asks
 C     for it (in_src, which the chassis passes as in_flags bit 3) and
-C     the tape covers the time, the tape
-C     the engine wrote (tape.f, sim.f).  Scene cameras and layers do
+C     the tape covers the time, the tape the engine wrote (tape.f,
+C     sim.f) or the deck held (vdktap.f).  Scene cameras and layers do
 C     not know which.  One relocatable element of the kernel; see
 C     vdrive.f for the list.
 C
@@ -51,7 +51,8 @@ C     The S-IVB: geocentric (SIVST), then relative to the Moon if asked.
 C
 C     CSMST: the CSM at GET about the Earth (IBODY = 1) or the Moon
 C     (IBODY = 2), as VSTATE.  ISRCU records the source used: 0
-C     replay, 1 sim with state vector updates, 2 sim without.  The LM's
+C     replay, 1 sim with state vector updates, 2 sim without, 3 a tape
+C     read from the deck (vdktap.f).  The LM's
 C     own legs are read from the replay only (the tape carries the
 C     CSM).  From the scenario's entry interface (its EI event, TETP)
 C     on, the CSM is the replay's too: the engine flies in a vacuum,
@@ -71,6 +72,7 @@ C     RESTOMOD END
       CALL TPGET(1, GET, R, V, ITP)
       IF (ITP .EQ. 0) GO TO 20
       ISRCU = 2 - MOD(ISIMF, 2)
+      IF (ISIMF .LT. 0) ISRCU = 3
       IF (IBODY .EQ. 1) RETURN
       CALL MOONV(GET, PM, VM)
       DO 10 I = 1, 3
