@@ -46,30 +46,31 @@ C              3-9 row A, 10-12 row B's T LAT LON, 13-15 its V FPA
 C              HDG, 17 its ALT; LGN 1 A's, 2 B's velocity Earth
 C              fixed.  Vehicle LGVEH: 1 CSM, 2 LM, 3 S-IVB.
 C              Event J of scenario EVSN(J), kind EVKND, g.e.t. EVT (s).
-      DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)
-      DOUBLE PRECISION SNSAZ(NSN)
-      DOUBLE PRECISION LGP(NLGP,NLEG), EVT(NEVT)
-      DOUBLE PRECISION SNPLA(NSN), SNPLO(NSN)
-      INTEGER LGSN(NLEG), LGTYP(NLEG), LGN(NLEG), LGGC(NLEG)
-      INTEGER EVSN(NEVT), EVKND(NEVT), SNPGC(NSN), PADCH(8*NSN)
+      DOUBLE PRECISION SNJD0(MXSN), SNSLA(MXSN), SNSLO(MXSN)
+      DOUBLE PRECISION SNSAZ(MXSN)
+      DOUBLE PRECISION LGP(NLGP,MXLEG), EVT(MXEVT)
+      DOUBLE PRECISION SNPLA(MXSN), SNPLO(MXSN)
+      INTEGER LGSN(MXLEG), LGTYP(MXLEG), LGN(MXLEG), LGGC(MXLEG)
+      INTEGER EVSN(MXEVT), EVKND(MXEVT), SNPGC(MXSN), PADCH(8*MXSN)
       COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT,
      &               SNPLA, SNPLO
-      INTEGER LGVEH(NLEG)
+      INTEGER LGVEH(MXLEG), NSN, NLEG, NEVT
       COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND,
-     &                SNPGC, PADCH, LGVEH
+     &                SNPGC, PADCH, LGVEH, NSN, NLEG, NEVT
 C     /CSIM/   simulation cards.  START of scenario STSN (one at most),
 C              REF rows: state STP / RFP as LGP (2 = END for START),
 C              body STBOD / RFBOD (1 Earth, 2 Moon), geocentric
 C              latitude if STGC / RFGC = 1.  BURN: mid-burn g.e.t.
 C              BNT (s), BNDV (ft/s), direction BNP, BNR, BNN in the
 C              BNBOD body's frame (along the velocity, radial in the
-C              orbit plane, orbit normal).  NSTART, NBN, NRF: used.
-      DOUBLE PRECISION STP(NLGP,NSTRT), RFP(NLGP,NREF)
-      DOUBLE PRECISION BNT(NBURN), BNDV(NBURN), BNP(NBURN)
-      DOUBLE PRECISION BNR(NBURN), BNN(NBURN)
-      INTEGER STSN(NSTRT), STBOD(NSTRT), STGC(NSTRT), NSTART
-      INTEGER RFSN(NREF), RFBOD(NREF), RFGC(NREF), NRF
-      INTEGER BNSN(NBURN), BNBOD(NBURN), NBN
+C              orbit plane, orbit normal).  NSN, NLEG, NEVT,
+C              NSTART, NBN, NRF, NTL, NBR: rows used.
+      DOUBLE PRECISION STP(NLGP,MXSTRT), RFP(NLGP,MXREF)
+      DOUBLE PRECISION BNT(MXBURN), BNDV(MXBURN), BNP(MXBURN)
+      DOUBLE PRECISION BNR(MXBURN), BNN(MXBURN)
+      INTEGER STSN(MXSTRT), STBOD(MXSTRT), STGC(MXSTRT), NSTART
+      INTEGER RFSN(MXREF), RFBOD(MXREF), RFGC(MXREF), NRF
+      INTEGER BNSN(MXBURN), BNBOD(MXBURN), NBN
       COMMON /CSIM/ STP, RFP, BNT, BNDV, BNP, BNR, BNN
 C     /CMEEUS/ Meeus ch. 47 lunar terms, flattened: MMA(6*(K-1)+1..6)
 C              = D M M' F sigma_l sigma_r of table 47.A row K,
@@ -83,17 +84,17 @@ C              g.e.t.: row K of scenario TLSN(K) at TLT(K) (s), kind
 C              TLK(K) (1 LAUNCH, 2 BURN, 3 STAGING, 4 ORBIT, 5 SEP,
 C              6 SURFACE, 7 TV, 8 CREW, 9 PHOTO, 10 ENTRY, 11 MARK).
 C              Names are in build/names.js only.
-      DOUBLE PRECISION TLT(NTL)
-      INTEGER TLK(NTL), TLSN(NTL)
+      DOUBLE PRECISION TLT(MXTL)
+      INTEGER TLK(MXTL), TLSN(MXTL), NTL
       COMMON /CTLN/ TLT
-      COMMON /CTLNI/ TLK, TLSN
+      COMMON /CTLNI/ TLK, TLSN, NTL
 C     /CBRN/   the burn cue's main-engine firings (BURNCUE cards, *.scn
 C              in data/missions, from the TIMELINE rows): row K of
 C              scenario BRSN(K) burns from g.e.t. BRT1(K) to BRT2(K)
 C              (s), vehicle BRVH(K) (1 CSM, 2 LM, 3 S-IVB), engine
 C              BREN(K) (1 SPS, 2 DPS, 3 APS, 4 J-2); NBR used.
-      DOUBLE PRECISION BRT1(NBRN), BRT2(NBRN)
-      INTEGER BRSN(NBRN), BRVH(NBRN), BREN(NBRN), NBR
+      DOUBLE PRECISION BRT1(MXCUE), BRT2(MXCUE)
+      INTEGER BRSN(MXCUE), BRVH(MXCUE), BREN(MXCUE), NBR
       COMMON /CBRN/ BRT1, BRT2
       COMMON /CBRNI/ BRSN, BRVH, BREN, NBR
       DATA (STX(IBD),IBD=1,95) /
@@ -10049,7 +10050,8 @@ C       cutoff: CSM SPS, the row's SPS (SP p. 49)
       DATA (BREN(IBD),IBD=1,16) /
      1 4,4,1,1,1,1,2,2,3,1,
      1 4,4,1,1,1,1/
-      DATA NBR / 16 /
+      DATA NSN, NLEG, NEVT / 2, 47, 25 /
+      DATA NTL, NBR / 435, 16 /
       DATA NSTART, NRF, NBN / 2, 18, 11 /
       END
 C     RESTOMOD END

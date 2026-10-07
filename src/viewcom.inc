@@ -124,23 +124,25 @@ C     camera distance from the Moon's centre (km).
 C
 C     /CSCEN/, /CSCENI/ the scenarios, one mission's data each, run
 C     decks in 1969 terms (BLOCK DATA from data/missions by
-C     tools/gen_data.py; field layout in src/viewdata.f).
-      DOUBLE PRECISION SNJD0(NSN), SNSLA(NSN), SNSLO(NSN)
-      DOUBLE PRECISION SNSAZ(NSN)
-      DOUBLE PRECISION LGP(NLGP,NLEG), EVT(NEVT)
+C     tools/gen_data.py; field layout in src/viewdata.f): NSN
+C     scenarios, NLEG legs and NEVT events used of the maxima (MX...,
+C     viewdims.inc).
+      DOUBLE PRECISION SNJD0(MXSN), SNSLA(MXSN), SNSLO(MXSN)
+      DOUBLE PRECISION SNSAZ(MXSN)
+      DOUBLE PRECISION LGP(NLGP,MXLEG), EVT(MXEVT)
 C     Launch pad (PAD card): SNPLA, SNPLO lat, east lon (deg),
 C     geocentric latitude if SNPGC = 1; PADCH its name, 8 codes per
 C     scenario, zero padded (none if the first is 0).
-      DOUBLE PRECISION SNPLA(NSN), SNPLO(NSN)
-      INTEGER LGSN(NLEG), LGTYP(NLEG), LGN(NLEG), LGGC(NLEG)
-      INTEGER EVSN(NEVT), EVKND(NEVT), SNPGC(NSN), PADCH(8*NSN)
+      DOUBLE PRECISION SNPLA(MXSN), SNPLO(MXSN)
+      INTEGER LGSN(MXLEG), LGTYP(MXLEG), LGN(MXLEG), LGGC(MXLEG)
+      INTEGER EVSN(MXEVT), EVKND(MXEVT), SNPGC(MXSN), PADCH(8*MXSN)
 C     LGVEH(K): the vehicle leg K carries, 1 the CSM, 2 the LM, 3 the
 C     S-IVB.
-      INTEGER LGVEH(NLEG)
+      INTEGER LGVEH(MXLEG), NSN, NLEG, NEVT
       COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT,
      &               SNPLA, SNPLO
       COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND,
-     &                SNPGC, PADCH, LGVEH
+     &                SNPGC, PADCH, LGVEH, NSN, NLEG, NEVT
 C
 C     /CMEEUS/ the Moon's periodic terms, Meeus tables 47.A and 47.B
 C     (BLOCK DATA from data/meeus47.txt; layout in src/viewdata.f).
@@ -149,13 +151,14 @@ C     RESTOMOD: ELP-2000/82 (1982) as abridged by Meeus (1991, 1998)
       COMMON /CMEEUS/ MMA, MMB
 C
 C     /CSIM/, /CSIMI/ the scenarios' simulation cards: START, the
-C     SCORE (BURN) and the REFERENCE rows (layout in src/viewdata.f).
-      DOUBLE PRECISION STP(NLGP,NSTRT), RFP(NLGP,NREF)
-      DOUBLE PRECISION BNT(NBURN), BNDV(NBURN), BNP(NBURN)
-      DOUBLE PRECISION BNR(NBURN), BNN(NBURN)
-      INTEGER STSN(NSTRT), STBOD(NSTRT), STGC(NSTRT), NSTART
-      INTEGER RFSN(NREF), RFBOD(NREF), RFGC(NREF), NRF
-      INTEGER BNSN(NBURN), BNBOD(NBURN), NBN
+C     SCORE (BURN) and the REFERENCE rows (layout in src/viewdata.f);
+C     NSTART, NBN and NRF used.
+      DOUBLE PRECISION STP(NLGP,MXSTRT), RFP(NLGP,MXREF)
+      DOUBLE PRECISION BNT(MXBURN), BNDV(MXBURN), BNP(MXBURN)
+      DOUBLE PRECISION BNR(MXBURN), BNN(MXBURN)
+      INTEGER STSN(MXSTRT), STBOD(MXSTRT), STGC(MXSTRT), NSTART
+      INTEGER RFSN(MXREF), RFBOD(MXREF), RFGC(MXREF), NRF
+      INTEGER BNSN(MXBURN), BNBOD(MXBURN), NBN
       COMMON /CSIM/ STP, RFP, BNT, BNDV, BNP, BNR, BNN
       COMMON /CSIMI/ STSN, STBOD, STGC, NSTART, RFSN, RFBOD, RFGC,
      &               NRF, BNSN, BNBOD, NBN
@@ -165,11 +168,11 @@ C     SP-4029's mission timelines): row K of scenario TLSN(K) at
 C     g.e.t. TLT(K) (s), kind TLK(K): 1 LAUNCH, 2 BURN, 3 STAGING,
 C     4 ORBIT, 5 SEP, 6 SURFACE, 7 TV, 8 CREW, 9 PHOTO, 10 ENTRY,
 C     11 MARK (CLAUDE.md); sorted by scenario and g.e.t.  The names
-C     are the page's (build/names.js).
-      DOUBLE PRECISION TLT(NTL)
-      INTEGER TLK(NTL), TLSN(NTL)
+C     are the page's (build/names.js).  NTL rows.
+      DOUBLE PRECISION TLT(MXTL)
+      INTEGER TLK(MXTL), TLSN(MXTL), NTL
       COMMON /CTLN/ TLT
-      COMMON /CTLNI/ TLK, TLSN
+      COMMON /CTLNI/ TLK, TLSN, NTL
 C
 C     /CBRN/, /CBRNI/ the burn cue's main-engine firings (lburn.f; a
 C     modern addition), from the TIMELINE rows by the scenarios'
@@ -177,8 +180,8 @@ C     BURNCUE cards: row K of scenario BRSN(K) burns from g.e.t. BRT1(K)
 C     to BRT2(K) (s), vehicle BRVH(K) (1 CSM, 2 LM, 3 S-IVB), engine
 C     BREN(K) (1 SPS, 2 DPS, 3 APS, 4 J-2); NBR rows.  IBRTX: the
 C     engine whose BURN text TXALL letters this frame (DBURN), 0 none.
-      DOUBLE PRECISION BRT1(NBRN), BRT2(NBRN)
-      INTEGER BRSN(NBRN), BRVH(NBRN), BREN(NBRN), NBR, IBRTX
+      DOUBLE PRECISION BRT1(MXCUE), BRT2(MXCUE)
+      INTEGER BRSN(MXCUE), BRVH(MXCUE), BREN(MXCUE), NBR, IBRTX
       COMMON /CBRN/ BRT1, BRT2
       COMMON /CBRNI/ BRSN, BRVH, BREN, NBR
       COMMON /CBRNT/ IBRTX
@@ -219,8 +222,8 @@ C     slow to call at every integration step.
       INTEGER NMQ
       COMMON /CSIMM/ MQ, MQT0, MQDT
       COMMON /CSIMMI/ NMQ
-      DOUBLE PRECISION RFERR(2,NREF)
-      INTEGER ITPSN, ISIMF, RFOK(NREF), ISRC, ISRCU
+      DOUBLE PRECISION RFERR(2,MXREF)
+      INTEGER ITPSN, ISIMF, RFOK(MXREF), ISRC, ISRCU
       COMMON /CSIMR/ RFERR
       COMMON /CSIMRI/ ITPSN, ISIMF, RFOK, ISRC, ISRCU
 C
@@ -232,7 +235,7 @@ C              8 semi-major axis (km), 9 perigee time (s);
 C       CIRC, LUNAR  1-3 position unit at 9, 4-6 direction of motion
 C              there, 9 time (s), 10 radius (km) at 9, 11 mean motion
 C              (rad/s); LUNAR 7 the radius's rate (km/s).
-      DOUBLE PRECISION TJD0, LGEL(11,NLEG)
+      DOUBLE PRECISION TJD0, LGEL(11,MXLEG)
       COMMON /CSN/ TJD0, LGEL
       INTEGER ISN
       COMMON /CSNI/ ISN

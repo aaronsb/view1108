@@ -209,5 +209,6 @@ C       OFFLEG ours
       DATA SILY(5,9), SILY(6,9), SILY(7,9), SILY(8,9), SILY(9,9),
      & SILY(10,9) / 5, 6, 10, 0, 0, 0 /
       DATA SILY(11,9), SILY(12,9) / 0, 0 /
+      DATA NSIT / 9 /
       END
 C     RESTOMOD END
