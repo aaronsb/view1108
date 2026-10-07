@@ -161,7 +161,7 @@ Entry points:
   and `view_frame` draws an empty frame, so call `view_init` after a deck with no error. `deck_sum` puts the
   run tables' hash total in `out_dksum` (int32 × 4). The run tables start empty: the page unpacks the reel packages it embeds at boot
   (`web/src/reelpkg.js`: `DecompressionStream` and a USTAR reader; a reel that does not unpack, or names
-  another kernel build than the page's `KERNEL_SHA`, stops the boot) and loads their decks in order
+  another kernel build than the page's `KERNEL_SHA`, stops the boot; `DecompressionStream` sets the browser floor: Chrome 80, Firefox 113, Safari 16.4) and loads their decks in order
   (`web/src/kernel.js` `loadDecks`; a deck error stops the boot with its reel, file and line), the native
   driver `build/decks.txt`'s decks, the selftest both.
 - `sim_run(flags)` (int32 by value) — runs the engine over the current scenario and fills the

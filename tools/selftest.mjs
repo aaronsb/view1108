@@ -440,14 +440,37 @@ if (W.sim_run && fs.existsSync(VSVG)) {
   };
   await refused('another kernel build', VR[0].b64, /NAMES KERNEL core [0-9a-f]{8}; THIS PAGE RUNS 00000000$/, '0'.repeat(64));
   const bytes = Buffer.from(VR[0].b64, 'base64');
-  await refused('a truncated package', bytes.subarray(0, bytes.length >> 1).toString('base64'), /^REEL \S+ DOES NOT UNPACK/);
-  const swapped = execFileSync('python3', ['-c', `import base64, gzip, io, sys, tarfile
+  await refused('a truncated package', bytes.subarray(0, bytes.length >> 1).toString('base64'), /^REEL \S+: does not unpack: not a gzip stream/);
+  // Bad packages made from the first reel's members by the packer's own tar_gz (craft MODE): reversed (the manifest
+  // not first), the scenario deck dropped (listed but missing), an extra member (not listed), and the manifest's size
+  // field set to -512 with its header checksum made right (the reader once looped on it).
+  const craft = mode => execFileSync('python3', ['-c', `import base64, gzip, io, sys, tarfile
 sys.path.insert(0, "tools"); import pack
-t = tarfile.open(fileobj=io.BytesIO(gzip.decompress(base64.b64decode(sys.stdin.read()))))
+raw = gzip.decompress(base64.b64decode(sys.stdin.read()))
+t = tarfile.open(fileobj=io.BytesIO(raw))
 m = [(i.name, t.extractfile(i).read()) for i in t.getmembers()]
-sys.stdout.write(base64.b64encode(pack.tar_gz(m[::-1])).decode())`], { cwd: R, input: VR[0].b64 }).toString();
-  await refused('the manifest not first', swapped, /manifest\.json is not first/);
-  await refused('another id', VR[1].b64, /its manifest says/);
+mode = sys.argv[1]
+if mode == "negsize":
+    h = bytearray(raw)
+    h[124:136] = b"-0000001000" + bytes(1)
+    h[148:156] = b"        "
+    h[148:156] = (b"%06o" % sum(h[:512])) + bytes(1) + b" "
+    out = gzip.compress(bytes(h), mtime=0)
+else:
+    out = pack.tar_gz({"reverse": m[::-1], "drop": m[:-1], "extra": m + [("extra.txt", b"x")]}[mode])
+sys.stdout.write(base64.b64encode(out).decode())`, mode], { cwd: R, input: VR[0].b64 }).toString();
+  await refused('the manifest not first', craft('reverse'), /manifest\.json is not first/);
+  await refused('a listed file missing', craft('drop'), /is listed but missing/);
+  await refused('a member not listed', craft('extra'), /extra\.txt is in it but not listed/);
+  await refused('a negative size field', craft('negsize'), /does not unpack: manifest\.json: bad size/);
+  try { await RP.readReel(VR[0].b64, sha, 'other-id'); wrong.push('another id: not refused'); }
+  catch (err) { if (!/^REEL other-id: its manifest says /.test(err.message)) wrong.push(`another id: "${err.message}"`); }
+  // The page as built (web/view1108.html) names the same kernel build: assemble.py's KERNEL_SHA is this wasm's, and
+  // every reel's manifest names it.
+  const page = fs.existsSync(path.join(R, 'web/view1108.html')) ? fs.readFileSync(path.join(R, 'web/view1108.html'), 'utf8') : '';
+  const pageSha = (/const KERNEL_SHA = "([0-9a-f]{64})"/.exec(page) || [])[1];
+  if (pageSha !== sha || reels.some(r => r.manifest.kernel.sha256 !== pageSha))
+    wrong.push(`the page's KERNEL_SHA ${pageSha} is not the wasm's ${sha.slice(0, 8)} or a manifest's`);
   console.log(`packages: ${reels.length} reels (${reels.map(r => r.manifest.id).join(', ')}), ${decks.length} decks; ` +
     `hash total ${sumR} (native ${sumN})  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/, packed twice the same, refusals hold'}`);
   if (wrong.length) ok = false;

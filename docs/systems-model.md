@@ -221,7 +221,7 @@ This is also the more faithful shape. VIEW was a general program fed per-mission
 
 ### Packing
 
-`tools/gen_data.py` becomes the reel packer for our own reels: it validates every card, checks every card has a source, checks each manifest's `controls` against the input table, packs `data/missions/<id>/` and `data/reels/<id>/` into packages, and writes the site reel index the shelf and `reel=` read (#26). It keeps generating the static catalogs. The build generates the input table from `src/` (the shell's `in_*` globals and the `in_flags` bits) and writes the kernel library's list of builds and hashes.
+`tools/pack.py` is the reel packer for our own reels (#26 slice 7: each scenario of `data/missions/` as a package today; the playlist reels in `data/reels/` and the steps below follow), with `tools/gen_data.py` checking the cards: it validates every card, checks every card has a source, checks each manifest's `controls` against the input table, packs `data/missions/<id>/` and `data/reels/<id>/` into packages, and writes the site reel index the shelf and `reel=` read (#26). It keeps generating the static catalogs. The build generates the input table from `src/` (the shell's `in_*` globals and the `in_flags` bits) and writes the kernel library's list of builds and hashes.
 
 ## 6. Room
 

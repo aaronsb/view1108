@@ -7,7 +7,7 @@ byte for byte (the kernel's card reader reads them, src/vdeck.f; tools/gen_data.
 manifest names the kernel build the reel is for, by the SHA-256 of build/view.opt.wasm, and never
 carries code (#26, 2026-10-06 decision). Packages are reproducible: USTAR members with mtime 0,
 uid/gid 0, no user or group names, mode 0644, no directory entries; gzip with mtime 0 and no file
-name. Writes:
+name: the same bytes again for a given Python and zlib (the selftest packs twice and compares). Writes:
 
   build/reels/<id>.reel.tar.gz   the package
   build/reels/<id>/              its members, unpacked (for reading)
@@ -72,6 +72,11 @@ def main():
         mname = card_name(mtext.decode("utf-8"), "MISSION")
         for sfile in sorted(p for p in mdir.glob("*.scn") if p.name != "mission.scn"):
             rid = f"{mdir.name}-{sfile.stem}"
+            if any(r["id"] == rid for r in index):
+                sys.exit(f"pack.py: two reels named {rid} (mission folder and scenario file names must not "
+                         "combine to the same id)")
+            if len(sfile.name) > 100:
+                sys.exit(f"pack.py: {sfile}: a file name longer than 100 characters (USTAR)")
             stext = sfile.read_bytes()
             title = f"{mname} {card_name(stext.decode('utf-8'), 'SCENARIO')}"
             manifest = {"format": FORMAT, "id": rid, "kind": "scenario", "title": title,

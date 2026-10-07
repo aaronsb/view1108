@@ -52,10 +52,13 @@ async function boot() {
 }
 
 // The reels embedded in the page (VIEW_REELS, build/reels.js, tools/pack.py), unpacked once at boot (reelpkg.js),
-// in their load order; a reel that does not unpack, or names another kernel build, stops the boot.
+// in their load order; a reel that does not unpack, or names another kernel build, stops the boot. REEL_LIB keeps
+// them for switching reels in the kernel (#26 slice 7, per-reel loading).
 let REEL_LIB = [];
 async function reelLibrary() {
   if (typeof VIEW_REELS === "undefined") throw new Error("no reels (build/reels.js)");
+  if (typeof DecompressionStream === "undefined")
+    throw new Error("THIS BROWSER CANNOT UNPACK REELS (no DecompressionStream: Chrome 80, Firefox 113, Safari 16.4 or later)");
   REEL_LIB = [];
   for (const r of VIEW_REELS) REEL_LIB.push(await readReel(r.b64, KERNEL_SHA, r.id));
   return REEL_LIB;
