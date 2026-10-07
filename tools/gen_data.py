@@ -17,7 +17,7 @@ Inputs (all in data/):
 
 Also the card reader's vocabulary (its card kinds, keys and code words, from the tables below)
 -> src/vdvoc.f and src/vdvoc.inc, and the decks in load order -> build/decks.txt (for the native
-driver and the gates) and build/decks.js (their text, for the page).
+driver and the gates; the page's copies are the reel packages, tools/pack.py).
 
 Everything is written in the J2000 equatorial frame. AGC star vectors are precessed
 from 1969.5 to J2000 so they share a frame with the catalog.
@@ -1305,9 +1305,6 @@ def main():
         order += [mdir / "mission.scn"] + sorted(p for p in mdir.glob("*.scn")
                                                  if p.name != "mission.scn")
     (R / "build" / "decks.txt").write_text("".join(f"{p.relative_to(R)}\n" for p in order))
-    # The page's copy of the decks, in that order, for its card reader calls (web/src/kernel.js).
-    (R / "build" / "decks.js").write_text("const VIEW_DECKS = " + json.dumps(
-        [[str(p.relative_to(R)), p.read_text(encoding="utf-8")] for p in order]) + ";\n")
     # The scene list make check and the selftest read: situation ids and their scenarios.
     (R / "build" / "scenes.json").write_text(json.dumps(
         {"scenes": [t["id"] for t in sits], "scenario": {str(t["id"]): t["m"] for t in sits}}) + "\n")

@@ -4,8 +4,9 @@
 Page modules: each <link rel="stylesheet" href="src/X.css"> becomes an inline <style>, and each run of
 <script src="src/X.js"></script> tags becomes one inline script whose modules share a strict-mode closure,
 joined in tag order. Placeholders: __WASM_B64__ (build/view.opt.wasm), __FALLBACK_JS__ (build/fallback.js),
-__NAMES_JS__ (build/names.js), __DECKS_JS__ (build/decks.js, the run decks the kernel's card reader
-loads at boot), __FORTRAN_SRC__ (the kernel listing:
+__NAMES_JS__ (build/names.js), __REELS_JS__ (build/reels.js, tools/pack.py: the reel packages, base64, which
+the page unpacks at boot and whose run decks the kernel's card reader loads), __KERNEL_SHA__ (the SHA-256 of
+build/view.opt.wasm, computed here, which each reel's manifest must name), __FORTRAN_SRC__ (the kernel listing:
 every src/*.f but the generated viewdata.f, the driver vdrive.f (or view.f) first, then the INCLUDE files
 viewdims.inc and viewcom.inc, each element preceded by
 a line of a form feed and its path, HTML-escaped),
@@ -17,7 +18,7 @@ __LAB_JS__ (build/lab.js, the machine room bundled from web/lab; empty when abse
 The kernel's symbol table (build/symbols.json, tools/gen_symbols.py) follows the listing's </pre> as
 <script type="application/json" id="fsym">, when that file is there.
 """
-import base64, html, pathlib, re, sys
+import base64, hashlib, html, pathlib, re, sys
 
 R = pathlib.Path(__file__).resolve().parent.parent
 INPUTS = {
@@ -25,7 +26,7 @@ INPUTS = {
     "wasm": R / "build/view.opt.wasm",
     "fallback": R / "build/fallback.js",
     "names": R / "build/names.js",
-    "decks": R / "build/decks.js",
+    "reels": R / "build/reels.js",
     "font": R / "web/fonts/3270-Regular.subset.woff2",
     "fontjbm": R / "web/fonts/JetBrainsMono-Regular.subset.woff2",
     "fontmich": R / "web/fonts/Michroma-Regular.subset.woff2",
@@ -74,7 +75,8 @@ subs = {
     "__FORTRAN_SRC__": html.escape("".join(f"\f{f.relative_to(R)}\n{f.read_text()}" for f in KSRC), quote=False),
     "__FALLBACK_JS__": INPUTS["fallback"].read_text().replace("</script", "<\\/script"),
     "__NAMES_JS__": INPUTS["names"].read_text().replace("</script", "<\\/script"),
-    "__DECKS_JS__": INPUTS["decks"].read_text().replace("</", "<\\/"),
+    "__REELS_JS__": INPUTS["reels"].read_text().replace("</", "<\\/"),
+    "__KERNEL_SHA__": hashlib.sha256(INPUTS["wasm"].read_bytes()).hexdigest(),
     "__FONT_3270_B64__": base64.b64encode(INPUTS["font"].read_bytes()).decode(),
     "__FONT_JBM_B64__": base64.b64encode(INPUTS["fontjbm"].read_bytes()).decode(),
     "__FONT_MICH_B64__": base64.b64encode(INPUTS["fontmich"].read_bytes()).decode(),
@@ -88,7 +90,7 @@ subs["__PHOTOS_JSON__"] = PHOTOS.read_text().replace("</", "<\\/") if PHOTOS.is_
 if "__FSYM__" in t:
     subs["__FSYM__"] = fsym
 # Replace only the payload slots, not the dev-guard `var __FALLBACK_JS__, __NAMES_JS__, ...;` line.
-guard = "var __FALLBACK_JS__, __NAMES_JS__, __DECKS_JS__, __LAB_JS__;"
+guard = "var __FALLBACK_JS__, __NAMES_JS__, __REELS_JS__, __LAB_JS__;"
 t = t.replace(guard, "")
 for k, v in subs.items():
     if k not in t:
