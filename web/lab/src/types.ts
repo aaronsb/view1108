@@ -1,17 +1,25 @@
 // The lab's interfaces: the page <-> lab contract, and the contract between the room and its equipment.
 import type * as THREE from "three";
+import type { Opens } from "./stations";
 
-/** What a terminal opens when the camera arrives at it: the plot tabs, the Source tab, the Print tab, the kernel
- *  listing on greenbar (the line printer), or the reference library (the bookcase and its binders). */
-export type Opens = "workbench" | "source" | "print" | "listing" | "library";
+/** What a terminal opens when the camera arrives at it, from the station table (stations.ts): the plot tabs, the
+ *  Source tab, the Print tab, the kernel listing on greenbar (the line printer), or the reference library (the
+ *  bookcase and its binders). */
+export type { Opens };
 
-/** The page's state, read by the lab once per rendered frame (web/src/room.js labState()). */
+/** The page's state, read by the lab once per rendered frame (web/src/room.js labState()): the presentation (tab) and
+ *  the page's loaded state (web/src/state.js LS), which only the page's loadReel changes; the lab never writes it. */
 export interface LabState {
   tab: string;            // review | simulate | print | fusion | source
   mode: string;           // attract | tour | live | free | beam
-  playing: boolean;
-  get: number;            // g.e.t., s
-  scene: number;
+  playing: boolean;       // the playback clock runs (the drive's RUN/STOP)
+  reel: string;           // the mounted reel's label: DEMO while Attract or Tour plays, else the situation's title
+  get: number;            // g.e.t., s, of the loaded scenario
+  situation: number;      // the loaded situation's ID (the kernel's scene number)
+  scenario: number;       // its scenario's ID
+  mission: string;        // that scenario's mission, as its MISSION card names it ("APOLLO 8")
+  epoch: number;          // the scenario's range zero, s from scenario 1's (hdr(16))
+  zero: number;           // the scenario's range zero, UTC ms (VIEW_NAMES.SCENARIOS)
   frameNo: number;        // kernel frames drawn since boot; the vector screen is stale when this moves
   /** web/src/sound.js sndCtx, sndOut, sndOn, and soundBed (the page's ambience bed on or off; the room's sound
    *  replaces it while the room runs), and whineNode (the deflection whine at the 1558 and the film recorder,
@@ -40,6 +48,11 @@ export interface LabHooks {
   screenRect?(opens: Opens): DOMRect | null;
   /** The camera stepped back from a terminal's close-up without opening it: undo what screenRect laid out. */
   leave?(opens: Opens): void;
+  /** The drive (a "control" station) was used: STOP or START the mounted reel's playback clock. */
+  drive?(): void;
+  /** The page's one Esc stack (web/src/esc.js): push `key` with what Esc does while it is on top, or (null) take it
+   *  off. The lab pushes its close-up and a pulled binder. */
+  esc?(key: string, pop: (() => void) | null): void;
 }
 
 /** A camera pose: where the eye is, what it looks at, its vertical field of view (deg). */
@@ -80,8 +93,12 @@ export interface Equipment {
   pull?(): boolean;
   /** It is out and opens: E or Enter at the close-up opens it. */
   pulled?(): boolean;
-  /** The close-up's line when it depends on the piece's state (a shelf: what is pulled out); else the lab's own. */
+  /** The close-up's line when it depends on the piece's state (a shelf: what is pulled out); else the station's. */
   hint?(): string;
+  /** Its state, added to its hover label (the drive: its reel, running or stopped). */
+  status?(): string;
+  /** Something out on a shelf at a close-up (a pulled binder): put it back; false when nothing is out. */
+  putBack?(): boolean;
   /** The camera is flying to this piece (true) or the room is shown again (false): a binder slides out and back. */
   select?(on: boolean): void;
   update?(dt: number, state: LabState): void;
@@ -118,7 +135,7 @@ export interface Room {
   footprints?: Footprint[];
   /** The door: its centre's x on the wall at z, its width. */
   door?: { x: number; z: number; w: number };
-  /** Hover labels by placed name, for the equipment that opens something and the inert props. */
+  /** Hover labels by placed name: the stations' from the station table, the props' and the room's own fittings'. */
   labels?: Record<string, string>;
   /** Region the dust drifts in. */
   air?: THREE.Box3;

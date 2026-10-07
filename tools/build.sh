@@ -15,26 +15,30 @@ mkdir -p build
 python3 tools/gen_data.py
 python3 tools/gen_symbols.py || echo "gen_symbols failed; the page builds without the Source tab's symbols" >&2
 
-# The kernel's elements: every fixed-form file in src/ but the BLOCK DATA
-# (see the header of src/vdrive.f).  A new element needs no change here.
+# The kernel's elements: every fixed-form file in src/ but the generated BLOCK
+# DATA files, DATA (see the header of src/vdrive.f).  A new element needs no
+# change here.
+DATA="viewdata viewsit"
 ELEMS=""
 for f in src/*.f; do
-  e=$(basename "$f" .f); [ "$e" = viewdata ] || ELEMS="$ELEMS $e"
+  e=$(basename "$f" .f); case " $DATA " in *" $e "*) ;; *) ELEMS="$ELEMS $e" ;; esac
 done
 
 native() {
   local objs=""
-  for e in $ELEMS viewdata; do
+  for e in $ELEMS $DATA; do
     gfortran -O2 -std=legacy -Isrc -c src/$e.f -o build/${e}_native.o
     objs="$objs build/${e}_native.o"
   done
-  gfortran -O2 -ffree-line-length-none tools/viewsvg.f90 $objs -o build/viewsvg
+  # The run-table dump (VIEW_DUMP=1) for the golden gate: native driver only, not the kernel.
+  gfortran -O2 -std=legacy -Isrc -c tools/vdump.f -o build/vdump_native.o
+  gfortran -O2 -ffree-line-length-none tools/viewsvg.f90 $objs build/vdump_native.o -o build/viewsvg
   rm -f viewsvg*.mod
   echo "native: build/viewsvg"
 }
 if [ "${1:-}" = native ]; then native; exit 0; fi
 
-EXPORTS="memory view_init view_frame sim_run in_get in_yaw in_pitch in_roll in_fov in_flags in_src in_view in_target in_lablv
+EXPORTS="memory view_init view_frame sim_run in_get in_yaw in_pitch in_roll in_fov in_flags in_src in_view in_target in_lablv out_terise
          vbuf nvec sbuf nstar lbuf nlab hdr tbuf ntxt tchr nchr"
 # No --fast: LFortran would optimise for the host (x86 vectors, i64 overflow
 # checks that need __multi3).  clang optimises the IR for wasm32 instead.
@@ -46,14 +50,14 @@ LFF="--fixed-form --implicit-interface --legacy-array-sections $LF"
 # 1. Fortran to LLVM IR, one element at a time.  LFortran emits a native
 #    target; strip it so llc can retarget.  COMMON blocks are emitted as strong
 #    definitions in every file that names them; in every element but the BLOCK
-#    DATA file they are made weak, so the BLOCK DATA initialisers win at link
-#    time (and blocks it does not initialise link to one zeroed copy).
-for e in $ELEMS viewdata; do
+#    DATA files they are made weak, so the BLOCK DATA initialisers win at link
+#    time (and blocks they do not initialise link to one zeroed copy).
+for e in $ELEMS $DATA; do
   (cd src && "${B}lfortran" $LFF --show-llvm $e.f) > build/$e.ll
 done
 "${B}lfortran" $LF --show-llvm src/shell.f90 > build/shell.ll
 rm -f src/*.mod *.mod
-for f in $ELEMS viewdata shell; do
+for f in $ELEMS $DATA shell; do
   sed -i -e '/^target datalayout/d' -e '/^target triple/d' \
          -e '/^@/s/ common / /' \
          -e 's/"target-cpu"="[^"]*"//g' -e 's/"target-features"="[^"]*"//g' \
@@ -66,19 +70,19 @@ done
 # LFortran also emits its runtime helpers (_lcompilers_sin_f64 and the like)
 # into every file that uses them; the copies are identical, so let the
 # linker keep one.
-for f in $ELEMS viewdata shell; do
+for f in $ELEMS $DATA shell; do
   sed -i -E 's/^define (dso_local )?([^@]*@_lcompilers_)/define linkonce_odr \1\2/' build/$f.ll
 done
 
 # 2. IR to wasm32 objects, then link.  Math intrinsics stay as imports (env.*),
 #    which the page satisfies with Math.sin, Math.acos, etc.  No saturating
 #    float-to-int: wasm2js cannot lower it.
-for f in $ELEMS viewdata shell; do
+for f in $ELEMS $DATA shell; do
   "${B}clang" --target=wasm32-unknown-unknown -O2 -mbulk-memory -mno-nontrapping-fptoint \
     -Wno-override-module -c build/$f.ll -o build/$f.o
 done
 EXP=""; for e in $EXPORTS; do [ "$e" = memory ] || EXP="$EXP --export=$e"; done
-OBJS="build/viewdata.o"; for e in $ELEMS; do OBJS="$OBJS build/$e.o"; done
+OBJS=""; for e in $DATA; do OBJS="$OBJS build/$e.o"; done; for e in $ELEMS; do OBJS="$OBJS build/$e.o"; done
 "${B}wasm-ld" --no-entry --allow-undefined $EXP -o build/view.wasm $OBJS build/shell.o
 
 # 3. Optimise, and make a plain-JS fallback for browsers without WebAssembly.

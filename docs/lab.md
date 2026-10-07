@@ -41,7 +41,7 @@ Sizes are W x H x D in metres.
 |---|---|---|---|---|
 | `vector` | UNIVAC 1558 Graphic Display Console, showing the plot | UP-7789 Fig. 1-1 (p. 1), Fig. 2-5 (p. 11), Fig. 2-7 (p. 14), light pen p. 15, function keys p. 16, size p. 27 | 0.9 x 1.5 x 1.25 (35 x 60 x 50 in, read as W x H x D: inferred) | Shape good (below). Its use at MSC is not documented; we chose it as the 1108's own vector display |
 | `glass` | UNISCOPE 100 Display Terminal, showing the kernel source | UP-7701 Fig. 1-1 and p. 1 (10 x 5 in viewing area, 16 x 64 or 12 x 80, green on dark), size p. 30; UNISCOPE photo (below) | 0.46 x 0.33 x 0.69 | Good. Delivered from 1970, a year after the film (an anachronism we keep for Source) |
-| `uniservo` | UNISERVO VIII-C tape unit | UP-4046 sec. 8.4.2 (120 in/s, 240 in/s rewind, 2400 ft reels); brochure p. 7; MSC photo (numbers 60, 61, ...) | 0.75 x 1.8 x 0.75 (inferred) | Good on look; vacuum columns not shown |
+| `uniservo` | UNISERVO VIII-C tape unit; the middle one is the drive (below) | UP-4046 sec. 8.4.2 (120 in/s, 240 in/s rewind, 2400 ft reels); brochure p. 7; MSC photo (numbers 60, 61, ...) | 0.75 x 1.8 x 0.75 (inferred) | Good on look; vacuum columns not shown. The drive's label and lamps are ours |
 | `cpu` | 1108 cabinet; `{lampPanel: true}` is the processor's maintenance panel | Brochure p. 3 (colour) | 0.8 x 1.9 x 0.8 (inferred) | Good on look; the lamp count is ours |
 | `powercab` | Power distribution cabinet, low, on the south wall east of the card reader: a sloped meter panel over a pair of doors (below) | none | 1.0 x 1.13 x 0.7 (ours) | HYPOTHETICAL |
 | `console4009` | 1108 Display Console, type 4009: indicator panel with Day Clock, display unit with CRT and keyboard, PAGEWRITER on a pedestal (below) | UP-7604 Figs. 2-1, 2-3, 2-4, 4-1, Tables 2-1, 2-3, secs. 2.1 to 2.3.4; UP-7619 App. A and cover; console photo; UP-4046 Fig. 1-1; brochure pp. 6, 7 | 2.8 x 1.25 x 0.95 (2.8 x 1.13 x 0.9 drawn; desk and panel sizes ours) | Fair: parts and display unit sourced, layout ours |
@@ -83,16 +83,7 @@ the UNISCOPE 100, from one atlas shared with it (`kit.ts` keyLegends): one more 
 - **UNISCOPE 100.** 64 x 16 green characters in the IBM 3270 face when the page has it. The screen shows the Source
   tab's marked line or current unit, or VFRAME from `vdrive.f` in the embedded listing, and is redrawn only when that
   text changes. The cursor blinks.
-- **4009 console.** The Day Clock shows hours, minutes and hundredths of a minute (UP-7604 sec. 2.3.3), written
-  HH:MM.hh as in UP-4046 Fig. 1-1. It runs on the replay's UTC: Apollo 11's range zero, 1969-07-16 13:32:00 UTC, plus
-  the g.e.t. In scene 9 the clock is offset by hdr(16), -17,887,260 s, to Apollo 8's epoch. At the touchdown g.e.t.
-  102:45:40 it reads 20:17.66, that is 20:17:40 UTC. Its orange digits are HYPOTHETICAL. The CRT shows a console log
-  (ours): the run's tape assignments and mounts and its two `@XQT` steps in the style of the sample run in
-  `docs/batch-pipeline.md`, a line per 16 frames, the run's state, and a blinking prompt; the PAGEWRITER's sheet
-  carries the same log, as UP-7604 sec. 2.3.2 says it logs the CRT's traffic. The lamps follow Fig. 4-1's sections:
-  the Program Address Counter changes about 14 times a second while the page plays or after a `tape` event and once
-  a second otherwise, GUARD mode is lit, and SELECT STOPS 0 and RELEASE STOPS 0 light on hold. UP-7604 says the
-  address counter's indicators are disabled while a program runs, so a running counter is ours.
+- **4009 console.** The Day Clock shows hours, minutes and hundredths of a minute (UP-7604 sec. 2.3.3), written HH:MM.hh as in UP-4046 Fig. 1-1. It runs on the replay's UTC: the loaded scenario's range zero (its MISSION's EPOCH card, to the second; `LabState.zero`), plus the g.e.t. For Apollo 11 that is 1969-07-16 13:32:00 UTC; Apollo 8's scene 9 runs from 1968-12-21 12:51:00 UTC. At the touchdown g.e.t. 102:45:40 it reads 20:17.66, that is 20:17:40 UTC. Its orange digits are HYPOTHETICAL. The CRT shows a console log (ours), run VIEW and the loaded mission's number (VIEW11, VIEW08): the run's tape assignments and mounts and its two `@XQT` steps in the style of the sample run in `docs/batch-pipeline.md`, a line per 16 frames, the run's state, and a blinking prompt; the PAGEWRITER's sheet carries the same log, as UP-7604 sec. 2.3.2 says it logs the CRT's traffic. The lamps follow Fig. 4-1's sections: the Program Address Counter changes about 14 times a second while the page plays or after a `tape` event and once a second otherwise, GUARD mode is lit, and SELECT STOPS 0 and RELEASE STOPS 0 light on hold. UP-7604 says the address counter's indicators are disabled while a program runs, so a running counter is ours.
 - **Printer.** A finished beam frame advances the paper four lines, at most twice a second, and a lamp blinks. The
   stack grows by one sheet every 11 in.
 - **Desk clock.** It shows Houston time for the replay's moment: Central time, with daylight time from the last Sunday
@@ -204,6 +195,10 @@ draws, more while the tape units run. Below it a pair of louvred doors on side h
 click) swings them open 100 degrees, and again shut. Behind them, on a galvanised pan: copper bus bars for the three
 phases and a tinned neutral on phenolic standoffs, the main breaker and eight branch breakers (all on) with a typed
 directory strip, the feed cables up from the floor, a dry control transformer, a terminal strip and a ground bar.
+
+## The drive
+
+One tape unit, the middle of the seven (number 63), is the drive: the unit with the mounted reel (#20; the station table, `web/lab/src/stations.ts`). Everything that marks it is ours: a paper label across the lower edge of its window reads REEL and the reel's name (DEMO while the demo plays, Attract then Tour; else the situation's title), and two lenses at the label's right end, captioned RUN and STOP, light green or amber with the page's playback clock. Clicking it, or `E` in front of it, stops the clock or starts it again; while it runs its reels read in short bursts a second or a few apart, and stopped they hold still. Beam paces its own clock, so in Beam the drive shows no state (both lamps dark) and does nothing, until Beam honours the clock. No source says how VIEW's inputs were mounted or labelled (`docs/systems-model.md`, section 6).
 
 ## The reference library
 

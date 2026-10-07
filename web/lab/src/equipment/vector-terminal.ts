@@ -179,7 +179,6 @@ export function build(ctx: BuildContext): Equipment {
   object.updateMatrixWorld(true);
   return {
     object,
-    opens: "workbench",
     anchors: {
       screen: { mesh: screen, uvRect: [0, 0, 1, 1] },
       camera: { position: new THREE.Vector3(SX, SY, SZ + fitDist(SH, FOV)), target, fov: FOV },

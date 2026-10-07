@@ -24,6 +24,7 @@ function printFresh() {
   listingLight = true; applyListing();   // greenbar for this showing (the stored choice is left alone)
   $("bpdf").classList.remove("on");
   printJob = { sheets, s: 0, i: 0, pre: printSheet(paper), t0: performance.now(), done: 0, raf: 0 };
+  escPush("printing", printSkip);   // Esc finishes the copy at once (esc.js)
   soundPrintRun(true);
   printJob.raf = requestAnimationFrame(printStep);
 }
@@ -55,7 +56,7 @@ function printStep(now) {
 function printStop(finish) {
   const J = printJob;
   if (!J) return;
-  cancelAnimationFrame(J.raf); printJob = null;
+  cancelAnimationFrame(J.raf); printJob = null; escDrop("printing");
   soundPrintRun(false);
   if (!finish) return;
   for (; J.s < J.sheets.length; J.s++, J.i = 0) {
@@ -69,7 +70,6 @@ $("bfresh").onclick = printFresh;
 $("bpspeed").onclick = () => { printFast = !printFast; $("bpspeed").textContent = printFast ? "Fast" : "Real"; if (printJob) { printJob.t0 = performance.now() - printJob.done / printRate() * 1000; } };
 $("paper").addEventListener("pointerdown", printSkip);
 $("paper").addEventListener("wheel", printSkip, { passive: true });
-window.addEventListener("keydown", e => { if (e.key === "Escape" && printJob) { e.preventDefault(); e.stopImmediatePropagation(); printSkip(); } }, true);
 $("bclose").addEventListener("click", printSkip);
 
 // ---- the PDF ----

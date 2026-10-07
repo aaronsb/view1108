@@ -45,5 +45,7 @@ function applyListing() {
   if (light) buildPaper();
 }
 $("blist").onclick = () => { listingLight = !listingLight; prefs.listing = listingLight ? "light" : "dark"; savePrefs(); applyListing(); };
-$("bsrc").onclick = () => { applyListing(); $("list").classList.add("open"); };
-$("bclose").onclick = () => $("list").classList.remove("open");
+// Open, it is on the Esc stack (esc.js): Esc, like Close, closes it.
+function listingClose() { $("list").classList.remove("open"); escDrop("listing"); }
+$("bsrc").onclick = () => { applyListing(); $("list").classList.add("open"); escPush("listing", listingClose); };
+$("bclose").onclick = listingClose;

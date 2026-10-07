@@ -44,8 +44,9 @@ const box = () => framed ? { x: W * (1 - BOXF) / 2, y: W * HDR, s: W * BOXF } : 
 // The caption line under the plot (also lettered by svgout.js).  hdr(9), the CSM to LM range, is lettered only within
 // 10 n mi (60,761 ft; ours): the kernel gives it wherever both states are known, the LM often far out of the picture.
 function captionText(H) {
-  const sc = H[6] | 0, liveTag = mode === "live" ? `LIVE ${LIVE_RATES[liveIdx]}x   ` : mode === "tour" ? "TOUR   " : "";
-  return liveTag + (capName || SCENE_CAPTION[sc] || SCENES[sc - 1] || "") + (H[5] && !autoCap && !(SCENE_CAPTION[sc] && (!capName || capName === SCENE_CAPTION[sc])) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 && H[8] < 60761 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (roll ? `   roll ${roll.toFixed(0)}°` : "");
+  const sc = H[6] | 0, liveTag = LS.mode === "live" ? `LIVE ${LIVE_RATES[liveIdx]}x   ` : reelTag() ? reelTag() + "   " : "";
+  const cap = sitCaption(sc);   // Live's phase and the reels' shots (capName), else the span's phase (as Live's), else the situation's
+  return liveTag + (capName || spanCaption(sc, LS.get) || cap || SCENES[sc - 1] || "") + (H[5] && !autoCap && !(cap && (!capName || capName === cap)) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 && H[8] < 60761 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (LS.roll ? `   roll ${LS.roll.toFixed(0)}°` : "");
 }
 // Text records the page letters, in plot degrees: x, y the lower-left of the first character, h its height. The
 // kernel's tbuf/tchr records; names follow the label level (the kernel picks them by level when it has in_lablv),
@@ -56,7 +57,7 @@ function textRecords(fullCat) {
   const nt = ri("ntxt"), T = new Float64Array(buf(), K.tbuf.value, nt * 4), C = new Int32Array(buf(), K.tchr.value, ri("nchr"));
   for (let j = 0; j < nt * 4; j += 4) {
     let str = ""; for (let q = T[j + 3] - 1; q < C.length && C[q]; q++) str += String.fromCharCode(C[q]);
-    if (/[A-Z]/.test(str) && (!labLv || (fullCat && NAMES.NAV.includes(str)))) continue;
+    if (/[A-Z]/.test(str) && (!LS.labLv || (fullCat && NAMES.NAV.includes(str)))) continue;
     out.push({ s: str, x: T[j], y: T[j + 1], h: T[j + 2] });
   }
   return out;
@@ -70,13 +71,13 @@ function textRecords(fullCat) {
 // Records in plot degrees, as textRecords gives them.
 function craterNames(L, nl, H, F, half) {
   const out = [];
-  if (labLv >= 2) {
+  if (LS.labLv >= 2) {
     const hd = 2 * half * 0.014, placed = [], cand = [];
     const dir = (x, y) => { const th = plotToAngle(Math.hypot(x, y), F) * Math.PI / 180, ph = Math.atan2(y, x); return [Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th)]; };
     const moon = H[5] === 2 && H[13] === 1 ? dir(H[10], H[11]) : null;   // hdr(6) reference body Moon, hdr(14) in front
     const limbAt = moon ? Math.asin(Math.min(1, RM_NMI / Math.max(RM_NMI, H[2]))) - 2 * hd * Math.PI / 180 : 0;
     const nearLimb = i => { if (!moon) return false; const d = dir(L[i], L[i + 1]); return Math.acos(Math.min(1, d[0] * moon[0] + d[1] * moon[1] + d[2] * moon[2])) > limbAt; };
-    for (let i = 0; i < nl * 4; i += 4) if ((L[i + 2] | 0) === 2 && NAMES.CRATER[(L[i + 3] | 0) - 1] && !nearLimb(i) && (labLv === 3 || craterKm((L[i + 3] | 0) - 1) >= 25)) cand.push(i);
+    for (let i = 0; i < nl * 4; i += 4) if ((L[i + 2] | 0) === 2 && NAMES.CRATER[(L[i + 3] | 0) - 1] && !nearLimb(i) && (LS.labLv === 3 || craterKm((L[i + 3] | 0) - 1) >= 25)) cand.push(i);
     cand.sort((a, b) => L[a + 3] - L[b + 3]);
     for (const i of cand) {
       const up = NAMES.CRATER[(L[i + 3] | 0) - 1].toUpperCase(), wd = 0.35 * hd * up.length;
@@ -96,7 +97,7 @@ function draw(now) {
   const S = new Float64Array(buf(), K.sbuf.value, ns * 3);
   const L = new Float64Array(buf(), K.lbuf.value, nl * 4);
   const H = new Float64Array(buf(), K.hdr.value, 16);
-  const F = H[1] || fov, half = H[14] > 0 ? H[14] : F / 2;   // the plot box is +-hdr(15) plot degrees
+  const F = H[1] || LS.fov, half = H[14] > 0 ? H[14] : F / 2;   // the plot box is +-hdr(15) plot degrees
   framed = !!(fl & 2);
   const b = box(), k = b.s / (2 * half), cx = b.x + b.s / 2, cy = b.y + b.s / 2;
 
@@ -121,7 +122,7 @@ function draw(now) {
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   // vectors: solid and dashed batched into paths
   // Beam and the SCOPE refresh pass record the strokes in drawing order (beam.js BeamRec) and draw them themselves.
-  const beam = mode === "beam", rec = (beam && beamNew) || live ? new BeamRec() : null, own = beam || live;
+  const beam = LS.mode === "beam", rec = (beam && beamNew) || live ? new BeamRec() : null, own = beam || live;
   const solid = rec ? rec.sub(0) : new Path2D(), dash = rec ? rec.sub(1) : new Path2D();
   for (let i = 0; i < nv * 5; i += 5) {
     const p = V[i + 4] === 2 ? dash : solid;
@@ -178,7 +179,7 @@ function draw(now) {
   ctx.fillText("X, deg", cx, b.y + b.s + fs * 2);
   ctx.save(); ctx.translate(b.x - fs * 3.2, cy); ctx.rotate(-Math.PI / 2); ctx.textBaseline = "bottom"; ctx.fillText("Y, deg", 0, 0); ctx.restore();
   }
-  const showCap = framed || mode !== "attract" || autoCap;   // the film has no text on its unframed shots; added shots say what they are
+  const showCap = framed || !filmReel() || autoCap;   // the film has no text on its unframed shots; added shots say what they are
   if (showCap) {
   ctx.textAlign = "center"; ctx.fillStyle = "#eee";
   ctx.textBaseline = "top"; ctx.font = `${fs * 1.1}px "Courier Prime","Courier New",monospace`;

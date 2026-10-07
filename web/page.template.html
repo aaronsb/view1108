@@ -57,7 +57,7 @@
     <button data-mode="live">Live</button>
     <button data-mode="free">Free-look</button>
   </div>
-  <div class="grp" id="jumps"><span class="lbl">Jump</span><button id="jtd">Docking 3:20:30</button><button id="jundock">Undocking 100:12:00</button><button id="jdesc">Descent 102:42:00</button></div></section>
+  <div class="grp" id="jumps"><span class="lbl">Jump</span></div></section>
   <section class="shade" data-shade="beam" data-tabs="print"><button class="shade-h" type="button">Beam</button>
   <div class="grp">
     <button id="bbeam" title="T: trace each frame vector by vector on a fading phosphor. Trace rates are estimates; see docs/univac-1108.md.">Beam trace</button>
@@ -94,16 +94,17 @@
   <div class="grp" id="scenes"></div></section>
   <section class="shade" data-shade="time" data-tabs="review simulate print"><button class="shade-h" type="button">Time</button>
   <div class="grp">
-    <button id="bplay">Pause</button>
+    <span id="reel" class="lbl" hidden title="The mounted reel: the demo, Attract then Tour (Pause takes control in Free-look)">DEMO</span><button id="bplay">Pause</button>
     <button id="bslow" title="[">&laquo;</button><span id="spd" class="lbl"></span><button id="bfast" title="]">&raquo;</button>
     <button id="breset" title="R">Reset view</button>
   </div>
   <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="19" value="0:00:00" aria-label="ground elapsed time h:mm:ss, or a UTC timestamp YYYY-MM-DD HH:MM:SS"><span id="utc" class="lbl"></span><span id="scrubw"><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0" aria-label="time offset"><span id="tlmarks" aria-hidden="true"></span></span></div></section>
   <!-- Timeline (web/src/timeline.js): the scenario's events from SP-4029, and the Apollo in Real Time companion. -->
   <section class="shade" data-shade="timeline" data-tabs="review" id="tlgrp"><button class="shade-h" type="button">Timeline</button>
+  <div class="grp"><button id="bfollow" hidden title="Follow: the scene changes with the mission phase as the replay plays (the scenario's FOLLOW spans), in Free-look; click again to stop">Follow</button></div>
   <div id="tlairt">
-    <div class="grp"><button id="bairt" title="Open Apollo in Real Time at this g.e.t. in its own window">Companion</button><button id="bairtre" title="Point the companion at this g.e.t. again">Resync</button><button id="bfollow" class="on" hidden title="The scene follows the g.e.t. as the replay plays; click to stop">Following</button></div>
-    <div class="grp note">Jumps here re-point it; it plays in real time on its own, and its pause and rate are independent. Opening or resyncing it starts Following: the scene changes with the mission phase as the replay plays. Apollo in Real Time (Ben Feist), apolloinrealtime.org</div>
+    <div class="grp"><button id="bairt" title="Open Apollo in Real Time at this g.e.t. in its own window">Companion</button><button id="bairtre" title="Point the companion at this g.e.t. again">Resync</button></div>
+    <div class="grp note">Jumps here re-point it; it plays in real time on its own, and its pause and rate are independent. Opening or resyncing it starts Following. Apollo in Real Time (Ben Feist), apolloinrealtime.org</div>
   </div>
   <div class="grp" id="tlkinds"></div>
   <div id="tllist" role="list" aria-label="Mission events"></div>
@@ -138,7 +139,7 @@
   <div class="grp"><span class="lbl">Screen</span><button data-disp="auto" title="S: the 1558 scope where the page was reached through the room (not in Attract or Print), else film">Auto</button><button data-disp="film" title="S: the microfilm recorder, with its film effects">Film</button><button data-disp="scope" title="S: the room's UNIVAC 1558 vector console: no film effects">Scope</button></div>
   <div class="grp"><span class="lbl">Refresh</span><button data-hz="16" title="H: the scope redraws the picture every 1/16 s on a fading phosphor">16 Hz</button><button data-hz="steady" title="H: a steady, modern vector picture">Steady</button></div></section>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. 1-7: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. S: screen (film or scope). H: scope refresh. I: cabin. W: cabin walls. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. <span id="hintscenes"></span>: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. S: screen (film or scope). H: scope refresh. I: cabin. W: cabin walls. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
 <div id="about"><p>A reconstruction of VIEW, the Manned Spacecraft Center program that drew Apollo window views on a UNIVAC 1108 (FORTRAN V, output photographed from a CRT onto microfilm: NASA TN D-6853, p. 3). We know of no surviving source code; the geometry here is our own FORTRAN and this page only films it.</p>G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197. Code MIT; data, fonts and three.js under their own licences: <a href="https://github.com/aaronsb/view1108/blob/main/THIRD_PARTY.md" target="_blank" rel="noopener">THIRD_PARTY.md</a>.</div>
 </div>
 </div>
@@ -163,6 +164,8 @@
 <script src="src/kernel.js"></script>
 <script src="src/state.js"></script>
 <script src="src/modes.js"></script>
+<script src="src/player.js"></script>
+<script src="src/loader.js"></script>
 <script src="src/prefs.js"></script>
 <script src="src/lettering.js"></script>
 <script src="src/render.js"></script>
@@ -187,6 +190,7 @@
 <script src="src/srctheme.js"></script>
 <script src="src/timeline.js"></script>
 <script src="src/fusion.js"></script>
+<script src="src/esc.js"></script>
 <script src="src/room.js"></script>
 <script src="src/main.js"></script>
 </body>

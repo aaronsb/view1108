@@ -6,24 +6,20 @@ C     (1978); FORTRAN V wrote PARAMETER I = 2 (UP-4046 sec. 10.4.1)
       PARAMETER (NSTAR=921, NNAV=37, NCPT=5128, NCST=134)
       PARAMETER (NCRAT=7968, NMARE=56)
 C     RESTOMOD END
-C     Scenarios (data/missions): scenarios, trajectory legs of
-C     NLGP parameters, events; leg types and event kinds.
-      INTEGER NSN, NLEG, NEVT, NLGP
+C     Scenario tables (data/missions), fixed maxima (ours): scenarios,
+C     trajectory legs of NLGP parameters, events; START, BURN and
+C     REF cards, TIMELINE rows, burn cues.  The used counts are in
+C     COMMON (viewcom.inc).  Leg types and event kinds.
+      INTEGER MXSN, MXLEG, MXEVT, NLGP
+      INTEGER MXSTRT, MXBURN, MXREF, MXTL, MXCUE
       INTEGER KCIRC, KCONIC, KLUNAR, KLCON, KTABL
       INTEGER KETDA, KESEP, KEAPR, KEDOK, KEUND, KETD, KEEI, KEPTC
       INTEGER KETLI, KELOI1, KELOI2, KEPHO, KETEI, KELMS, KEPDI, KELFT
       INTEGER KETPF, KELDK, KEJET, KECMS, KEEJC, KESLG
 C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
-      PARAMETER (NSN=2, NLEG=47, NEVT=25, NLGP=17)
-C     Simulation cards (START, BURN, REF): array sizes, at least 1.
-      INTEGER NSTRT, NBURN, NREF
-      PARAMETER (NSTRT=2, NBURN=11, NREF=18)
-C     Timeline rows (TIMELINE cards, all scenarios): at least 1.
-      INTEGER NTL
-      PARAMETER (NTL=435)
-C     Burn cue rows (BURNCUE cards, data/missions): at least 1.
-      INTEGER NBRN
-      PARAMETER (NBRN=16)
+      PARAMETER (MXSN=8, MXLEG=200, MXEVT=100, NLGP=17)
+      PARAMETER (MXSTRT=8, MXBURN=50, MXREF=80)
+      PARAMETER (MXTL=1500, MXCUE=64)
       PARAMETER (KCIRC=1, KCONIC=2, KLUNAR=3, KLCON=4, KTABL=5)
       PARAMETER (KETDA=1, KESEP=2, KEAPR=3, KEDOK=4)
       PARAMETER (KEUND=5, KETD=6, KEEI=7, KEPTC=8)

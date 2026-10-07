@@ -53,7 +53,7 @@ The `[ LINK ]` button (key `L`) copies a URL that reproduces the current view. Y
 |---|---|---|
 | `mode` | `attract`, `tour`, `live`, `free`, `beam` | `mode=live` |
 | `tab` | `review`, `simulate`, `print`, `fusion`, `source` (default: the mode's tab) | `tab=print` |
-| `scene` | `1`..`6` (Free-look, Beam; in Live only the LM windows 4 and 5 apply) | `scene=5` |
+| `scene` | a situation, `1`..`9` (Free-look, Beam; in Live the windowed ones, 4, 5 and 7, and the Moon view, 6, are pinned) | `scene=5` |
 | `get` | g.e.t. as `h:mm:ss` or seconds | `get=102:45:40` |
 | `utc` | UTC as `YYYY-MM-DDTHH:MM:SS` | `utc=1969-07-20T20:17:40` |
 | `fov`, `yaw`, `pitch`, `roll` | degrees (`fov` 1 to 170) | `fov=100&pitch=-10` |

@@ -58,7 +58,6 @@ function binder(doc: LibraryDoc, aniso: number): Binder {
   return {
     object, doc,
     anchors: { camera: { position: new THREE.Vector3(0, 0.36, 0.42), target, fov: 34 } },
-    opens: "library",
     dispose() { mine.forEach(d => d.dispose()); },
   };
 }
@@ -234,8 +233,8 @@ export function build(ctx: BuildContext): Equipment & { anchors: { binders: Bind
       binders,
       props,
     },
-    opens: "library",
     hint: () => shelf.hint(),
+    putBack: () => shelf.putBack(),
     update: dt => shelf.update(dt),
     dispose() { mine.forEach(d => d.dispose()); },
   };

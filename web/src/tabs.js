@@ -3,20 +3,14 @@
 "use strict";
 const TABS = ["review", "simulate", "print", "fusion", "source"];
 const TAB_OF = { attract: "review", tour: "review", free: "review", live: "simulate", beam: "print" };   // a mode's home tab
-const REVIEW_MODES = ["attract", "tour", "free"];
 let tab = "review";
 const canvasTab = () => tab !== "source";
-// pick: choose the tab's mode (Review keeps Attract, Tour or Free-look, else Tour; Simulate runs Live; Print and
-// Fusion stop Attract or Tour for Free-look). Leaving Print always leaves Beam.
-function setTab(t, pick = true) {
+// A tab is presentation: showing one never changes the mode, the situation or the time (docs/systems-model.md,
+// section 4, rule 2). Each tab's own controls change them: Review's Mode group, Simulate's Live button, Print's Beam
+// trace, a Fusion photograph.
+function setTab(t) {
   if (!TABS.includes(t)) return;
-  const prev = tab; tab = t;
-  if (prev === "print" && t !== "print" && mode === "beam") startMode("free");
-  if (pick && t !== prev) {
-    if (t === "review" && !REVIEW_MODES.includes(mode)) startMode("tour");
-    else if (t === "simulate" && mode !== "live") startMode("live");
-    else if ((t === "print" || t === "fusion") && auto()) startMode("free");
-  }
+  tab = t;
   showTab(); syncUI();
   if (canvasTab()) resize();
 }
@@ -28,7 +22,12 @@ function showTab() {
   if (tab === "source") srcShow();
 }
 document.querySelectorAll("#tabs [data-tab]").forEach(b => { b.onclick = () => setTab(b.dataset.tab); });
-const toggleBeam = () => { if (tab !== "print") setTab("print"); startMode(mode === "beam" ? "free" : "beam"); };
+// T and Beam trace: start or stop Beam in Print. Beam outlives the tab, so away from Print with Beam running, T only
+// shows Print and the trace goes on; a second T there stops it.
+const toggleBeam = () => {
+  if (tab !== "print") { setTab("print"); if (LS.mode === "beam") return; }
+  loadReel(P({ mode: LS.mode === "beam" ? "free" : "beam" }));
+};
 $("bbeam").onclick = toggleBeam;
 const bumpBeam = d => { beamIdx = Math.max(0, Math.min(BEAM_SPEEDS.length - 1, beamIdx + d)); syncUI(); };
 $("bbslow").onclick = () => bumpBeam(-1);

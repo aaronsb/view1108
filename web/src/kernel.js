@@ -54,7 +54,6 @@ const rd = g => new Float64Array(buf(), K[g].value, 1)[0];
 const wr = (g, v) => { new Float64Array(buf(), K[g].value, 1)[0] = v; };
 const ri = g => new Int32Array(buf(), K[g].value, 1)[0];
 const wi = (g, v) => { new Int32Array(buf(), K[g].value, 1)[0] = v; };
-// Every scene selection goes through here, so a running simulation re-fills its tape for the scene (sim.js).
-// It also reads the new scenario's epoch, hdr(16), with one frame at the scene's defaults.
-let epoch = 0;   // seconds from Apollo 11 lift-off to the scenario's lift-off (0 for Apollo 11)
-const viewInit = s => { K.view_init(s); simAfterInit(); K.view_frame(); epoch = new Float64Array(buf(), K.hdr.value, 16)[15]; };
+// Every scene selection goes through here (loader.js mount), so a running simulation re-fills its tape for the scene
+// (sim.js); one frame at the scene's defaults follows.
+const viewInit = s => { K.view_init(s); simAfterInit(); K.view_frame(); };

@@ -53,9 +53,9 @@ C
 C     Terminator.
       CALL CIRCLE(VB, NV, EPOS, RE, SUNU, 0.5D0 * PI, 180)
 C
-C     Night side shading (SHADE), not from low orbit, where the film
-C     shows none.
-      IF (ISCN .NE. 3) CALL SHADE(VB, NV, EPOS, RE, 4)
+C     Night side shading (SHADE), unless the situation turns it off
+C     (JDRW bit 1: from low orbit, where the film shows none).
+      IF (MOD(JDRW, 2) .EQ. 0) CALL SHADE(VB, NV, EPOS, RE, 4)
       IVMODE = 0
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (MOD(IFLG, 2) .EQ. 1 .AND. AE .LT. 0.3D0 * FOVH * DR) THEN

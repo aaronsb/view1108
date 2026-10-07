@@ -118,7 +118,7 @@ C     RESTOMOD END
       EV = 0.0D0
       IF (ITPSN .NE. ISN) RETURN
       DB = 1.0D30
-      DO 10 J = 1, NREF
+      DO 10 J = 1, NRF
         IF (RFOK(J) .EQ. 0) GO TO 10
         D = DABS(RFP(3,J) - GET)
         IF (D .GE. DB) GO TO 10
