@@ -13,7 +13,7 @@ C     the Z edit descriptor are Fortran 90 and gfortran.
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
       INCLUDE 'viewsit.inc'
-      INTEGER I, K
+      INTEGER I, K, C
 C     Scenarios: /CSCEN/, /CSCENI/.
       CALL VDI('NSN', 0, 0, NSN)
       DO 10 K = 1, NSN
@@ -144,6 +144,20 @@ C     Situations: /CSIT/, /CSITI/.
           CALL VDI('SILY', I, K, SILY(I,K))
    71   CONTINUE
    72 CONTINUE
+C     A tape read from the deck (vdktap.f; ISIMF -1), only if there is
+C     one, so a deck without a tape dumps as before: its scenario, and
+C     each channel's samples (TPS1 for TPS(*,*,1), and so on).
+      IF (ITPSN .EQ. 0 .OR. ISIMF .GE. 0) RETURN
+      CALL VDI('ITPSN', 0, 0, ITPSN)
+      DO 82 C = 1, MXCHN
+        CALL VDI('NTP', C, 0, NTP(C))
+        DO 81 K = 1, NTP(C)
+          CALL VDD('TPT', K, C, TPT(K,C))
+          DO 80 I = 1, 6
+            CALL VDD('TPS' // CHAR(48 + C), I, K, TPS(I,K,C))
+   80     CONTINUE
+   81   CONTINUE
+   82 CONTINUE
       RETURN
       END
 C

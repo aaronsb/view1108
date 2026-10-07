@@ -30,6 +30,8 @@ C     longest).  Burn cues read, resolved by CRDEND: NCQ of them,
 C     scenario CQSN, vehicle CQVH, engine CQEN, ignition row name at
 C     CQCH(CQIS) for CQIL codes, cutoff at CQCH(CQCS) for CQCL, card
 C     number CQCD; NCQC used.  P10(K+1) = 10**K, K = 0 .. 22, exact.
+C     The open tape (vdktap.f; ITPON 1): its channel ITPCH, its TAPE
+C     card's number ITPCD.
       INTEGER MXCRD, MXTOK, MXTBR, MXTNC, MXCQC
       INTEGER ICBLK, ICTAB, ICCR, ICQUO, ICAPO, ICEQ, ICCOL, ICCOM
       INTEGER ICPLS, ICMIN, ICPT, ICSTR, ICD0, ICD9, ICUA, ICUZ, ICUE
@@ -54,12 +56,12 @@ C     RESTOMOD END
       INTEGER TLNS(MXTL), TLNL(MXTL), NTNC, TNCH(MXTNC)
       INTEGER NCQ, CQSN(MXCUE), CQVH(MXCUE), CQEN(MXCUE), CQIS(MXCUE)
       INTEGER CQIL(MXCUE), CQCS(MXCUE), CQCL(MXCUE), CQCD(MXCUE), NCQC
-      INTEGER CQCH(MXCQC)
+      INTEGER CQCH(MXCQC), ITPON, ITPCH, ITPCD
       DOUBLE PRECISION MJD, MSIT(3), MPAD(2), TBR(7,MXTBR), P10(23)
       COMMON /CDECK/ ICRD, NCRD, ITKB, NTOK, TKS, TKL, TVS, TVL, KCRD,
      &               KSLT, IDKER, IDKCD, NDKWN, NDKCD, IMHV, MPGC, MPCH,
      &               IDSN, ISNHV, SNCD, IDST, ISTHV, STCD, ITBON, ITBSN,
      &               ITBGC, ITBVH, NTBR, TBEF, TLNS, TLNL, NTNC, TNCH,
      &               NCQ, CQSN, CQVH, CQEN, CQIS, CQIL, CQCS, CQCL,
-     &               CQCD, NCQC, CQCH
+     &               CQCD, NCQC, CQCH, ITPON, ITPCH, ITPCD
       COMMON /CDECKD/ MJD, MSIT, MPAD, TBR, P10

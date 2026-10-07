@@ -237,7 +237,10 @@ C     simulated state against it just before any update, RFERR(1,J)
 C     position (km) and RFERR(2,J) velocity (ft/s), valid if RFOK(J)
 C     = 1.  ISRC the state source asked for this frame (in_src,
 C     passed as in_flags bit 3: 0 replay, 1 tape), ISRCU the one used
-C     (0 replay, 1 sim with updates, 2 sim free).
+C     (0 replay, 1 sim with updates, 2 sim free, 3 a tape read from
+C     the deck).  A tape read from the deck (vdktap.f) sets ITPSN to
+C     its scenario and ISIMF to -1; it has no reference errors (the
+C     card reader empties RFOK).
 C     /CSIMM/ the Moon for the engine: geocentric position and
 C     velocity every MQDT seconds from MQT0, NMQ nodes (SIMRUN),
 C     read by cubic Hermite interpolation (MOONQ); the series is too

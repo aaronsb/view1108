@@ -36,8 +36,8 @@ C              pen.f (projection, clipping, visibility, vectors),
 C              vmask.f (the outside cut to the cabin's windows),
 C              vtext.f (text records), vmath.f (vectors, matrices),
 C              models.f (spacecraft model library), vdeck.f, vdkscn.f,
-C              vdksit.f, vdkfld.f, vdksum.f (the card reader: run
-C              decks into the tables)
+C              vdksit.f, vdkfld.f, vdktap.f, vdksum.f (the card
+C              reader: run decks and tapes into the tables)
 C       Layers, one per drawable, all called as
 C              LAYER(GET, VB, NV, SB, NS, LB, NL) by LAYERS:
 C              lframe.f 1 plot frame, lstars.f 2 stars, lsun.f 3 Sun,

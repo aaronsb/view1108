@@ -81,7 +81,9 @@ C     RESTOMOD END
 C
 C     DKNMS: the decimal number at ITKB(IS) for N codes into X: sign,
 C     digits, a point, an exponent of three digits at most after E or
-C     e.
+C     e.  Up to 15 significant digits and a power of ten within
+C     10**22 the fast path (vdeck.f); 16 or 17 digits, enough to carry
+C     any double, or a power down to 10**-44, through DKDD.
       SUBROUTINE DKNMS(IS, N, X)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -90,11 +92,13 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'vdvoc.inc'
       INCLUDE 'vdeck.inc'
 C     RESTOMOD END
-      INTEGER IS, N, I, IE, C, ND, NF, NDIG, IDOT, IEX, IES, NE, K
-      DOUBLE PRECISION X, SG, AM
+      INTEGER IS, N, I, IE, C, ND, NF, NDIG, IDOT, IEX, IES, NE, K, NX
+      DOUBLE PRECISION X, SG, AM, AX
       X = 0.0D0
       SG = 1.0D0
       AM = 0.0D0
+      AX = 0.0D0
+      NX = 0
       ND = 0
       NF = 0
       NDIG = 0
@@ -115,10 +119,15 @@ C     RESTOMOD END
       IF (C .EQ. ICUE .OR. C .EQ. ICLE) GO TO 40
       GO TO 90
    20 IF (ND .GT. 0 .OR. C .GT. ICD0) ND = ND + 1
-      AM = AM * 10.0D0 + DBLE(C - ICD0)
       NDIG = NDIG + 1
       IF (IDOT .EQ. 1) NF = NF + 1
-      IF (ND .GT. 15) GO TO 91
+      IF (ND .GT. 17) GO TO 91
+      IF (ND .GT. 15) GO TO 25
+      AM = AM * 10.0D0 + DBLE(C - ICD0)
+      GO TO 10
+C     The 16th and 17th significant digits, held apart (AX, NX).
+   25 AX = AX * 10.0D0 + DBLE(C - ICD0)
+      NX = NX + 1
       GO TO 10
    30 IF (IDOT .EQ. 1) GO TO 90
       IDOT = 1
@@ -144,15 +153,87 @@ C     The exponent.
    50 IF (NDIG .EQ. 0) GO TO 90
       K = IEX - NF
       IF (AM .EQ. 0.0D0) GO TO 60
-      IF (K .GT. 22 .OR. K .LT. -22) GO TO 91
+      IF (K .GT. 22 .OR. K .LT. -44) GO TO 91
+      IF (NX .GT. 0 .OR. K .LT. -22) GO TO 55
       IF (K .GE. 0) X = AM * P10(K+1)
       IF (K .LT. 0) X = AM / P10(1-K)
+      GO TO 60
+   55 CALL DKDD(AM, NX, AX, K, X)
    60 X = SG * X
       RETURN
    90 CALL DKERR(2)
       RETURN
    91 CALL DKERR(3)
       X = 0.0D0
+      RETURN
+      END
+C
+C     DKDD: X = (A * 10**NX + B) * 10**K, correctly rounded, for A a
+C     whole number below 10**15 (at least 10**14 if NX > 0), B below
+C     10**NX, NX 0 to 2, K -44 to 22.  The integer of 17 digits at most
+C     is held exactly as the sum of two doubles, then multiplied by
+C     10**K or divided by 10**-K (exact powers, in two steps below
+C     10**-22) carrying about 106 bits, and rounded once (Dekker 1971,
+C     the exact product by splitting).  Correct unless the decimal lies within about
+C     2**-103 of halfway between two doubles; a double written with 17
+C     digits lies near a double, never near halfway.  Ours.  RESTOMOD:
+C     the 1108's double had a 60-bit fraction, "18-digit precision"
+C     (UP-4046 Rev 3, pp. 4-10; docs/univac-1108.md), and would hold 17
+C     digits outright; IEEE's 53 bits need this.  It counts on each
+C     operation rounded alone: no fused multiply-add (wasm has none;
+C     gfortran makes none for x86-64 without -mfma).
+      SUBROUTINE DKDD(A, NX, B, K, X)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+      INCLUDE 'viewsit.inc'
+      INCLUDE 'vdvoc.inc'
+      INCLUDE 'vdeck.inc'
+C     RESTOMOD END
+      INTEGER NX, K, KR, KD
+      DOUBLE PRECISION A, B, X, H, E, S, T, L, D, Q, PH, PL
+C     The integer as H + L, exactly: A * 10**NX as H + E, then B added
+C     (H is at least 10**15, above B, so the sum's error T is exact).
+      CALL DKTWOP(A, P10(NX+1), H, E)
+      S = H + B
+      T = B - (S - H)
+      L = E + T
+      H = S + L
+      L = L - (H - S)
+      IF (K .LT. 0) GO TO 20
+      CALL DKTWOP(H, P10(K+1), PH, PL)
+      X = PH + (PL + L * P10(K+1))
+      RETURN
+C     Division by D = 10**22 at most: the quotient Q, its remainder
+C     from the exact product Q * D, and the remainder's quotient, the
+C     new H + L; again while KR, the power left, is not 0.
+   20 KR = -K
+   25 KD = KR
+      IF (KD .GT. 22) KD = 22
+      D = P10(KD+1)
+      KR = KR - KD
+      Q = H / D
+      CALL DKTWOP(Q, D, PH, PL)
+      L = (((H - PH) - PL) + L) / D
+      H = Q
+      IF (KR .GT. 0) GO TO 25
+      X = H + L
+      RETURN
+      END
+C
+C     DKTWOP: P + E = A * B exactly, P the rounded product (Dekker's
+C     split of each factor into halves of 26 bits, 134217729 = 2**27 +
+C     1).
+      SUBROUTINE DKTWOP(A, B, P, E)
+      DOUBLE PRECISION A, B, P, E, C, AH, AL, BH, BL
+      C = 134217729.0D0 * A
+      AH = C - (C - A)
+      AL = A - AH
+      C = 134217729.0D0 * B
+      BH = C - (C - B)
+      BL = B - BH
+      P = A * B
+      E = ((AH * BH - P) + AH * BL + AL * BH) + AL * BL
       RETURN
       END
 C
