@@ -48,13 +48,13 @@ C     RESTOMOD END
       INTEGER IFL
       DOUBLE PRECISION R(3), V(3), RR(3), VR(3), T, TEND, TN, H
       DOUBLE PRECISION SIMDT
-      INTEGER K, J, I, IST, IDB(NBURN), IDR(NREF), ICOR
+      INTEGER K, J, I, IST, IDB(MXBURN), IDR(MXREF), ICOR
       IF (ISN .EQ. 0) CALL SNSET(1)
       CALL TPCLR
       ISIMF = IFL
       ITPSN = ISN
       ICOR = MOD(IFL, 2)
-      DO 5 J = 1, NREF
+      DO 5 J = 1, NRF
         RFOK(J) = 0
     5 CONTINUE
       IST = 0
@@ -62,19 +62,13 @@ C     RESTOMOD END
         IF (STSN(K) .EQ. ISN) IST = K
    10 CONTINUE
       IF (IST .EQ. 0) RETURN
-C     Done flags: set for cards of other scenarios and unused slots.
-      DO 12 K = 1, NBURN
-        IDB(K) = 1
-        IF (K .LE. NBN) IDB(K) = 0
-   12 CONTINUE
+C     Done flags: set for cards of other scenarios.
       DO 13 K = 1, NBN
+        IDB(K) = 0
         IF (BNSN(K) .NE. ISN) IDB(K) = 1
    13 CONTINUE
-      DO 14 K = 1, NREF
-        IDR(K) = 1
-        IF (K .LE. NRF) IDR(K) = 0
-   14 CONTINUE
       DO 15 K = 1, NRF
+        IDR(K) = 0
         IF (RFSN(K) .NE. ISN) IDR(K) = 1
    15 CONTINUE
       T = STP(3,IST)
@@ -93,11 +87,11 @@ C
 C     Step to the next event, or by the dynamic step.
    20 IF (T .GE. TEND) RETURN
       TN = TEND
-      DO 22 K = 1, NBURN
+      DO 22 K = 1, NBN
         IF (IDB(K) .EQ. 0 .AND. BNT(K) .GT. T .AND. BNT(K) .LT. TN)
      &    TN = BNT(K)
    22 CONTINUE
-      DO 24 K = 1, NREF
+      DO 24 K = 1, NRF
         IF (IDR(K) .EQ. 0 .AND. RFP(3,K) .GT. T .AND. RFP(3,K) .LT. TN)
      &    TN = RFP(3,K)
    24 CONTINUE
@@ -110,7 +104,7 @@ C     Step to the next event, or by the dynamic step.
       IF (T .LT. TN) GO TO 20
 C
 C     Reference rows at this time: measure, then correct if asked.
-      DO 40 J = 1, NREF
+      DO 40 J = 1, NRF
         IF (IDR(J) .NE. 0 .OR. RFP(3,J) .NE. T) GO TO 40
         IDR(J) = 1
         CALL REFST(J, RR, VR)
@@ -128,7 +122,7 @@ C     Reference rows at this time: measure, then correct if asked.
         CALL TPPUT(1, T, R, V)
    40 CONTINUE
 C     Burns at this time, as impulses.
-      DO 50 K = 1, NBURN
+      DO 50 K = 1, NBN
         IF (IDB(K) .NE. 0 .OR. BNT(K) .NE. T) GO TO 50
         IDB(K) = 1
         CALL BURN(K, T, R, V)

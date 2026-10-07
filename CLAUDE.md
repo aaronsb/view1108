@@ -24,7 +24,7 @@ file. The earlier build (a flyable LM lander) was scope drift and has been remov
 src/*.f           KERNEL. Fixed-form FORTRAN 66/77 style. All geometry and drawing, as
                   separately compiled elements (below).
 src/viewdata.f    BLOCK DATA tables (stars, coastlines, craters). Generated; do not edit.
-src/viewdims.inc  Table sizes (PARAMETERs). Generated.
+src/viewdims.inc  Table sizes and the scenario tables' fixed maxima (PARAMETERs). Generated.
 src/viewsit.f     BLOCK DATA VIEWSB: the situation tables (layout in src/viewsit.inc).
                   Generated from the SITUATION cards; do not edit.
 src/viewcom.inc   Kernel COMMON blocks, included by every kernel routine.
