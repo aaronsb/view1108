@@ -18,7 +18,7 @@ python3 tools/gen_symbols.py || echo "gen_symbols failed; the page builds withou
 # The kernel's elements: every fixed-form file in src/ but the generated BLOCK
 # DATA files, DATA (see the header of src/vdrive.f).  A new element needs no
 # change here.
-DATA="viewdata viewsit vdvoc"
+DATA="viewdata vdvoc"
 ELEMS=""
 for f in src/*.f; do
   e=$(basename "$f" .f); case " $DATA " in *" $e "*) ;; *) ELEMS="$ELEMS $e" ;; esac

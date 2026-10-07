@@ -23,20 +23,23 @@ file. The earlier build (a flyable LM lander) was scope drift and has been remov
 ```
 src/*.f           KERNEL. Fixed-form FORTRAN 66/77 style. All geometry and drawing, as
                   separately compiled elements (below).
-src/viewdata.f    BLOCK DATA tables (stars, coastlines, craters). Generated; do not edit.
-src/viewdims.inc  Table sizes and the scenario tables' fixed maxima (PARAMETERs). Generated.
-src/viewsit.f     BLOCK DATA VIEWSB: the situation tables (layout in src/viewsit.inc).
-                  Generated from the SITUATION cards; do not edit.
-src/viewcom.inc   Kernel COMMON blocks, included by every kernel routine.
+src/viewdata.f    BLOCK DATA tables (stars, coastlines, craters, the Moon series). Generated;
+                  do not edit.
+src/viewdims.inc  Catalog sizes and the decks' codes (leg types, event kinds). Generated.
+src/viewcom.inc   Kernel COMMON blocks, included by every kernel routine; the run tables
+                  (scenarios, legs, events, timeline, burn cues) and their fixed maxima.
+src/viewsit.inc   The situation tables (MXSIT rows), filled by the card reader.
 src/vdvoc.f, .inc BLOCK DATA VDVOCB: the card reader's vocabulary (card kinds, keys, code
                   words) from tools/gen_data.py's card tables. Generated; do not edit.
 src/vdeck.inc     The card reader's state (/CDECK/): the card in hand, the deck's errors.
 src/shell.f90     CHASSIS. Modern Fortran: bind(c) globals and entry points for wasm.
-tools/gen_data.py data/ -> src/viewdata.f, src/viewdims.inc, src/viewsit.f, src/viewsit.inc,
-                  src/vdvoc.f, src/vdvoc.inc, build/names.js, build/scenes.json (the scene list
-                  make check and the selftest read) and build/decks.txt (the decks in load order)
+tools/gen_data.py data/ -> src/viewdata.f, src/viewdims.inc, src/vdvoc.f, src/vdvoc.inc,
+                  build/names.js, build/scenes.json (the scene list make check and the selftest
+                  read), build/decks.txt (the decks in load order) and build/decks.js (their text,
+                  for the page); it also checks the decks' cards
 data/missions/    one folder per mission: mission.scn (name, epoch, site, pad) and its
-                  scenarios (*.scn: trajectory legs, events, timeline, situations)
+                  scenarios (*.scn: trajectory legs, events, timeline, situations), the run
+                  decks the kernel's card reader loads (src/vdeck.f)
 data/reels/       playlist reels, <id>/run.scn: a REEL card and its SHOT cards (demo, tour)
 tools/viewsvg.f90 Native driver (gfortran): renders a scene/time to SVG for validation.
 tools/vdump.f     The native driver's VIEW_DUMP=1: the run tables as hex, for the golden gate.
@@ -57,7 +60,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Core | `ephem.f` | time, Sun, Moon, Moon orientation |
 | Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon, `LEGRV` one leg), events (`EVGET`), the LM's and the S-IVB's state rules (`LMSTAT`, `SIVST`), the LM descent, the Earthrise search |
 | Core | `sim.f` | the engine: flies the CSM from the scenario's START through its score (BURN cards), with state vector updates at its REF rows (optional), and writes the tape (`SIMRUN`) |
-| Core | `vdeck.f`, `vdkscn.f`, `vdksit.f`, `vdkfld.f`, `vdksum.f` | the card reader (#26): `CRDOPN`, `CRDIN` (one card image), `CRDEOF` (a file's end), `CRDEND` read a run deck into the run tables BLOCK DATA fills today, word for word (numbers exact: an integer mantissa and one power of ten), and refuse a deck the kernel could not draw (numbered deck errors, listed in `vdeck.f`); `vdkscn.f` and `vdksit.f` are what each card writes (mission and scenario cards; situation cards), `vdkfld.f` the field readers, `vdksum.f` `CRDSUM`, a hash total of the tables. `gen_data.py` reads the same grammar and still checks the rest (each recipe's keys, poses). Not yet the page's path: it loads BLOCK DATA |
+| Core | `vdeck.f`, `vdkscn.f`, `vdksit.f`, `vdkfld.f`, `vdksum.f` | the card reader (#26): `CRDOPN`, `CRDIN` (one card image), `CRDEOF` (a file's end), `CRDEND` read the run decks into the run tables (numbers exact: an integer mantissa and one power of ten), and refuse a deck the kernel could not draw (numbered deck errors, listed in `vdeck.f`); `vdkscn.f` and `vdksit.f` are what each card writes (mission and scenario cards; situation cards), `vdkfld.f` the field readers, `vdksum.f` `CRDSUM`, a hash total of the tables. `gen_data.py` reads the same grammar and still checks the rest (each recipe's keys, poses). The kernel's only source of its run tables: the page, the native driver and the selftest load the decks at start |
 | Core | `tape.f` | the tape: time-tagged states, 4 vehicle channels, event marks; cubic Hermite reads (`TPGET`) |
 | Core | `vview.f` | camera pointing: the target and the external view (`VIEWPT`), applied after the scene's camera and models |
 | Core | `vsrc.f` | the state source: the one entry point (`VSTATE(GET, IVEH, IBODY, R, V, IOK)`) scenes use for the CSM's state (`CSMST`: replay or tape), the LM's (`LMSTAT`) and the S-IVB's (`SIVST`), `IVEH` 1, 2, 3; `IOK` 0 none, 1 its own, 2 docked or with the CSM. `LMSTAT` and `SIVST` read the CSM through `CSMST`, not `VSTATE` (no recursion) |
@@ -128,7 +131,7 @@ LFortran notes (see `tools/build.sh`): the kernel needs `--implicit-interface` (
 its own routines) and `--legacy-array-sections` (sequence association, `CEV(1,J)` passed as a
 3-vector). `INCLUDE` works (`src/viewdims.inc` generated, `src/viewcom.inc` the kernel COMMON).
 LFortran defines every COMMON block strongly in each file, so the build makes them `weak` in
-every element's `.ll` but the BLOCK DATA files' (`viewdata.ll`, `viewsit.ll`, `vdvoc.ll`), and the BLOCK DATA initialisers win. A BLOCK DATA's implied-DO variable becomes a global symbol, so each BLOCK DATA names its own (`IBD`, `IVD`). LFortran also emits its
+every element's `.ll` but the BLOCK DATA files' (`viewdata.ll`, `vdvoc.ll`), and the BLOCK DATA initialisers win; the run tables, which no BLOCK DATA initialises, link to one zeroed copy. A BLOCK DATA's implied-DO variable becomes a global symbol, so each BLOCK DATA names its own (`IBD`, `IVD`). LFortran also emits its
 runtime helpers (`_lcompilers_sin_f64` and the like) into every file that uses them; the build
 marks them `linkonce_odr` so the linker keeps one copy. Do not use `--fast`: it optimises for the host
 (x86 vectors, `__multi3`); clang optimises the IR for wasm32 instead, without saturating
@@ -151,9 +154,9 @@ Entry points:
   header), `out_dkcrd` (its card number, counted over the deck) and `out_dkwrn` (cards and keys
   skipped). A deck with an error leaves the run tables empty: `view_init` then selects nothing
   and `view_frame` draws an empty frame, so call `view_init` after a deck with no error. `deck_sum` puts the
-  run tables' hash total in `out_dksum` (int32 × 4). The selftest and `tools/golden.sh` load
-  `build/decks.txt`'s decks and require the tables BLOCK DATA gives; the page does not call these
-  yet (#26 slice 5).
+  run tables' hash total in `out_dksum` (int32 × 4). The run tables start empty: the page loads
+  `build/decks.js` at boot (`web/src/kernel.js` `loadDecks`; a deck error stops the boot with its
+  file and line), the native driver `build/decks.txt`'s decks, the selftest the same.
 - `sim_run(flags)` (int32 by value) — runs the engine over the current scenario and fills the
   tape; flags bit 0 = state vector updates on (reset to each sourced reference row; our "delta
   correction"). Call it on scenario load (after `view_init`) and when that toggle changes. See
@@ -338,7 +341,7 @@ Fidelity rule: best effort within the spirit of what VIEW had in 1969 (trajector
 catalogs, engineering drawings, a vector recorder). Where a source is silent, choose what a
 1969 programmer could plausibly have done and say so in a comment.
 
-Each scene is a situation (`docs/systems-model.md`, section 3): a SITUATION card in its scenario's deck, followed by its RECIPE and VIEWS cards and, where the header's reference object is not the reference body, an HDRREF card (the card types are listed in the SITUATIONS section of `data/missions/apollo11/asflown.scn`). The card holds the default g.e.t. (a g.e.t., an event plus an offset, or the Earthrise search's time plus an offset), field, look, window, layer list, pose, drawing switches, camera recipe and its parameters, the default view and targets, the vehicle the camera rides, and the CM and LM stations offered. The situation's ID is the scene number. `tools/gen_data.py` writes the cards into `src/viewsit.f`; `VINIT` loads one (`SITSET`) and the kernel tests the recipe and the card's switches, never a scene number. The recipes: `LOCALVERT` (1, 3, 4, 9), `INERTIAL` (2, 7), `CREWSTN` (5, the LM), `BODYCTR` (6), `EXTSEED` (8). A new view of an existing kind is a new card; a new kind of camera is a new recipe in `SCNCAM`. The page's names (`TITLE=`, `CAPTION=`) are on the SITUATION card too, and its time scripts are `SPAN` cards in the same deck (FOLLOW: the timeline's camera; LIVE: Live's phases; JUMP: Live's jump buttons; PIN: a situation Live pins when picked; the SPANS section of the Apollo 11 deck lists the format). `tools/gen_data.py` writes both into `build/names.js` (`VIEW_NAMES.SITUATIONS`, `VIEW_NAMES.SCENARIOS`); the page holds no scene list of its own.
+Each scene is a situation (`docs/systems-model.md`, section 3): a SITUATION card in its scenario's deck, followed by its RECIPE and VIEWS cards and, where the header's reference object is not the reference body, an HDRREF card (the card types are listed in the SITUATIONS section of `data/missions/apollo11/asflown.scn`). The card holds the default g.e.t. (a g.e.t., an event plus an offset, or the Earthrise search's time plus an offset), field, look, window, layer list, pose, drawing switches, camera recipe and its parameters, the default view and targets, the vehicle the camera rides, and the CM and LM stations offered. The situation's ID is the scene number. The kernel's card reader reads the cards into the situation tables (`src/vdksit.f`, `src/viewsit.inc`; `tools/gen_data.py` checks them too); `VINIT` loads one (`SITSET`) and the kernel tests the recipe and the card's switches, never a scene number. The recipes: `LOCALVERT` (1, 3, 4, 9), `INERTIAL` (2, 7), `CREWSTN` (5, the LM), `BODYCTR` (6), `EXTSEED` (8). A new view of an existing kind is a new card; a new kind of camera is a new recipe in `SCNCAM`. The page's names (`TITLE=`, `CAPTION=`) are on the SITUATION card too, and its time scripts are `SPAN` cards in the same deck (FOLLOW: the timeline's camera; LIVE: Live's phases; JUMP: Live's jump buttons; PIN: a situation Live pins when picked; the SPANS section of the Apollo 11 deck lists the format). `tools/gen_data.py` writes both into `build/names.js` (`VIEW_NAMES.SITUATIONS`, `VIEW_NAMES.SCENARIOS`); the page holds no scene list of its own.
 
 1. **Earthrise** — CSM in 60 n.mi. circular retrograde lunar orbit, looking forward at the horizon (`LOCALVERT` about the Moon, turned in azimuth to the Earth's sightline), FOV 8°, default GET one minute before the Earth's disc clears the horizon on the revolution before the landing (`ERFIND`), Earth climbing over the limb with its night side hatched; the lunar surface is IAU gazetteer craters drawn as rim circles on the sphere (foreshortened to ellipses). (`t04.png`)
 2. **Transearth coast / Earth approach** — inertially fixed camera (`INERTIAL` from the Earth's sightline 10 h before entry interface), default GET 5 h before entry interface, FOV 60°; a small Earth disc grows until only the limb arc remains, arriving at entry interface (GET 195:03:06). (`t08.png` through `t20.png`)
@@ -458,7 +461,7 @@ source we hold shows VIEW marking an engine firing. The firings are the main-eng
 each scenario, from its TIMELINE rows: the scenario's `BURNCUE` cards pair SP-4029's
 ignition and cutoff rows by name and say whose engine each is (SPS, DPS, APS, the S-IVB's
 J-2) and from what source (the rows' names, MR Tables 7-III and 7-V via the BURN cards, or our
-reading of an Apollo 8 BURN card's rate); `/CBRN/` in BLOCK DATA. RCS firings and the S-IVB's
+reading of an Apollo 8 BURN card's rate); `/CBRN/`, filled by the card reader. RCS firings and the S-IVB's
 APS slingshot burn are left out. While a vehicle burns, its placed model (`KCSPL`, `KLMPL`,
 `KSIV`) gets 8 exhaust lines out of its engine's exit rim along the model's -X, opening 10°
 each side, three model lengths long, hidden by placed solids like a free line (`LMSEG`); the
@@ -485,7 +488,7 @@ states and coastlines go through that precession too.
 A mission's data is a folder, `data/missions/<id>/`: its `mission.scn` holds the mission's
 identity (MISSION name, EPOCH range zero, SITE landing site, PAD launch pad) and each other
 `.scn` file there is a scenario (a run deck, in 1969 terms) holding the trajectory legs, events
-and timeline, each card with its source; `tools/gen_data.py` turns them into `BLOCK DATA`. A mission can have more than one scenario (Apollo 11 as flown, id 1;
+and timeline, each card with its source; the kernel's card reader (`src/vdeck.f`) loads them into its run tables, and `tools/gen_data.py` checks them. A mission can have more than one scenario (Apollo 11 as flown, id 1;
 Apollo 8 as flown, id 2; a pre-flight nominal one could follow), each with its own id. A leg is a simple model fixed
 by sourced states: `CIRC` (Earth circular orbit through a state), `CONIC` (Earth-centred Kepler
 conic from a state, no lunar gravity), `LUNAR` (circle about the Moon through two states, its
@@ -515,8 +518,8 @@ Earthrise search (`ERFIND`) ends its revolution at the PHOTO event, and no LM is
 Scenario timeline. Each scenario also carries its mission's sequence of events as `TIMELINE`
 cards (`T=` g.e.t., negative before range zero; `KIND=`; `NAME=`; `SRC=`), distilled from
 SP-4029's timelines (Apollo 8 printed pp. 47-50, Apollo 11 pp. 105-110), one card per row
-of the book, so the PDFs can stay local. `tools/gen_data.py` puts them in `BLOCK DATA`
-(`/CTLN/`: `TLT`, `TLK`, `TLSN`, sorted by scenario and g.e.t., `NTL` rows) and in
+of the book, so the PDFs can stay local. The card reader puts them in
+`/CTLN/` (`TLT`, `TLK`, `TLSN`, sorted by scenario and g.e.t., `NTL` rows) and `tools/gen_data.py` in
 `build/names.js` as `VIEW_NAMES.TIMELINE[id] = {name, events: [[get, kind, name], ...]}`
 (sorted by g.e.t.; g.e.t. from that scenario's range zero, `hdr(16)` its offset from Apollo
 11's) with `VIEW_NAMES.TL_KINDS` the kind names in code order. The `EVENT` cards stay the
@@ -544,13 +547,14 @@ Toolchain: LFortran 0.66 + LLVM tools + binaryen in `~/lf` (micromamba, conda-fo
 ```
 LF_BIN=~/lf/bin ./tools/build.sh    # full build + selftest
 ./tools/build.sh native             # gfortran only: build/viewsvg
-build/viewsvg 1 > f.svg             # scene [GET|-] [yaw pitch roll fov|-] [flags]
+build/viewsvg 1 > f.svg             # scene [GET|-] [yaw pitch roll fov|-] [flags]; loads
+                                    # build/decks.txt's decks first
 make golden                         # capture the golden master into build/golden
 make golden-check                   # re-capture and diff against it
-VIEW_DECK=a.scn:b.scn build/viewsvg 1   # load decks through the card reader first
+VIEW_DECK=a.scn:b.scn build/viewsvg 1   # load these decks instead
 ```
 
-The golden master (`tools/golden.sh`, kept in `build/golden`, gitignored) holds the generated tables, 129 native renders with their hdr words, and the run-table dump (`tables.txt`, `VIEW_DUMP=1 build/viewsvg`, `tools/vdump.f`): every scenario-specific COMMON table's used entries, each double as its 64-bit pattern in hex, so a changed value shows as data and not only through a render. A data or kernel refactor must pass it byte for byte. The capture also loads `build/decks.txt`'s decks through the card reader (`VIEW_DECK`) and fails unless that dump equals BLOCK DATA's. The one reviewed re-baseline so far was #40 (2026-10-06, PR #42): gen_data writing each card's own digits instead of rounding them to fixed decimals, which moved 72 table values and 18 renders by at most 0.012 plot degrees.
+The golden master (`tools/golden.sh`, kept in `build/golden`, gitignored) holds the generated tables, 129 native renders with their hdr words, and the run-table dump (`tables.txt`, `VIEW_DUMP=1 build/viewsvg`, `tools/vdump.f`): the counts and every scenario-specific table's used entries as the card reader loaded them from `build/decks.txt`'s decks, each double as its 64-bit pattern in hex, so a changed value shows as data and not only through a render. A data or kernel refactor must pass it byte for byte. Reviewed re-baselines so far: #40 (2026-10-06, PR #42), gen_data writing each card's own digits instead of rounding them to fixed decimals, which moved 72 table values and 18 renders by at most 0.012 plot degrees; and #26 slice 5 (2026-10-07), the switch from BLOCK DATA to the card reader: renders, `names.js` and `scenes.json` unchanged, `tables.txt` gaining five count lines, the generated files losing the scenario tables.
 
 ## Sources and history
 

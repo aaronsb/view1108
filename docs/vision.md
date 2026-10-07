@@ -54,7 +54,7 @@ VIEW was a general program fed per-mission inputs:
 
 Today the kernel does the opposite: Apollo 11 times and geometry are written into the scene code. The kernel's lunar orbit is anchored to the Apollo 11 touchdown time, the Earthrise search is bounded to the revolution before it, and the translunar leg branches on a fixed g.e.t. That doesn't scale past one mission.
 
-The direction is a **scenario per mission or trajectory version**: a data table the kernel reads, kept in `data/` and turned into `BLOCK DATA` by `tools/gen_data.py` as the star and crater catalogs are. A scenario holds:
+The direction is a **scenario per mission or trajectory version**: a data table the kernel reads, kept in `data/` as a run deck the kernel's card reader loads at run time (#26; the star and crater catalogs stay `BLOCK DATA`). A scenario holds:
 
 - the epoch (range zero, as a Julian date);
 - trajectory legs: sourced burn states from the mission report (position, speed, flight-path angle, heading) and the conic or circular model each leg uses;
@@ -78,7 +78,7 @@ Four kinds of module:
 |---|---|---|---|
 | **Core elements** | FORTRAN files with a stable job each | ephemeris (Sun, Moon, Earth rotation); trajectory legs (conic, circular, powered descent); projection and the pen (clipping, dashing, `vbuf` emission); text records; vector and matrix math | Rarely; they are the engine |
 | **Layer elements** | One FORTRAN file per drawable layer, each a subroutine with the same argument list, called by a dispatcher from the phase's layer list | stars, Sun, Earth, Moon and craters, vehicle models, window outlines and cabins, LPD, tracks | A new file, an id, and one line in the dispatcher. Restoration layers live in their own files, fenced `RESTOMOD` |
-| **Data modules** | Tables in `data/`, turned into `BLOCK DATA` by `tools/gen_data.py` | mission run decks; vehicle and cabin models (vertices, edges, faces); star, coastline and crater catalogs | A data file, with no code change |
+| **Data modules** | Tables in `data/`: run decks read by the kernel's card reader at load, catalogs turned into `BLOCK DATA` by `tools/gen_data.py` | mission run decks; vehicle and cabin models (vertices, edges, faces); star, coastline and crater catalogs | A data file, with no code change |
 | **Page modules** | Separate JavaScript sources joined by `tools/assemble.py` into the single page | recorder renderer and film effects; control groups and the control pad; modes (Attract, Tour, Live, Free-look, Beam, later Batch); captions | A source file and its registration |
 
 The dispatcher uses what FORTRAN 66 has, a computed `GO TO` over layer ids, and needs no procedure pointers.

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Generate src/viewdata.f (BLOCK DATA), src/viewdims.inc and build/names.js from data/.
+"""Generate src/viewdata.f (BLOCK DATA, the static catalogs), src/viewdims.inc and build/names.js
+from data/, and check the run decks (data/missions) the kernel's card reader (src/vdeck.f) loads.
 
 Inputs (all in data/):
   Comanche055_STAR_TABLES.agc   the 37 Apollo nav stars as AGC unit vectors (1969.5 epoch)
@@ -10,12 +11,13 @@ Inputs (all in data/):
   missions/<id>/*.scn           its scenarios (run decks): trajectory legs, events, timeline
   meeus47.txt                   Meeus ch. 47 lunar periodic terms (tables 47.A and 47.B)
   missions/<id>/*.scn           also each scenario's situations (SITUATION, RECIPE, VIEWS, HDRREF
-                                cards) -> src/viewsit.f, src/viewsit.inc and build/scenes.json,
-                                and with its SPAN cards -> build/names.js (SITUATIONS, SCENARIOS)
+                                cards) -> build/scenes.json, and with its SPAN cards ->
+                                build/names.js (SITUATIONS, SCENARIOS)
   reels/<id>/run.scn            playlist reels (REEL and SHOT cards) -> build/names.js (REELS)
 
 Also the card reader's vocabulary (its card kinds, keys and code words, from the tables below)
--> src/vdvoc.f and src/vdvoc.inc, and the decks in load order -> build/decks.txt.
+-> src/vdvoc.f and src/vdvoc.inc, and the decks in load order -> build/decks.txt (for the native
+driver and the gates) and build/decks.js (their text, for the page).
 
 Everything is written in the J2000 equatorial frame. AGC star vectors are precessed
 from 1969.5 to J2000 so they share a frame with the catalog.
@@ -234,7 +236,8 @@ CARD_KEYS = {
 
 class Num(float):
     """A card's number: its value as a float, as before, and lit, the FORTRAN literal with the
-    card's own digits (#40), which is what the BLOCK DATA gets.  Arithmetic gives a plain float;
+    card's own digits (#40), from when the run tables were BLOCK DATA (#26 retired that; the
+    literal now only carries the digits through the checks).  Arithmetic gives a plain float;
     only negation keeps the literal."""
     def __new__(cls, v, lit):
         o = float.__new__(cls, v)
@@ -268,7 +271,8 @@ def cnum(tok):
 
 
 def flit(v):
-    """The BLOCK DATA literal of a table value: a card's number with the card's digits (Num), or a
+    """The FORTRAN literal of a table value (#40; checks only since #26): a card's number with the
+    card's digits (Num), or a
     whole number that is no card's (padding, a default of 0)."""
     if isinstance(v, Num):
         return v.lit
@@ -483,16 +487,12 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
 # Situations (#17): SITUATION cards in a scenario deck, each followed by its RECIPE and VIEWS cards
 # and, optionally, an HDRREF card.  A situation's ID is global (1..N across all decks) and is the
 # kernel's scene number (view_init(scene)); its scenario is the deck it sits in.  The codes below are
-# shared with the kernel through src/viewsit.inc (the tables) and src/viewcom.inc (the current
-# situation, /CSITU/, copied from the tables by SITSET in src/vdrive.f).
+# the card reader's vocabulary (vdvoc.f); the reader fills the situation tables (src/viewsit.inc),
+# and SITSET in src/vdrive.f copies a row into /CSITU/.
 SIT_CARDS = {"SITUATION", "RECIPE", "VIEWS", "HDRREF"}
 LAYER_IDS = {"FRAME": 1, "STARS": 2, "SUN": 3, "MOON": 4, "EARTH": 5, "VEHICLES": 6, "COAS": 7,
              "SHADOW": 8, "LPD": 9, "BURN": 10}
-MAXLAY = 12                                   # SILY(MAXLAY, MXSIT), ended by 0 when shorter
-# The scenario and situation tables' fixed maxima (ours, #26): headroom over today's two scenarios
-# for a few more missions' decks; a deck that needs more is refused, never truncated.
-TABLE_MAX = {"MXSN": 8, "MXLEG": 200, "MXEVT": 100, "MXSTRT": 8, "MXBURN": 50, "MXREF": 80,
-             "MXTL": 1500, "MXCUE": 64, "MXSIT": 40}
+MAXLAY = 12                                   # MXLAY of src/viewsit.inc: SILY(MXLAY, MXSIT)
 GET_RULES = {"ERISE": 3}                      # named computed default times: ERFIND's TERISE
 WINDOWS = {"CSM": 1, "LM": 2}                 # hdr(8): 1 CSM window, 2 LM front window
 POSES = {"LMPIRO": 1, "S7POSE": 2, "S8POSE": 3}
@@ -531,8 +531,8 @@ def enum(table, val, where, what):
 
 def dlit(tok):
     """A card's decimal number as a FORTRAN double precision literal with the same digits (E
-    exponent to D, D0 added), so the BLOCK DATA holds exactly the constant the code had.  The
-    card reader's number grammar (NUM_RE) is checked here, for every number a card gives."""
+    exponent to D, D0 added).  The card reader's number grammar (NUM_RE) is checked here, for
+    every number a card gives."""
     m = NUM_RE.fullmatch(tok)
     assert m, f"{tok!r}: not a number (one sign, digits, one point, an E exponent)"
     frac = len(m.group(2).split(".")[1]) if "." in m.group(2) else 0
@@ -965,121 +965,6 @@ def page_reels(mis, legs, evs, sits):
     return out
 
 
-def datas(pairs):
-    """Fixed-form DATA statements naming each element: pairs of (element, literal), packed within
-    72 columns and 19 continuation lines."""
-    out, names, vals = [], [], []
-
-    def flush():
-        if not names:
-            return
-        lines, line = [], "      DATA "
-        for i, n in enumerate(names):
-            w = n + ("," if i < len(names) - 1 else "")
-            if len(line) + len(w) + 1 > 72:
-                lines.append(line.rstrip()); line = "     & "
-            line += w + " "
-        line += "/"
-        for i, v in enumerate(vals):
-            w = " " + v + ("," if i < len(vals) - 1 else " /")
-            if len(line) + len(w) > 72:
-                lines.append(line.rstrip()); line = "     &"
-            line += w
-        lines.append(line)
-        assert len(lines) <= 20 and all(len(x) <= 72 for x in lines)
-        out.extend(lines)
-        names.clear(); vals.clear()
-    for n, v in pairs:
-        if len(names) == 6:
-            flush()
-        names.append(n); vals.append(str(v))
-    flush()
-    return out
-
-
-SIT_INT = [("SISN", "m"), ("SIGK", None), ("SIGE", None), ("SIFK", None), ("SIWN", "win"),
-           ("SIPS", "pose"), ("SIDW", "draw"), ("SIRC", "rcp"), ("SIBD", "bod"), ("SIMD", "mod"),
-           ("SIAZ", "az"), ("SITR", "trn"), ("SIFB", "fb"), ("SIAT", "att"), ("SIFE", "fe"),
-           ("SIVH", "veh"), ("SIVW", "vw"), ("SITG", "tgt"), ("SITF", "tgf"), ("SIRD", "rid"),
-           ("SICM", "cm"), ("SILM", "lm"), ("SIFX", "fix_"), ("SIXO", "xo"), ("SIHK", "hk")]
-SIT_DBL = [("SIGT", None), ("SIFV", None), ("SIEL", "elv"), ("SIFL", "fel"), ("SIFT", "fix"),
-           ("SIDT", "drf"), ("SIEO", "elo"), ("SIAL", "alt"), ("SIDS", "dst"), ("SIHO", "ho"),
-           ("SIHR", "hr")]
-
-
-def write_situations(sits):
-    """src/viewsit.inc (the maximum MXSIT, the tables' declarations and COMMON with the used count
-    NSIT) and src/viewsit.f (BLOCK DATA VIEWSB), one block of DATA statements per situation with
-    its cards' sources, then DATA NSIT."""
-    n = len(sits)
-    assert n <= TABLE_MAX["MXSIT"], f"MXSIT: {n} situations, more than the table holds ({TABLE_MAX['MXSIT']})"
-    def decl(kw, names):
-        out, cur = [], []
-        for nm in names:
-            if len("      " + kw + " " + ", ".join(cur + [nm])) > 72:
-                out.append("      " + kw + " " + ", ".join(cur)); cur = []
-            cur.append(nm)
-        return out + ["      " + kw + " " + ", ".join(cur)]
-    inc = ["C     Generated by tools/gen_data.py from the SITUATION cards of",
-           "C     data/missions/*/*.scn.  Do not edit.",
-           "C     The situation tables, row K for situation K (the scene number",
-           "C     of view_init), loaded by BLOCK DATA VIEWSB (viewsit.f).  SITSET",
-           "C     (vdrive.f) copies a row into /CSITU/ (viewcom.inc); the codes",
-           "C     are listed there.  SISN scenario; GET rule SIGK (1 g.e.t. SIGT,",
-           "C     2 event SIGE plus SIGT, 3 ERFIND's Earthrise plus SIGT); FOV",
-           "C     rule SIFK (1 SIFV deg, 2 the disc fills SIFV of the frame);",
-           "C     SILK default yaw, pitch, roll; SILY layers, ended by 0; SITN",
-           "C     the recipe's reference turn; SIXY the external start offset;",
-           "C     SIFE, SIFT, SIDT, SIEO the INERTIAL SIGHTLINE fix event, fix",
-           "C     and drift intervals before it (s) and boresight offset (deg).",
-           "C     MXSIT rows at most (ours), NSIT used.",
-           "      INTEGER MXSIT, NSIT",
-           "C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)",
-           f"      PARAMETER (MXSIT={TABLE_MAX['MXSIT']})"]
-    inc += decl("INTEGER", [f"{a}(MXSIT)" for a, _ in SIT_INT] + [f"SILY({MAXLAY},MXSIT)"])
-    inc += decl("DOUBLE PRECISION", [f"{a}(MXSIT)" for a, _ in SIT_DBL]
-                + ["SILK(3,MXSIT)", "SITN(3,MXSIT)", "SIXY(2,MXSIT)"])
-    cint = [a for a, _ in SIT_INT] + ["SILY", "NSIT"]
-    cdbl = [a for a, _ in SIT_DBL] + ["SILK", "SITN", "SIXY"]
-    for blk, names in (("CSIT", cdbl), ("CSITI", cint)):
-        line = f"      COMMON /{blk}/ "
-        for i, nm in enumerate(names):
-            w = nm + ("," if i < len(names) - 1 else "")
-            if len(line) + len(w) + 1 > 72:
-                inc.append(line.rstrip()); line = "     &               "
-            line += w + " "
-        inc.append(line.rstrip())
-    for ln in inc:
-        assert len(ln) <= 72, ln
-    (R / "src" / "viewsit.inc").write_text("\n".join(inc) + "\n")
-    b = ["C     Generated by tools/gen_data.py from the SITUATION cards of",
-         "C     data/missions/*/*.scn.  Do not edit.  Layout: viewsit.inc.",
-         "C     RESTOMOD BEGIN: file INCLUDE (FORTRAN V's named PDP elements);",
-         "C     the 1108 loader skips unreferenced BLOCK DATA (docs/univac-1108.md).",
-         "      BLOCK DATA VIEWSB",
-         "      INCLUDE 'viewsit.inc'"]
-    for r in sits:
-        k = r["id"]
-        b.append(f"C     SITUATION {k} (scenario {r['m']})")
-        for x in r["src"]:
-            b += comment_wrap(x)
-        pairs = []
-        for a, key in SIT_INT:
-            v = {"SIGK": r["get"][0], "SIGE": r["get"][1], "SIFK": r["fov"][0]}.get(a) \
-                if key is None else r[key]
-            pairs.append((f"{a}({k})", v))
-        for a, key in SIT_DBL:
-            v = {"SIGT": r["get"][2], "SIFV": r["fov"][1]}.get(a) if key is None else r[key]
-            pairs.append((f"{a}({k})", v))
-        pairs += [(f"SILK({i + 1},{k})", v) for i, v in enumerate(r["look"])]
-        pairs += [(f"SITN({i + 1},{k})", v) for i, v in enumerate(r["tn"])]
-        pairs += [(f"SIXY({i + 1},{k})", v) for i, v in enumerate(r["xy"])]
-        pairs += [(f"SILY({i + 1},{k})", v) for i, v in enumerate(r["lay"])]
-        b += datas(pairs)
-    b += [f"      DATA NSIT / {n} /", "      END", "C     RESTOMOD END"]
-    (R / "src" / "viewsit.f").write_text("\n".join(b) + "\n")
-
-
 # The card reader's vocabulary (src/vdeck.f, #26): every word a deck may hold, as character codes
 # in BLOCK DATA VDVOCB (src/vdvoc.f), from the tables above, so the reader and this script read
 # one list.  Each list is a PARAMETER (its number in VOCLST); a card kind's code is its PARAMETER
@@ -1249,30 +1134,6 @@ def fdata(arr, vals, fmt, per=5, chunk=95, iv="IBD"):
     return "\n".join(out) + "\n"
 
 
-def ldata(arr, vals):
-    """Fixed-form DATA statements for arr(1..n) of card numbers, each with the card's own digits
-    (flit), packed within 72 columns and 19 continuation lines per statement."""
-    if not vals:
-        return ""
-    lits, out, k = [flit(v) for v in vals], [], 0
-    while k < len(lits):
-        lines, line, j = [], "     1", k
-        while j < len(lits):
-            w = " " + lits[j] + ","
-            if len(line) + len(w) > 72:
-                if len(lines) == 18:
-                    break
-                lines.append(line); line = "     1"
-                continue
-            line += w; j += 1
-        lines.append(line[:-1] + "/")
-        out += [f"      DATA ({arr}(IBD),IBD={k + 1},{j}) /"] + lines
-        k = j
-    for ln in out:
-        assert len(ln) <= 72, ln
-    return "\n".join(out) + "\n"
-
-
 def dfmt(nd):
     """Double precision constant with nd decimals, D exponent."""
     return lambda v: ("%." + str(nd) + "f") % v + "D0"
@@ -1306,35 +1167,24 @@ def main():
     mis, legs, evs, sim = scenarios()
     m47a, m47b = meeus47()
     cues = burn_cues(sim)
-    used = {"MXSN": len(mis), "MXLEG": len(legs), "MXEVT": len(evs), "MXSTRT": len(sim["start"]),
-            "MXBURN": len(sim["burn"]), "MXREF": len(sim["ref"]), "MXTL": len(sim["tl"]),
-            "MXCUE": len(cues)}
-    for k, n in used.items():
-        assert n <= TABLE_MAX[k], f"{k}: {n} rows, more than the table holds ({TABLE_MAX[k]})"
     ns, npt, nln, ncr = len(sx), len(clon), len(coast), len(crat)
     inc = ["C     Generated by tools/gen_data.py from data/. Do not edit.",
-           "C     Table sizes shared by the kernel (src/*.f) and its BLOCK DATA.",
+           "C     Catalog sizes shared by the kernel (src/*.f) and its BLOCK DATA.",
            "      INTEGER NSTAR, NNAV, NCPT, NCST, NCRAT, NMARE",
            "C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77",
            "C     (1978); FORTRAN V wrote PARAMETER I = 2 (UP-4046 sec. 10.4.1)",
            f"      PARAMETER (NSTAR={ns}, NNAV=37, NCPT={npt}, NCST={nln})",
            f"      PARAMETER (NCRAT={ncr}, NMARE={len(mar)})",
            "C     RESTOMOD END",
-           "C     Scenario tables (data/missions), fixed maxima (ours): scenarios,",
-           "C     trajectory legs of NLGP parameters, events; START, BURN and",
-           "C     REF cards, TIMELINE rows, burn cues.  The used counts are in",
-           "C     COMMON (viewcom.inc).  Leg types and event kinds.",
-           "      INTEGER MXSN, MXLEG, MXEVT, NLGP",
-           "      INTEGER MXSTRT, MXBURN, MXREF, MXTL, MXCUE",
+           "C     The run decks' codes (their tables are in viewcom.inc, filled by",
+           "C     the card reader, vdeck.f): NLGP parameters a leg, leg types and",
+           "C     event kinds.",
+           "      INTEGER NLGP",
            "      INTEGER KCIRC, KCONIC, KLUNAR, KLCON, KTABL",
            *["      INTEGER " + ", ".join(list(EVENT_PARAMS.values())[i:i + 8])
              for i in range(0, len(EVENT_PARAMS), 8)],
            "C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77",
-           "      PARAMETER (" + ", ".join(f"{k}={TABLE_MAX[k]}" for k in
-                                        ("MXSN", "MXLEG", "MXEVT")) + f", NLGP={NLGP})",
-           "      PARAMETER (" + ", ".join(f"{k}={TABLE_MAX[k]}" for k in
-                                        ("MXSTRT", "MXBURN", "MXREF")) + ")",
-           "      PARAMETER (" + ", ".join(f"{k}={TABLE_MAX[k]}" for k in ("MXTL", "MXCUE")) + ")",
+           f"      PARAMETER (NLGP={NLGP})",
            "      PARAMETER (" + ", ".join(f"K{k}={v}" for k, v in
                                         (("CIRC", 1), ("CONIC", 2), ("LUNAR", 3),
                                          ("LCON", 4), ("TABL", 5))) + ")",
@@ -1347,6 +1197,8 @@ def main():
     (R / "src" / "viewdims.inc").write_text("\n".join(inc) + "\n")
 
     b = ["C     Generated by tools/gen_data.py from data/. Do not edit.",
+         "C     The static catalogs.  The run tables (scenarios, situations) are",
+         "C     the card reader's (vdeck.f), filled from the run decks.",
          "C",
          "C     /CSTAR/  star unit vectors, J2000 equatorial, and visual magnitude.",
          "C              1..37 are the AGC nav stars (Comanche055, precessed to J2000).",
@@ -1376,75 +1228,11 @@ def main():
          "C     /CMARE/  maria, lacus, sinus, oceanus: centre lat, east lon (deg),",
          "C              diameter (km) and names (24 codes each, zero padded).",
          "      COMMON /CMARE/ MRLAT, MRLON, MRDIA, MRCH",
-         "C     /CSCEN/  scenarios (run decks).  Scenario M: epoch SNJD0 (JD of",
-         "C              range zero),",
-         "C              landing site SNSLA lat, SNSLO east lon, SNSAZ descent",
-         "C              azimuth (deg).  Launch pad SNPLA lat, SNPLO east",
-         "C              lon (deg), geocentric latitude if SNPGC = 1, name",
-         "C              PADCH(8*(M-1)+1..8) as character codes, zero padded",
-         "C              (none if PADCH(8*(M-1)+1) = 0).",
-         "C              Leg K of scenario LGSN(K), type LGTYP, whole revolutions",
-         "C              LGN (LUNAR), latitude geocentric if LGGC = 1, and LGP:",
-         "C              1 FROM, 2 TO, 3 T (g.e.t. s), 4 LAT, 5 LON (deg),",
-         "C              6 ALT (n mi), 7 V (ft/s), 8 FPA, 9 HDG (deg),",
-         "C              10 TB (s), 11 LATB, 12 LONB (deg), LCONIC 13 DV",
-         "C              (ft/s), 14 P, 15 R, 16 N, 17 ALTB (n mi; LUNAR, the",
-         "C              altitude at TB).  TABLE (one leg per pair of rows):",
-         "C              3-9 row A, 10-12 row B's T LAT LON, 13-15 its V FPA",
-         "C              HDG, 17 its ALT; LGN 1 A's, 2 B's velocity Earth",
-         "C              fixed.  Vehicle LGVEH: 1 CSM, 2 LM, 3 S-IVB.",
-         "C              Event J of scenario EVSN(J), kind EVKND, g.e.t. EVT (s).",
-         "      DOUBLE PRECISION SNJD0(MXSN), SNSLA(MXSN), SNSLO(MXSN)",
-         "      DOUBLE PRECISION SNSAZ(MXSN)",
-         "      DOUBLE PRECISION LGP(NLGP,MXLEG), EVT(MXEVT)",
-         "      DOUBLE PRECISION SNPLA(MXSN), SNPLO(MXSN)",
-         "      INTEGER LGSN(MXLEG), LGTYP(MXLEG), LGN(MXLEG), LGGC(MXLEG)",
-         "      INTEGER EVSN(MXEVT), EVKND(MXEVT), SNPGC(MXSN), PADCH(8*MXSN)",
-         "      COMMON /CSCEN/ SNJD0, SNSLA, SNSLO, SNSAZ, LGP, EVT,",
-         "     &               SNPLA, SNPLO",
-         "      INTEGER LGVEH(MXLEG), NSN, NLEG, NEVT",
-         "      COMMON /CSCENI/ LGSN, LGTYP, LGN, LGGC, EVSN, EVKND,",
-         "     &                SNPGC, PADCH, LGVEH, NSN, NLEG, NEVT",
-         "C     /CSIM/   simulation cards.  START of scenario STSN (one at most),",
-         "C              REF rows: state STP / RFP as LGP (2 = END for START),",
-         "C              body STBOD / RFBOD (1 Earth, 2 Moon), geocentric",
-         "C              latitude if STGC / RFGC = 1.  BURN: mid-burn g.e.t.",
-         "C              BNT (s), BNDV (ft/s), direction BNP, BNR, BNN in the",
-         "C              BNBOD body's frame (along the velocity, radial in the",
-         "C              orbit plane, orbit normal).  NSN, NLEG, NEVT,",
-         "C              NSTART, NBN, NRF, NTL, NBR: rows used.",
-         "      DOUBLE PRECISION STP(NLGP,MXSTRT), RFP(NLGP,MXREF)",
-         "      DOUBLE PRECISION BNT(MXBURN), BNDV(MXBURN), BNP(MXBURN)",
-         "      DOUBLE PRECISION BNR(MXBURN), BNN(MXBURN)",
-         "      INTEGER STSN(MXSTRT), STBOD(MXSTRT), STGC(MXSTRT), NSTART",
-         "      INTEGER RFSN(MXREF), RFBOD(MXREF), RFGC(MXREF), NRF",
-         "      INTEGER BNSN(MXBURN), BNBOD(MXBURN), NBN",
-         "      COMMON /CSIM/ STP, RFP, BNT, BNDV, BNP, BNR, BNN",
          "C     /CMEEUS/ Meeus ch. 47 lunar terms, flattened: MMA(6*(K-1)+1..6)",
          "C              = D M M' F sigma_l sigma_r of table 47.A row K,",
          "C              MMB(5*(K-1)+1..5) = D M M' F sigma_b of table 47.B.",
          "      INTEGER MMA(360), MMB(300)",
-         "      COMMON /CMEEUS/ MMA, MMB",
-         "      COMMON /CSIMI/ STSN, STBOD, STGC, NSTART, RFSN, RFBOD, RFGC,",
-         "     &               NRF, BNSN, BNBOD, NBN",
-         "C     /CTLN/   the scenarios' timelines (TIMELINE cards), by scenario then",
-         "C              g.e.t.: row K of scenario TLSN(K) at TLT(K) (s), kind",
-         "C              TLK(K) (1 LAUNCH, 2 BURN, 3 STAGING, 4 ORBIT, 5 SEP,",
-         "C              6 SURFACE, 7 TV, 8 CREW, 9 PHOTO, 10 ENTRY, 11 MARK).",
-         "C              Names are in build/names.js only.",
-         "      DOUBLE PRECISION TLT(MXTL)",
-         "      INTEGER TLK(MXTL), TLSN(MXTL), NTL",
-         "      COMMON /CTLN/ TLT",
-         "      COMMON /CTLNI/ TLK, TLSN, NTL",
-         "C     /CBRN/   the burn cue's main-engine firings (BURNCUE cards, *.scn",
-         "C              in data/missions, from the TIMELINE rows): row K of",
-         "C              scenario BRSN(K) burns from g.e.t. BRT1(K) to BRT2(K)",
-         "C              (s), vehicle BRVH(K) (1 CSM, 2 LM, 3 S-IVB), engine",
-         "C              BREN(K) (1 SPS, 2 DPS, 3 APS, 4 J-2); NBR used.",
-         "      DOUBLE PRECISION BRT1(MXCUE), BRT2(MXCUE)",
-         "      INTEGER BRSN(MXCUE), BRVH(MXCUE), BREN(MXCUE), NBR",
-         "      COMMON /CBRN/ BRT1, BRT2",
-         "      COMMON /CBRNI/ BRSN, BRVH, BREN, NBR"]
+         "      COMMON /CMEEUS/ MMA, MMB"]
     body = "\n".join(b) + "\n"
     f7, f2, f3, f1 = F(dfmt(7)), F(dfmt(2)), F(dfmt(3)), F(dfmt(1))
     body += fdata("STX", sx, f7) + fdata("STY", sy, f7) + fdata("STZ", sz, f7)
@@ -1462,10 +1250,10 @@ def main():
     for nm in ("SUN", "EARTH", "MOON"):
         bodch += [ord(ch) for ch in nm] + [0] * (5 - len(nm))
     body += fdata("NAVCH", navch, "%d", 10) + fdata("BODCH", bodch, "%d", 10)
-    # The landing site lettered in scene 6 (kind 7): the one mission whose SITE card names it.
+    # The landing site lettered in scene 6 (kind 7), SITECH: the one mission whose SITE card names
+    # it; the card reader fills it.
     site = sorted({m["sitename"] for m in mis if m["sitename"]})
-    assert len(site) == 1 and len(site[0]) <= 22, f"one SITE NAME= of 22 characters at most: {site}"
-    body += fdata("SITECH", [ord(ch) for ch in site[0]] + [0] * (22 - len(site[0])), "%d", 10)
+    assert len(site) <= 1 and all(len(x) <= 22 for x in site), f"one SITE NAME= of 22 characters at most: {site}"
     mrch = []
     for m in mar:
         nm = m[3][:24]
@@ -1474,72 +1262,8 @@ def main():
     body += fdata("MRLON", [m[1] for m in mar], f3, 5)
     body += fdata("MRDIA", [m[2] for m in mar], f1, 6)
     body += fdata("MRCH", mrch, "%d", 10)
-    # Scenarios, with each card's source as comments.
-    for m in mis:
-        body += "\n".join([f"C     SCENARIO {m['n']} {m['name']}"] +
-                          sum((comment_wrap(x) for x in m["src"]), [])) + "\n"
-    body += ldata("SNJD0", [m["jd"] for m in mis])
-    body += ldata("SNSLA", [m["site"][0] for m in mis])
-    body += ldata("SNSLO", [m["site"][1] for m in mis])
-    body += ldata("SNSAZ", [m["site"][2] for m in mis])
-    body += ldata("SNPLA", [m["pad"][1] for m in mis])
-    body += ldata("SNPLO", [m["pad"][2] for m in mis])
-    body += fdata("SNPGC", [m["pad"][3] for m in mis], "%d", 10)
-    body += fdata("PADCH", [c for m in mis for c in
-                            [ord(ch) for ch in m["pad"][0]] + [0] * (8 - len(m["pad"][0]))],
-                  "%d", 10)
-    for k, lg in enumerate(legs):
-        body += "\n".join([f"C     LEG {k + 1}"] + comment_wrap(lg["src"])) + "\n"
-        body += "\n".join(f"      DATA LGP({i + 1},{k + 1}) / {flit(v)} /"
-                          for i, v in enumerate(lg["p"])) + "\n"
-    body += fdata("LGSN", [lg["m"] for lg in legs], "%d", 10)
-    body += fdata("LGTYP", [lg["type"] for lg in legs], "%d", 10)
-    body += fdata("LGN", [lg["n"] for lg in legs], "%d", 10)
-    body += fdata("LGGC", [lg["gc"] for lg in legs], "%d", 10)
-    body += fdata("LGVEH", [lg["veh"] for lg in legs], "%d", 10)
-    for j, ev in enumerate(evs):
-        body += "\n".join([f"C     EVENT {j + 1}"] + comment_wrap(ev["src"])) + "\n"
-    body += ldata("EVT", [ev["t"] for ev in evs])
-    body += fdata("EVSN", [ev["m"] for ev in evs], "%d", 10)
-    body += fdata("EVKND", [ev["kind"] for ev in evs], "%d", 10)
-    # Simulation cards.
-    for key, pa, sn, bod, gc in (("start", "STP", "STSN", "STBOD", "STGC"),
-                                 ("ref", "RFP", "RFSN", "RFBOD", "RFGC")):
-        rows = sim[key]
-        for k, r in enumerate(rows):
-            body += "\n".join([f"C     {key.upper()} {k + 1}"] + comment_wrap(r["src"])) + "\n"
-            body += "\n".join(f"      DATA {pa}({i + 1},{k + 1}) / {flit(v)} /"
-                              for i, v in enumerate(r["p"])) + "\n"
-        body += fdata(sn, [r["m"] for r in rows], "%d", 10)
-        body += fdata(bod, [r["body"] for r in rows], "%d", 10)
-        body += fdata(gc, [r["gc"] for r in rows], "%d", 10)
-    bn = sim["burn"]
-    for k, b_ in enumerate(bn):
-        body += "\n".join([f"C     BURN {k + 1}"] + comment_wrap(b_["src"])) + "\n"
-    body += ldata("BNT", [b_["t"] for b_ in bn])
-    body += ldata("BNDV", [b_["dv"] for b_ in bn])
-    body += ldata("BNP", [b_["dir"][0] for b_ in bn])
-    body += ldata("BNR", [b_["dir"][1] for b_ in bn])
-    body += ldata("BNN", [b_["dir"][2] for b_ in bn])
-    body += fdata("BNSN", [b_["m"] for b_ in bn], "%d", 10)
-    body += fdata("BNBOD", [b_["body"] for b_ in bn], "%d", 10)
     body += fdata("MMA", [v for r_ in m47a for v in r_], "%d", 6)
     body += fdata("MMB", [v for r_ in m47b for v in r_], "%d", 5)
-    tl = sorted(sim["tl"], key=lambda r: (r["m"], r["t"]))
-    body += ldata("TLT", [r["t"] for r in tl])
-    body += fdata("TLK", [TL_KINDS[r["kind"]] for r in tl], "%d", 10)
-    body += fdata("TLSN", [r["m"] for r in tl], "%d", 10)
-    for k, c in enumerate(cues):
-        body += "\n".join([f"C     BURN CUE {k + 1}"] + comment_wrap(c[5])) + "\n"
-    cr = cues
-    body += ldata("BRT1", [c[1] for c in cr])
-    body += ldata("BRT2", [c[2] for c in cr])
-    body += fdata("BRSN", [c[0] for c in cr], "%d", 10)
-    body += fdata("BRVH", [c[3] for c in cr], "%d", 10)
-    body += fdata("BREN", [c[4] for c in cr], "%d", 10)
-    body += f"      DATA NSN, NLEG, NEVT / {len(mis)}, {len(legs)}, {len(evs)} /\n"
-    body += f"      DATA NTL, NBR / {len(tl)}, {len(cues)} /\n"
-    body += f"      DATA NSTART, NRF, NBN / {len(sim['start'])}, {len(sim['ref'])}, {len(sim['burn'])} /\n"
     body += "      END\nC     RESTOMOD END\n"
     (R / "src" / "viewdata.f").write_text(body)
 
@@ -1568,7 +1292,6 @@ def main():
     names["REELS"] = page_reels(mis, legs, evs, sits)
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
-    write_situations(sits)
     write_vocab()
     # The decks in load order (the order above: missions by folder, each mission.scn and then its
     # scenarios), for the card reader's gates: tools/golden.sh and the selftest load them.
@@ -1577,6 +1300,9 @@ def main():
         order += [mdir / "mission.scn"] + sorted(p for p in mdir.glob("*.scn")
                                                  if p.name != "mission.scn")
     (R / "build" / "decks.txt").write_text("".join(f"{p.relative_to(R)}\n" for p in order))
+    # The page's copy of the decks, in that order, for its card reader calls (web/src/kernel.js).
+    (R / "build" / "decks.js").write_text("const VIEW_DECKS = " + json.dumps(
+        [[str(p.relative_to(R)), p.read_text(encoding="utf-8")] for p in order]) + ";\n")
     # The scene list make check and the selftest read: situation ids and their scenarios.
     (R / "build" / "scenes.json").write_text(json.dumps(
         {"scenes": [t["id"] for t in sits], "scenario": {str(t["id"]): t["m"] for t in sits}}) + "\n")
