@@ -200,7 +200,11 @@ contains
         i1 = i0 + i1 - 1
       end if
       open (newunit=u, file=list(i0:i1 - 1), status='old', action='read', iostat=ios)
-      if (ios /= 0 .or. nf == 64) then
+      if (nf == 64) then
+        write (0, '(a)') 'VIEW_DECK: more than 64 files'
+        stop 2
+      end if
+      if (ios /= 0) then
         write (0, '(a,a)') 'VIEW_DECK: cannot open ', list(i0:i1 - 1)
         stop 2
       end if

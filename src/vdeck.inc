@@ -16,7 +16,8 @@ C     each scenario that follows: IMHV 0 none, 1 its MISSION card read,
 C     2 its EPOCH too; MJD epoch, MSIT landing site lat, lon, azimuth,
 C     MPAD pad lat, lon, MPGC its latitude geocentric, MPCH its name (8
 C     codes).  IDSN the scenario in hand (0 none), ISNHV(M) 1 once
-C     scenario M is read, SNCD(M) its SCENARIO card's number.  IDST the situation in hand (0 none);
+C     scenario M is read, SNCD(M) its SCENARIO card's number.  IDST
+C     the situation in hand (0 none);
 C     ISTHV(K) the cards situation K has: 0 none, 1 its SITUATION, 2 its
 C     RECIPE, 3 its VIEWS, 4 its HDRREF; STCD(K) its SITUATION card's
 C     number.

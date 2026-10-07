@@ -80,7 +80,8 @@ C     RESTOMOD END
       END
 C
 C     DKNMS: the decimal number at ITKB(IS) for N codes into X: sign,
-C     digits, a point, an exponent of three digits at most after E.
+C     digits, a point, an exponent of three digits at most after E or
+C     e.
       SUBROUTINE DKNMS(IS, N, X)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -215,7 +216,7 @@ C     point.
       GO TO 10
    50 IF (ND .EQ. 0) GO TO 90
       X = (HM(1) * 3600.0D0 + HM(2) * 60.0D0) * P10(NF+1) + HM(3)
-      IF (X .GE. 9.0D15) GO TO 91
+      IF (X .GE. 1.0D15) GO TO 91
       X = SG * (X / P10(NF+1))
       RETURN
    90 CALL DKERR(2)

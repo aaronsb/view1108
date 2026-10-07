@@ -292,7 +292,7 @@ def get_s(v):
     ss = g.group(4) or "0"
     frac = len(ss.split(".")[1]) if "." in ss else 0
     total = (int(g.group(2)) * 3600 + int(g.group(3)) * 60) * 10 ** frac + int(ss.replace(".", "") or 0)
-    assert total < 9 * 10 ** 15, f"{v!r}: more digits than the reader holds exactly"
+    assert frac <= 15 and total < 10 ** 15, f"{v!r}: more digits than the reader holds exactly"
     d = decimal.Decimal(int(g.group(2)) * 3600 + int(g.group(3)) * 60) + decimal.Decimal(ss)
     txt = format(d, "f")
     return Num(-float(d), dlit("-" + txt)) if neg else Num(float(d), dlit(txt))

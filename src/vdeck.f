@@ -57,7 +57,8 @@ C     22 list of the wrong length, or a layer named twice
 C     23 name too long or not plain ASCII, or a second SITE NAME
 C     24 no situation               25 mission cards out of order (one
 C        MISSION, then EPOCH, before the mission's scenarios)
-C     26 a scenario without a CSM leg
+C     26 a scenario without a CSM leg, or with an LM leg about the Moon
+C        but no CSM leg about the Moon (the LM's legs are built on it)
 C     27 a situation's GET= or AT= event not in its scenario
 C
       SUBROUTINE CRDOPN
@@ -280,7 +281,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'vdvoc.inc'
       INCLUDE 'vdeck.inc'
 C     RESTOMOD END
-      INTEGER IERR, ICARD, NWARN, K, J, M, IHAS, DKEVOK
+      INTEGER IERR, ICARD, NWARN, K, J, M, IHAS, ICML, ILML, DKEVOK
       CALL CRDEOF
       IF (IDKER .EQ. 0) CALL DKCUES
 C     Scenarios 1..NSN and situations 1..NSIT, none missing.
@@ -305,10 +306,17 @@ C     Each scenario a CSM leg; each situation's events in its scenario.
       IF (NSN .EQ. 0 .OR. NLEG .EQ. 0) GO TO 20
       DO 16 M = 1, NSN
         IHAS = 0
+        ICML = 0
+        ILML = 0
         DO 15 J = 1, NLEG
-          IF (LGSN(J) .EQ. M .AND. LGVEH(J) .EQ. 1) IHAS = 1
+          IF (LGSN(J) .NE. M) GO TO 15
+          IF (LGVEH(J) .EQ. 1) IHAS = 1
+          IF (LGTYP(J) .NE. KLUNAR .AND. LGTYP(J) .NE. KLCON) GO TO 15
+          IF (LGVEH(J) .EQ. 1) ICML = 1
+          IF (LGVEH(J) .EQ. 2) ILML = 1
    15   CONTINUE
         IF (IHAS .EQ. 0) CALL DKERRC(26, SNCD(M))
+        IF (ILML .EQ. 1 .AND. ICML .EQ. 0) CALL DKERRC(26, SNCD(M))
    16 CONTINUE
       GO TO 21
    20 CALL DKERRC(26, NDKCD)
