@@ -1,11 +1,11 @@
-C     VDKSUM: the run tables' hash total (#26; ours), CRDSUM, so a deck
-C     read by the card reader (vdeck.f) and BLOCK DATA can be compared
-C     word for word, natively and in WebAssembly, without listing them.
+C     VDKSUM: the run tables' hash total (#26; ours), CRDSUM, so the
+C     tables the card reader (vdeck.f) fills natively and in
+C     WebAssembly can be compared word for word without listing them.
 C
 C     CRDSUM: a hash total of the run tables' used entries (ours), four
 C     sums ISUM(1..4) over every 32-bit word, a double as its two
-C     words, so two loads of a deck (or a deck and BLOCK DATA) can be
-C     compared without listing the tables.
+C     words, so two loads of a deck can be compared without listing
+C     the tables.
       SUBROUTINE CRDSUM(ISUM)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'

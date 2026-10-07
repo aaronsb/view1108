@@ -25,6 +25,28 @@ const ctx = {}; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(R, 'build/fallback.js'), 'utf8'), ctx);
 const F = ctx.VIEW1108_ASM(imports);
 
+// The run decks (build/decks.txt, tools/gen_data.py's order) through the kernel's card reader (src/vdeck.f), one line
+// a card, each file closed with deck_file; the kernel has no other source of its scenarios and situations.
+const DECKS = fs.readFileSync(path.join(R, 'build/decks.txt'), 'utf8').split('\n').filter(Boolean);
+const EOF = '\u0000end of file';
+const LINES = DECKS.flatMap(p => [...fs.readFileSync(path.join(R, p), 'utf8').split('\n'), EOF]);
+const enc = new TextEncoder();
+function load(K, lines) {
+  K.deck_open();
+  for (const ln of lines) {
+    if (ln === EOF) { K.deck_file(); continue; }
+    const b = enc.encode(ln), card = new Int32Array(K.memory.buffer, K.in_card.value, 1024);
+    for (let i = 0; i < Math.min(b.length, 1024); i++) card[i] = b[i];
+    K.deck_card(b.length);
+  }
+  K.deck_close();
+  return ['out_dkerr', 'out_dkcrd', 'out_dkwrn'].map(g => new Int32Array(K.memory.buffer, K[g].value, 1)[0]);
+}
+for (const [K, name] of [[W, 'wasm'], [F, 'fallback']]) {
+  const [e, c] = load(K, LINES);
+  if (e) throw new Error(`selftest: ${name}: the decks were refused, deck error ${e} at card ${c}`);
+}
+
 const f64 = (K, name, n) => Array.from(new Float64Array(K.memory.buffer, K[name].value, n));
 const i32 = (K, name) => new Int32Array(K.memory.buffer, K[name].value, 1)[0];
 function run(K, scene, flags = 3, view = 0, target = 0, lablv = 0, get = null) {
@@ -234,66 +256,24 @@ if (W.sim_run) {
     if (!same || drawn === 0) ok = false;
   }
 }
-// The card reader (src/vdeck.f, #26): the decks of build/decks.txt (tools/gen_data.py's order)
-// loaded through deck_card, each file ended by deck_file, fill the run tables word for word as
-// BLOCK DATA does: the same hash total (deck_sum) in wasm, in the fallback, and in the native
-// driver both from its BLOCK DATA (gfortran's constants) and through its own reader; and the same
-// frames.  Then planted faults in a deck, each refused with its own deck error, and a refused
-// deck leaving nothing behind for the next load.
+// The card reader (src/vdeck.f, #26): the run tables the decks give, as a hash total (deck_sum), are the same in wasm,
+// in the fallback and in the native driver (gfortran, its own reader; build/viewsvg with VIEW_DKSUM).  Then planted
+// faults in a deck, each refused with its own deck error, and a refused deck leaving nothing behind for the next load.
 if (W.deck_open) {
-  const DECKS = fs.readFileSync(path.join(R, 'build/decks.txt'), 'utf8').split('\n').filter(Boolean);
-  const EOF = '\u0000end of file';
-  const LINES = DECKS.flatMap(p => [...fs.readFileSync(path.join(R, p), 'utf8').split('\n'), EOF]);
-  const enc = new TextEncoder();
-  const load = (K, lines) => {
-    K.deck_open();
-    for (const ln of lines) {
-      if (ln === EOF) { K.deck_file(); continue; }
-      const b = enc.encode(ln), card = new Int32Array(K.memory.buffer, K.in_card.value, 1024);
-      for (let i = 0; i < Math.min(b.length, 1024); i++) card[i] = b[i];
-      K.deck_card(b.length);
-    }
-    K.deck_close();
-    return [i32(K, 'out_dkerr'), i32(K, 'out_dkcrd'), i32(K, 'out_dkwrn')];
-  };
   const sum = K => { K.deck_sum(); return Array.from(new Int32Array(K.memory.buffer, K.out_dksum.value, 4)).join(' '); };
   const fresh = async () => (await WebAssembly.instantiate(mod, { env: imports })).exports;
-  const B = await fresh(), D = await fresh();
-  const sumBD = sum(B), errD = load(D, LINES), sumD = sum(D), errF = load(F, LINES), sumF = sum(F);
-  let native = 'not built', nativeDeck = 'not built';
+  const sumW = sum(W), sumF = sum(F);
+  let native = 'not built';
   if (fs.existsSync(path.join(R, 'build/viewsvg'))) {
     const { execFileSync } = await import('child_process');
     const nenv = { ...process.env, VIEW_DKSUM: '1' };
     delete nenv.VIEW_DECK;
-    native = execFileSync(path.join(R, 'build/viewsvg'), { env: nenv }).toString().trim();
-    nativeDeck = execFileSync(path.join(R, 'build/viewsvg'), { cwd: R,
-      env: { ...nenv, VIEW_DECK: DECKS.join(':') } }).toString().trim();
+    native = execFileSync(path.join(R, 'build/viewsvg'), { cwd: R, env: nenv }).toString().trim();
   }
-  let same = true, frames = 0;
-  for (const scene of SCENES) {
-    for (const [fl, v] of [[3, 0], [3, 1], [3 | 4 | 16 | 32, 2]]) {
-      const a = run(B, scene, fl, v, 0, 1), b = run(D, scene, fl, v, 0, 1);
-      frames++;
-      if (!(a.nvec === b.nvec && a.nstar === b.nstar && a.nlab === b.nlab && maxdiff(a.hdr, b.hdr) === 0 &&
-            maxdiff(a.vbuf, b.vbuf) === 0 && maxdiff(a.lbuf, b.lbuf) === 0 && a.tchr.join() === b.tchr.join())) same = false;
-    }
-  }
-  let last = 0;
-  for (const scene of SCENES) {
-    if (SCN[scene] === last) continue;
-    last = SCN[scene];
-    B.view_init(scene); D.view_init(scene); B.sim_run(1); D.sim_run(1);
-    const a = run(B, scene, 3 | 8), b = run(D, scene, 3 | 8);
-    frames++;
-    if (!(a.nvec === b.nvec && maxdiff(a.hdr, b.hdr) === 0 && maxdiff(a.vbuf, b.vbuf) === 0)) same = false;
-  }
-  const good = errD[0] === 0 && errF[0] === 0 && sumD === sumBD && sumF === sumBD &&
-               (native === 'not built' || (native === sumBD && nativeDeck === sumBD));
-  console.log(`card reader: ${DECKS.length} decks, ${LINES.length - DECKS.length} lines, ${errD[2]} skipped; hash total ${sumD}` +
-    ` (BLOCK DATA ${sumBD}, fallback ${sumF}, native BLOCK DATA ${native}, native reader ${nativeDeck})` +
-    `  ${good ? 'equal' : 'DIFFER, deck error ' + errD}` +
-    `  ${frames} frames ${same ? 'identical' : 'DIFFER'}`);
-  if (!good || !same) ok = false;
+  const good = sumF === sumW && (native === 'not built' || native === sumW);
+  console.log(`card reader: ${DECKS.length} decks, ${LINES.length - DECKS.length} lines; hash total ${sumW}` +
+    ` (fallback ${sumF}, native ${native})  ${good ? 'equal' : 'DIFFER'}`);
+  if (!good) ok = false;
   // Planted faults: [what, expected deck error, the deck's lines].
   const at = (re, f) => { const i = LINES.findIndex(l => re.test(l)); return LINES.map((l, j) => j === i ? f(l) : l); };
   const tl = LINES.find(l => l.startsWith('TIMELINE ')), lastEOF = LINES.length - 1;
@@ -323,7 +303,7 @@ if (W.deck_open) {
     ['a GET= event the scenario lacks', 27, LINES.map((l, j) => j === a8sit ? l.replace(/GET=\S+/, 'GET=SLING+10') : l)],
     ['a scenario file without its SCENARIO card', 6, LINES.filter((l, j) => j !== LINES.findLastIndex(x => x.startsWith('SCENARIO ')))],
   ];
-  const wrong = [];
+  const wrong = [], sumBD = sumW;
   for (const [what, want, lines] of cases) {
     const K = await fresh(), [e, c] = load(K, lines);
     if (e !== want || i32(K, 'out_dkerr') !== want) wrong.push(`${what}: deck error ${e} at card ${c}, not ${want}`);

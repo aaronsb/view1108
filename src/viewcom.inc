@@ -122,11 +122,30 @@ C     camera distance from the Moon's centre (km).
       COMMON /CORB/ LUT0, TETP, LMALT, LMEYE, AZOFF, ELOFF, TERISE,
      &              FXB, FXU, FXDT, S6LAT, S6LON, S6DST
 C
+C     The run tables' fixed maxima (ours, #26): headroom over today's
+C     two scenarios for a few more missions' decks; the card reader
+C     (vdeck.f) refuses a deck that needs more, never truncates.
+C     Scenarios, trajectory legs, events, START, BURN and REF cards,
+C     TIMELINE rows, burn cues (MXSIT, situations: viewsit.inc).
+      INTEGER MXSN, MXLEG, MXEVT, MXSTRT, MXBURN, MXREF, MXTL, MXCUE
+C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)
+      PARAMETER (MXSN=8, MXLEG=200, MXEVT=100, MXSTRT=8, MXBURN=50,
+     &           MXREF=80, MXTL=1500, MXCUE=64)
+C
 C     /CSCEN/, /CSCENI/ the scenarios, one mission's data each, run
-C     decks in 1969 terms (BLOCK DATA from data/missions by
-C     tools/gen_data.py; field layout in src/viewdata.f): NSN
-C     scenarios, NLEG legs and NEVT events used of the maxima (MX...,
-C     viewdims.inc).
+C     decks in 1969 terms, filled by the card reader (vdeck.f) from
+C     data/missions; NSN scenarios, NLEG legs and NEVT events used.
+C     Scenario M: epoch SNJD0 (JD of range zero), landing site SNSLA
+C     lat, SNSLO east lon, SNSAZ descent azimuth (deg).
+C     Leg K of scenario LGSN(K), type LGTYP, whole revolutions LGN
+C     (LUNAR), latitude geocentric if LGGC = 1, and LGP: 1 FROM, 2 TO,
+C     3 T (g.e.t. s), 4 LAT, 5 LON (deg), 6 ALT (n mi), 7 V (ft/s),
+C     8 FPA, 9 HDG (deg), 10 TB (s), 11 LATB, 12 LONB (deg), LCONIC
+C     13 DV (ft/s), 14 P, 15 R, 16 N, 17 ALTB (n mi; LUNAR, the
+C     altitude at TB).  TABLE (one leg per pair of rows): 3-9 row A,
+C     10-12 row B's T LAT LON, 13-15 its V FPA HDG, 17 its ALT; LGN
+C     1 A's, 2 B's velocity Earth fixed.
+C     Event J of scenario EVSN(J), kind EVKND, g.e.t. EVT (s).
       DOUBLE PRECISION SNJD0(MXSN), SNSLA(MXSN), SNSLO(MXSN)
       DOUBLE PRECISION SNSAZ(MXSN)
       DOUBLE PRECISION LGP(NLGP,MXLEG), EVT(MXEVT)
@@ -145,14 +164,21 @@ C     S-IVB.
      &                SNPGC, PADCH, LGVEH, NSN, NLEG, NEVT
 C
 C     /CMEEUS/ the Moon's periodic terms, Meeus tables 47.A and 47.B
-C     (BLOCK DATA from data/meeus47.txt; layout in src/viewdata.f).
+C     (BLOCK DATA from data/meeus47.txt): MMA(6*(K-1)+1..6) = D M M' F
+C     sigma_l sigma_r of table 47.A row K, MMB(5*(K-1)+1..5) = D M M' F
+C     sigma_b of table 47.B.
 C     RESTOMOD: ELP-2000/82 (1982) as abridged by Meeus (1991, 1998)
       INTEGER MMA(360), MMB(300)
       COMMON /CMEEUS/ MMA, MMB
 C
 C     /CSIM/, /CSIMI/ the scenarios' simulation cards: START, the
-C     SCORE (BURN) and the REFERENCE rows (layout in src/viewdata.f);
-C     NSTART, NBN and NRF used.
+C     SCORE (BURN) and the REFERENCE rows; NSTART, NBN and NRF used.
+C     START of scenario STSN (one at most), REF rows: state STP / RFP
+C     as LGP (2 = END for START), body STBOD / RFBOD (1 Earth, 2
+C     Moon), geocentric latitude if STGC / RFGC = 1.  BURN: mid-burn
+C     g.e.t. BNT (s), BNDV (ft/s), direction BNP, BNR, BNN in the
+C     BNBOD body's frame (along the velocity, radial in the orbit
+C     plane, orbit normal).
       DOUBLE PRECISION STP(NLGP,MXSTRT), RFP(NLGP,MXREF)
       DOUBLE PRECISION BNT(MXBURN), BNDV(MXBURN), BNP(MXBURN)
       DOUBLE PRECISION BNR(MXBURN), BNN(MXBURN)
@@ -258,7 +284,7 @@ C     tables), flags of this frame, init done.
       COMMON /CSCN/ ISCN, IFLG, INITD
 C
 C     /CSITU/, /CSITUI/ the current situation, row ISCN of the tables
-C     in viewsit.inc (generated from the SITUATION cards), copied by
+C     in viewsit.inc (filled from the SITUATION cards), copied by
 C     SITSET when VINIT selects it.  All codes ours.
 C     JRCP the camera recipe: 1 LOCALVERT (local-vertical platform),
 C       2 INERTIAL (inertially fixed), 3 CREWSTN (a crew station's

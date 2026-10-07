@@ -13,10 +13,11 @@
 ! hdr(1..24) to stderr.  With VIEW_DUMP set, writes the run tables
 ! (tools/vdump.f: every scenario-specific COMMON table's used entries,
 ! doubles as hex bit patterns) to stdout instead and stops.
-! With VIEW_DECK set to deck paths separated by colons, the kernel's
-! card reader (src/vdeck.f) loads them, in that order, over the BLOCK
-! DATA tables first; a deck error is printed to stderr with its file
-! and line and stops the run (exit 2).  With VIEW_DKSUM set, prints the run tables' hash
+! The run decks come first, through the kernel's card reader
+! (src/vdeck.f): the paths in VIEW_DECK (separated by colons), else
+! those listed in build/decks.txt (tools/gen_data.py), in that order;
+! a deck error is printed to stderr with its file and line and stops
+! the run (exit 2).  With VIEW_DKSUM set, prints the run tables' hash
 ! total (CRDSUM, four numbers) to stdout and stops.
 program viewsvg
   implicit none
@@ -67,7 +68,8 @@ program viewsvg
   integer :: isum(4)
 
   call get_environment_variable('VIEW_DECK', decks)
-  if (len_trim(decks) > 0) call loaddk(trim(decks))
+  if (len_trim(decks) == 0) call decklist('build/decks.txt', decks)
+  call loaddk(trim(decks))
   call get_environment_variable('VIEW_DKSUM', tv)
   if (len_trim(tv) > 0) then
     call crdsum(isum)
@@ -178,6 +180,28 @@ program viewsvg
   write (*, '(a)') '</text></g></svg>'
 
 contains
+
+  ! The deck paths listed one a line in file fn, joined by colons.
+  subroutine decklist(fn, list)
+    character(len=*), intent(in) :: fn
+    character(len=*), intent(out) :: list
+    character(len=512) :: line
+    integer :: u, ios
+    list = ''
+    open (newunit=u, file=fn, status='old', action='read', iostat=ios)
+    if (ios /= 0) then
+      write (0, '(a,a,a)') 'viewsvg: no run decks: set VIEW_DECK or run tools/gen_data.py (', fn, ')'
+      stop 2
+    end if
+    do
+      read (u, '(a)', iostat=ios) line
+      if (ios /= 0) exit
+      if (len_trim(line) == 0) cycle
+      if (len_trim(list) > 0) list = trim(list) // ':'
+      list = trim(list) // trim(line)
+    end do
+    close (u)
+  end subroutine decklist
 
   ! The decks named in list (paths separated by colons) through the card
   ! reader, one line a card, each file ended with crdeof.  A deck error's

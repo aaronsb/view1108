@@ -4,7 +4,8 @@
 Page modules: each <link rel="stylesheet" href="src/X.css"> becomes an inline <style>, and each run of
 <script src="src/X.js"></script> tags becomes one inline script whose modules share a strict-mode closure,
 joined in tag order. Placeholders: __WASM_B64__ (build/view.opt.wasm), __FALLBACK_JS__ (build/fallback.js),
-__NAMES_JS__ (build/names.js), __FORTRAN_SRC__ (the kernel listing:
+__NAMES_JS__ (build/names.js), __DECKS_JS__ (build/decks.js, the run decks the kernel's card reader
+loads at boot), __FORTRAN_SRC__ (the kernel listing:
 every src/*.f but the generated viewdata.f, the driver vdrive.f (or view.f) first, then the INCLUDE files
 viewdims.inc and viewcom.inc, each element preceded by
 a line of a form feed and its path, HTML-escaped),
@@ -24,6 +25,7 @@ INPUTS = {
     "wasm": R / "build/view.opt.wasm",
     "fallback": R / "build/fallback.js",
     "names": R / "build/names.js",
+    "decks": R / "build/decks.js",
     "font": R / "web/fonts/3270-Regular.subset.woff2",
     "fontjbm": R / "web/fonts/JetBrainsMono-Regular.subset.woff2",
     "fontmich": R / "web/fonts/Michroma-Regular.subset.woff2",
@@ -71,6 +73,7 @@ subs = {
     "__FORTRAN_SRC__": html.escape("".join(f"\f{f.relative_to(R)}\n{f.read_text()}" for f in KSRC), quote=False),
     "__FALLBACK_JS__": INPUTS["fallback"].read_text().replace("</script", "<\\/script"),
     "__NAMES_JS__": INPUTS["names"].read_text().replace("</script", "<\\/script"),
+    "__DECKS_JS__": INPUTS["decks"].read_text().replace("</", "<\\/"),
     "__FONT_3270_B64__": base64.b64encode(INPUTS["font"].read_bytes()).decode(),
     "__FONT_JBM_B64__": base64.b64encode(INPUTS["fontjbm"].read_bytes()).decode(),
     "__FONT_MICH_B64__": base64.b64encode(INPUTS["fontmich"].read_bytes()).decode(),
@@ -83,8 +86,8 @@ PHOTOS = R / "build/photos.json"
 subs["__PHOTOS_JSON__"] = PHOTOS.read_text().replace("</", "<\\/") if PHOTOS.is_file() else "[]"
 if "__FSYM__" in t:
     subs["__FSYM__"] = fsym
-# Replace only the payload slots, not the dev-guard `var __FALLBACK_JS__, __NAMES_JS__;` line.
-guard = "var __FALLBACK_JS__, __NAMES_JS__, __LAB_JS__;"
+# Replace only the payload slots, not the dev-guard `var __FALLBACK_JS__, __NAMES_JS__, ...;` line.
+guard = "var __FALLBACK_JS__, __NAMES_JS__, __DECKS_JS__, __LAB_JS__;"
 t = t.replace(guard, "")
 for k, v in subs.items():
     if k not in t:

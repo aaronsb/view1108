@@ -1,9 +1,9 @@
 C     VDKSCN: the card reader's card semantics (#26; the reader is
 C     vdeck.f): what each card of a run deck writes into the run
-C     tables.  The field layouts are the BLOCK DATA's (src/viewdata.f,
-C     src/viewsit.inc); the defaults and orderings are the ones
-C     tools/gen_data.py has written there, so a deck read here fills
-C     the tables word for word as BLOCK DATA does.
+C     tables.  The field layouts are in src/viewcom.inc and
+C     src/viewsit.inc; the defaults and orderings are the ones
+C     tools/gen_data.py wrote into BLOCK DATA before the reader took
+C     over (#26), so the tables are word for word what they were.
 C
 C     DKCARD: the card in hand (KCRD) to its routine.  A mission's
 C     cards come first, MISSION once and then EPOCH (SITE and PAD

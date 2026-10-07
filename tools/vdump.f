@@ -15,6 +15,7 @@ C     the Z edit descriptor are Fortran 90 and gfortran.
       INCLUDE 'viewsit.inc'
       INTEGER I, K
 C     Scenarios: /CSCEN/, /CSCENI/.
+      CALL VDI('NSN', 0, 0, NSN)
       DO 10 K = 1, NSN
         CALL VDD('SNJD0', K, 0, SNJD0(K))
         CALL VDD('SNSLA', K, 0, SNSLA(K))
@@ -31,6 +32,7 @@ C     Scenarios: /CSCEN/, /CSCENI/.
         CALL VDI('SITECH', K, 0, SITECH(K))
    12 CONTINUE
 C     Trajectory legs (LEG cards and TABLE legs from ROW cards).
+      CALL VDI('NLEG', 0, 0, NLEG)
       DO 21 K = 1, NLEG
         DO 20 I = 1, NLGP
           CALL VDD('LGP', I, K, LGP(I,K))
@@ -42,6 +44,7 @@ C     Trajectory legs (LEG cards and TABLE legs from ROW cards).
         CALL VDI('LGVEH', K, 0, LGVEH(K))
    21 CONTINUE
 C     Events.
+      CALL VDI('NEVT', 0, 0, NEVT)
       DO 30 K = 1, NEVT
         CALL VDD('EVT', K, 0, EVT(K))
         CALL VDI('EVSN', K, 0, EVSN(K))
@@ -77,6 +80,7 @@ C     Simulation cards: START, REF and BURN rows, used rows only.
         CALL VDI('BNBOD', K, 0, BNBOD(K))
    44 CONTINUE
 C     Timeline rows.
+      CALL VDI('NTL', 0, 0, NTL)
       DO 50 K = 1, NTL
         CALL VDD('TLT', K, 0, TLT(K))
         CALL VDI('TLK', K, 0, TLK(K))
@@ -92,6 +96,7 @@ C     Burn cues, used rows only.
         CALL VDI('BREN', K, 0, BREN(K))
    60 CONTINUE
 C     Situations: /CSIT/, /CSITI/.
+      CALL VDI('NSIT', 0, 0, NSIT)
       DO 72 K = 1, NSIT
         CALL VDD('SIGT', K, 0, SIGT(K))
         CALL VDD('SIFV', K, 0, SIFV(K))

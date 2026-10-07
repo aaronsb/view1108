@@ -7,24 +7,22 @@
 #                              exit 1 on any difference, naming each file that differs
 #
 # Captured (build/, gitignored; the baseline is a build output, never committed):
-#   viewdata.f, viewdims.inc,  as tools/gen_data.py writes them, with one mask (below)
-#   viewsit.f, viewsit.inc     (the last two: the situation tables)
+#   viewdata.f, viewdims.inc,  as tools/gen_data.py writes them, with one mask (below): the static
+#   vdvoc.f, vdvoc.inc         catalogs, the decks' codes and the card reader's vocabulary
 #   scenes.json                byte for byte (the scene list make check and the selftest read)
 #   names.js                   byte for byte, plus names.pretty.json (the same JSON, indented) so a
 #                              difference shows as readable lines
-#   tables.txt                 the run tables as data: build/viewsvg with VIEW_DUMP=1 (tools/vdump.f)
-#                              writes every scenario-specific COMMON table's used entries (legs and
+#   tables.txt                 the run tables as data: build/viewsvg with VIEW_DUMP=1 (tools/vdump.f),
+#                              after its card reader (src/vdeck.f) has loaded build/decks.txt's decks,
+#                              writes their counts and every scenario-specific table's used entries (legs and
 #                              the TABLE legs from ROW cards, events, timeline, START, REF and BURN
 #                              rows, burn cues, situations, the scenarios' epoch, site and pad), each
 #                              double as its bit pattern in hex, so a changed value shows as data and
 #                              not only through a render.  The page's SPAN tables are in names.js.
-#                              The same dump from build/decks.txt's decks (tools/gen_data.py) through
-#                              the kernel's card reader (VIEW_DECK, src/vdeck.f) must equal it byte for
-#                              byte, or the capture fails (#26 slice 4); it is not stored.
 #   render/*.txt               build/viewsvg's SVG on stdout and hdr(1..24) on stderr (VIEW_HDR) for
-#                              every case in CASES
+#                              every case in CASES, the decks loaded the same way
 #
-# The mask: in viewdata.f, viewdims.inc, viewsit.f and viewsit.inc, comment lines (C in column 1) that quote a source
+# The mask: in viewdata.f, viewdims.inc, vdvoc.f and vdvoc.inc, comment lines (C in column 1) that quote a source
 # location are dropped: a path or file name under data/ or tools/, a *.scn or *.py name, or the name
 # of tools/gen_data.py's BURN_CUES table.  These lines say where the tables came from, which a
 # data move changes by design; every other line, comments carrying card sources included, must
@@ -176,29 +174,21 @@ capture() {
   local out=$1
   ./tools/build.sh native >/dev/null
   rm -rf "$out"; mkdir -p "$out/render"
-  for f in viewdata.f viewdims.inc viewsit.f viewsit.inc; do
+  for f in viewdata.f viewdims.inc vdvoc.f vdvoc.inc; do
     grep -Ev "$MASK" "src/$f" > "$out/$f"
   done
-  for f in src/viewdata.f src/viewdims.inc src/viewsit.f src/viewsit.inc; do
+  for f in src/viewdata.f src/viewdims.inc src/vdvoc.f src/vdvoc.inc; do
     echo "$f $(grep -Ec "$MASK" "$f" || true) masked lines"
   done > "$out/masked.txt"
   { echo "commit $(git rev-parse HEAD)"
     if [ -n "$(git status --porcelain)" ]; then echo "tree dirty"; else echo "tree clean"; fi
   } > "$out/source.txt"
-  env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_HDR \
-    -u VIEW_DECK -u VIEW_DKSUM VIEW_DUMP=1 build/viewsvg > "$out/tables.txt"
   [ -f build/decks.txt ] || { echo "golden: no build/decks.txt (tools/gen_data.py writes it)" >&2; exit 1; }
-  if ! env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_HDR -u VIEW_DKSUM \
-       VIEW_DUMP=1 VIEW_DECK="$(paste -sd: build/decks.txt)" build/viewsvg > build/tables-deck.txt; then
+  if ! env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_HDR \
+       -u VIEW_DECK -u VIEW_DKSUM VIEW_DUMP=1 build/viewsvg > "$out/tables.txt"; then
     echo "golden: the card reader refused the decks of build/decks.txt (the deck error is above)" >&2
     exit 1
   fi
-  if ! cmp -s "$out/tables.txt" build/tables-deck.txt; then
-    echo "golden: the decks fill the run tables otherwise than BLOCK DATA" \
-         "(diff $out/tables.txt build/tables-deck.txt)" >&2
-    exit 1
-  fi
-  echo "golden: the decks of build/decks.txt (card reader) fill the run tables as BLOCK DATA does"
   cp build/names.js "$out/names.js"
   cp build/scenes.json "$out/scenes.json"
   python3 -c 'import json,sys; t=open(sys.argv[1]).read(); j=json.loads(t[t.index("=")+1:].rstrip().rstrip(";")); print(json.dumps(j, indent=1))' \
