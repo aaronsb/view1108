@@ -84,7 +84,7 @@ C     RESTOMOD END
       INTEGER ISC
       DOUBLE PRECISION GET, YAW, PIT, ROL, FOV
       DOUBLE PRECISION R(3), V(3), PM(3), E(3), S(3), X, Y, TFIX
-      INTEGER I, IVS
+      INTEGER I, IVS, ISV
       DOUBLE PRECISION VDOT, EVGET
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
@@ -105,8 +105,14 @@ C     selected, all defaults 0, and VFRAME draws an empty frame.
       ROL = 0.0D0
       FOV = 0.0D0
       RETURN
-C     The situation (its SITUATION card) and its scenario.
-    5 ISCN = ISC
+C     The situation (its SITUATION card) and its scenario.  Its set-up
+C     (the Earthrise search, the camera's turn and held attitude) reads
+C     the CSM on the replay, whatever source the last frame drew from
+C     (ISRC, set by VFRAME), so a situation's defaults are its deck's
+C     and not the source's (#26; ours).
+    5 ISV = ISRC
+      ISRC = 0
+      ISCN = ISC
       IF (ISCN .LT. 1 .OR. ISCN .GT. NSIT) ISCN = 1
       CALL SITSET(ISCN)
       IF (SISN(ISCN) .NE. ISN) CALL SNSET(SISN(ISCN))
@@ -180,6 +186,7 @@ C     The disc rule: the body's disc fills SIFV of the frame, rounded
 C     to 0.1 deg (BODYCTR's distance).
       IF (SIFK(ISCN) .EQ. 2) FOV = DBLE(NINT(20.0D0
      &  * DASIN(RM / S6DST) / DR / SIFV(ISCN))) / 10.0D0
+      ISRC = ISV
       RETURN
       END
 C
