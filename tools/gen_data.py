@@ -963,8 +963,9 @@ SIT_DBL = [("SIGT", None), ("SIFV", None), ("SIEL", "elv"), ("SIFL", "fel"), ("S
 
 
 def write_situations(sits):
-    """src/viewsit.inc (NSIT, the tables' declarations and COMMON) and src/viewsit.f (BLOCK DATA
-    VIEWSB), one block of DATA statements per situation with its cards' sources."""
+    """src/viewsit.inc (the maximum MXSIT, the tables' declarations and COMMON with the used count
+    NSIT) and src/viewsit.f (BLOCK DATA VIEWSB), one block of DATA statements per situation with
+    its cards' sources, then DATA NSIT."""
     n = len(sits)
     assert n <= TABLE_MAX["MXSIT"], f"MXSIT: {n} situations, more than the table holds ({TABLE_MAX['MXSIT']})"
     def decl(kw, names):
