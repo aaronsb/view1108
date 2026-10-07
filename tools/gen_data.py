@@ -179,30 +179,26 @@ EVENT_PARAMS = {"TDATT": "KETDA", "SEP": "KESEP", "APPR": "KEAPR", "DOCK": "KEDO
 TL_KINDS = {"LAUNCH": 1, "BURN": 2, "STAGING": 3, "ORBIT": 4, "SEP": 5, "SURFACE": 6, "TV": 7,
             "CREW": 8, "PHOTO": 9, "ENTRY": 10, "MARK": 11}
 NLGP = 17   # leg parameters, see scenarios()
-# The burn cue (src/lburn.f; ours, a modern addition): the main-engine firings, from each
-# scenario's BURNCUE cards, each naming the two TIMELINE rows of its scenario that open and close
-# it and whose engine it is.  Vehicles: 1 CSM, 2 LM, 3 S-IVB.  Engines: 1 SPS, 2 DPS (descent),
-# 3 APS (ascent), 4 the S-IVB's J-2.
+# The burn cue (src/lburn.f; ours, a modern addition): the BURNCUE card's VEH= and ENG= words.
+# The kernel's card reader loads the cues (src/vdeck.f DKCUES); this script checks the cards.
+# Vehicles: 1 CSM, 2 LM, 3 S-IVB.  Engines: 1 SPS, 2 DPS (descent), 3 APS (ascent), 4 the S-IVB's
+# J-2.
 BURN_VEH = {"CSM": 1, "LM": 2, "S-IVB": 3}
 BURN_ENG = {"SPS": 1, "DPS": 2, "APS": 3, "J-2": 4}
 
 
-def burn_cues(sim):
-    """The burn cue table from the BURNCUE cards and the TIMELINE rows of sim: (scenario,
-    ignition s, cutoff s, vehicle code, engine code, comment), sorted by scenario and ignition.
-    A pair whose names occur more than once takes the first ignition and the first cutoff
-    after it."""
-    out = []
+def check_burn_cues(sim):
+    """Check the BURNCUE cards against the TIMELINE rows of sim: each names an ignition row of
+    its scenario and a cutoff row after it (a name that occurs more than once: the first
+    ignition and the first cutoff after it).  Returns the number of cues."""
     for c in sim["cue"]:
-        m, ign, cut, veh, eng, why = c["m"], c["ign"], c["cut"], c["veh"], c["eng"], c["src"]
+        m, ign, cut = c["m"], c["ign"], c["cut"]
         rows = sorted((r for r in sim["tl"] if r["m"] == m), key=lambda r: r["t"])
         t1 = [r for r in rows if r["name"] == ign]
         assert t1, f"burn cue: scenario {m} has no TIMELINE row {ign!r}"
-        t2 = [r for r in rows if r["name"] == cut and r["t"] > t1[0]["t"]]
-        assert t2, f"burn cue: scenario {m} has no TIMELINE row {cut!r} after {ign!r}"
-        out.append((m, t1[0]["t"], t2[0]["t"], BURN_VEH[veh], BURN_ENG[eng],
-                    f"{ign} to {cut}: {veh} {eng}, {why}"))
-    return sorted(out, key=lambda b: (b[0], b[1]))
+        assert any(r["name"] == cut and r["t"] > t1[0]["t"] for r in rows), \
+            f"burn cue: scenario {m} has no TIMELINE row {cut!r} after {ign!r}"
+    return len(sim["cue"])
 # Keys each card type reads.  Other keys are ignored with a warning, so cards can grow
 # (a BURN's TRIGGER= and TARGET= are planned, docs/simulation.md) without breaking old decks.
 CARD_KEYS = {
@@ -237,20 +233,6 @@ CARD_KEYS = {
 }
 
 
-class Num(float):
-    """A card's number: its value as a float, as before, and lit, the FORTRAN literal with the
-    card's own digits (#40), from when the run tables were BLOCK DATA (#26 retired that; the
-    literal now only carries the digits through the checks).  Arithmetic gives a plain float;
-    only negation keeps the literal."""
-    def __new__(cls, v, lit):
-        o = float.__new__(cls, v)
-        o.lit = lit
-        return o
-
-    def __neg__(self):
-        return Num(-float(self), self.lit[1:] if self.lit.startswith("-") else "-" + self.lit)
-
-
 # A card's number and g.e.t., the grammar the kernel's card reader takes (src/vdeck.f DKNMS,
 # DKGTS): one sign, digits with one point at most, an E exponent of three digits at most; h:mm or
 # h:mm:ss.s with one leading - at most.  17 significant digits at most and a power of ten from
@@ -269,30 +251,24 @@ def exact_digits(mant, scale, where):
     assert not digits or -44 <= scale <= 22, f"{where}: exponent out of range"
 
 
-def cnum(tok):
-    """A card's decimal number (or a default, such as 0) as a Num carrying its digits."""
+def card_num(tok):
+    """A card's decimal number (or a default, such as 0) as a float, refused unless the card
+    reader's grammar takes it (NUM_RE, exact_digits)."""
     tok = str(tok)
-    return Num(float(tok), dlit(tok))
-
-
-def flit(v):
-    """The FORTRAN literal of a table value (#40; checks only since #26): a card's number with the
-    card's digits (Num), or a
-    whole number that is no card's (padding, a default of 0)."""
-    if isinstance(v, Num):
-        return v.lit
-    assert v == int(v), f"{v!r}: a table value that is not a card's number"
-    return dlit(repr(float(v)))
+    m = NUM_RE.fullmatch(tok)
+    assert m, f"{tok!r}: not a number (one sign, digits, one point, an E exponent)"
+    frac = len(m.group(2).split(".")[1]) if "." in m.group(2) else 0
+    exact_digits(m.group(2), int(m.group(3) or 0) - frac, tok)
+    return float(tok)
 
 
 def get_s(v):
     """g.e.t. h:mm:ss.s, h:mm (or plain seconds) to seconds; a leading - counts down to range zero.
-    One exact decimal feeds both: the literal is the decimal of the seconds, the card's digits with
-    h and mm folded in (h*3600 + mm*60 + ss, in decimal arithmetic), and the float is that decimal
-    correctly rounded, the double gfortran makes of the literal, so Python orders times as the
-    kernel does."""
+    The seconds are the card's digits with h and mm folded in (h*3600 + mm*60 + ss, in decimal
+    arithmetic), correctly rounded to a double, as the kernel's reader makes them, so Python
+    orders times as the kernel does."""
     if ":" not in v:
-        return cnum(v)
+        return card_num(v)
     g = GET_RE.fullmatch(v)
     assert g, f"{v!r}: not a g.e.t. (h:mm or h:mm:ss.s, one leading - at most)"
     neg = g.group(1) == "-"
@@ -303,8 +279,7 @@ def get_s(v):
     total = (int(g.group(2)) * 3600 + int(g.group(3)) * 60) * 10 ** frac + int(ss.replace(".", "") or 0)
     assert frac <= 15 and total < 10 ** 15, f"{v!r}: more digits than the reader holds exactly"
     d = decimal.Decimal(int(g.group(2)) * 3600 + int(g.group(3)) * 60) + decimal.Decimal(ss)
-    txt = format(d, "f")
-    return Num(-float(d), dlit("-" + txt)) if neg else Num(float(d), dlit(txt))
+    return -float(d) if neg else float(d)
 
 
 def table_legs(name, tab):
@@ -369,14 +344,14 @@ def mission(path):
         if kind == "MISSION":
             m["name"] = kv["NAME"]
         elif kind == "EPOCH":
-            m["jd"] = cnum(kv["JD"]); m["src"].append("EPOCH: " + kv.get("SRC", ""))
+            m["jd"] = card_num(kv["JD"]); m["src"].append("EPOCH: " + kv.get("SRC", ""))
         elif kind == "SITE":
-            m["site"] = (cnum(kv["LAT"]), cnum(kv["LON"]), cnum(kv["AZ"]))
+            m["site"] = (card_num(kv["LAT"]), card_num(kv["LON"]), card_num(kv["AZ"]))
             m["sitename"] = kv.get("NAME", "")
             m["src"].append("SITE: " + kv.get("SRC", ""))
         elif kind == "PAD":
             assert len(kv["NAME"]) <= 7, "PAD NAME: at most 7 characters"
-            m["pad"] = (kv["NAME"], cnum(kv["LAT"]), cnum(kv["LON"]),
+            m["pad"] = (kv["NAME"], card_num(kv["LAT"]), card_num(kv["LON"]),
                         LATTYPES[kv.get("LATTYPE", "GD")])
             m["src"].append("PAD: " + kv.get("SRC", ""))
     assert m["name"] and m["jd"] is not None, f"{path.relative_to(D)}: needs MISSION and EPOCH"
@@ -429,7 +404,7 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
         assert tab is not None, f"{name}: ROW card outside a LEG TYPE=TABLE"
         assert kv.get("VEL", "SF") in ROW_VELS, f"{name}: ROW VEL= SF or EF"
         tab["rows"].append({"t": get_s(kv["T"]),
-                            "f": [cnum(kv[k]) for k in ("LAT", "LON", "ALT", "V", "FPA", "HDG")],
+                            "f": [card_num(kv[k]) for k in ("LAT", "LON", "ALT", "V", "FPA", "HDG")],
                             "ef": ROW_VELS[kv.get("VEL", "SF")],
                             "src": kv.get("SRC", "")})
     elif kind == "LEG" and kv["TYPE"] == "TABLE":
@@ -438,15 +413,15 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
     elif kind == "LEG":
         t = kv["TYPE"]
         p = [get_s(kv["FROM"]), get_s(kv["TO"]), get_s(kv["T"]),
-             cnum(kv.get("LAT", 0)), cnum(kv.get("LON", 0)), cnum(kv.get("ALT", 0)),
-             cnum(kv.get("V", 0)), cnum(kv.get("FPA", 0)), cnum(kv.get("HDG", 0)),
-             get_s(kv.get("TB", "0")), cnum(kv.get("LATB", 0)), cnum(kv.get("LONB", 0))]
+             card_num(kv.get("LAT", 0)), card_num(kv.get("LON", 0)), card_num(kv.get("ALT", 0)),
+             card_num(kv.get("V", 0)), card_num(kv.get("FPA", 0)), card_num(kv.get("HDG", 0)),
+             get_s(kv.get("TB", "0")), card_num(kv.get("LATB", 0)), card_num(kv.get("LONB", 0))]
         # LCONIC: DV= (ft/s) and its direction P= R= N= at T (mid-burn) on the
         # vehicle's previous leg, or (no DV=) a state T= LAT= LON= ALT= V= FPA=.
         lc = t == "LCONIC"
-        p += [cnum(kv.get("DV", 0)), cnum(kv.get("P", 0)), cnum(kv.get("R", 0)),
-              cnum(kv.get("N", 0)) if lc else 0.0,
-              cnum(kv.get("ALTB", kv.get("ALT", 0)))]
+        p += [card_num(kv.get("DV", 0)), card_num(kv.get("P", 0)), card_num(kv.get("R", 0)),
+              card_num(kv.get("N", 0)) if lc else 0.0,
+              card_num(kv.get("ALTB", kv.get("ALT", 0)))]
         if lc and "DV" not in kv:
             for k in ("LAT", "LON", "ALT", "V", "FPA"):
                 assert k in kv, f"{name}: LCONIC state needs {k}="
@@ -457,16 +432,16 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
                      "src": f"{t}: " + kv.get("SRC", "")})
     elif kind in ("START", "REF"):
         p = [get_s(kv["T"]), get_s(kv.get("END", "0")), get_s(kv["T"]),
-             cnum(kv["LAT"]), cnum(kv["LON"]), cnum(kv["ALT"]),
-             cnum(kv["V"]), cnum(kv["FPA"]), cnum(kv.get("HDG", 0)), 0.0, 0.0, 0.0]
+             card_num(kv["LAT"]), card_num(kv["LON"]), card_num(kv["ALT"]),
+             card_num(kv["V"]), card_num(kv["FPA"]), card_num(kv.get("HDG", 0)), 0.0, 0.0, 0.0]
         p += [0.0] * (NLGP - len(p))
         sim["start" if kind == "START" else "ref"].append(
             {"m": cur["n"], "p": p, "gc": LATTYPES[kv.get("LATTYPE", "GD")],
              "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
              "src": kind + ": " + kv.get("SRC", "")})
     elif kind == "BURN":
-        sim["burn"].append({"m": cur["n"], "t": get_s(kv["T"]), "dv": cnum(kv["DV"]),
-                            "dir": (cnum(kv["P"]), cnum(kv["R"]), cnum(kv["N"])),
+        sim["burn"].append({"m": cur["n"], "t": get_s(kv["T"]), "dv": card_num(kv["DV"]),
+                            "dir": (card_num(kv["P"]), card_num(kv["R"]), card_num(kv["N"])),
                             "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
                             "src": "BURN: " + kv.get("SRC", "")})
     elif kind == "TIMELINE":
@@ -475,8 +450,7 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
                           "name": kv["NAME"], "src": kv.get("SRC", "")})
     elif kind == "BURNCUE":
         assert kv["VEH"] in BURN_VEH and kv["ENG"] in BURN_ENG, f"{name}: BURNCUE VEH= or ENG="
-        sim["cue"].append({"m": cur["n"], "ign": kv["IGN"], "cut": kv["CUT"], "veh": kv["VEH"],
-                           "eng": kv["ENG"], "src": kv.get("SRC", "")})
+        sim["cue"].append({"m": cur["n"], "ign": kv["IGN"], "cut": kv["CUT"]})
     elif kind in SIT_CARDS:
         situation_card(name, kind, kv, cur, sim["sit"])
     elif kind == "SPAN":
@@ -534,23 +508,6 @@ def enum(table, val, where, what):
     return table[val]
 
 
-def dlit(tok):
-    """A card's decimal number as a FORTRAN double precision literal with the same digits (E
-    exponent to D, D0 added).  The card reader's number grammar (NUM_RE) is checked here, for
-    every number a card gives."""
-    m = NUM_RE.fullmatch(tok)
-    assert m, f"{tok!r}: not a number (one sign, digits, one point, an E exponent)"
-    frac = len(m.group(2).split(".")[1]) if "." in m.group(2) else 0
-    exact_digits(m.group(2), int(m.group(3) or 0) - frac, tok)
-    t = tok.upper().replace("E", "D")
-    if "D" not in t:
-        t += "D0"
-    m, e = t.split("D")
-    if "." not in m:
-        m += ".0"
-    return m + "D" + e
-
-
 def situation_card(name, kind, kv, cur, sits):
     """One SITUATION, RECIPE, VIEWS or HDRREF card of scenario cur into sits."""
     assert cur is not None, f"{name}: {kind} card before the SCENARIO card"
@@ -582,7 +539,9 @@ def get_rule(txt, evkinds):
 
 
 def situations(mis, evs, sits):
-    """Check the situation cards and lay out their table rows, situations 1..N."""
+    """Check the situation cards, situations 1..N.  Returns per situation what the page's lists
+    read: id, m (its scenario), gk (its GET= rule's kind, get_rule), rcp (its recipe) and az (a
+    LOCALVERT recipe's AZ= rule; 0 for the others)."""
     out = []
     seen = {}
     for t in sits:
@@ -594,26 +553,22 @@ def situations(mis, evs, sits):
         assert "RECIPE" in t and "VIEWS" in t, f"{where}: needs a RECIPE and a VIEWS card"
         rc, vw, hr = t["RECIPE"], t["VIEWS"], t.get("HDRREF", {"OBJ": "BODY"})
         evk = {e["kind"] for e in evs if e["m"] == t["m"]}
-        r = {"id": t["id"], "m": t["m"], "name": kv["NAME"],
-             "src": [f"{kv['NAME']}, recipe {rc['NAME']}: " + kv.get("SRC", "")]
-             + [f"{c}: {d['SRC']}" for c, d in (("RECIPE", rc), ("VIEWS", vw), ("HDRREF", hr))
-                if "SRC" in d]}
-        gk, ge, gt = get_rule(kv["GET"], EVENT_KINDS)
+        gk, ge, _ = get_rule(kv["GET"], EVENT_KINDS)
         assert gk != 2 or ge in evk, f"{where}: GET={kv['GET']}: the scenario has no such EVENT"
-        r["get"] = (gk, ge, flit(gt))
         fov = kv["FOV"]
         assert fov.count(":") <= 1, f"{where}: FOV={fov}"
-        r["fov"] = (2, dlit(fov.split(":")[1])) if fov.startswith("DISC:") else (1, dlit(fov))
+        disc = fov.startswith("DISC:")
+        card_num(fov.split(":")[1] if disc else fov)
         look = kv.get("LOOK", "0,0,0").split(",")
         assert len(look) == 3, f"{where}: LOOK=yaw,pitch,roll"
-        r["look"] = [dlit(x) for x in look]
-        r["win"] = enum(WINDOWS, kv["WINDOW"], where, "WINDOW")
+        for x in look:
+            card_num(x)
+        enum(WINDOWS, kv["WINDOW"], where, "WINDOW")
         lay = [enum(LAYER_IDS, x, where, "LAYERS") for x in kv["LAYERS"].split(",")]
         assert len(lay) <= MAXLAY and len(set(lay)) == len(lay), f"{where}: LAYERS"
-        r["lay"] = lay + [0] * (MAXLAY - len(lay))
-        r["pose"] = enum(POSES, kv["POSE"], where, "POSE") if "POSE" in kv else 0
-        r["draw"] = sum(enum(DRAW_BITS, x, where, "DRAW") for x in kv["DRAW"].split(",")) \
-            if "DRAW" in kv else 0
+        pose = enum(POSES, kv["POSE"], where, "POSE") if "POSE" in kv else 0
+        for x in kv["DRAW"].split(",") if "DRAW" in kv else ():
+            enum(DRAW_BITS, x, where, "DRAW")
         # The recipe and its parameters.  Each recipe takes only the parameter values the kernel
         # has a code path for; anything else is refused here rather than drawn wrongly.
         rcp = enum(RECIPES, rc["NAME"], where, "RECIPE NAME")
@@ -621,72 +576,70 @@ def situations(mis, evs, sits):
         rkeys = enum(RECIPE_KEYS, rkey, where, "RECIPE NAME and ATT")
         extra = sorted(set(rc) - rkeys - {"NAME", "SRC"})
         assert not extra, f"{where}: RECIPE {rc['NAME']} takes no {', '.join(extra)}"
-        p = {"rcp": rcp, "bod": 0, "mod": 0, "az": 0, "elv": "0.0D0", "trn": 0,
-             "tn": ["0.0D0"] * 3, "fb": 0, "fel": "0.0D0", "att": 0, "fe": 0, "fix": "0.0D0",
-             "drf": "0.0D0", "elo": "0.0D0", "veh": 0, "alt": "0.0D0", "dst": "0.0D0"}
+        az = offleg = 0
         if rcp == 1:
-            p["bod"] = enum(BODIES, rc["BODY"], where, "BODY")
-            p["mod"] = enum(MODES, rc["MODE"], where, "MODE")
-            p["az"] = enum(AZ_RULES, rc.get("AZ", "NONE"), where, "AZ")
-            p["elv"] = dlit(rc.get("ELEV", "0"))
-            if p["bod"] == 2:
+            bod = enum(BODIES, rc["BODY"], where, "BODY")
+            mod = enum(MODES, rc["MODE"], where, "MODE")
+            az = enum(AZ_RULES, rc.get("AZ", "NONE"), where, "AZ")
+            card_num(rc.get("ELEV", "0"))
+            if bod == 2:
                 assert float(rc.get("ELEV", "0")) == 0, f"{where}: LOCALVERT about the Moon: ELEV=0 only"
-                assert p["mod"] == 1 or p["az"] == 0, f"{where}: NORMAL takes no AZ="
+                assert mod == 1 or az == 0, f"{where}: NORMAL takes no AZ="
             else:
-                assert p["mod"] == 1 and p["az"] == 0, f"{where}: LOCALVERT about the Earth: FORWARD, no AZ="
+                assert mod == 1 and az == 0, f"{where}: LOCALVERT about the Earth: FORWARD, no AZ="
             if "TURN" in rc:
-                assert p["bod"] == 2 and p["mod"] == 1, f"{where}: TURN= on the Moon's FORWARD view only"
-                p["trn"], p["tn"] = 1, [dlit(x) for x in rc["TURN"].split(",")]
-                assert len(p["tn"]) == 3, f"{where}: TURN=yaw,pitch,roll"
+                assert bod == 2 and mod == 1, f"{where}: TURN= on the Moon's FORWARD view only"
+                turn = [card_num(x) for x in rc["TURN"].split(",")]
+                assert len(turn) == 3, f"{where}: TURN=yaw,pitch,roll"
             if "OFFLEG" in rc:
-                assert p["bod"] == 2 and rc["OFFLEG"] == "EARTH", f"{where}: OFFLEG=EARTH from the Moon only"
-                p["fb"], p["fel"] = 1, dlit(rc["OFFELEV"])
+                assert bod == 2 and rc["OFFLEG"] == "EARTH", f"{where}: OFFLEG=EARTH from the Moon only"
+                offleg = 1
+                card_num(rc["OFFELEV"])
         elif rcp == 2:
-            p["att"] = enum(ATTS, rc["ATT"], where, "ATT")
-            assert p["att"] in (1, 2), f"{where}: INERTIAL: ATT=SIGHTLINE or S7ATT"
-            if p["att"] == 1:
+            att = enum(ATTS, rc["ATT"], where, "ATT")
+            assert att in (1, 2), f"{where}: INERTIAL: ATT=SIGHTLINE or S7ATT"
+            if att == 1:
                 assert rc["BODY"] == "EARTH", f"{where}: INERTIAL SIGHTLINE: BODY=EARTH only"
-                p["bod"], p["fe"] = 1, enum(EVENT_KINDS, rc["AT"], where, "AT")
-                assert p["fe"] in evk, f"{where}: AT={rc['AT']}: the scenario has no such EVENT"
-                p["fix"], p["drf"] = flit(get_s(rc["FIX"])), flit(get_s(rc["DRIFT"]))
-                p["elo"] = dlit(rc["ELOFF"])
+                fe = enum(EVENT_KINDS, rc["AT"], where, "AT")
+                assert fe in evk, f"{where}: AT={rc['AT']}: the scenario has no such EVENT"
+                get_s(rc["FIX"])
+                get_s(rc["DRIFT"])
+                card_num(rc["ELOFF"])
         elif rcp == 3:
-            p["veh"] = enum(CREW_VEH, rc["VEH"], where, "VEH")
-            assert p["veh"] == 2, f"{where}: CREWSTN VEH=CM has no axes source yet (the CM station is in_view 2)"
+            veh = enum(CREW_VEH, rc["VEH"], where, "VEH")
+            assert veh == 2, f"{where}: CREWSTN VEH=CM has no axes source yet (the CM station is in_view 2)"
             assert kv["WINDOW"] == "LM" and vw.get("RIDES") == "LM", \
                 f"{where}: CREWSTN VEH=LM goes with WINDOW=LM and RIDES=LM"
-            p["bod"] = 2
         elif rcp == 4:
             assert rc["BODY"] == "MOON", f"{where}: BODYCTR: BODY=MOON only"
-            p["bod"], p["alt"] = 2, dlit(rc["ALT"])
+            card_num(rc["ALT"])
         else:
             assert rc["ATT"] == "S8ATT", f"{where}: EXTSEED: ATT=S8ATT only"
-            p["att"], p["bod"], p["dst"] = 3, 1, dlit(rc["DIST"])
-        assert r["fov"][0] == 1 or rcp == 4, f"{where}: FOV=DISC: needs BODYCTR"
+            card_num(rc["DIST"])
+        assert not disc or rcp == 4, f"{where}: FOV=DISC: needs BODYCTR"
         # The Earthrise time comes from ERFIND, which VINIT runs only for an Earth-sightline
         # azimuth.
-        assert gk != 3 or (rcp == 1 and p["az"] == 1), \
+        assert gk != 3 or (rcp == 1 and az == 1), \
             f"{where}: GET={kv['GET']}: the Earthrise rule needs RECIPE LOCALVERT AZ=EARTH"
-        r.update(p)
         # View rules.
-        r["vw"] = enum(VIEWS_, vw.get("VIEW", "WINDOW"), where, "VIEW")
-        r["tgt"] = enum(TARGETS, vw["TARGET"], where, "TARGET")
-        r["tgf"] = enum(TARGETS, vw["OFFTARGET"], where, "OFFTARGET") if "OFFTARGET" in vw else 0
-        assert (r["tgf"] != 0) == (r["fb"] == 1), f"{where}: OFFTARGET= goes with the recipe's OFFLEG="
-        r["rid"] = enum(RIDES, vw["RIDES"], where, "RIDES")
-        r["cm"] = enum(STATION_RULES, vw["CM"], where, "CM")
-        r["lm"] = enum(STATION_RULES, vw["LM"], where, "LM")
-        r["fix_"] = enum(YES_NO, vw.get("FIXED", "NO"), where, "FIXED")
-        xs = vw.get("XSTART")
-        r["xo"], r["xy"] = (1, [dlit(x) for x in xs.split(",")]) if xs is not None else (0, ["0.0D0"] * 2)
-        assert len(r["xy"]) == 2, f"{where}: XSTART=yaw,pitch"
+        enum(VIEWS_, vw.get("VIEW", "WINDOW"), where, "VIEW")
+        enum(TARGETS, vw["TARGET"], where, "TARGET")
+        tgf = enum(TARGETS, vw["OFFTARGET"], where, "OFFTARGET") if "OFFTARGET" in vw else 0
+        assert (tgf != 0) == (offleg == 1), f"{where}: OFFTARGET= goes with the recipe's OFFLEG="
+        enum(RIDES, vw["RIDES"], where, "RIDES")
+        enum(STATION_RULES, vw["CM"], where, "CM")
+        enum(STATION_RULES, vw["LM"], where, "LM")
+        enum(YES_NO, vw.get("FIXED", "NO"), where, "FIXED")
+        if "XSTART" in vw:
+            xy = [card_num(x) for x in vw["XSTART"].split(",")]
+            assert len(xy) == 2, f"{where}: XSTART=yaw,pitch"
         # Header reference object.
-        r["hk"] = enum(HDR_OBJS, hr["OBJ"], where, "HDRREF OBJ")
-        r["ho"] = dlit(hr.get("OFFSET", "0"))
-        r["hr"] = dlit(hr.get("RADIUS", "0"))
-        assert r["hk"] != 2 or r["pose"] == POSES["S7POSE"], f"{where}: HDRREF OBJ=LMDOCK needs POSE=S7POSE"
-        assert r["hk"] != 3 or r["pose"] == POSES["S8POSE"], f"{where}: HDRREF OBJ=CSMTUNNEL needs POSE=S8POSE"
-        out.append(r)
+        hk = enum(HDR_OBJS, hr["OBJ"], where, "HDRREF OBJ")
+        card_num(hr.get("OFFSET", "0"))
+        card_num(hr.get("RADIUS", "0"))
+        assert hk != 2 or pose == POSES["S7POSE"], f"{where}: HDRREF OBJ=LMDOCK needs POSE=S7POSE"
+        assert hk != 3 or pose == POSES["S8POSE"], f"{where}: HDRREF OBJ=CSMTUNNEL needs POSE=S8POSE"
+        out.append({"id": t["id"], "m": t["m"], "gk": gk, "rcp": rcp, "az": az})
     out.sort(key=lambda r: r["id"])
     assert [r["id"] for r in out] == list(range(1, len(out) + 1)), "situation ids must be 1..N"
     assert {r["m"] for r in out} <= {m["n"] for m in mis}
@@ -735,7 +688,7 @@ def page_situations(sits, raw, mis, evs):
         assert "TITLE" in kv, f"{where}: needs TITLE= (the page's name for it)"
         o = {"id": r["id"], "name": kv["NAME"], "title": kv["TITLE"], "scenario": r["m"],
              "mission": mname[r["m"]], "get_rule": kv["GET"],
-             "get": None if r["get"][0] == 3 else static_get(kv["GET"], event_times(evs, r["m"]), where),
+             "get": None if r["gk"] == 3 else static_get(kv["GET"], event_times(evs, r["m"]), where),
              "fov": None if kv["FOV"].startswith("DISC:") else float(kv["FOV"]),
              "fov_rule": kv["FOV"], "view": vw.get("VIEW", "WINDOW"), "target": vw["TARGET"],
              "stations": {"cm": vw["CM"], "lm": vw["LM"]}, "fixed": vw.get("FIXED", "NO") == "YES",
@@ -1171,7 +1124,7 @@ def main():
     mar = maria()
     mis, legs, evs, sim = scenarios()
     m47a, m47b = meeus47()
-    cues = burn_cues(sim)
+    ncue = check_burn_cues(sim)
     ns, npt, nln, ncr = len(sx), len(clon), len(coast), len(crat)
     inc = ["C     Generated by tools/gen_data.py from data/. Do not edit.",
            "C     Catalog sizes shared by the kernel (src/*.f) and its BLOCK DATA.",
@@ -1311,7 +1264,7 @@ def main():
     print(f"stars {len(sx)} (nav 37), coast {len(coast)} lines / {len(clon)} pts, "
           f"craters {len(crat)}, scenarios {len(mis)} ({len(legs)} legs, {len(evs)} events, "
           f"{len(sim['start'])} start, {len(sim['burn'])} burns, {len(sim['ref'])} reference rows, "
-          f"{len(sim['tl'])} timeline rows, {len(cues)} burn cues), situations {len(sits)}")
+          f"{len(sim['tl'])} timeline rows, {ncue} burn cues), situations {len(sits)}")
     for i in (4, 12, 29):
         x, y, z = nav[i]
         print(f"  check {NAV_NAMES[i]}: RA {math.degrees(math.atan2(y, x)) % 360:.2f} "
