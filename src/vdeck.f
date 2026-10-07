@@ -34,10 +34,12 @@ C     then one multiply or divide by a power of ten up to 10**22, both
 C     exact, so the double is the decimal correctly rounded, the value
 C     a compiler gives the same digits as a constant (Clinger 1990,
 C     the fast path).  A number of 16 or 17 significant digits, as a
-C     tape row carries (any double written with 17 digits reads back
-C     the same), or with a power of ten down to 10**-44, is carried in
-C     two doubles and rounded once (DKDD, vdkfld.f).  A g.e.t.
-C     h:mm:ss.s folds h and mm into that integer (15 digits at most).  RESTOMOD: free-field input was a FORTRAN V extension
+C     tape row carries (a double from about 10**-28 to 10**38 in
+C     magnitude, written with 17 digits, reads back the same), or with
+C     a power of ten down to 10**-44, is carried in two doubles and
+C     rounded once (DKDD, vdkfld.f).  A g.e.t. h:mm:ss.s folds h and
+C     mm into that integer (15 digits at most).  RESTOMOD: free-field
+C     input was a FORTRAN V extension
 C     (UP-4046 sec. 10.4.1); this hand reader of KEY=VALUE cards stands
 C     in for NAMELIST, which LFortran does not have.  Every DO here
 C     whose count can be 0 is guarded: no FORTRAN V source we hold says
@@ -199,6 +201,7 @@ C     RESTOMOD END
       NSIT = 0
       CALL TPCLR
       ITPSN = 0
+      ISIMF = 0
       RETURN
       END
 C
@@ -251,7 +254,9 @@ C     A card that starts with a number: a row of the open tape.
       W = DKLOOK(VCARD, TKS(1), TKL(1))
       IF (W .GT. 0) KCRD = VOCV(W)
       IF (KCRD .GT. 0) GO TO 40
+C     An unknown card: skipped and counted; it ends an open tape.
       NDKWN = NDKWN + 1
+      IF (ITPON .EQ. 1) CALL DKTPCL
       RETURN
 C     The keys: a word without = is refused; an unknown key is skipped
 C     and counted, and a key of another card kind counted and read.

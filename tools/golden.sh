@@ -28,7 +28,10 @@
 # build/decks.txt's decks, then the tape; FLAGS 11) must equal the frame drawn from the engine's
 # own tape: the SVG line for line and hdr(1..16, 21..24) digit for digit.  Only the source and its
 # reference errors differ, and they must read as a deck tape's: hdr(17) 3 where the tape is drawn,
-# hdr(18..20) 0, the SVG's "source" line to match.  Any other difference fails the step.
+# hdr(18..20) 0, the SVG's "source" line to match.  Each case also says which source its frame
+# must report (TAPES' last column), so the step cannot pass with no tape drawn, and the tape read
+# back, written again (VIEW_TAPEW after the decks), must be the first tape's rows text for text.
+# Any other difference fails the step.
 #
 # The mask: in viewdata.f, viewdims.inc, vdvoc.f and vdvoc.inc, comment lines (C in column 1) that quote a source
 # location are dropped: a path or file name under data/ or tools/, a *.scn or *.py name, or the name
@@ -178,33 +181,33 @@ s2-ext-cmsep      | VIEW_VIEW=1 VIEW_LABLV=2     | 2 701500
 EOF
 )
 
-# The tape round trip: NAME | VIEW_SIM | scene GET.  GETs where the engine's tape is drawn (after
-# the scenario's START and before entry interface) and some where it is not (s3-tape1's 1:30:00
-# is before START, s2-ei after entry interface).
+# The tape round trip: NAME | VIEW_SIM | scene GET | the source the frame from the read-back tape must
+# report, hdr(17): 3 where the tape is drawn (after the scenario's START and before entry
+# interface), 0 where it is not (s3-tape1's 1:30:00 is before START, s2-ei after entry interface).
 TAPES=$(cat <<'EOF'
-s1-tape1          | 1 | 1 -
-s1-tape0          | 0 | 1 -
-s2-tape1          | 1 | 2 600000
-s2-tape0          | 0 | 2 600000
-s2-ei             | 1 | 2 700000
-s3-tape1          | 1 | 3 -
-s3-tape-40000     | 1 | 3 40000
-s4-tape1          | 1 | 4 360600
-s7-tape0          | 0 | 7 12500
-s8-tape1          | 1 | 8 -
-s8-tape0          | 0 | 8 80000
-s9-tape1          | 1 | 9 -
-s9-tape0          | 0 | 9 250000
+s1-tape1          | 1 | 1 -      | 3
+s1-tape0          | 0 | 1 -      | 3
+s2-tape1          | 1 | 2 600000 | 3
+s2-tape0          | 0 | 2 600000 | 3
+s2-ei             | 1 | 2 702500 | 0
+s3-tape1          | 1 | 3 -      | 0
+s3-tape-40000     | 1 | 3 40000  | 3
+s4-tape1          | 1 | 4 360600 | 3
+s7-tape0          | 0 | 7 12500  | 3
+s8-tape1          | 1 | 8 -      | 3
+s8-tape0          | 0 | 8 80000  | 3
+s9-tape1          | 1 | 9 -      | 3
+s9-tape0          | 0 | 9 250000 | 3
 EOF
 )
 
 roundtrip() {
-  local tmp=build/tape-rt decks n=0 bad=0 name sim args sc get
+  local tmp=build/tape-rt decks n=0 bad=0 name sim args want sc get src
   local E="env -u VIEW_TIME -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP -u VIEW_DKSUM"
   rm -rf "$tmp"; mkdir -p "$tmp"
   decks=$(paste -sd: build/decks.txt)
-  while IFS='|' read -r name sim args; do
-    name=$(echo $name); sim=$(echo $sim)
+  while IFS='|' read -r name sim args want; do
+    name=$(echo $name); sim=$(echo $sim); want=$(echo $want)
     read -r sc get <<< "$args"
     $E -u VIEW_DECK -u VIEW_HDR VIEW_SIM=$sim VIEW_TAPEW=1 build/viewsvg $sc > "$tmp/$name.tsv"
     $E -u VIEW_DECK VIEW_HDR=1 VIEW_SIM=$sim build/viewsvg $sc $get 0 0 0 - 11 \
@@ -213,6 +216,17 @@ roundtrip() {
          build/viewsvg $sc $get 0 0 0 - 11 > "$tmp/$name.b.svg" 2> "$tmp/$name.b.hdr"; then
       echo "golden: tape round trip $name: the card reader refused the tape:" >&2
       sed 's/^/  /' "$tmp/$name.b.hdr" >&2; bad=$((bad + 1)); n=$((n + 1)); continue
+    fi
+    # The source the frame reports, against the case's: the tape drawn where it should be.
+    src=$(sed -nE 's/^hdr\(17\) = +([0-9])\..*/\1/p' "$tmp/$name.b.hdr")
+    if [ "$src" != "$want" ]; then
+      echo "golden: tape round trip $name: source $src, not $want" >&2; bad=$((bad + 1))
+    fi
+    # The tape read back, written again: the same rows, text for text (its bits, through 17 digits).
+    $E -u VIEW_SIM -u VIEW_HDR VIEW_DECK="$decks:$tmp/$name.tsv" VIEW_TAPEW=1 build/viewsvg $sc \
+      > "$tmp/$name.again.tsv"
+    if ! diff -q <(grep -v '^\*' "$tmp/$name.tsv") <(grep -v '^\*' "$tmp/$name.again.tsv") > /dev/null; then
+      echo "golden: tape round trip $name: the tape read back and written again differs" >&2; bad=$((bad + 1))
     fi
     # The engine's frame with its source lines turned into what a deck tape gives: hdr(17) 3 and
     # hdr(18..20) 0 where the engine's tape was drawn (hdr(17) 1 or 2), hdr(18..20) 0 elsewhere.

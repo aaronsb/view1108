@@ -240,7 +240,7 @@ C     passed as in_flags bit 3: 0 replay, 1 tape), ISRCU the one used
 C     (0 replay, 1 sim with updates, 2 sim free, 3 a tape read from
 C     the deck).  A tape read from the deck (vdktap.f) sets ITPSN to
 C     its scenario and ISIMF to -1; it has no reference errors (the
-C     card reader empties RFOK).
+C     card reader empties RFOK, and sets ISIMF to 0 with no tape).
 C     /CSIMM/ the Moon for the engine: geocentric position and
 C     velocity every MQDT seconds from MQT0, NMQ nodes (SIMRUN),
 C     read by cubic Hermite interpolation (MOONQ); the series is too

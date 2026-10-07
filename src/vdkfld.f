@@ -83,7 +83,9 @@ C     DKNMS: the decimal number at ITKB(IS) for N codes into X: sign,
 C     digits, a point, an exponent of three digits at most after E or
 C     e.  Up to 15 significant digits and a power of ten within
 C     10**22 the fast path (vdeck.f); 16 or 17 digits, enough to carry
-C     any double, or a power down to 10**-44, through DKDD.
+C     a double, or a power down to 10**-44, through DKDD.  The power
+C     scales the digits as a whole number, so 17 digits read from
+C     about 10**-28 to 10**38 in magnitude.
       SUBROUTINE DKNMS(IS, N, X)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -170,18 +172,20 @@ C     The exponent.
 C
 C     DKDD: X = (A * 10**NX + B) * 10**K, correctly rounded, for A a
 C     whole number below 10**15 (at least 10**14 if NX > 0), B below
-C     10**NX, NX 0 to 2, K -44 to 22.  The integer of 17 digits at most
-C     is held exactly as the sum of two doubles, then multiplied by
-C     10**K or divided by 10**-K (exact powers, in two steps below
+C     10**NX, NX 0 to 2, K -44 to 22.  The integer of 17 digits at
+C     most is held exactly as the sum of two doubles, then multiplied
+C     by 10**K or divided by 10**-K (exact powers, in two steps below
 C     10**-22) carrying about 106 bits, and rounded once (Dekker 1971,
-C     the exact product by splitting).  Correct unless the decimal lies within about
-C     2**-103 of halfway between two doubles; a double written with 17
-C     digits lies near a double, never near halfway.  Ours.  RESTOMOD:
-C     the 1108's double had a 60-bit fraction, "18-digit precision"
-C     (UP-4046 Rev 3, pp. 4-10; docs/univac-1108.md), and would hold 17
-C     digits outright; IEEE's 53 bits need this.  It counts on each
-C     operation rounded alone: no fused multiply-add (wasm has none;
-C     gfortran makes none for x86-64 without -mfma).
+C     the exact product by splitting).  Correct unless the decimal
+C     lies within about 2**-103 of halfway between two doubles; a
+C     double written with 17 digits lies near a double, never near
+C     halfway.  Ours.  It counts on each operation rounded alone: no
+C     fused multiply-add (wasm has none; gfortran makes none for
+C     x86-64 without -mfma).
+C     RESTOMOD BEGIN: double-double arithmetic (Dekker 1971).  The
+C     1108's double had a 60-bit fraction, "18-digit precision"
+C     (UP-4046 Rev 3, pp. 4-10; docs/univac-1108.md), and would hold
+C     17 digits outright; IEEE's 53 bits need this.
       SUBROUTINE DKDD(A, NX, B, K, X)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -193,7 +197,8 @@ C     RESTOMOD END
       INTEGER NX, K, KR, KD
       DOUBLE PRECISION A, B, X, H, E, S, T, L, D, Q, PH, PL
 C     The integer as H + L, exactly: A * 10**NX as H + E, then B added
-C     (H is at least 10**15, above B, so the sum's error T is exact).
+C     (H is at least 10**15 when NX > 0, above B, and B is 0 when NX
+C     is 0, so the sum's error T is exact).
       CALL DKTWOP(A, P10(NX+1), H, E)
       S = H + B
       T = B - (S - H)
@@ -236,6 +241,7 @@ C     1).
       E = ((AH * BH - P) + AH * BL + AL * BH) + AL * BL
       RETURN
       END
+C     RESTOMOD END
 C
 C     DKGTS: a g.e.t. at ITKB(IS) for N codes into X (s): h:mm:ss.s,
 C     h:mm, or a decimal number of seconds; a leading - counts down to

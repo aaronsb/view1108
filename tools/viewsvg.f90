@@ -19,8 +19,9 @@
 ! a deck error is printed to stderr with its file and line and stops
 ! the run (exit 2).  With VIEW_DKSUM set, prints the run tables' hash
 ! total (CRDSUM, four numbers) to stdout and stops.  With VIEW_TAPEW
-! set (and VIEW_SIM), writes the engine's tape as a deck the card
-! reader takes back (tools/vtape.f) to stdout and stops.  A tape deck
+! set, writes the tape (the engine's, after VIEW_SIM, else the decks')
+! as a deck the card reader takes back (tools/vtape.f) to stdout and
+! stops; with no tape it says so and stops (exit 2).  A tape deck
 ! (src/vdktap.f) goes in VIEW_DECK after its scenario's decks; add 8
 ! to FLAGS to draw from it.
 program viewsvg
@@ -116,11 +117,11 @@ program viewsvg
   if (len_trim(tv) > 0) then
     read (tv, *) k
     call simrun(k)
-    call get_environment_variable('VIEW_TAPEW', tv)
-    if (len_trim(tv) > 0) then
-      call vtape()
-      stop
-    end if
+  end if
+  call get_environment_variable('VIEW_TAPEW', tv)
+  if (len_trim(tv) > 0) then
+    call vtape()
+    stop
   end if
 
   call vsetin(envint('VIEW_VIEW'), envint('VIEW_TARGET'), envint('VIEW_LABLV'))

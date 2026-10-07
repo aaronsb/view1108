@@ -375,6 +375,8 @@ if (W.sim_run && fs.existsSync(VSVG)) {
     tcase("two scenarios' tapes", 30, [...TP, 'TAPE SCN=2 CHAN=2', ...TP.slice(1)]),
     tcase('a channel given twice', 8, [...TP, ...TP]),
     tcase('eighteen digits in a tape row', 3, [...TP, '10180 6578.00000000000000001 0 0 0 7.784 0']),
+    tcase('a tape row after an unknown card', 6, [...TP, 'TAPEE SCN=1 CHAN=2', row(10180)]),
+    tcase('a value below the 17-digit range', 3, [...TP, '10180 1.2345678901234567E-30 0 0 0 7.784 0']),
   ];
   for (const [what, want, lines] of tcases) {
     const K = await fresh(), [e, c] = load(K, lines);

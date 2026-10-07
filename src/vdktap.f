@@ -4,10 +4,11 @@ C     (sim.f) would have written it.  A TAPE card names the scenario
 C     and the vehicle channel; each card after it that starts with a
 C     number is one sample, seven numbers: g.e.t. (s, or h:mm:ss.s),
 C     then geocentric EQ position (km) and velocity (km/s), as TPPUT
-C     takes them.  The tape ends at the next card with a card word, or
-C     at the end of its file.  tools/vtape.f writes the engine's tape
-C     in this form, every number with 17 digits so it reads back to
-C     the same double (DKNMS, vdkfld.f).
+C     takes them.  The tape ends at the next card that does not start
+C     with a number (a comment or blank card excepted), or at the end
+C     of its file.  tools/vtape.f writes a tape in this form, every
+C     number with 17 digits so it reads back to the same double (DKNMS,
+C     vdkfld.f; 10**-28 to 10**38 in magnitude, or 0).
 C     Period term: the "trajectory ephemeris tape" of position and
 C     velocity vectors that the RTACF integrator wrote for programs
 C     "that contained no integrator" (Allday, TN D-6855, pp. 7-8; see

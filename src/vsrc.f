@@ -6,8 +6,8 @@ C     The one place the display side gets the CSM's, the LM's and
 C     the S-IVB's states.  It reads
 C     the replay (the scenario's legs, traj.f) or, when the frame asks
 C     for it (in_src, which the chassis passes as in_flags bit 3) and
-C     the tape covers the time, the tape
-C     the engine wrote (tape.f, sim.f) or the deck held (vdktap.f).  Scene cameras and layers do
+C     the tape covers the time, the tape the engine wrote (tape.f,
+C     sim.f) or the deck held (vdktap.f).  Scene cameras and layers do
 C     not know which.  One relocatable element of the kernel; see
 C     vdrive.f for the list.
 C
