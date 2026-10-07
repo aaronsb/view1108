@@ -35,8 +35,9 @@ C              vview.f (camera target and external view),
 C              pen.f (projection, clipping, visibility, vectors),
 C              vmask.f (the outside cut to the cabin's windows),
 C              vtext.f (text records), vmath.f (vectors, matrices),
-C              models.f (spacecraft model library), vdeck.f and
-C              vdkscn.f (the card reader: run decks into the tables)
+C              models.f (spacecraft model library), vdeck.f, vdkscn.f,
+C              vdkfld.f, vdksum.f (the card reader: run decks into the
+C              tables)
 C       Layers, one per drawable, all called as
 C              LAYER(GET, VB, NV, SB, NS, LB, NL) by LAYERS:
 C              lframe.f 1 plot frame, lstars.f 2 stars, lsun.f 3 Sun,
@@ -94,8 +95,18 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         INITD = 1
       END IF
 C     RESTOMOD END
+C     No situation (a deck the card reader refused, vdeck.f): nothing
+C     selected, all defaults 0, and VFRAME draws an empty frame.
+      IF (NSIT .GE. 1) GO TO 5
+      ISCN = 0
+      GET = 0.0D0
+      YAW = 0.0D0
+      PIT = 0.0D0
+      ROL = 0.0D0
+      FOV = 0.0D0
+      RETURN
 C     The situation (its SITUATION card) and its scenario.
-      ISCN = ISC
+    5 ISCN = ISC
       IF (ISCN .LT. 1 .OR. ISCN .GT. NSIT) ISCN = 1
       CALL SITSET(ISCN)
       IF (SISN(ISCN) .NE. ISN) CALL SNSET(SISN(ISCN))
@@ -224,6 +235,7 @@ C=======================================================================
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
+      INCLUDE 'viewsit.inc'
 C     RESTOMOD END
       DOUBLE PRECISION GET, YAW, PIT, ROL, FOV
       INTEGER IFLAG, NV, NS, NL
@@ -246,7 +258,11 @@ C     RESTOMOD END
       DO 10 I = 1, 24
         HD(I) = 0.0D0
    10 CONTINUE
-      IFLG = IFLAG
+      IF (ISCN .GE. 1) GO TO 12
+      NT = 0
+      NCH = 0
+      RETURN
+   12 IFLG = IFLAG
 C     Label level (VSETIN).  With in_lablv 0, in_flags bit 0 means all
 C     labels, as before; with 1 or more the level decides and bit 0
 C     is set here, so the names are lettered (TXALL).

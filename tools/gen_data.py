@@ -245,9 +245,29 @@ class Num(float):
         return Num(-float(self), self.lit[1:] if self.lit.startswith("-") else "-" + self.lit)
 
 
+# A card's number and g.e.t., the grammar the kernel's card reader takes (src/vdeck.f DKNMS,
+# DKGTS): one sign, digits with one point at most, an E exponent; h:mm or h:mm:ss.s with one
+# leading - at most.  15 significant digits at most and a power of ten within 10**22, so the
+# reader's integer-and-one-scale read is exact.
+NUM_RE = re.compile(r"([+-]?)(\d+\.?\d*|\.\d+)(?:[eE]([+-]?\d+))?")
+GET_RE = re.compile(r"(-?)(\d+):(\d+)(?::(\d+\.?\d*|\.\d+))?")
+
+
+def exact_digits(mant, scale, where):
+    """Check a number the reader takes exactly: its mantissa's significant digits (15 at most)
+    and its power of ten (within 10**22 unless it is zero)."""
+    digits = mant.replace(".", "").lstrip("0")
+    assert len(digits) <= 15, f"{where}: more than 15 significant digits"
+    assert not digits or abs(scale) <= 22, f"{where}: exponent out of range"
+
+
 def cnum(tok):
     """A card's decimal number (or a default, such as 0) as a Num carrying its digits."""
     tok = str(tok)
+    m = NUM_RE.fullmatch(tok)
+    assert m, f"{tok!r}: not a number (one sign, digits, one point, an E exponent)"
+    frac = len(m.group(2).split(".")[1]) if "." in m.group(2) else 0
+    exact_digits(m.group(2), int(m.group(3) or 0) - frac, tok)
     return Num(float(tok), dlit(tok))
 
 
@@ -268,10 +288,16 @@ def get_s(v):
     kernel does."""
     if ":" not in v:
         return cnum(v)
-    neg = v.startswith("-")
-    p = v.lstrip("-").split(":")
-    d = decimal.Decimal(int(p[0]) * 3600 + int(p[1]) * 60) + \
-        (decimal.Decimal(p[2]) if len(p) > 2 else decimal.Decimal(0))
+    g = GET_RE.fullmatch(v)
+    assert g, f"{v!r}: not a g.e.t. (h:mm or h:mm:ss.s, one leading - at most)"
+    neg = g.group(1) == "-"
+    for f in g.group(2, 3, 4):
+        exact_digits(f or "", 0, v)
+    ss = g.group(4) or "0"
+    frac = len(ss.split(".")[1]) if "." in ss else 0
+    total = (int(g.group(2)) * 3600 + int(g.group(3)) * 60) * 10 ** frac + int(ss.replace(".", "") or 0)
+    assert total < 9 * 10 ** 15, f"{v!r}: more digits than the reader holds exactly"
+    d = decimal.Decimal(int(g.group(2)) * 3600 + int(g.group(3)) * 60) + decimal.Decimal(ss)
     txt = format(d, "f")
     return Num(-float(d), dlit("-" + txt)) if neg else Num(float(d), dlit(txt))
 
@@ -301,12 +327,17 @@ MISSION_CARDS = {"MISSION", "EPOCH", "SITE", "PAD"}
 
 def cards(path):
     """One deck's cards as (kind, keys), comment and blank lines skipped, ending with ("*END", {}).
-    Unknown cards and keys are dropped with a warning."""
+    Unknown cards and keys are dropped with a warning.  Tokens as the card reader splits them
+    (src/vdeck.f DKTOK): blanks outside double or single quotes, no escapes; 1024 codes a card."""
     name = path.relative_to(D)
     for ln in path.read_text().splitlines():
         if not ln.strip() or ln.startswith("*"):
             continue
-        tok = shlex.split(ln)
+        assert len(ln.encode()) <= 1024, f"{name}: a card longer than 1024 codes"
+        lex = shlex.shlex(ln, posix=True)
+        lex.whitespace_split, lex.escape, lex.commenters = True, "", ""
+        tok = list(lex)
+        assert all("=" in t for t in tok[1:]), f"{name}: {tok[0]} card: a word without ="
         kind, kv = tok[0], dict(t.split("=", 1) for t in tok[1:])
         if kind not in CARD_KEYS:
             print(f"warning: {name}: unknown card {kind}, ignored")
@@ -322,10 +353,14 @@ def mission(path):
     landing site, launch pad, and each card's source, shared by the mission's scenarios."""
     m = {"name": None, "jd": None, "site": (0.0, 0.0, 0.0), "sitename": "",
          "pad": ("", 0.0, 0.0, 0), "src": []}
+    where = path.relative_to(D)
     for kind, kv in cards(path):
         if kind == "*END":
             break
-        assert kind in MISSION_CARDS, f"{path.relative_to(D)}: {kind} card belongs in a scenario"
+        assert kind in MISSION_CARDS, f"{where}: {kind} card belongs in a scenario"
+        assert (kind == "MISSION") == (m["name"] is None), f"{where}: one MISSION card, first"
+        for k in ("NAME",) if kind in ("SITE", "PAD") and "NAME" in kv else ():
+            assert all(32 <= ord(c) <= 126 for c in kv[k]), f"{where}: {kind} NAME: plain ASCII"
         if kind == "MISSION":
             m["name"] = kv["NAME"]
         elif kind == "EPOCH":
@@ -530,7 +565,7 @@ def get_rule(txt, evkinds):
     """GET= of a SITUATION card: a g.e.t. (literal), EVENT+offset or EVENT-offset (an EVENT card
     of the scenario), or a named rule (GET_RULES) with an offset.  Returns (kind, event code,
     seconds): kind 1 literal, 2 event, 3 Earthrise (ERFIND)."""
-    m = re.fullmatch(r"([A-Z][A-Z0-9]*)(?:([+-])(.+))?", txt)
+    m = re.fullmatch(r"([A-Z][A-Z0-9]*)(?:([+-])([^+-].*))?", txt)
     if not m:
         return 1, 0, get_s(txt)
     off = get_s(m.group(3)) if m.group(3) else 0.0
@@ -562,6 +597,7 @@ def situations(mis, evs, sits):
         assert gk != 2 or ge in evk, f"{where}: GET={kv['GET']}: the scenario has no such EVENT"
         r["get"] = (gk, ge, flit(gt))
         fov = kv["FOV"]
+        assert fov.count(":") <= 1, f"{where}: FOV={fov}"
         r["fov"] = (2, dlit(fov.split(":")[1])) if fov.startswith("DISC:") else (1, dlit(fov))
         look = kv.get("LOOK", "0,0,0").split(",")
         assert len(look) == 3, f"{where}: LOOK=yaw,pitch,roll"
@@ -1088,6 +1124,9 @@ def write_vocab():
     for nm, _, table, pre in lists:
         if pre:
             consts += [(pre + w.replace("-", "")[:5], v) for w, v in table.items()]
+    keys = lists[1][2]
+    cardid = lists[0][2]
+    kycard = [sum(2 ** (cardid[c] - 1) for c, ks in CARD_KEYS.items() if k in ks) for k in keys]
     allnames = names + [c for c, _ in consts]
     assert len(set(allnames)) == len(allnames), "vocabulary PARAMETER names collide"
     inc = ["C     Generated by tools/gen_data.py from its card tables.  Do not edit.",
@@ -1096,7 +1135,9 @@ def write_vocab():
            "C     VOCLST, and the codes of the card kinds (Q...) and keys (Y...).",
            "      INTEGER NVOCC, NVOCW, NVOCL",
            "C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77 (1978)",
-           f"      PARAMETER (NVOCC={len(codes)}, NVOCW={len(start)}, NVOCL={len(lists)})"]
+           f"      PARAMETER (NVOCC={len(codes)}, NVOCW={len(start)}, NVOCL={len(lists)})",
+           "      INTEGER NVOCK",
+           f"      PARAMETER (NVOCK={len(keys)})"]
     for i in range(0, len(names), 5):
         part = names[i:i + 5]
         inc += ["      INTEGER " + ", ".join(part),
@@ -1107,8 +1148,9 @@ def write_vocab():
                 "      PARAMETER (" + ", ".join(f"{c}={v}" for c, v in part) + ")"]
     inc += ["C     RESTOMOD END",
             "      INTEGER VOCC(NVOCC), VOCS(NVOCW), VOCN(NVOCW), VOCV(NVOCW)",
-            "      INTEGER VOCLST(NVOCL+1)",
-            "      COMMON /CDVOC/ VOCC, VOCS, VOCN, VOCV, VOCLST"]
+            "C     KYCARD(K): the card kinds that take key K, bit Q-1 for kind Q.",
+            "      INTEGER VOCLST(NVOCL+1), KYCARD(NVOCK)",
+            "      COMMON /CDVOC/ VOCC, VOCS, VOCN, VOCV, VOCLST, KYCARD"]
     for ln in inc:
         assert len(ln) <= 72, ln
     (R / "src" / "vdvoc.inc").write_text("\n".join(inc) + "\n")
@@ -1122,8 +1164,8 @@ def write_vocab():
          "      INTEGER IVD"]
     body = "\n".join(b) + "\n"
     for arr, vals in (("VOCC", codes), ("VOCS", start), ("VOCN", length), ("VOCV", value),
-                      ("VOCLST", lstart)):
-        body += fdata(arr, vals, "%d", 10, iv="IVD")
+                      ("VOCLST", lstart), ("KYCARD", kycard)):
+        body += fdata(arr, vals, "%d", 6 if arr == "KYCARD" else 10, iv="IVD")
     body += "      END\nC     RESTOMOD END\n"
     for ln in body.splitlines():
         assert len(ln) <= 72, ln

@@ -15,8 +15,8 @@
 ! doubles as hex bit patterns) to stdout instead and stops.
 ! With VIEW_DECK set to deck paths separated by colons, the kernel's
 ! card reader (src/vdeck.f) loads them, in that order, over the BLOCK
-! DATA tables first; a deck error is printed to stderr and stops the
-! run (exit 2).  With VIEW_DKSUM set, prints the run tables' hash
+! DATA tables first; a deck error is printed to stderr with its file
+! and line and stops the run (exit 2).  With VIEW_DKSUM set, prints the run tables' hash
 ! total (CRDSUM, four numbers) to stdout and stops.
 program viewsvg
   implicit none
@@ -54,6 +54,8 @@ program viewsvg
     subroutine crdin(ic, nc)
       integer :: ic(1024), nc
     end subroutine crdin
+    subroutine crdeof()
+    end subroutine crdeof
     subroutine crdend(ierr, icard, nwarn)
       integer :: ierr, icard, nwarn
     end subroutine crdend
@@ -178,12 +180,16 @@ program viewsvg
 contains
 
   ! The decks named in list (paths separated by colons) through the card
-  ! reader, one line a card.
+  ! reader, one line a card, each file ended with crdeof.  A deck error's
+  ! card number (counted across the files) is told as file:line.
   subroutine loaddk(list)
     character(len=*), intent(in) :: list
-    character(len=2048) :: line
-    integer :: ic(1024), i0, i1, u, ios, n, k, ierr, icard, nwarn
+    character(len=4096) :: line
+    integer :: ic(1024), i0, i1, u, ios, n, k, ierr, icard, nwarn, ncard, nf
+    integer :: fend(64), fs(64), fe(64)
     call crdopn()
+    ncard = 0
+    nf = 0
     i0 = 1
     do while (i0 <= len(list))
       i1 = index(list(i0:), ':')
@@ -193,25 +199,41 @@ contains
         i1 = i0 + i1 - 1
       end if
       open (newunit=u, file=list(i0:i1 - 1), status='old', action='read', iostat=ios)
-      if (ios /= 0) then
+      if (ios /= 0 .or. nf == 64) then
         write (0, '(a,a)') 'VIEW_DECK: cannot open ', list(i0:i1 - 1)
         stop 2
       end if
       do
         read (u, '(a)', iostat=ios) line
-        if (ios /= 0) exit
+        if (ios < 0) exit
         n = len_trim(line)
+        if (ios > 0 .or. n == len(line)) then
+          write (0, '(a,a,a,i0)') 'VIEW_DECK: cannot read ', list(i0:i1 - 1), ' after line ', &
+            ncard - merge(fend(nf), 0, nf > 0)
+          stop 2
+        end if
         do k = 1, min(n, 1024)
           ic(k) = iachar(line(k:k))
         end do
         call crdin(ic, n)
+        ncard = ncard + 1
       end do
       close (u)
+      call crdeof()
+      nf = nf + 1
+      fend(nf) = ncard
+      fs(nf) = i0
+      fe(nf) = i1 - 1
       i0 = i1 + 1
     end do
     call crdend(ierr, icard, nwarn)
     if (ierr /= 0) then
-      write (0, '(a,i2.2,a,i0)') 'DECK ERROR ', ierr, ' CARD ', icard
+      do k = 1, nf
+        if (icard <= fend(k)) exit
+      end do
+      k = min(k, nf)
+      write (0, '(a,i2.2,a,a,a,i0)') 'DECK ERROR ', ierr, ' AT ', list(fs(k):fe(k)), ':', &
+        icard - merge(fend(k - 1), 0, k > 1)
       stop 2
     end if
   end subroutine loaddk

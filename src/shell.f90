@@ -4,7 +4,7 @@
 !
 ! Exports (see CLAUDE.md, "Interface contract"):
 !   view_init(scene), view_frame(), sim_run(flags)
-!   deck_open(), deck_card(n), deck_close(), deck_sum()
+!   deck_open(), deck_card(n), deck_file(), deck_close(), deck_sum()
 !   in_get, in_yaw, in_pitch, in_roll, in_fov, in_flags, in_src,
 !   in_view, in_target, in_lablv, in_card
 !   out_terise, out_dkerr, out_dkcrd, out_dkwrn, out_dksum (read-only)
@@ -81,6 +81,8 @@ module view_shell
     subroutine crdin(ic, nc)
       integer :: ic(1024), nc
     end subroutine crdin
+    subroutine crdeof()
+    end subroutine crdeof
     subroutine crdend(ierr, icard, nwarn)
       integer :: ierr, icard, nwarn
     end subroutine crdend
@@ -144,8 +146,9 @@ contains
   end subroutine sim_run
 
   ! The card reader: deck_open() empties the run tables, deck_card(n)
-  ! reads the n codes in in_card as one card, deck_close() ends the deck
-  ! and sets out_dkerr, out_dkcrd, out_dkwrn.  Then view_init as usual.
+  ! reads the n codes in in_card as one card, deck_file() ends each
+  ! file of the deck, deck_close() ends the deck and sets out_dkerr,
+  ! out_dkcrd, out_dkwrn.  Then view_init, after a deck with no error.
   subroutine deck_open() bind(c, name="deck_open")
     call crdopn()
   end subroutine deck_open
@@ -156,6 +159,10 @@ contains
     nc = n
     call crdin(in_card, nc)
   end subroutine deck_card
+
+  subroutine deck_file() bind(c, name="deck_file")
+    call crdeof()
+  end subroutine deck_file
 
   subroutine deck_close() bind(c, name="deck_close")
     integer :: ierr, icard, nwarn

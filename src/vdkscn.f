@@ -5,9 +5,11 @@ C     src/viewsit.inc); the defaults and orderings are the ones
 C     tools/gen_data.py has written there, so a deck read here fills
 C     the tables word for word as BLOCK DATA does.
 C
-C     DKCARD: the card in hand (KCRD) to its routine.  The mission's
-C     cards come before its scenarios', a scenario's after its SCENARIO
-C     card; SPAN, REEL and SHOT are the page's and are passed over.
+C     DKCARD: the card in hand (KCRD) to its routine.  A mission's
+C     cards come first, MISSION once and then EPOCH (SITE and PAD
+C     anywhere among them), before its scenarios; a scenario's cards
+C     after its SCENARIO card.  SPAN, REEL and SHOT are the page's and
+C     are passed over.
       SUBROUTINE DKCARD
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -19,12 +21,16 @@ C     RESTOMOD END
       IF (KCRD .EQ. QSPAN .OR. KCRD .EQ. QREEL .OR. KCRD .EQ. QSHOT)
      &  RETURN
       IF (KCRD .NE. QMISSI) GO TO 10
+      IF (IMHV .EQ. 1 .OR. IMHV .EQ. 2) GO TO 91
       CALL DKMSN
+      IMHV = 1
       RETURN
    10 IF (KCRD .NE. QEPOCH .AND. KCRD .NE. QSITE .AND.
      &    KCRD .NE. QPAD) GO TO 20
       IF (IDSN .NE. 0) GO TO 90
+      IF (IMHV .NE. 1 .AND. IMHV .NE. 2) GO TO 91
       IF (KCRD .EQ. QEPOCH) CALL DKNUM(YJD, MJD)
+      IF (KCRD .EQ. QEPOCH) IMHV = 2
       IF (KCRD .EQ. QSITE) CALL DKSITE
       IF (KCRD .EQ. QPAD) CALL DKPAD
       RETURN
@@ -47,10 +53,13 @@ C     RESTOMOD END
       RETURN
    90 CALL DKERR(6)
       RETURN
+   91 CALL DKERR(25)
+      RETURN
       END
 C
 C     DKMSN: a MISSION card starts a mission: no scenario in hand, and
-C     its epoch, landing site and pad zero until its cards give them.
+C     its epoch, landing site and pad zero until its cards give them
+C     (IMHV, the mission's state, is the caller's).
       SUBROUTINE DKMSN
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -76,7 +85,8 @@ C     RESTOMOD END
       END
 C
 C     DKSITE: SITE LAT= LON= AZ= (deg) and NAME=, the name lettered in
-C     the whole-disc Moon view (SITECH, 22 codes, zero padded).
+C     the whole-disc Moon view (SITECH, 22 codes, zero padded): one for
+C     the deck, so a second, different name is refused.
       SUBROUTINE DKSITE
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -85,19 +95,46 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'vdvoc.inc'
       INCLUDE 'vdeck.inc'
 C     RESTOMOD END
-      INTEGER J, I
+      INTEGER J, I, IW(22), DKNMOK
       CALL DKNUM(YLAT, MSIT(1))
       CALL DKNUM(YLON, MSIT(2))
       CALL DKNUM(YAZ, MSIT(3))
       J = KSLT(YNAME)
       IF (J .EQ. 0) RETURN
-      IF (TVL(J) .LE. 22) GO TO 5
-      CALL DKERR(23)
-      RETURN
-    5 DO 10 I = 1, 22
-        SITECH(I) = 0
-        IF (I .LE. TVL(J)) SITECH(I) = ITKB(TVS(J)+I-1)
+      IF (DKNMOK(J, 22) .EQ. 0) RETURN
+      DO 10 I = 1, 22
+        IW(I) = 0
+        IF (I .LE. TVL(J)) IW(I) = ITKB(TVS(J)+I-1)
+        IF (SITECH(1) .NE. 0 .AND. IW(I) .NE. SITECH(I)) GO TO 90
    10 CONTINUE
+      DO 20 I = 1, 22
+        SITECH(I) = IW(I)
+   20 CONTINUE
+      RETURN
+   90 CALL DKERR(23)
+      RETURN
+      END
+C
+C     DKNMOK: 1 if token J's value is a name of MX codes at most, each
+C     a printable ASCII character, else deck error 23 and 0.
+      INTEGER FUNCTION DKNMOK(J, MX)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+      INCLUDE 'viewsit.inc'
+      INCLUDE 'vdvoc.inc'
+      INCLUDE 'vdeck.inc'
+C     RESTOMOD END
+      INTEGER J, MX, I
+      DKNMOK = 0
+      IF (TVL(J) .GT. MX) GO TO 90
+      IF (TVL(J) .EQ. 0) GO TO 20
+      DO 10 I = TVS(J), TVS(J) + TVL(J) - 1
+        IF (ITKB(I) .LT. ICBLK .OR. ITKB(I) .GT. ICTIL) GO TO 90
+   10 CONTINUE
+   20 DKNMOK = 1
+      RETURN
+   90 CALL DKERR(23)
       RETURN
       END
 C
@@ -110,16 +147,14 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'vdvoc.inc'
       INCLUDE 'vdeck.inc'
 C     RESTOMOD END
-      INTEGER J, I, DKREQ, DKWRD
+      INTEGER J, I, DKREQ, DKWRD, DKNMOK
       CALL DKNUM(YLAT, MPAD(1))
       CALL DKNUM(YLON, MPAD(2))
       MPGC = DKWRD(VLATT, YLATTY, 0)
       J = DKREQ(YNAME)
       IF (J .EQ. 0) RETURN
-      IF (TVL(J) .LE. 7) GO TO 5
-      CALL DKERR(23)
-      RETURN
-    5 DO 10 I = 1, 8
+      IF (DKNMOK(J, 7) .EQ. 0) RETURN
+      DO 10 I = 1, 8
         MPCH(I) = 0
         IF (I .LE. TVL(J)) MPCH(I) = ITKB(TVS(J)+I-1)
    10 CONTINUE
@@ -127,7 +162,8 @@ C     RESTOMOD END
       END
 C
 C     DKSCN: SCENARIO ID=, the row of /CSCEN/ it fills with the
-C     mission's epoch, site and pad.
+C     mission's epoch, site and pad; the mission's MISSION and EPOCH
+C     cards come first (deck error 25).
       SUBROUTINE DKSCN
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -139,6 +175,10 @@ C     RESTOMOD END
       INTEGER K, I, DKINT
       IDSN = 0
       IDST = 0
+      IF (IMHV .GE. 2) GO TO 2
+      CALL DKERR(25)
+      RETURN
+    2 IMHV = 3
       K = DKINT(YID, -1)
       IF (IDKER .NE. 0) RETURN
       IF (K .GE. 1 .AND. K .LE. MXSN) GO TO 5
@@ -412,6 +452,7 @@ C     RESTOMOD END
       Q = NCQ + 1
       NCQ = Q
       CQSN(Q) = IDSN
+      CQCD(Q) = NDKCD
       CQVH(Q) = DKWRD(VBVEH, YVEH, -1)
       CQEN(Q) = DKWRD(VBENG, YENG, -1)
       CALL DKTXT(J1, CQCH, MXCQC, NCQC, CQIS(Q), CQIL(Q))
@@ -424,7 +465,7 @@ C     opens situation row ID of the scenario in hand; its RECIPE, VIEWS
 C     and (optional) HDRREF cards follow in that order.  GET: a g.e.t.
 C     (SIGK 1, SIGT), EVENT+-offset (2, SIGE the event, SIGT the
 C     offset) or a rule+-offset (VGRUL: 3 the Earthrise search).  FOV:
-C     degrees (SIFK 1) or DISC:f (2).
+C     degrees (SIFK 1) or DISC:f (2).  A layer named twice is refused.
       SUBROUTINE DKSIT
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -433,7 +474,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'vdvoc.inc'
       INCLUDE 'vdeck.inc'
 C     RESTOMOD END
-      INTEGER K, J, I, N, IW(12), DKINT, DKREQ, DKWRD, DKWSP
+      INTEGER K, J, I, L, N, IW(12), DKINT, DKREQ, DKWRD, DKWSP
       IDST = 0
       K = DKINT(YID, -1)
       IF (IDKER .NE. 0) RETURN
@@ -445,6 +486,7 @@ C     RESTOMOD END
       RETURN
    10 CALL DKSIZ(K)
       ISTHV(K) = 1
+      STCD(K) = NDKCD
       IDST = K
       SISN(K) = IDSN
       J = DKREQ(YGET)
@@ -464,11 +506,19 @@ C     RESTOMOD END
       IF (J .GT. 0) CALL DKNLS(J, 3, SILK(1,K))
       SIWN(K) = DKWRD(VWIN, YWINDO, -1)
       J = DKREQ(YLAYER)
-      IF (J .GT. 0) CALL DKWLS(J, VLAYR, 12, SILY(1,K), N)
-      SIPS(K) = DKWRD(VPOSE, YPOSE, 0)
+      IF (J .EQ. 0) GO TO 28
+      CALL DKWLS(J, VLAYR, 12, SILY(1,K), N)
+      IF (N .LT. 2) GO TO 28
+      DO 27 I = 2, N
+        DO 26 L = 1, I - 1
+          IF (SILY(L,K) .EQ. SILY(I,K)) CALL DKERR(22)
+   26   CONTINUE
+   27 CONTINUE
+   28 SIPS(K) = DKWRD(VPOSE, YPOSE, 0)
       J = KSLT(YDRAW)
       IF (J .EQ. 0) RETURN
       CALL DKWLS(J, VDRAW, 12, IW, N)
+      IF (N .EQ. 0) RETURN
       DO 30 I = 1, N
         SIDW(K) = SIDW(K) + IW(I)
    30 CONTINUE
@@ -492,15 +542,15 @@ C     RESTOMOD END
       T = 0.0D0
       IE = IS + N - 1
       C = ITKB(IS)
-      IF (N .GT. 0 .AND. C .GE. 65 .AND. C .LE. 90) GO TO 10
+      IF (N .GT. 0 .AND. C .GE. ICUA .AND. C .LE. ICUZ) GO TO 10
       CALL DKGTS(IS, N, T)
       RETURN
 C     A word (letters, then letters or digits), then +- an offset.
    10 I = IS + 1
    15 IF (I .GT. IE) GO TO 20
       C = ITKB(I)
-      IF ((C .GE. 65 .AND. C .LE. 90) .OR. (C .GE. 48 .AND. C .LE. 57))
-     &  GO TO 18
+      IF ((C .GE. ICUA .AND. C .LE. ICUZ) .OR.
+     &    (C .GE. ICD0 .AND. C .LE. ICD9)) GO TO 18
       GO TO 20
    18 I = I + 1
       GO TO 15
@@ -512,11 +562,14 @@ C     A word (letters, then letters or digits), then +- an offset.
       IF (W .EQ. 0) GO TO 90
       KG = 2
       KE = VOCV(W)
+C     One sign: the offset itself takes none.
    30 IF (I .GT. IE) RETURN
       C = ITKB(I)
-      IF (C .NE. 43 .AND. C .NE. 45) GO TO 91
+      IF (C .NE. ICPLS .AND. C .NE. ICMIN) GO TO 91
+      IF (I .EQ. IE) GO TO 91
+      IF (ITKB(I+1) .EQ. ICPLS .OR. ITKB(I+1) .EQ. ICMIN) GO TO 91
       CALL DKGTS(I + 1, IE - I, T)
-      IF (C .EQ. 45) T = -T
+      IF (C .EQ. ICMIN) T = -T
       RETURN
    90 CALL DKERR(4)
       RETURN

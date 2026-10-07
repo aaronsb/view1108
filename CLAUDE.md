@@ -57,7 +57,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Core | `ephem.f` | time, Sun, Moon, Moon orientation |
 | Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon, `LEGRV` one leg), events (`EVGET`), the LM's and the S-IVB's state rules (`LMSTAT`, `SIVST`), the LM descent, the Earthrise search |
 | Core | `sim.f` | the engine: flies the CSM from the scenario's START through its score (BURN cards), with state vector updates at its REF rows (optional), and writes the tape (`SIMRUN`) |
-| Core | `vdeck.f`, `vdkscn.f` | the card reader (#26): `CRDOPN`, `CRDIN` (one card image), `CRDEND` read a run deck into the run tables BLOCK DATA fills today, word for word (numbers exact: an integer mantissa and one power of ten); `CRDSUM` a hash total of them. `vdkscn.f` is what each card writes. Not yet the page's path: it loads BLOCK DATA |
+| Core | `vdeck.f`, `vdkscn.f`, `vdkfld.f`, `vdksum.f` | the card reader (#26): `CRDOPN`, `CRDIN` (one card image), `CRDEOF` (a file's end), `CRDEND` read a run deck into the run tables BLOCK DATA fills today, word for word (numbers exact: an integer mantissa and one power of ten), and refuse a deck the kernel could not draw (numbered deck errors, listed in `vdeck.f`); `vdkscn.f` is what each card writes, `vdkfld.f` the field readers, `vdksum.f` `CRDSUM`, a hash total of the tables. `gen_data.py` reads the same grammar and still checks the rest (each recipe's keys, poses). Not yet the page's path: it loads BLOCK DATA |
 | Core | `tape.f` | the tape: time-tagged states, 4 vehicle channels, event marks; cubic Hermite reads (`TPGET`) |
 | Core | `vview.f` | camera pointing: the target and the external view (`VIEWPT`), applied after the scene's camera and models |
 | Core | `vsrc.f` | the state source: the one entry point (`VSTATE(GET, IVEH, IBODY, R, V, IOK)`) scenes use for the CSM's state (`CSMST`: replay or tape), the LM's (`LMSTAT`) and the S-IVB's (`SIVST`), `IVEH` 1, 2, 3; `IOK` 0 none, 1 its own, 2 docked or with the CSM. `LMSTAT` and `SIVST` read the CSM through `CSMST`, not `VSTATE` (no recursion) |
@@ -143,12 +143,14 @@ Entry points:
 - `view_init(scene)` (int32 by value) — selects a scene and writes its default inputs
   (`in_get`, `in_yaw`, `in_pitch`, `in_roll`, `in_fov`) so the page can read them back.
 - `view_frame()` — computes geometry at the current inputs and fills the output buffers.
-- `deck_open()`, `deck_card(n)` (int32 by value), `deck_close()`, `deck_sum()` — the card reader
-  (`src/vdeck.f`): `deck_open` empties the run tables, `deck_card(n)` reads the `n` character
-  codes in `in_card` (int32 × 1024) as one card (a `*` in column 1 or a blank card is a comment),
-  `deck_close` ends the deck and sets `out_dkerr` (the first deck error, 0 none; the codes are in
-  `vdeck.f`'s header), `out_dkcrd` (its card number) and `out_dkwrn` (cards and keys skipped). A
-  deck with an error leaves the tables empty. Then `view_init` as usual. `deck_sum` puts the
+- `deck_open()`, `deck_card(n)` (int32 by value), `deck_file()`, `deck_close()`, `deck_sum()` — the
+  card reader (`src/vdeck.f`): `deck_open` empties the run tables, `deck_card(n)` reads the `n`
+  character codes in `in_card` (int32 × 1024) as one card (a `*` in column 1 or a blank card is a
+  comment), `deck_file` ends each file of the deck (its TABLE leg and its scenario), `deck_close`
+  ends the deck and sets `out_dkerr` (the first deck error, 0 none; the codes are in `vdeck.f`'s
+  header), `out_dkcrd` (its card number, counted over the deck) and `out_dkwrn` (cards and keys
+  skipped). A deck with an error leaves the run tables empty: `view_init` then selects nothing
+  and `view_frame` draws an empty frame, so call `view_init` after a deck with no error. `deck_sum` puts the
   run tables' hash total in `out_dksum` (int32 × 4). The selftest and `tools/golden.sh` load
   `build/decks.txt`'s decks and require the tables BLOCK DATA gives; the page does not call these
   yet (#26 slice 5).
