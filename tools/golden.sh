@@ -12,13 +12,15 @@
 #   scenes.json                byte for byte (the scene list make check and the selftest read)
 #   names.js                   byte for byte, plus names.pretty.json (the same JSON, indented) so a
 #                              difference shows as readable lines
+#   page/<reel id>.json        byte for byte: each scenario reel's page.json (its situations, SPAN
+#                              tables and timeline; tools/gen_data.py, packed by tools/pack.py)
 #   tables.txt                 the run tables as data: build/viewsvg with VIEW_DUMP=1 (tools/vdump.f),
 #                              after its card reader (src/vdeck.f) has loaded build/decks.txt's decks,
 #                              writes their counts and every scenario-specific table's used entries (legs and
 #                              the TABLE legs from ROW cards, events, timeline, START, REF and BURN
 #                              rows, burn cues, situations, the scenarios' epoch, site and pad), each
 #                              double as its bit pattern in hex, so a changed value shows as data and
-#                              not only through a render.  The page's SPAN tables are in names.js.
+#                              not only through a render.  The page's SPAN tables are in page/.
 #   render/*.txt               build/viewsvg's SVG on stdout and hdr(1..24) on stderr (VIEW_HDR) for
 #                              every case in CASES, the decks loaded the same way
 #
@@ -37,7 +39,7 @@
 # location are dropped: a path or file name under data/ or tools/, a *.scn or *.py name, or the name
 # of tools/gen_data.py's BURN_CUES table.  These lines say where the tables came from, which a
 # data move changes by design; every other line, comments carrying card sources included, must
-# match.  names.js has no such strings and is compared unmasked.  The number of masked lines per
+# match.  names.js and page/ have no such strings and are compared unmasked.  The number of masked lines per
 # file is recorded (masked.txt) and compared, so the mask cannot quietly swallow new lines.  The
 # commit and whether the tree was dirty are recorded too (source.txt; printed by check, not compared).
 set -euo pipefail
@@ -269,6 +271,7 @@ capture() {
   fi
   cp build/names.js "$out/names.js"
   cp build/scenes.json "$out/scenes.json"
+  cp -r build/page "$out/page"
   python3 -c 'import json,sys; t=open(sys.argv[1]).read(); j=json.loads(t[t.index("=")+1:].rstrip().rstrip(";")); print(json.dumps(j, indent=1))' \
     build/names.js > "$out/names.pretty.json"
   local n=0 name envs args
@@ -280,7 +283,7 @@ capture() {
       build/viewsvg $args > "$out/render/$name.txt" 2>&1
     n=$((n + 1))
   done <<< "$CASES"
-  echo "golden: captured 6 tables, the run-table dump ($(wc -l < "$out/tables.txt") entries) and $n renders into $out"
+  echo "golden: captured 6 tables, $(ls "$out/page" | wc -l) page.json, the run-table dump ($(wc -l < "$out/tables.txt") entries) and $n renders into $out"
   roundtrip
 }
 

@@ -3,7 +3,9 @@
 
 A reel is one .tar.gz (build/reels/<id>.reel.tar.gz, <id> = <mission folder>-<scenario file stem>),
 its members in this order: manifest.json, the mission's mission.scn, the scenario's .scn, each copied
-byte for byte (the kernel's card reader reads them, src/vdeck.f; tools/gen_data.py checks them). The
+byte for byte (the kernel's card reader reads them, src/vdeck.f; tools/gen_data.py checks them), and
+page.json, the page's data for the scenario (its situations, its mission, range zero and SPAN cards, its
+timeline; #26 slice 7d), which tools/gen_data.py writes as build/page/<id>.json and this copies. The
 manifest names the kernel build the reel is for, by the SHA-256 of build/view.opt.wasm, and never
 carries code (#26, 2026-10-06 decision). Packages are reproducible: USTAR members with mtime 0,
 uid/gid 0, no user or group names, mode 0644, no directory entries; gzip with mtime 0 and no file
@@ -61,6 +63,7 @@ def main():
     if not wasm.is_file():
         sys.exit("pack.py: no build/view.opt.wasm (tools/build.sh builds it first)")
     kernel = {"id": "core", "sha256": hashlib.sha256(wasm.read_bytes()).hexdigest()}
+    pdir = R / "build" / "page"
     rdir = out / "reels"
     if rdir.exists():
         shutil.rmtree(rdir)
@@ -78,13 +81,17 @@ def main():
             if len(sfile.name) > 100:
                 sys.exit(f"pack.py: {sfile}: a file name longer than 100 characters (USTAR)")
             stext = sfile.read_bytes()
+            pfile = pdir / f"{rid}.json"
+            if not pfile.is_file():
+                sys.exit(f"pack.py: no {pfile.relative_to(R)} (tools/gen_data.py writes it first)")
             title = f"{mname} {card_name(stext.decode('utf-8'), 'SCENARIO')}"
             manifest = {"format": FORMAT, "id": rid, "kind": "scenario", "title": title,
                         "mission": {"id": mdir.name, "name": mname}, "kernel": kernel,
                         "contents": [{"path": "mission.scn", "type": "scn"},
-                                     {"path": sfile.name, "type": "scn"}]}
+                                     {"path": sfile.name, "type": "scn"},
+                                     {"path": "page.json", "type": "page"}]}
             members = [("manifest.json", (json.dumps(manifest, indent=1) + "\n").encode()),
-                       ("mission.scn", mtext), (sfile.name, stext)]
+                       ("mission.scn", mtext), (sfile.name, stext), ("page.json", pfile.read_bytes())]
             pkg = tar_gz(members)
             (rdir / f"{rid}.reel.tar.gz").write_bytes(pkg)
             (rdir / rid).mkdir()
