@@ -12,7 +12,7 @@ C     ENTRY POINTS (called by the chassis, shell.f90; also SIMRUN in
 C     sim.f, which runs the engine and fills the tape)
 C       VINIT  (ISC, GET, YAW, PIT, ROL, FOV)
 C              select situation ISC (the scene number; its SITUATION
-C              card, BLOCK DATA VIEWSB) and return its default inputs.
+C              card, read by the card reader) and return its defaults.
 C       VFRAME (GET, YAW, PIT, ROL, FOV, IFLAG,
 C               VB, NV, SB, NS, LB, NL, HD, TB, NT, TC, NCH)
 C              draw one frame.  VB(5,MAXV) line vectors X1 Y1 X2 Y2
@@ -46,10 +46,10 @@ C              extras), learth.f 5 Earth, lvehic.f 6 vehicles
 C              (lvlab.f their labels and markers),
 C              lcoas.f 7 COAS reticle, lshad.f 8 LM shadow,
 C              llpd.f 9 LPD and LM window, lburn.f 10 burn cue
-C       Data:  viewdata.f (BLOCK DATA, generated), viewsit.f (the
-C              situations' BLOCK DATA, generated from the SITUATION
-C              cards), vdvoc.f (the card reader's words, generated),
-C              viewcom.inc COMMON
+C       Data:  viewdata.f (BLOCK DATA, the catalogs, generated),
+C              vdvoc.f (the card reader's words, generated), the run
+C              decks (data/missions, read at load), viewcom.inc and
+C              viewsit.inc COMMON
 C
 C     THE ELEMENTS AGAINST TN D-6853, printed p. 3 (our reading).  "The
 C     program consists of two basic parts: the integrator portion and
@@ -184,8 +184,9 @@ C     to 0.1 deg (BODYCTR's distance).
       END
 C
 C-----------------------------------------------------------------------
-C     SITSET: copy situation K's row of the tables (viewsit.inc, BLOCK
-C     DATA VIEWSB) into the current situation, /CSITU/ (viewcom.inc).
+C     SITSET: copy situation K's row of the tables (viewsit.inc, filled
+C     by the card reader) into the current situation, /CSITU/
+C     (viewcom.inc).
 C-----------------------------------------------------------------------
       SUBROUTINE SITSET(K)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -223,7 +224,7 @@ C     RESTOMOD END
    10 CONTINUE
       QXY(1) = SIXY(1,K)
       QXY(2) = SIXY(2,K)
-      DO 20 I = 1, 12
+      DO 20 I = 1, MXLAY
         JLL(I) = SILY(I,K)
    20 CONTINUE
       RETURN

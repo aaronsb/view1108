@@ -6,7 +6,8 @@ PIDFILE = build/serve.pid
 LOGFILE = build/serve.log
 # Scene numbers, from build/scenes.json (tools/gen_data.py, the SITUATION cards); read when a recipe runs.
 SCENES  = $(shell python3 -c 'import json; print(*json.load(open("build/scenes.json"))["scenes"])')
-# Kernel elements: every fixed-form file in src/ but the generated BLOCK DATA.
+# Kernel elements: every fixed-form file in src/ but the generated BLOCK DATA (the catalogs, the
+# card reader's vocabulary).
 KSRC    = $(filter-out src/viewdata.f src/vdvoc.f,$(wildcard src/*.f))
 
 export LF_BIN

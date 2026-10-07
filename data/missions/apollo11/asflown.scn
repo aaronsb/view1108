@@ -6,10 +6,10 @@
 * One card per line.  A card starting with * is a comment.  Fields are
 * KEY=VALUE; times are g.e.t. h:mm:ss.s from this mission's range zero.
 * The mission's identity (name, range zero, landing site, launch pad) is in
-* mission.scn beside this file.  tools/gen_data.py turns every
-* data/missions/*/ (its mission.scn and scenario files) into BLOCK DATA
-* (src/viewdata.f).
-* SRC is carried into viewdata.f as a comment next to the card's data.
+* mission.scn beside this file.  The kernel's card reader (src/vdeck.f)
+* loads every data/missions/*/ (its mission.scn, then its scenario files)
+* into its run tables; tools/gen_data.py checks the same cards and builds
+* the page's copy (build/names.js).  SRC is the card's source, for readers.
 *
 * Sources:
 *   MR  Apollo 11 Mission Report, MSC-00171, November 1969.  NASA re-scan
@@ -526,10 +526,11 @@ BURNCUE IGN="Transearth injection ignition (SPS)" CUT="Transearth injection cuto
 * scene number (view_init(scene), hdr(7)): global across all decks, 1..N,
 * and kept stable; the situation runs on the scenario of the deck it sits in.
 * Each SITUATION card is followed by its RECIPE and VIEWS cards and,
-* optionally, an HDRREF card.  tools/gen_data.py writes them into
-* src/viewsit.f (BLOCK DATA VIEWSB, layout in src/viewsit.inc) and
-* build/scenes.json, and the page's copy of them into build/names.js
-* (VIEW_NAMES.SITUATIONS).  Every code below is ours.
+* optionally, an HDRREF card.  The card reader reads them into the
+* situation tables (src/vdksit.f, layout in src/viewsit.inc);
+* tools/gen_data.py checks them and writes build/scenes.json and the
+* page's copy into build/names.js (VIEW_NAMES.SITUATIONS).  Every code
+* below is ours.
 *
 *   SITUATION ID= NAME=
 *     TITLE=   the page's name for it (scene buttons, captions, the timeline);

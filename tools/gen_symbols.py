@@ -485,7 +485,8 @@ def outline(stmts):
 
 def main():
     params, cblocks, incdecl = {}, {}, {}
-    files = [parse_include(SRC / n, params, cblocks, incdecl) for n in ("viewdims.inc", "viewcom.inc")]
+    files = [parse_include(SRC / n, params, cblocks, incdecl) for n in ("viewdims.inc", "viewcom.inc", "viewsit.inc",
+                                                                         "vdvoc.inc", "vdeck.inc")]
     for b in cblocks.values():
         b["types"] = {n: incdecl.get(n) for n in b["members"]}
     kinds = file_kinds()

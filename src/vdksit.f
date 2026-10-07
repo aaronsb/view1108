@@ -1,8 +1,8 @@
 C     VDKSIT: the card reader's situation cards (#26; the reader is
 C     vdeck.f, the scenario cards vdkscn.f): SITUATION and the RECIPE,
 C     VIEWS and HDRREF cards that follow it, into the situation tables
-C     (src/viewsit.inc) as tools/gen_data.py writes them into BLOCK
-C     DATA VIEWSB.
+C     (src/viewsit.inc), as tools/gen_data.py wrote them into BLOCK
+C     DATA before the reader took over (#26).
 C
 C     DKSIT: SITUATION ID= GET= FOV= LOOK= WINDOW= LAYERS= POSE= DRAW=
 C     opens situation row ID of the scenario in hand; its RECIPE, VIEWS
@@ -52,7 +52,7 @@ C     RESTOMOD END
       SIWN(K) = DKWRD(VWIN, YWINDO, -1)
       J = DKREQ(YLAYER)
       IF (J .EQ. 0) GO TO 28
-      CALL DKWLS(J, VLAYR, 12, SILY(1,K), N)
+      CALL DKWLS(J, VLAYR, MXLAY, SILY(1,K), N)
       IF (N .LT. 2) GO TO 28
       DO 27 I = 2, N
         DO 26 L = 1, I - 1
@@ -268,7 +268,7 @@ C     RESTOMOD END
       SIFX(K) = 0
       SIXO(K) = 0
       SIHK(K) = 0
-      DO 20 I = 1, 12
+      DO 20 I = 1, MXLAY
         SILY(I,K) = 0
    20 CONTINUE
       RETURN

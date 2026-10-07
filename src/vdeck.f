@@ -1,8 +1,8 @@
-C     VDECK: the card reader (#26, slice 4), the kernel reading its own
-C     run decks: a mission's cards (MISSION, EPOCH, SITE, PAD) and its
+C     VDECK: the card reader (#26), the kernel reading its own run
+C     decks: a mission's cards (MISSION, EPOCH, SITE, PAD) and its
 C     scenarios' (data/missions/*/*.scn), one card image at a time,
-C     into the run tables BLOCK DATA fills today (/CSCEN/ to /CBRN/,
-C     the situation tables, SITECH).  TN D-6853 printed p. 12 has VIEW
+C     into the run tables (/CSCEN/ to /CBRN/, the situation tables,
+C     SITECH); they have no other source.  TN D-6853 printed p. 12 has VIEW
 C     take its trajectory from the operational trajectory document per
 C     mission; a deck read per run is that shape.  Which cards, their
 C     keys and code words: tools/gen_data.py, which writes the
