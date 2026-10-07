@@ -1,7 +1,7 @@
 // Time strings and the recorder's stroke font.
 "use strict";
 const pad2 = n => String(n).padStart(2, "0");
-// UTC of a g.e.t. of the loaded scenario, from its range zero (LS.zero: its MISSION's EPOCH card, VIEW_NAMES.SCENARIOS).
+// UTC of a g.e.t. of the loaded scenario, from its range zero (LS.zero: its MISSION's EPOCH card, its reel's page.json).
 const utcStr = g => new Date(LS.zero + g * 1000).toISOString().slice(0, 19).replace("T", " ");
 function getStr(s) { const t = Math.floor(Math.abs(s)); return (s < 0 ? "-" : "") + Math.floor(t / 3600) + ":" + pad2(Math.floor(t / 60) % 60) + ":" + pad2(t % 60); }
 

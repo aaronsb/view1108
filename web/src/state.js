@@ -7,10 +7,11 @@
 // Continuous changes inside the situation (the clock running, a drag or key of the look, the scrubber) go through
 // track(), below; so do the Labels button and Play/Pause.
 const LS = {
-  situation: SITS[0].id,           // the situation (scene) shown: its ID in VIEW_NAMES.SITUATIONS
-  scenario: SITS[0].scenario,      // its scenario, from its SITUATION card
-  mission: SITS[0].mission,        // that scenario's mission (its MISSION card's name)
-  epoch: 0, zero: 0,               // the scenario's range zero: s from scenario 1's (hdr(16)), and UTC ms (loader.js mount)
+  situation: 0,                    // the situation shown, as its scene (config.js sitOf); 0 until the first mount
+  scn: "",                         // its scenario reel's id (the URL's scn=)
+  scenario: 0,                     // its scenario's number in the kernel, from its SITUATION card
+  mission: "",                     // that scenario's mission (its MISSION card's name)
+  epoch: 0, zero: 0,               // the scenario's range zero: s from Apollo 11's (the kernel's hdr(16)), and UTC ms (loader.js mount)
   get: 0, get0: 0,                                     // g.e.t., s; get0 the reference the time scrubber centres on
   yaw: 0, pitch: 0, roll: 0, fov: 12, fov0: 12,        // the look; fov0 the situation's own field
   view: 0, target: 0,                                  // in_view, in_target (views.js)

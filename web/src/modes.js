@@ -4,11 +4,15 @@
 const TETP = 702186;     // entry interface, GET seconds: Live's end
 // Live: the scene follows the mission phase from GET: the Live scenario's LIVE spans (SPAN cards, config.js), each
 // the phase while g.e.t. < to. Its JUMP spans pin a windowed situation for a while (the jump buttons), named by its
-// title; its PIN spans are situations that are no phase, pinned at the current time when picked in Live.
+// title; its PIN spans are situations that are no phase, pinned at the current time when picked in Live. Read from
+// the page's data once it is set at boot (liveInit, main.js).
 const LIVE_MIN = 700, LIVE_MAX = TETP;     // kernel's Earth-orbit scene is valid from about 700 s
-const PHASES = spansOf(LIVE_SCN).live.map(([to, scene, name]) => ({ to: to ?? Infinity, scene, name }));
-const JUMPS = spansOf(LIVE_SCN).jump.map(j => ({ scene: j.scene, get: j.get, len: j.len, name: sitOf(j.scene).title, button: j.button }));
-const LIVE_PINS = spansOf(LIVE_SCN).pin;
+let PHASES = [], JUMPS = [], LIVE_PINS = [];
+function liveInit() {
+  PHASES = spansOf(LIVE_SCN).live.map(([to, scene, name]) => ({ to: to ?? Infinity, scene, name }));
+  JUMPS = spansOf(LIVE_SCN).jump.map(j => ({ scene: j.scene, get: j.get, len: j.len, name: sitOf(j.scene).title, button: j.button }));
+  LIVE_PINS = spansOf(LIVE_SCN).pin;
+}
 const LIVE_RATES = [1, 10, 60, 300, 1000];
 // Plot units to view angle: the kernel plots a direction at angle theta off the boresight at radius k tan(theta / k)
 // (k = 1 up to a 100 deg field, rising to 2 at 170 deg), so theta = k atan(rho / k).

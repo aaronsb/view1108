@@ -1,9 +1,9 @@
-// Timeline (Review): the scenario's TIMELINE cards (SP-4029's event lists, build/names.js) as chapter marks under the
+// Timeline (Review): the scenario's TIMELINE cards (SP-4029's event lists, its reel's page.json) as chapter marks under the
 // time scrubber and as a jump list; Follow, for any scenario with FOLLOW spans; and the Apollo in Real Time companion
 // window (Apollo 11 only), whose buttons start Following too.
 "use strict";
-const tlScenario = () => String(LS.scenario);   // the loaded scenario
-const TL = NAMES.TIMELINE || {}, TL_KINDS = NAMES.TL_KINDS || [];
+const tlScenario = () => LS.scn;   // the loaded scenario, by its reel's id (config.js TL, SCNS)
+const TL_KINDS = NAMES.TL_KINDS || [];
 // Noteworthy: our own short list of the mission's milestones, matched by kind and a pattern on the SP-4029 row name.
 const TL_NOTE = [
   ["LAUNCH", /^Liftoff/], ["ORBIT", /^Earth orbit insertion/], ["ORBIT", /^Translunar injection$/],
@@ -148,7 +148,6 @@ $("bfollow").onclick = tlFollow;
 $("scrub").addEventListener("input", tlManual);
 $("scrub").addEventListener("change", airtSync);   // a released scrub, not each step of the drag
 $("geti").addEventListener("change", () => { tlManual(); airtSync(); });    // after controls.js's handler has set the time
-document.querySelectorAll("#jumps button").forEach(b => b.addEventListener("click", airtSync));
 tlChips(); tlList();
 setInterval(tlTick, 200);
 if (DEBUG) {   // test hooks: the companion's address, the view a jump or Following leaves, and a time to play from

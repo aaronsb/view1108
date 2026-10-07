@@ -18,8 +18,8 @@ function svgFrame(paper) {
   // A path builder with the Path2D calls strokeText() makes; a moveTo to the pen's position is dropped.
   const pathOf = () => { const p = { d: [], pen: "", moveTo(x, y) { const q = n2(x) + " " + n2(y); if (q !== p.pen) p.d.push("M" + q); p.pen = q; }, lineTo(x, y) { const q = n2(x) + " " + n2(y); p.d.push("L" + q); p.pen = q; } }; return p; };
   const out = [`<svg xmlns="http://www.w3.org/2000/svg" width="${Wd}" height="${Hd}" viewBox="0 0 ${Wd} ${Hd}">`,
-    `<title>VIEW-1108 scene ${H[6] | 0} g.e.t. ${getStr(H[0])}</title>`,
-    `<desc>inputs: scene ${H[6] | 0} in_get ${rd("in_get")} in_yaw ${rd("in_yaw")} in_pitch ${rd("in_pitch")} in_roll ${rd("in_roll")} in_fov ${rd("in_fov")} in_flags ${fl}</desc>`,
+    `<title>VIEW-1108 ${LS.scn} situation ${H[6] | 0} g.e.t. ${getStr(H[0])}</title>`,
+    `<desc>inputs: reel ${LS.scn} situation ${H[6] | 0} in_get ${rd("in_get")} in_yaw ${rd("in_yaw")} in_pitch ${rd("in_pitch")} in_roll ${rd("in_roll")} in_fov ${rd("in_fov")} in_flags ${fl}</desc>`,
     `<rect id="film" width="${Wd}" height="${Hd}" fill="${bg}"/>`,
     `<clipPath id="plotbox"><rect x="${n2(fr ? b.x - 2 : 0)}" y="${n2(b.y - 2)}" width="${n2(fr ? b.s + 4 : Wd)}" height="${n2(b.s + 4)}"/></clipPath>`,
     `<g fill="none" stroke="${fg}" stroke-width="${lw}" stroke-linecap="round" stroke-linejoin="round">`];
@@ -69,10 +69,10 @@ function svgFrame(paper) {
   out.push("</g></g></svg>");
   return out.join("\n");
 }
-// File name: view1108_s<scene>_<g.e.t. as HHHMMSS>.svg
+// File name: view1108_<scenario reel id>_s<situation id>_<g.e.t. as HHHMMSS>.svg
 function svgName() {
   const H = new Float64Array(buf(), K.hdr.value, 16), t = Math.floor(Math.abs(H[0]));
-  return `view1108_s${H[6] | 0}_${H[0] < 0 ? "-" : ""}${String(Math.floor(t / 3600)).padStart(3, "0")}${pad2(Math.floor(t / 60) % 60)}${pad2(t % 60)}.svg`;
+  return `view1108_${LS.scn}_s${H[6] | 0}_${H[0] < 0 ? "-" : ""}${String(Math.floor(t / 3600)).padStart(3, "0")}${pad2(Math.floor(t / 60) % 60)}${pad2(t % 60)}.svg`;
 }
 function downloadSvg(paper) {
   if (!drawn) K.view_frame();

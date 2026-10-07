@@ -30,6 +30,8 @@ async function boot() {
     if (typeof VIEW1108_MOCK === "undefined") await new Promise((ok, no) => { const s = document.createElement("script"); s.src = "mock.js"; s.onload = ok; s.onerror = () => no(new Error("mock.js not found")); document.head.appendChild(s); });
     K = VIEW1108_MOCK(); cpuName = "mock kernel";
     if (window.MOCK_NAMES && typeof VIEW_NAMES === "undefined") Object.assign(NAMES, window.MOCK_NAMES);
+    // The page's data from the reels the page embeds, whose decks the mock does not read; without reels, the stand-in.
+    setPageData(typeof VIEW_REELS !== "undefined" ? await reelLibrary() : [{ manifest: { id: "mock" }, page: STANDIN_PAGE }]);
   } else {
     const bin = Uint8Array.from(atob(WASM_B64), c => c.charCodeAt(0));
     try {
@@ -46,14 +48,16 @@ async function boot() {
       if (typeof VIEW1108_ASM !== "function") throw e;
       K = VIEW1108_ASM(proxyEnv()); cpuName = "wasm2js";
     }
-    loadDecks(await reelLibrary());
+    const reels = await reelLibrary();
+    loadDecks(reels); setPageData(reels);
   }
   if (DEBUG) window.VIEW_KERNEL = K;
 }
 
 // The reels embedded in the page (VIEW_REELS, build/reels.js, tools/pack.py), unpacked once at boot (reelpkg.js),
 // in their load order; a reel that does not unpack, or names another kernel build, stops the boot. REEL_LIB keeps
-// them for switching reels in the kernel (#26 slice 7, per-reel loading).
+// them for switching reels in the kernel (#26 slice 7, per-reel loading); their page.json are the page's situations,
+// spans and timelines (config.js setPageData).
 let REEL_LIB = [];
 async function reelLibrary() {
   if (typeof VIEW_REELS === "undefined") throw new Error("no reels (build/reels.js)");
