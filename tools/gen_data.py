@@ -14,6 +14,9 @@ Inputs (all in data/):
                                 and with its SPAN cards -> build/names.js (SITUATIONS, SCENARIOS)
   reels/<id>/run.scn            playlist reels (REEL and SHOT cards) -> build/names.js (REELS)
 
+Also the card reader's vocabulary (its card kinds, keys and code words, from the tables below)
+-> src/vdvoc.f and src/vdvoc.inc, and the decks in load order -> build/decks.txt.
+
 Everything is written in the J2000 equatorial frame. AGC star vectors are precessed
 from 1969.5 to J2000 so they share a frame with the catalog.
 """
@@ -157,6 +160,8 @@ def craters():
 # Scenarios (run decks).  Codes shared with the kernel through viewdims.inc.
 LEG_TYPES = {"CIRC": 1, "CONIC": 2, "LUNAR": 3, "LCONIC": 4, "TABLE": 5}
 LEG_VEH = {"CSM": 1, "LM": 2, "SIVB": 3}   # 3: as the burn cue's BURN_VEH below
+LATTYPES = {"GD": 0, "GC": 1}              # latitude geodetic (default) or geocentric
+ROW_VELS = {"SF": 0, "EF": 1}              # a ROW's velocity space-fixed (default) or Earth-fixed
 EVENT_KINDS = {"TDATT": 1, "SEP": 2, "APPR": 3, "DOCK": 4, "UNDOCK": 5, "TOUCH": 6, "EI": 7,
                "PTC": 8, "TLI": 9, "LOI1": 10, "LOI2": 11, "PHOTO": 12, "TEI": 13,
                "LMSEP": 14, "PDI": 15, "LIFT": 16, "TPF": 17, "LMDOK": 18, "JETT": 19,
@@ -332,7 +337,7 @@ def mission(path):
         elif kind == "PAD":
             assert len(kv["NAME"]) <= 7, "PAD NAME: at most 7 characters"
             m["pad"] = (kv["NAME"], cnum(kv["LAT"]), cnum(kv["LON"]),
-                        1 if kv.get("LATTYPE", "GD") == "GC" else 0)
+                        LATTYPES[kv.get("LATTYPE", "GD")])
             m["src"].append("PAD: " + kv.get("SRC", ""))
     assert m["name"] and m["jd"] is not None, f"{path.relative_to(D)}: needs MISSION and EPOCH"
     return m
@@ -382,13 +387,13 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
     ROW cards follow it), or None."""
     if kind == "ROW":
         assert tab is not None, f"{name}: ROW card outside a LEG TYPE=TABLE"
-        assert kv.get("VEL", "SF") in ("SF", "EF"), f"{name}: ROW VEL= SF or EF"
+        assert kv.get("VEL", "SF") in ROW_VELS, f"{name}: ROW VEL= SF or EF"
         tab["rows"].append({"t": get_s(kv["T"]),
                             "f": [cnum(kv[k]) for k in ("LAT", "LON", "ALT", "V", "FPA", "HDG")],
-                            "ef": 1 if kv.get("VEL", "SF") == "EF" else 0,
+                            "ef": ROW_VELS[kv.get("VEL", "SF")],
                             "src": kv.get("SRC", "")})
     elif kind == "LEG" and kv["TYPE"] == "TABLE":
-        return {"m": cur["n"], "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
+        return {"m": cur["n"], "gc": LATTYPES[kv.get("LATTYPE", "GD")],
                 "veh": LEG_VEH[kv.get("VEH", "CSM")], "src": kv.get("SRC", ""), "rows": []}
     elif kind == "LEG":
         t = kv["TYPE"]
@@ -406,7 +411,7 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
             for k in ("LAT", "LON", "ALT", "V", "FPA"):
                 assert k in kv, f"{name}: LCONIC state needs {k}="
         legs.append({"m": cur["n"], "type": LEG_TYPES[t], "p": p,
-                     "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
+                     "gc": LATTYPES[kv.get("LATTYPE", "GD")],
                      "veh": LEG_VEH[kv.get("VEH", "CSM")],
                      "n": 0 if lc else int(kv.get("N", 0)),
                      "src": f"{t}: " + kv.get("SRC", "")})
@@ -416,7 +421,7 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
              cnum(kv["V"]), cnum(kv["FPA"]), cnum(kv.get("HDG", 0)), 0.0, 0.0, 0.0]
         p += [0.0] * (NLGP - len(p))
         sim["start" if kind == "START" else "ref"].append(
-            {"m": cur["n"], "p": p, "gc": 1 if kv.get("LATTYPE", "GD") == "GC" else 0,
+            {"m": cur["n"], "p": p, "gc": LATTYPES[kv.get("LATTYPE", "GD")],
              "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
              "src": kind + ": " + kv.get("SRC", "")})
     elif kind == "BURN":
@@ -471,6 +476,10 @@ TARGETS = {"EARTH": 1, "MOON": 2, "SUN": 3, "CSM": 4, "LM": 5, "SIVB": 6}
 RIDES = {"NONE": 0, "CSM": 1, "LM": 2}
 STATION_RULES = {"NO": 0, "PLACED": 1, "ALWAYS": 2}
 HDR_OBJS = {"BODY": 0, "LM": 1, "LMDOCK": 2, "CSMTUNNEL": 3}
+AZ_RULES = {"NONE": 0, "EARTH": 1}           # LOCALVERT AZ=: none, or turned to the Earth's sightline
+OFF_LEGS = {"EARTH": 1}                       # LOCALVERT OFFLEG=: the camera off the Moon's legs
+YES_NO = {"NO": 0, "YES": 1}
+FOV_RULES = {"DISC": 2}                       # FOV=DISC:f, the disc fills f of the frame (rule 1: degrees)
 SIT_ORDER = ["RECIPE", "VIEWS", "HDRREF"]     # the cards after a SITUATION card, in this order
 # The keys each recipe (and attitude source) takes; any other key on its RECIPE card is refused.
 RECIPE_KEYS = {
@@ -577,7 +586,7 @@ def situations(mis, evs, sits):
         if rcp == 1:
             p["bod"] = enum(BODIES, rc["BODY"], where, "BODY")
             p["mod"] = enum(MODES, rc["MODE"], where, "MODE")
-            p["az"] = enum({"NONE": 0, "EARTH": 1}, rc.get("AZ", "NONE"), where, "AZ")
+            p["az"] = enum(AZ_RULES, rc.get("AZ", "NONE"), where, "AZ")
             p["elv"] = dlit(rc.get("ELEV", "0"))
             if p["bod"] == 2:
                 assert float(rc.get("ELEV", "0")) == 0, f"{where}: LOCALVERT about the Moon: ELEV=0 only"
@@ -626,7 +635,7 @@ def situations(mis, evs, sits):
         r["rid"] = enum(RIDES, vw["RIDES"], where, "RIDES")
         r["cm"] = enum(STATION_RULES, vw["CM"], where, "CM")
         r["lm"] = enum(STATION_RULES, vw["LM"], where, "LM")
-        r["fix_"] = enum({"NO": 0, "YES": 1}, vw.get("FIXED", "NO"), where, "FIXED")
+        r["fix_"] = enum(YES_NO, vw.get("FIXED", "NO"), where, "FIXED")
         xs = vw.get("XSTART")
         r["xo"], r["xy"] = (1, [dlit(x) for x in xs.split(",")]) if xs else (0, ["0.0D0"] * 2)
         assert len(r["xy"]) == 2, f"{where}: XSTART=yaw,pitch"
@@ -1035,6 +1044,92 @@ def write_situations(sits):
     (R / "src" / "viewsit.f").write_text("\n".join(b) + "\n")
 
 
+# The card reader's vocabulary (src/vdeck.f, #26): every word a deck may hold, as character codes
+# in BLOCK DATA VDVOCB (src/vdvoc.f), from the tables above, so the reader and this script read
+# one list.  Each list is a PARAMETER (its number in VOCLST); a card kind's code is its PARAMETER
+# Q + the first five letters, a key's Y + the first five.
+def vocab_lists():
+    keys = []
+    for ks in CARD_KEYS.values():
+        keys += [k for k in sorted(ks) if k not in keys]
+    return [("VCARD", "card kinds", {c: i + 1 for i, c in enumerate(CARD_KEYS)}, "Q"),
+            ("VKEY", "keys", {k: i + 1 for i, k in enumerate(keys)}, "Y"),
+            ("VLEGT", "LEG TYPE=", LEG_TYPES, None), ("VLVEH", "LEG VEH=", LEG_VEH, None),
+            ("VLATT", "LATTYPE=", LATTYPES, None), ("VVEL", "ROW VEL=", ROW_VELS, None),
+            ("VEVK", "EVENT KIND= (and GET=, AT=)", EVENT_KINDS, None),
+            ("VTLK", "TIMELINE KIND=", TL_KINDS, None), ("VBODY", "BODY=", BODIES, None),
+            ("VBVEH", "BURNCUE VEH=", BURN_VEH, None), ("VBENG", "BURNCUE ENG=", BURN_ENG, None),
+            ("VGRUL", "GET= rules", GET_RULES, None), ("VFOVR", "FOV= rules", FOV_RULES, None),
+            ("VWIN", "WINDOW=", WINDOWS, None), ("VLAYR", "LAYERS=", LAYER_IDS, None),
+            ("VPOSE", "POSE=", POSES, None), ("VDRAW", "DRAW= (bits)", DRAW_BITS, None),
+            ("VRCP", "RECIPE NAME=", RECIPES, None), ("VMODE", "MODE=", MODES, None),
+            ("VAZ", "AZ=", AZ_RULES, None), ("VOFFL", "OFFLEG=", OFF_LEGS, None),
+            ("VATT", "ATT=", ATTS, None), ("VCRV", "RECIPE VEH=", CREW_VEH, None),
+            ("VVIEW", "VIEW=", VIEWS_, None), ("VTGT", "TARGET=, OFFTARGET=", TARGETS, None),
+            ("VRIDE", "RIDES=", RIDES, None), ("VSTN", "CM=, LM=", STATION_RULES, None),
+            ("VYN", "FIXED=", YES_NO, None), ("VHDR", "HDRREF OBJ=", HDR_OBJS, None)]
+
+
+def write_vocab():
+    """src/vdvoc.inc (the list numbers, card and key codes, and /CDVOC/) and src/vdvoc.f (BLOCK
+    DATA VDVOCB): word W of the vocabulary is VOCC(VOCS(W)) .. VOCC(VOCS(W)+VOCN(W)-1), with the
+    value VOCV(W); list L holds words VOCLST(L) .. VOCLST(L+1)-1."""
+    lists = vocab_lists()
+    codes, start, length, value, lstart, notes = [], [], [], [], [], []
+    for i, (_, what, table, _) in enumerate(lists):
+        lstart.append(len(start) + 1)
+        notes += comment_wrap(f"{i + 1}. {what}: " + ", ".join(table), lead="C     ")
+        for w, v in table.items():
+            start.append(len(codes) + 1); length.append(len(w)); value.append(v)
+            codes += [ord(ch) for ch in w]
+    lstart.append(len(start) + 1)
+    names = [nm for nm, *_ in lists]
+    consts = []
+    for nm, _, table, pre in lists:
+        if pre:
+            consts += [(pre + w.replace("-", "")[:5], v) for w, v in table.items()]
+    allnames = names + [c for c, _ in consts]
+    assert len(set(allnames)) == len(allnames), "vocabulary PARAMETER names collide"
+    inc = ["C     Generated by tools/gen_data.py from its card tables.  Do not edit.",
+           "C     The card reader's vocabulary (src/vdeck.f; layout in",
+           "C     tools/gen_data.py write_vocab): the lists, their numbers in",
+           "C     VOCLST, and the codes of the card kinds (Q...) and keys (Y...).",
+           "      INTEGER NVOCC, NVOCW, NVOCL",
+           "C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77 (1978)",
+           f"      PARAMETER (NVOCC={len(codes)}, NVOCW={len(start)}, NVOCL={len(lists)})"]
+    for i in range(0, len(names), 5):
+        part = names[i:i + 5]
+        inc += ["      INTEGER " + ", ".join(part),
+                "      PARAMETER (" + ", ".join(f"{n}={i + j + 1}" for j, n in enumerate(part)) + ")"]
+    for i in range(0, len(consts), 4):
+        part = consts[i:i + 4]
+        inc += ["      INTEGER " + ", ".join(c for c, _ in part),
+                "      PARAMETER (" + ", ".join(f"{c}={v}" for c, v in part) + ")"]
+    inc += ["C     RESTOMOD END",
+            "      INTEGER VOCC(NVOCC), VOCS(NVOCW), VOCN(NVOCW), VOCV(NVOCW)",
+            "      INTEGER VOCLST(NVOCL+1)",
+            "      COMMON /CDVOC/ VOCC, VOCS, VOCN, VOCV, VOCLST"]
+    for ln in inc:
+        assert len(ln) <= 72, ln
+    (R / "src" / "vdvoc.inc").write_text("\n".join(inc) + "\n")
+    b = ["C     Generated by tools/gen_data.py from its card tables.  Do not edit.",
+         "C     The card reader's vocabulary, layout in vdvoc.inc.  Lists:"] + notes + [
+         "C     RESTOMOD BEGIN: implied-DO DATA not found in FORTRAN V docs;",
+         "C     the 1108 loader skips unreferenced BLOCK DATA",
+         "C     (docs/univac-1108.md); ASCII codes, not FIELDATA.",
+         "      BLOCK DATA VDVOCB",
+         "      INCLUDE 'vdvoc.inc'",
+         "      INTEGER IVD"]
+    body = "\n".join(b) + "\n"
+    for arr, vals in (("VOCC", codes), ("VOCS", start), ("VOCN", length), ("VOCV", value),
+                      ("VOCLST", lstart)):
+        body += fdata(arr, vals, "%d", 10, iv="IVD")
+    body += "      END\nC     RESTOMOD END\n"
+    for ln in body.splitlines():
+        assert len(ln) <= 72, ln
+    (R / "src" / "vdvoc.f").write_text(body)
+
+
 def comment_wrap(txt, lead="C       "):
     """A source string as fixed-form comment lines."""
     out, line = [], lead
@@ -1087,8 +1182,9 @@ def meeus47():
     return a, b
 
 
-def fdata(arr, vals, fmt, per=5, chunk=95):
-    """Fixed-form DATA statements for arr(1..n), chunk values per statement.
+def fdata(arr, vals, fmt, per=5, chunk=95, iv="IBD"):
+    """Fixed-form DATA statements for arr(1..n), chunk values per statement, iv the implied DO's
+    variable (LFortran makes it a global symbol, so each BLOCK DATA needs its own).
 
     Each statement stays within 19 continuation lines (the FORTRAN 77 limit) and
     72 columns, so any period compiler would take it."""
@@ -1097,7 +1193,7 @@ def fdata(arr, vals, fmt, per=5, chunk=95):
     out = []
     for k in range(0, len(vals), chunk):
         part = vals[k:k + chunk]
-        lines = [f"      DATA ({arr}(IBD),IBD={k + 1},{k + len(part)}) /"]
+        lines = [f"      DATA ({arr}({iv}),{iv}={k + 1},{k + len(part)}) /"]
         for i in range(0, len(part), per):
             txt = ",".join(fmt % v for v in part[i:i + per])
             last = i + per >= len(part)
@@ -1428,6 +1524,14 @@ def main():
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
     write_situations(sits)
+    write_vocab()
+    # The decks in load order (the order above: missions by folder, each mission.scn and then its
+    # scenarios), for the card reader's gates: tools/golden.sh and the selftest load them.
+    order = []
+    for mdir in sorted(p for p in (D / "missions").iterdir() if p.is_dir()):
+        order += [mdir / "mission.scn"] + sorted(p for p in mdir.glob("*.scn")
+                                                 if p.name != "mission.scn")
+    (R / "build" / "decks.txt").write_text("".join(f"{p.relative_to(R)}\n" for p in order))
     # The scene list make check and the selftest read: situation ids and their scenarios.
     (R / "build" / "scenes.json").write_text(json.dumps(
         {"scenes": [t["id"] for t in sits], "scenario": {str(t["id"]): t["m"] for t in sits}}) + "\n")

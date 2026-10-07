@@ -18,6 +18,9 @@
 #                              rows, burn cues, situations, the scenarios' epoch, site and pad), each
 #                              double as its bit pattern in hex, so a changed value shows as data and
 #                              not only through a render.  The page's SPAN tables are in names.js.
+#                              With build/decks.txt (tools/gen_data.py), the same dump from the decks
+#                              through the kernel's card reader (VIEW_DECK, src/vdeck.f) must equal it
+#                              byte for byte, or the capture fails (#26 slice 4); it is not stored.
 #   render/*.txt               build/viewsvg's SVG on stdout and hdr(1..24) on stderr (VIEW_HDR) for
 #                              every case in CASES
 #
@@ -184,6 +187,16 @@ capture() {
   } > "$out/source.txt"
   env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_HDR VIEW_DUMP=1 \
     build/viewsvg > "$out/tables.txt"
+  if [ -f build/decks.txt ]; then
+    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_HDR VIEW_DUMP=1 \
+      VIEW_DECK="$(paste -sd: build/decks.txt)" build/viewsvg > build/tables-deck.txt
+    if ! cmp -s "$out/tables.txt" build/tables-deck.txt; then
+      echo "golden: the decks fill the run tables otherwise than BLOCK DATA" \
+           "(diff $out/tables.txt build/tables-deck.txt)" >&2
+      exit 1
+    fi
+    echo "golden: the decks of build/decks.txt (card reader) fill the run tables as BLOCK DATA does"
+  fi
   cp build/names.js "$out/names.js"
   cp build/scenes.json "$out/scenes.json"
   python3 -c 'import json,sys; t=open(sys.argv[1]).read(); j=json.loads(t[t.index("=")+1:].rstrip().rstrip(";")); print(json.dumps(j, indent=1))' \

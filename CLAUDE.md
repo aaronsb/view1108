@@ -28,10 +28,13 @@ src/viewdims.inc  Table sizes and the scenario tables' fixed maxima (PARAMETERs)
 src/viewsit.f     BLOCK DATA VIEWSB: the situation tables (layout in src/viewsit.inc).
                   Generated from the SITUATION cards; do not edit.
 src/viewcom.inc   Kernel COMMON blocks, included by every kernel routine.
+src/vdvoc.f, .inc BLOCK DATA VDVOCB: the card reader's vocabulary (card kinds, keys, code
+                  words) from tools/gen_data.py's card tables. Generated; do not edit.
+src/vdeck.inc     The card reader's state (/CDECK/): the card in hand, the deck's errors.
 src/shell.f90     CHASSIS. Modern Fortran: bind(c) globals and entry points for wasm.
 tools/gen_data.py data/ -> src/viewdata.f, src/viewdims.inc, src/viewsit.f, src/viewsit.inc,
-                  build/names.js and build/scenes.json (the scene list make check and the
-                  selftest read)
+                  src/vdvoc.f, src/vdvoc.inc, build/names.js, build/scenes.json (the scene list
+                  make check and the selftest read) and build/decks.txt (the decks in load order)
 data/missions/    one folder per mission: mission.scn (name, epoch, site, pad) and its
                   scenarios (*.scn: trajectory legs, events, timeline, situations)
 data/reels/       playlist reels, <id>/run.scn: a REEL card and its SHOT cards (demo, tour)
@@ -54,6 +57,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Core | `ephem.f` | time, Sun, Moon, Moon orientation |
 | Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon, `LEGRV` one leg), events (`EVGET`), the LM's and the S-IVB's state rules (`LMSTAT`, `SIVST`), the LM descent, the Earthrise search |
 | Core | `sim.f` | the engine: flies the CSM from the scenario's START through its score (BURN cards), with state vector updates at its REF rows (optional), and writes the tape (`SIMRUN`) |
+| Core | `vdeck.f`, `vdkscn.f` | the card reader (#26): `CRDOPN`, `CRDIN` (one card image), `CRDEND` read a run deck into the run tables BLOCK DATA fills today, word for word (numbers exact: an integer mantissa and one power of ten); `CRDSUM` a hash total of them. `vdkscn.f` is what each card writes. Not yet the page's path: it loads BLOCK DATA |
 | Core | `tape.f` | the tape: time-tagged states, 4 vehicle channels, event marks; cubic Hermite reads (`TPGET`) |
 | Core | `vview.f` | camera pointing: the target and the external view (`VIEWPT`), applied after the scene's camera and models |
 | Core | `vsrc.f` | the state source: the one entry point (`VSTATE(GET, IVEH, IBODY, R, V, IOK)`) scenes use for the CSM's state (`CSMST`: replay or tape), the LM's (`LMSTAT`) and the S-IVB's (`SIVST`), `IVEH` 1, 2, 3; `IOK` 0 none, 1 its own, 2 docked or with the CSM. `LMSTAT` and `SIVST` read the CSM through `CSMST`, not `VSTATE` (no recursion) |
@@ -124,7 +128,7 @@ LFortran notes (see `tools/build.sh`): the kernel needs `--implicit-interface` (
 its own routines) and `--legacy-array-sections` (sequence association, `CEV(1,J)` passed as a
 3-vector). `INCLUDE` works (`src/viewdims.inc` generated, `src/viewcom.inc` the kernel COMMON).
 LFortran defines every COMMON block strongly in each file, so the build makes them `weak` in
-every element's `.ll` but the BLOCK DATA files' (`viewdata.ll`, `viewsit.ll`), and the BLOCK DATA initialisers win. It also emits its
+every element's `.ll` but the BLOCK DATA files' (`viewdata.ll`, `viewsit.ll`, `vdvoc.ll`), and the BLOCK DATA initialisers win. A BLOCK DATA's implied-DO variable becomes a global symbol, so each BLOCK DATA names its own (`IBD`, `IVD`). LFortran also emits its
 runtime helpers (`_lcompilers_sin_f64` and the like) into every file that uses them; the build
 marks them `linkonce_odr` so the linker keeps one copy. Do not use `--fast`: it optimises for the host
 (x86 vectors, `__multi3`); clang optimises the IR for wasm32 instead, without saturating
@@ -139,6 +143,15 @@ Entry points:
 - `view_init(scene)` (int32 by value) — selects a scene and writes its default inputs
   (`in_get`, `in_yaw`, `in_pitch`, `in_roll`, `in_fov`) so the page can read them back.
 - `view_frame()` — computes geometry at the current inputs and fills the output buffers.
+- `deck_open()`, `deck_card(n)` (int32 by value), `deck_close()`, `deck_sum()` — the card reader
+  (`src/vdeck.f`): `deck_open` empties the run tables, `deck_card(n)` reads the `n` character
+  codes in `in_card` (int32 × 1024) as one card (a `*` in column 1 or a blank card is a comment),
+  `deck_close` ends the deck and sets `out_dkerr` (the first deck error, 0 none; the codes are in
+  `vdeck.f`'s header), `out_dkcrd` (its card number) and `out_dkwrn` (cards and keys skipped). A
+  deck with an error leaves the tables empty. Then `view_init` as usual. `deck_sum` puts the
+  run tables' hash total in `out_dksum` (int32 × 4). The selftest and `tools/golden.sh` load
+  `build/decks.txt`'s decks and require the tables BLOCK DATA gives; the page does not call these
+  yet (#26 slice 5).
 - `sim_run(flags)` (int32 by value) — runs the engine over the current scenario and fills the
   tape; flags bit 0 = state vector updates on (reset to each sourced reference row; our "delta
   correction"). Call it on scenario load (after `view_init`) and when that toggle changes. See
@@ -532,9 +545,10 @@ LF_BIN=~/lf/bin ./tools/build.sh    # full build + selftest
 build/viewsvg 1 > f.svg             # scene [GET|-] [yaw pitch roll fov|-] [flags]
 make golden                         # capture the golden master into build/golden
 make golden-check                   # re-capture and diff against it
+VIEW_DECK=a.scn:b.scn build/viewsvg 1   # load decks through the card reader first
 ```
 
-The golden master (`tools/golden.sh`, kept in `build/golden`, gitignored) holds the generated tables, 129 native renders with their hdr words, and the run-table dump (`tables.txt`, `VIEW_DUMP=1 build/viewsvg`, `tools/vdump.f`): every scenario-specific COMMON table's used entries, each double as its 64-bit pattern in hex, so a changed value shows as data and not only through a render. A data or kernel refactor must pass it byte for byte. The one reviewed re-baseline so far was #40 (2026-10-06, PR #42): gen_data writing each card's own digits instead of rounding them to fixed decimals, which moved 72 table values and 18 renders by at most 0.012 plot degrees.
+The golden master (`tools/golden.sh`, kept in `build/golden`, gitignored) holds the generated tables, 129 native renders with their hdr words, and the run-table dump (`tables.txt`, `VIEW_DUMP=1 build/viewsvg`, `tools/vdump.f`): every scenario-specific COMMON table's used entries, each double as its 64-bit pattern in hex, so a changed value shows as data and not only through a render. A data or kernel refactor must pass it byte for byte. The capture also loads `build/decks.txt`'s decks through the card reader (`VIEW_DECK`) and fails unless that dump equals BLOCK DATA's. The one reviewed re-baseline so far was #40 (2026-10-06, PR #42): gen_data writing each card's own digits instead of rounding them to fixed decimals, which moved 72 table values and 18 renders by at most 0.012 plot degrees.
 
 ## Sources and history
 

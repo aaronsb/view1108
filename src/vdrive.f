@@ -35,7 +35,8 @@ C              vview.f (camera target and external view),
 C              pen.f (projection, clipping, visibility, vectors),
 C              vmask.f (the outside cut to the cabin's windows),
 C              vtext.f (text records), vmath.f (vectors, matrices),
-C              models.f (spacecraft model library)
+C              models.f (spacecraft model library), vdeck.f and
+C              vdkscn.f (the card reader: run decks into the tables)
 C       Layers, one per drawable, all called as
 C              LAYER(GET, VB, NV, SB, NS, LB, NL) by LAYERS:
 C              lframe.f 1 plot frame, lstars.f 2 stars, lsun.f 3 Sun,
@@ -46,7 +47,8 @@ C              lcoas.f 7 COAS reticle, lshad.f 8 LM shadow,
 C              llpd.f 9 LPD and LM window, lburn.f 10 burn cue
 C       Data:  viewdata.f (BLOCK DATA, generated), viewsit.f (the
 C              situations' BLOCK DATA, generated from the SITUATION
-C              cards), viewcom.inc COMMON
+C              cards), vdvoc.f (the card reader's words, generated),
+C              viewcom.inc COMMON
 C
 C     THE ELEMENTS AGAINST TN D-6853, printed p. 3 (our reading).  "The
 C     program consists of two basic parts: the integrator portion and
@@ -62,8 +64,9 @@ C       coordinate transformations   vmath.f, the frames in vdrive.f
 C       three-dimensional display    pen.f, models.f
 C       window outlines              window and cabin models (to come)
 C       input/output                 vtext.f, the plot-tape buffers,
-C                                    the scenarios (data/missions),
-C                                    the tape (tape.f)
+C                                    the scenarios (data/missions) and
+C                                    their card reader (vdeck.f), the
+C                                    tape (tape.f)
 C     OUR READING: THE REPORT NAMES FUNCTIONS, NOT FILES.
 C
 C     PROJECTION
