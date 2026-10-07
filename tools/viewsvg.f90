@@ -13,6 +13,11 @@
 ! hdr(1..24) to stderr.  With VIEW_DUMP set, writes the run tables
 ! (tools/vdump.f: every scenario-specific COMMON table's used entries,
 ! doubles as hex bit patterns) to stdout instead and stops.
+! With VIEW_DECK set to deck paths separated by colons, the kernel's
+! card reader (src/vdeck.f) loads them, in that order, over the BLOCK
+! DATA tables first; a deck error is printed to stderr with its file
+! and line and stops the run (exit 2).  With VIEW_DKSUM set, prints the run tables' hash
+! total (CRDSUM, four numbers) to stdout and stops.
 program viewsvg
   implicit none
   integer, parameter :: MAXV = 60000, MAXS = 4000, MAXL = 200
@@ -44,7 +49,31 @@ program viewsvg
     end subroutine vsetin
     subroutine vdump()
     end subroutine vdump
+    subroutine crdopn()
+    end subroutine crdopn
+    subroutine crdin(ic, nc)
+      integer :: ic(1024), nc
+    end subroutine crdin
+    subroutine crdeof()
+    end subroutine crdeof
+    subroutine crdend(ierr, icard, nwarn)
+      integer :: ierr, icard, nwarn
+    end subroutine crdend
+    subroutine crdsum(isum)
+      integer :: isum(4)
+    end subroutine crdsum
   end interface
+  character(len=4096) :: decks
+  integer :: isum(4)
+
+  call get_environment_variable('VIEW_DECK', decks)
+  if (len_trim(decks) > 0) call loaddk(trim(decks))
+  call get_environment_variable('VIEW_DKSUM', tv)
+  if (len_trim(tv) > 0) then
+    call crdsum(isum)
+    write (*, '(4(i0,1x))') isum
+    stop
+  end if
 
   call get_environment_variable('VIEW_DUMP', tv)
   if (len_trim(tv) > 0) then
@@ -149,6 +178,70 @@ program viewsvg
   write (*, '(a)') '</text></g></svg>'
 
 contains
+
+  ! The decks named in list (paths separated by colons) through the card
+  ! reader, one line a card, each file ended with crdeof.  A deck error's
+  ! card number (counted across the files) is told as file:line.
+  subroutine loaddk(list)
+    character(len=*), intent(in) :: list
+    character(len=4096) :: line
+    integer :: ic(1024), i0, i1, u, ios, n, k, ierr, icard, nwarn, ncard, nf
+    integer :: fend(0:64), fs(64), fe(64)
+    call crdopn()
+    ncard = 0
+    nf = 0
+    fend(0) = 0
+    i0 = 1
+    do while (i0 <= len(list))
+      i1 = index(list(i0:), ':')
+      if (i1 == 0) then
+        i1 = len(list) + 1
+      else
+        i1 = i0 + i1 - 1
+      end if
+      open (newunit=u, file=list(i0:i1 - 1), status='old', action='read', iostat=ios)
+      if (nf == 64) then
+        write (0, '(a)') 'VIEW_DECK: more than 64 files'
+        stop 2
+      end if
+      if (ios /= 0) then
+        write (0, '(a,a)') 'VIEW_DECK: cannot open ', list(i0:i1 - 1)
+        stop 2
+      end if
+      do
+        read (u, '(a)', iostat=ios) line
+        if (ios < 0) exit
+        n = len_trim(line)
+        if (ios > 0 .or. n == len(line)) then
+          write (0, '(a,a,a,i0)') 'VIEW_DECK: cannot read ', list(i0:i1 - 1), ' after line ', &
+            ncard - fend(nf)
+          stop 2
+        end if
+        do k = 1, min(n, 1024)
+          ic(k) = iachar(line(k:k))
+        end do
+        call crdin(ic, n)
+        ncard = ncard + 1
+      end do
+      close (u)
+      call crdeof()
+      nf = nf + 1
+      fend(nf) = ncard
+      fs(nf) = i0
+      fe(nf) = i1 - 1
+      i0 = i1 + 1
+    end do
+    call crdend(ierr, icard, nwarn)
+    if (ierr /= 0) then
+      do k = 1, nf
+        if (icard <= fend(k)) exit
+      end do
+      k = min(k, nf)
+      write (0, '(a,i2.2,a,a,a,i0)') 'DECK ERROR ', ierr, ' AT ', list(fs(k):fe(k)), ':', &
+        icard - fend(k - 1)
+      stop 2
+    end if
+  end subroutine loaddk
 
   integer function envint(name)
     character(len=*), intent(in) :: name

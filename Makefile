@@ -7,7 +7,7 @@ LOGFILE = build/serve.log
 # Scene numbers, from build/scenes.json (tools/gen_data.py, the SITUATION cards); read when a recipe runs.
 SCENES  = $(shell python3 -c 'import json; print(*json.load(open("build/scenes.json"))["scenes"])')
 # Kernel elements: every fixed-form file in src/ but the generated BLOCK DATA.
-KSRC    = $(filter-out src/viewdata.f,$(wildcard src/*.f))
+KSRC    = $(filter-out src/viewdata.f src/vdvoc.f,$(wildcard src/*.f))
 
 export LF_BIN
 
@@ -35,13 +35,14 @@ sheet: ## Regenerate docs/media/film-vs-view1108.png (film vs our page; needs ch
 	python3 tools/film_sheet.py
 
 lint: ## Check kernel dialect, compile warnings, and script syntax
-	python3 tools/lint_dialect.py $(KSRC) src/viewcom.inc src/viewdims.inc src/viewsit.inc
+	python3 tools/lint_dialect.py $(KSRC) src/vdvoc.f src/viewcom.inc src/viewdims.inc src/viewsit.inc \
+	  src/vdvoc.inc src/vdeck.inc
 	gfortran -fsyntax-only -std=legacy -Wall -Wno-unused-dummy-argument -Isrc $(KSRC)
 	# All elements as one unit too, so calls between elements are checked against each other.
 	@mkdir -p build && cat $(KSRC) > build/kernel_all.f
 	gfortran -fsyntax-only -std=legacy -Wall -Wno-unused-dummy-argument -Isrc build/kernel_all.f
-	# viewdata.f: LFortran needs the DATA implied-DO index declared; gfortran warns about it.
-	gfortran -fsyntax-only -std=legacy -Wall -Wno-unused-variable src/viewdata.f
+	# viewdata.f, vdvoc.f: LFortran needs the DATA implied-DO index declared; gfortran warns about it.
+	gfortran -fsyntax-only -std=legacy -Wall -Wno-unused-variable -Isrc src/viewdata.f src/vdvoc.f
 	gfortran -fsyntax-only -Wall -Jbuild src/shell.f90
 	# tools/vdump.f: the native driver's run-table dump for the golden gate (not a kernel element).
 	gfortran -fsyntax-only -std=legacy -Wall -fimplicit-none -Isrc tools/vdump.f
