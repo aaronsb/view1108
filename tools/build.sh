@@ -93,6 +93,8 @@ OBJS=""; for e in $DATA; do OBJS="$OBJS build/$e.o"; done; for e in $ELEMS; do O
 "${B}wasm-opt" -O3 --disable-nontrapping-float-to-int build/view.wasm -o build/view.opt.wasm
 "${B}wasm2js" -O2 build/view.opt.wasm -o build/view.wasm2js.mjs
 python3 tools/wrap_fallback.py build/view.wasm2js.mjs build/fallback.js
+# The reel packages (build/reels/), each naming this kernel build by its hash.
+python3 tools/pack.py
 
 # 4. The machine room (web/lab, TypeScript + three.js) -> build/lab.js, with the esbuild pinned in its
 #    package-lock.json.  Optional: without npm, the network or a working bundle the page builds without the Room.
