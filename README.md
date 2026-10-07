@@ -53,7 +53,9 @@ The `[ LINK ]` button (key `L`) copies a URL that reproduces the current view. Y
 |---|---|---|
 | `mode` | `attract`, `tour`, `live`, `free`, `beam` | `mode=live` |
 | `tab` | `review`, `simulate`, `print`, `fusion`, `source` (default: the mode's tab) | `tab=print` |
-| `scene` | a situation, `1`..`9` (Free-look, Beam; in Live the windowed ones, 4, 5 and 7, and the Moon view, 6, are pinned) | `scene=5` |
+| `scn` | a scenario reel: `apollo11-asflown` or `apollo8-asflown`; alone, its first situation | `scn=apollo8-asflown` |
+| `sit` | a situation of that reel, by id or by its card's NAME (any case; the LINK button writes the NAME); without `scn`, the first reel holding it (Free-look, Beam; in Live the windowed ones, 4, 5 and 7, and the Moon view, 6, are pinned) | `scn=apollo11-asflown&sit=lm%20descent` |
+| `scene` | kept for old links: `1`..`9`, the Nth situation across the reels in load order; `scn` and `sit` win over it | `scene=5` |
 | `get` | g.e.t. as `h:mm:ss` or seconds | `get=102:45:40` |
 | `utc` | UTC as `YYYY-MM-DDTHH:MM:SS` | `utc=1969-07-20T20:17:40` |
 | `fov`, `yaw`, `pitch`, `roll` | degrees (`fov` 1 to 170) | `fov=100&pitch=-10` |

@@ -79,11 +79,12 @@ const reelDecks = r => r.manifest.contents.filter(c => c.type === "scn").map(c =
 //         numbers its own situations (#26 slice 7e) a situation's id is its scene.
 //   scns  by reel id: {id (the kernel's scenario number), mission, zero, spans}, the spans' situations as scenes
 //   tl    by reel id: the timeline, {name, events: [[get, kind, name], ...]}
-// A span naming a situation its reel does not hold is refused with the reel's id.
+// A reel without page.json, or a span naming a situation its reel does not hold, is refused with the reel's id.
 function reelPages(reels) {
   const sits = [], scns = {}, tl = {};
   for (const r of reels) {
     const id = r.manifest.id, pg = r.page;
+    if (!pg) throw new Error(`REEL ${id}: no page.json`);
     for (const s of pg.situations) sits.push({ ...s, reel: id, scene: sits.length + 1 });
     const scene = n => {
       const s = sits.find(x => x.reel === id && x.id === n);

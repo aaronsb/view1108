@@ -24,6 +24,9 @@ const REELS = NAMES.REELS || Object.fromEntries([["demo", "attract"], ["tour", "
 const DEFAULT_REEL = "demo";
 const hasScene = s => !!SITS[s - 1];
 const sitOf = s => SITS[s - 1] || {};
+// The scene of a frame the kernel drew: hdr(7) is the situation's id in the loaded scenario reel (LS.scn), not a
+// scene, once each reel numbers its own situations (#26 slice 7e).
+const frameScene = H => (SITS.find(s => s.reel === LS.scn && s.id === (H[6] | 0)) || {}).scene;
 const sitCaption = s => sitOf(s).caption;   // caption text where a situation needs more than its title
 const spansOf = scn => (SCNS[scn] || { spans: { follow: [], live: [], jump: [], pin: [] } }).spans;   // scn: a reel id
 // Scenario reel scn's FOLLOW span at g.e.t. g, [until, scene, in_view, in_target, field] and its CAPTION= where it

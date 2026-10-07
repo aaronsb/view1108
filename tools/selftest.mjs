@@ -242,6 +242,8 @@ const A11_ZERO = Date.UTC(1969, 6, 16, 13, 32, 0);   // Apollo 11's range zero, 
       bad.push(`scn=${s.reel}&sit=${s.id} (or its name) does not open scene ${sc}`);
   }
   if (!old.length) bad.push('no scene=N link in docs/ or README.md');
+  try { RP.reelPages([{ manifest: { id: 'nopage' }, page: null }]); bad.push('a reel without page.json: not refused'); }
+  catch (err) { if (!/^REEL nopage: no page\.json$/.test(err.message)) bad.push(`a reel without page.json: "${err.message}"`); }
   console.log(`page data: ${reels.length} reels' page.json, ${SIT.length} situations; old links scene=${old.join(',')} ` +
     `open the same (reel, situation)  ${bad.length ? 'WRONG: ' + bad.join('; ') : 'ok'}`);
   if (bad.length) ok = false;

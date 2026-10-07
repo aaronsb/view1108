@@ -7,7 +7,7 @@ function linkURL() {
   if (tab !== TAB_OF[LS.mode]) add("tab", tab);
   if (tab === "fusion" && fCur) add("photo", fCur.frame);
   if (!auto()) {
-    if (LS.mode !== "live" || livePin) { add("scn", LS.scn); add("sit", sitOf(LS.situation).id); }   // (reel, situation), not scene=N (#26 slice 7d)
+    if (LS.mode !== "live" || livePin) { add("scn", LS.scn); add("sit", sitOf(LS.situation).name); }   // (reel, situation by NAME, which survives #26 slice 7e's renumbering), not scene=N
     add("get", getStr(LS.get)); add("fov", rnd(LS.fov)); add("yaw", rnd(LS.yaw)); add("pitch", rnd(LS.pitch)); add("roll", rnd(LS.roll));
     if (LS.mode === "live") add("rate", LIVE_RATES[liveIdx]); else if (LS.mode === "beam") add("bspeed", beamIdx + 1); else add("rate", SPEEDS[speedIdx]);
     if (FEAT.lablv) { if (LS.labLv !== 3) add("lab", LS.labLv); } else if (!LS.labLv) add("labels", 0);
