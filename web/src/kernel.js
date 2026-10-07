@@ -1,6 +1,8 @@
 // Kernel loading: the FORTRAN wasm, the wasm2js fallback or the dev mock, and access to its globals.
 "use strict";
 const WASM_B64 = "__WASM_B64__";
+// The SHA-256 of the kernel build above (build/view.opt.wasm; tools/assemble.py), which every reel must name.
+const KERNEL_SHA = "__KERNEL_SHA__";
 const NOWASM = /[?&]nowasm\b/.test(location.search);
 const USE_MOCK = /[?&]mock\b/.test(location.search) || WASM_B64.startsWith("__");
 
@@ -44,18 +46,26 @@ async function boot() {
       if (typeof VIEW1108_ASM !== "function") throw e;
       K = VIEW1108_ASM(proxyEnv()); cpuName = "wasm2js";
     }
-    loadDecks();
+    loadDecks(await reelLibrary());
   }
   if (DEBUG) window.VIEW_KERNEL = K;
 }
 
-// The run decks (build/decks.js, data/missions) through the kernel's card reader (src/vdeck.f), one card image a
-// line as character codes, each file closed with deck_file; a deck error stops the boot with its file and line.
-function loadDecks() {
-  if (typeof VIEW_DECKS === "undefined") throw new Error("no run decks (build/decks.js)");
+// The reels embedded in the page (VIEW_REELS, build/reels.js, tools/pack.py), unpacked once at boot (reelpkg.js),
+// in their load order; a reel that does not unpack, or names another kernel build, stops the boot.
+let REEL_LIB = [];
+async function reelLibrary() {
+  if (typeof VIEW_REELS === "undefined") throw new Error("no reels (build/reels.js)");
+  REEL_LIB = [];
+  for (const r of VIEW_REELS) REEL_LIB.push(await readReel(r.b64, KERNEL_SHA, r.id));
+  return REEL_LIB;
+}
+// The reels' run decks through the kernel's card reader (src/vdeck.f), one card image a line as character codes,
+// each file closed with deck_file; a deck error stops the boot with its reel, file and line.
+function loadDecks(reels) {
   const enc = new TextEncoder(), at = [];
   K.deck_open();
-  for (const [path, text] of VIEW_DECKS) {
+  for (const [path, text] of reels.flatMap(reelDecks)) {
     const lines = text.split("\n");
     if (lines.at(-1) === "") lines.pop();   // the file's last newline ends a card, as natively
     lines.forEach((ln, i) => {

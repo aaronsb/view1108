@@ -393,4 +393,63 @@ if (W.sim_run && fs.existsSync(VSVG)) {
     `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'same tables and frames, each fault refused'}`);
   if (wrong.length) ok = false;
 }
+// Reel packages (#26 slice 7; tools/pack.py, web/src/reelpkg.js): the page's own unpacker, run here on the packages the
+// page embeds (build/reels.js), gives each reel's files byte for byte as data/ holds them, and the kernel loads their
+// decks to the native reader's hash total.  Packing again gives the same bytes.  A reel naming another kernel build,
+// a truncated package, a manifest that is not first, or one under another id are refused.
+{
+  const crypto = await import('crypto'), { execFileSync } = await import('child_process');
+  const ctxR = vm.createContext({ atob, TextDecoder, Blob, Response, DecompressionStream, Uint8Array, JSON, Error,
+    Map, Number, String, parseInt, Math });
+  const RP = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/reelpkg.js'), 'utf8') +
+    '\n({ readReel, reelDecks, untar })', ctxR);
+  const reelsJs = fs.readFileSync(path.join(R, 'build/reels.js'), 'utf8');
+  const VR = vm.runInNewContext(reelsJs + '\nVIEW_REELS');
+  const sha = crypto.createHash('sha256').update(fs.readFileSync(path.join(R, 'build/view.opt.wasm'))).digest('hex');
+  const wrong = [], reels = [];
+  for (const r of VR) reels.push(await RP.readReel(r.b64, sha, r.id));
+  // Each member as data/ holds it: mission.scn and the scenario file of the reel's mission folder.
+  for (const r of reels) for (const [name, text] of r.files) {
+    const src = path.join(R, 'data/missions', r.manifest.mission.id, name);
+    if (!fs.existsSync(src) || fs.readFileSync(src, 'utf8') !== text) wrong.push(`${r.manifest.id}/${name} is not ${src}`);
+  }
+  // The reels' decks, in their load order, are the decks build/decks.txt lists (the native gates' order).
+  const decks = reels.flatMap(r => RP.reelDecks(r));
+  if (decks.length !== DECKS.length || decks.some(([, t], i) => t !== fs.readFileSync(path.join(R, DECKS[i]), 'utf8')))
+    wrong.push(`the reels' decks are not build/decks.txt's, in order`);
+  const sum = K => { K.deck_sum(); return Array.from(new Int32Array(K.memory.buffer, K.out_dksum.value, 4)).join(' '); };
+  const K = (await WebAssembly.instantiate(mod, { env: imports })).exports;
+  const [e] = load(K, decks.flatMap(([, t]) => [...t.replace(/\n$/, '').split('\n'), EOF]));
+  const sumR = sum(K), sumN = execFileSync(path.join(R, 'build/viewsvg'), { cwd: R,
+    env: Object.fromEntries(Object.entries({ ...process.env, VIEW_DKSUM: '1' }).filter(([k]) => k !== 'VIEW_DECK')) })
+    .toString().trim();
+  if (e || sumR !== sumN) wrong.push(`decks from the reels: deck error ${e}, hash ${sumR}, native ${sumN}`);
+  // Packing again (into a scratch folder) gives the same packages and the same reels.js.
+  const tmp = fs.mkdtempSync(path.join(R, 'build/pack-again-'));
+  execFileSync('python3', [path.join(R, 'tools/pack.py'), '--out', tmp], { cwd: R });
+  const again = fs.readFileSync(path.join(tmp, 'reels.js'), 'utf8') === reelsJs &&
+    fs.readdirSync(path.join(R, 'build/reels')).filter(f => f.endsWith('.tar.gz')).every(f =>
+      fs.readFileSync(path.join(tmp, 'reels', f)).equals(fs.readFileSync(path.join(R, 'build/reels', f))));
+  fs.rmSync(tmp, { recursive: true, force: true });
+  if (!again) wrong.push('packing again gave different bytes');
+  // Refusals: another kernel build, a truncated package, a package whose first member is not the manifest (made by
+  // the packer's own tar_gz, members reversed).
+  const refused = async (what, b64, want, kernel = sha) => {
+    try { await RP.readReel(b64, kernel, VR[0].id); wrong.push(`${what}: not refused`); }
+    catch (err) { if (!want.test(String(err.message))) wrong.push(`${what}: refused as "${err.message}"`); }
+  };
+  await refused('another kernel build', VR[0].b64, /NAMES KERNEL core [0-9a-f]{8}; THIS PAGE RUNS 00000000$/, '0'.repeat(64));
+  const bytes = Buffer.from(VR[0].b64, 'base64');
+  await refused('a truncated package', bytes.subarray(0, bytes.length >> 1).toString('base64'), /^REEL \S+ DOES NOT UNPACK/);
+  const swapped = execFileSync('python3', ['-c', `import base64, gzip, io, sys, tarfile
+sys.path.insert(0, "tools"); import pack
+t = tarfile.open(fileobj=io.BytesIO(gzip.decompress(base64.b64decode(sys.stdin.read()))))
+m = [(i.name, t.extractfile(i).read()) for i in t.getmembers()]
+sys.stdout.write(base64.b64encode(pack.tar_gz(m[::-1])).decode())`], { cwd: R, input: VR[0].b64 }).toString();
+  await refused('the manifest not first', swapped, /manifest\.json is not first/);
+  await refused('another id', VR[1].b64, /its manifest says/);
+  console.log(`packages: ${reels.length} reels (${reels.map(r => r.manifest.id).join(', ')}), ${decks.length} decks; ` +
+    `hash total ${sumR} (native ${sumN})  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/, packed twice the same, refusals hold'}`);
+  if (wrong.length) ok = false;
+}
 console.log(ok ? 'PASS' : 'FAIL'); process.exit(ok ? 0 : 1);

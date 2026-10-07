@@ -35,8 +35,12 @@ src/vdeck.inc     The card reader's state (/CDECK/): the card in hand, the deck'
 src/shell.f90     CHASSIS. Modern Fortran: bind(c) globals and entry points for wasm.
 tools/gen_data.py data/ -> src/viewdata.f, src/viewdims.inc, src/vdvoc.f, src/vdvoc.inc,
                   build/names.js, build/scenes.json (the scene list make check and the selftest
-                  read), build/decks.txt (the decks in load order) and build/decks.js (their text,
-                  for the page); it also checks the decks' cards
+                  read) and build/decks.txt (the decks in load order, for the native gates); it
+                  also checks the decks' cards
+tools/pack.py     The reel packer (#26 slice 7): each scenario as build/reels/<id>.reel.tar.gz
+                  (manifest.json, mission.scn, the scenario's .scn, byte for byte; reproducible),
+                  the manifest naming the kernel build by the SHA-256 of build/view.opt.wasm;
+                  build/reels.js embeds them, base64, in the page
 data/missions/    one folder per mission: mission.scn (name, epoch, site, pad) and its
                   scenarios (*.scn: trajectory legs, events, timeline, situations), the run
                   decks the kernel's card reader loads (src/vdeck.f)
@@ -44,7 +48,7 @@ data/reels/       playlist reels, <id>/run.scn: a REEL card and its SHOT cards (
 tools/viewsvg.f90 Native driver (gfortran): renders a scene/time to SVG for validation.
 tools/vdump.f     The native driver's VIEW_DUMP=1: the run tables as hex, for the golden gate.
 tools/vtape.f     The native driver's VIEW_TAPEW=1: the tape (the engine's, or a deck's) written as a deck of TAPE cards.
-tools/build.sh    gen_data -> lfortran (per file) -> clang -> wasm-ld -> wasm-opt -> wasm2js -> page
+tools/build.sh    gen_data -> lfortran (per file) -> clang -> wasm-ld -> wasm-opt -> wasm2js -> pack -> page
 web/              The page: film-recorder renderer, controls, text lettering.
 ```
 
@@ -155,9 +159,11 @@ Entry points:
   header), `out_dkcrd` (its card number, counted over the deck) and `out_dkwrn` (cards and keys
   skipped). A deck with an error leaves the run tables empty: `view_init` then selects nothing
   and `view_frame` draws an empty frame, so call `view_init` after a deck with no error. `deck_sum` puts the
-  run tables' hash total in `out_dksum` (int32 × 4). The run tables start empty: the page loads
-  `build/decks.js` at boot (`web/src/kernel.js` `loadDecks`; a deck error stops the boot with its
-  file and line), the native driver `build/decks.txt`'s decks, the selftest the same.
+  run tables' hash total in `out_dksum` (int32 × 4). The run tables start empty: the page unpacks the reel packages it embeds at boot
+  (`web/src/reelpkg.js`: `DecompressionStream` and a USTAR reader; a reel that does not unpack, or names
+  another kernel build than the page's `KERNEL_SHA`, stops the boot) and loads their decks in order
+  (`web/src/kernel.js` `loadDecks`; a deck error stops the boot with its reel, file and line), the native
+  driver `build/decks.txt`'s decks, the selftest both.
 - `sim_run(flags)` (int32 by value) — runs the engine over the current scenario and fills the
   tape; flags bit 0 = state vector updates on (reset to each sourced reference row; our "delta
   correction"). Call it on scenario load (after `view_init`) and when that toggle changes. See
