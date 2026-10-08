@@ -20,8 +20,9 @@
 // it (hooks.mount, the page's loadReel) and puts it back on the rack (#19). A second click on a pulled reel, or on a
 // pulled mission notebook on the bookcase whose reel is a scenario reel, asks the page for a modal (hooks.ask: LOAD NEW
 // SIMULATION SCENARIO?, LOAD SIMULATION AND REVIEW NOTEBOOK?; the operator, 2026-10-07), and the page answers through
-// answer(): load (mount it), read (open the notebook), load and read, or back (put it back). The viewer's "Load this
-// reel" hands a reel back to carry (carryReel).
+// answer(): load (mount it), read (open the notebook), load and read, or back (put it back). A pulled system tape (#87,
+// a prop) asks too ("system"), and its only answer is back. The viewer's "Load this reel" hands a reel back to carry
+// (carryReel).
 //
 // Esc is the page's one stack (web/src/esc.js, through hooks.esc): the lab pushes its close-up ("closeup": step back)
 // and a binder or reel pulled out there ("pulled": put it back; a carried reel's stays after the close-up); the page's
@@ -49,6 +50,7 @@ import { Picking } from "./picking";
 import { QualityCheck } from "./quality";
 import { anchorShot, matchShot, shotOf, type Mismatch, type Shot } from "./shot";
 import type { LabEvent, LabHooks, Opens, Placed, Quality, ReelInfo, Room } from "./types";
+import type { SystemTape } from "./equipment/systapes";
 
 /** A flight's time, s, by the distance flown (m): 1 s up to 2.5 m, then slower per metre, at most 1.8 s (an 11 m
  *  flight across the room takes 1.7 s). */
@@ -120,7 +122,8 @@ export class Lab {
     this.vectorTex = new THREE.CanvasTexture(hooks.screens.vector);
     this.vectorTex.colorSpace = THREE.SRGBColorSpace;
     this.vectorTex.anisotropy = aniso;
-    this.room = buildRoom({ vectorScreen: this.vectorTex, maxAnisotropy: aniso, reels: hooks.reels ?? [] });
+    // ?labmotion=0 holds the machines' motion (the tape units' reels, the FASTRAND II): it follows the frame's real dt
+    this.room = buildRoom({ vectorScreen: this.vectorTex, maxAnisotropy: aniso, reels: hooks.reels ?? [], still: new URLSearchParams(location.search).get("labmotion") === "0" });
     this.scene.add(this.room.object);
     markScreens(this.room.object);
     this.room.object.updateMatrixWorld(true);
@@ -240,7 +243,12 @@ export class Lab {
   setTarget(name: string | null, open = false): boolean {
     this.picking.clearHover();
     if (open && this.at?.name === name) { this.open(); return true; }
-    if (name === null) { this.drop(true); this.fly(this.home0, 0, true); return true; }
+    if (name === null) {   // as back(): what is out on a shelf goes back (a carried reel stays out)
+      this.drop(true);
+      for (const q of this.room.placed) q.equipment.select?.(false);
+      this.fly(this.home0, 0, true);
+      return true;
+    }
     const p = this.room.placed.find(q => q.name === name);
     if (!p) return false;
     const opens = p.equipment.opens;
@@ -289,6 +297,9 @@ export class Lab {
       this.hooks.ask(binder!.startsWith("reel:") ? "reel" : "notebook", reel.id, reel.title);
       return;
     }
+    // A pulled system tape (#87): the page's modal only says what it is, and puts it back.
+    const tape = (piece?.equipment as { tape?: SystemTape } | undefined)?.tape;
+    if (tape && this.hooks.ask) { this.asking = binder!; this.picking.clearHover(); this.hooks.ask("system", tape.id, tape.label); return; }
     // What opens: the binder's own (a mission notebook opens the library), else the station's; a shelf opens nothing,
     // and E or Enter there steps back, carrying what is out.
     const opens = piece?.equipment.opens || a.opens;
@@ -326,12 +337,12 @@ export class Lab {
   answer(choice: "back" | "load" | "read" | "loadread"): void {
     const name = this.asking, p = name ? this.room.placed.find(q => q.name === name) : undefined;
     this.asking = null;
-    const reel = (p?.equipment as { reel?: ReelInfo } | undefined)?.reel;
-    if (!p || !reel) return;
-    if (choice === "back" || choice === "load") {
+    const reel = (p?.equipment as { reel?: ReelInfo } | undefined)?.reel, tape = (p?.equipment as { tape?: SystemTape } | undefined)?.tape;
+    if (!p || (!reel && !tape)) return;
+    if (choice === "back" || choice === "load" || !reel) {   // a system tape only goes back
       for (const q of this.room.placed) if (q.equipment.putBack?.()) break;
       this.hooks.esc?.("pulled", null);
-      if (choice === "load") this.hooks.mount?.(reel.id);
+      if (choice === "load" && reel) this.hooks.mount?.(reel.id);
       this.lockUI();
       return;
     }
@@ -464,6 +475,10 @@ export class Lab {
     const w = this.walk, s = this.hooks.state();
     return { locked: this.input.locked, at: this.at?.name ?? null, carried: this.carry.carried()?.name ?? null, walkup: this.walk.auto, line: this.lineEl.style.display === "none" ? null : this.lineEl.textContent, hover: this.picking.hover?.name ?? null, lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.check.probe ? "probe" : this.check.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
       asking: this.asking,
+      // what each tape unit's paper label names, west to east ("" undressed; #87)
+      tapes: this.room.placed.filter(p => p.equipment.anchors.tapeUnit !== undefined).map(p => (p.equipment.anchors.tapeLabel as (() => string) | undefined)?.() ?? ""),
+      // the system tapes on the rack, by their labels (#87)
+      systapes: this.room.placed.map(p => (p.equipment as { tape?: SystemTape }).tape?.label).filter(Boolean),
       walk: { x: w.pos.x, z: w.pos.y, yaw: w.yaw / D2R, pitch: w.pitch / D2R, near: w.near?.name ?? null },
       // what is out on a shelf, by placed name: 1 out, HALF (pullable.ts) half out beside its partner
       out: Object.fromEntries(this.room.placed.flatMap(p => { const o = p.equipment.out?.() ?? 0; return o ? [[p.name, o]] : []; })),

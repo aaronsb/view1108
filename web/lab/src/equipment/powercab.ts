@@ -150,7 +150,7 @@ function panelUV(g: THREE.BufferGeometry): THREE.BufferGeometry {
 const circle = (x: number, y: number, r: number, n = 40): [number, number][] =>
   Array.from({ length: n }, (_, i) => [x + r * Math.cos(2 * Math.PI * i / n), y + r * Math.sin(2 * Math.PI * i / n)]);
 
-export function build(_ctx: BuildContext): Equipment {
+export function build(ctx: BuildContext): Equipment {
   const object = new THREE.Group(), mine: { dispose(): void }[] = [];
   const warm = paint(PAL.warm), dark = paint(PAL.dark, 0.9), black = plastic(0x161718, 0.5);
 
@@ -282,7 +282,7 @@ export function build(_ctx: BuildContext): Equipment {
 
   // Needle motion: each a damped spring toward its reading (0.65 s period, damping 0.6 of critical: ours).
   const W2 = 9.7 ** 2, DAMP = 2 * 0.6 * 9.7, r = rng(208), pos = METERS.map(m => (m.min + m.max) / 2), vel = METERS.map(() => 0);
-  let t = r() * 100, busy = 0, tape = 0, lastFrame = -1, jitterT = 0;
+  let t = r() * 100, settled = false, busy = 0, tape = 0, lastFrame = -1, jitterT = 0;
   const jitter = [0, 0, 0, 0, 0];
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), zAxis = new THREE.Vector3(0, 0, 1), one = new THREE.Vector3(1, 1, 1);
   const place = () => {
@@ -322,9 +322,11 @@ export function build(_ctx: BuildContext): Equipment {
     event(e: LabEvent) { if (e.type === "tape") tape = 6; else if (e.type === "beamFrame") busy = Math.max(busy, 0.4); },
     update(dt: number, s: LabState) {
       dt = Math.min(dt, 0.1);
-      t += dt;
       const goal = panel.open ? 1 : 0;
       if (swing !== goal) { swing = goal > swing ? Math.min(1, swing + dt / SWING_S) : Math.max(0, swing - dt / SWING_S); hang(); }
+      // ?labmotion=0: the needles stand at their idle readings, still (the doors still swing when used).
+      if (ctx.still) { if (!settled) { settled = true; METERS.forEach((_m, i) => { pos[i] = target(i, 0); vel[i] = 0; }); place(); } return; }
+      t += dt;
       if (s.frameNo !== lastFrame) { lastFrame = s.frameNo; busy = Math.max(busy, 0.5); }
       busy = Math.max(0, busy - dt); tape = Math.max(0, tape - dt);
       const active = s.playing || busy > 0 || tape > 0, load = active ? (tape > 0 ? 1 : 0.6) : 0;

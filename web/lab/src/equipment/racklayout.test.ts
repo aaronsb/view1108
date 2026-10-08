@@ -2,8 +2,10 @@
 // every reel shelved while there is room, none overlapping another or leaving its bay, every group with its strip, the
 // playlists never dropped, and today's four reels where the rack has always put them; the anonymous reels (filler) only
 // on levels with none of the index's reels, each bay of those filled within FILL's share, inside the bay and never
-// overlapping. Node, no three.js.
+// overlapping; with the system tapes (#87), their level below the playlists, the reels where they were, none lost.
+// Node, no three.js.
 import type { ReelInfo } from "../types";
+import { SYSTEM_TAPES, type SystemTape } from "./systapes";
 import { BAY_W, BAYS, FILL, GAP, LEVELS, PER_BAY, SLOT, END0, END1, T, bayX0, bayX1, filler, rackLayout } from "./racklayout";
 
 let fails = 0;
@@ -12,18 +14,19 @@ const scenario = (id: string, mission: string, zero: number): ReelInfo => ({ id,
 const playlist = (id: string): ReelInfo => ({ id, title: id.toUpperCase(), kind: "playlist", mission: "", zero: null });
 
 /** Every slot inside its bay, and no two slots in a cell overlapping. */
-function sound(name: string, reels: ReelInfo[]) {
-  const p = rackLayout(reels);
-  for (const s of p.slots) ok(s.x >= bayX0(s.bay) && s.x + SLOT <= bayX1(s.bay) - END1 + 1e-9 && s.level < LEVELS.length && s.bay < BAYS, `${name}: ${s.reel.id} out of its bay`);
+function sound(name: string, reels: ReelInfo[], system: readonly SystemTape[] = []) {
+  const p = rackLayout(reels, system), all = [...p.slots.map(s => ({ ...s, id: s.reel.id })), ...p.tapes.map(t => ({ ...t, id: `systape:${t.tape.id}` }))];
+  for (const s of all) ok(s.x >= bayX0(s.bay) && s.x + SLOT <= bayX1(s.bay) - END1 + 1e-9 && s.level < LEVELS.length && s.bay < BAYS, `${name}: ${s.id} out of its bay`);
   const cells = new Map<string, number[]>();
-  for (const s of p.slots) cells.set(`${s.level}:${s.bay}`, [...cells.get(`${s.level}:${s.bay}`) ?? [], s.x]);
+  for (const s of all) cells.set(`${s.level}:${s.bay}`, [...cells.get(`${s.level}:${s.bay}`) ?? [], s.x]);
   for (const [k, xs] of cells) { xs.sort((a, b) => a - b); for (let i = 1; i < xs.length; i++) ok(xs[i] - xs[i - 1] >= SLOT - 1e-9, `${name}: overlap in cell ${k}`); }
-  ok(new Set(p.slots.map(s => s.reel.id)).size === p.slots.length, `${name}: a reel placed twice`);
+  ok(new Set(all.map(s => s.id)).size === all.length, `${name}: a reel placed twice`);
   ok(p.slots.length + p.unplaced.length === reels.length, `${name}: reels lost`);
-  ok(p.strips.length === p.groups.filter(g => p.slots.some(s => g.reels.includes(s.reel))).length, `${name}: strips`);
+  ok(p.tapes.length + p.unplacedTapes.length === system.length, `${name}: system tapes lost`);
+  ok(p.strips.length === p.groups.filter(g => p.slots.some(s => g.reels.includes(s.reel)) || p.tapes.some(t => g.tapes?.includes(t.tape))).length, `${name}: strips`);
   for (const st of p.strips) ok(!p.strips.some(o => o !== st && o.level === st.level && o.bay === st.bay), `${name}: two strips in one bay`);
   // The filler, for a few seeds.
-  const n = Math.floor((BAY_W - END0 - END1 + GAP) / (T + GAP)), used = new Set(p.slots.map(s => s.level));
+  const n = Math.floor((BAY_W - END0 - END1 + GAP) / (T + GAP)), used = new Set(all.map(s => s.level));
   for (const seed of [1, 1919, 77]) {
     let x = seed;
     const r = () => ((x = (x * 1103515245 + 12345) % 2147483648) / 2147483648);
@@ -66,6 +69,29 @@ function sound(name: string, reels: ReelInfo[]) {
   const n = LEVELS.length * BAYS * PER_BAY + 7, p = sound("too many", Array.from({ length: n }, (_, i) => scenario(`x${i}`, "APOLLO 12", 0)));
   ok(p.unplaced.length === 7, `too many: ${p.unplaced.length} unplaced`);
 }
+// Today's index with the system tapes (#87): their own level below the playlists, in bay B, labelled SYSTEM TAPES; the
+// reels where they were; one level of filler left.
+{
+  const today = [scenario("apollo11-asflown", "APOLLO 11", Date.UTC(1969, 6, 16, 13, 32)), scenario("apollo8-asflown", "APOLLO 8", Date.UTC(1968, 11, 21, 12, 51)), playlist("demo"), playlist("tour")];
+  const p = sound("today + system", today, SYSTEM_TAPES), q = rackLayout(today);
+  ok(p.strips.map(s => `${s.label}@${s.level}${s.bay}`).join("|") === "APOLLO 8 · DEC 1968@01|APOLLO 11 · JUL 1969@11|DEMO / TOUR REELS@21|SYSTEM TAPES@31", `today + system: strips ${JSON.stringify(p.strips)}`);
+  ok(p.tapes.length === SYSTEM_TAPES.length && p.tapes.every(t => t.level === 3 && t.bay === 1), "today + system: tapes on level 4, bay B");
+  ok(JSON.stringify(p.slots) === JSON.stringify(q.slots), "today + system: the reels moved");
+  ok(LEVELS.length - new Set([...p.slots, ...p.tapes].map(s => s.level)).size === 1, "today + system: one level of filler");
+}
+// 30 reels in 8 groups and the system tapes: more groups than levels, nothing lost or overlapping.
+{
+  const reels: ReelInfo[] = [];
+  for (let i = 0; i < 25; i++) reels.push(scenario(`s${i}`, `APOLLO ${7 + (i % 7)}`, Date.UTC(1968 + (i % 7), i % 12, 1)));
+  for (let i = 0; i < 5; i++) reels.push(playlist(`p${i}`));
+  const p = sound("30 reels + system", reels, SYSTEM_TAPES);
+  ok(p.unplaced.length === 0 && p.unplacedTapes.length === 0, "30 reels + system: unplaced");
+}
+// An overfull rack: the system tapes come last and are the ones reported.
+{
+  const n = LEVELS.length * BAYS * PER_BAY, p = sound("full + system", Array.from({ length: n }, (_, i) => scenario(`x${i}`, "APOLLO 12", 0)), SYSTEM_TAPES);
+  ok(p.unplaced.length === 0 && p.unplacedTapes.length === SYSTEM_TAPES.length, `full + system: ${p.unplacedTapes.length} tapes unplaced`);
+}
 ok(PER_BAY >= 1 && PER_BAY * SLOT <= BAY_W, "slots per bay");
 if (fails) throw new Error(`racklayout: ${fails} failure(s)`);
-console.log(`racklayout: PASS (today's 4 reels, 30 reels in 8 groups, one mission of 30, an overfull rack; ${PER_BAY} slots a bay; filler on unlabelled levels only, ${FILL[0]}-${FILL[1]} of each bay, 3 seeds)`);
+console.log(`racklayout: PASS (today's 4 reels, 30 reels in 8 groups, one mission of 30, an overfull rack; the system tapes with today's, 30 and a full rack; ${PER_BAY} slots a bay; filler on unlabelled levels only, ${FILL[0]}-${FILL[1]} of each bay, 3 seeds)`);

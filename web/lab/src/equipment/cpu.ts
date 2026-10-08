@@ -28,7 +28,7 @@ export function cabinet(P: Parts, doorTop: number, handleY: number): void {
   P.box(0.006, doorTop - 0.1, 0.014, paint(PAL.dark), 0, (doorTop + 0.1) / 2, 0.407);
 }
 
-export function build(_ctx: BuildContext, opts: CpuOptions = {}): Equipment {
+export function build(ctx: BuildContext, opts: CpuOptions = {}): Equipment {
   const object = new THREE.Group(), mine: { dispose(): void }[] = [];
   const P = new Parts(), dark = paint(PAL.charcoal, 0.9);
   cabinet(P, opts.lampPanel ? 1.0 : 1.86, opts.lampPanel ? 0.6 : 1.0);
@@ -75,7 +75,7 @@ export function build(_ctx: BuildContext, opts: CpuOptions = {}): Equipment {
       ...(opts.lampPanel ? { lamps: { center: new THREE.Vector3(0, 1.43, 0.414), normal: new THREE.Vector3(0, 0, 1), w: 0.76, h: 0.8 } } : {}),
     },
     update(dt, s) {
-      if (!lamps) return;
+      if (!lamps || ctx.still) return;   // ?labmotion=0: the panel holds the words it was built with
       if (s.frameNo !== lastFrame) { lastFrame = s.frameNo; busy = 0.5; }
       busy -= dt;
       const active = s.playing || busy > 0, rate = active ? 20 : 1.5;

@@ -73,9 +73,10 @@ export interface LabHooks {
   /** The page's one Esc stack (web/src/esc.js): push `key` with what Esc does while it is on top, or (null) take it
    *  off. The lab pushes its close-up and a pulled binder or reel ("pulled"; a reel's stays while it is carried). */
   esc?(key: string, pop: (() => void) | null): void;
-  /** A second click on a pulled reel ("reel") or on a pulled mission notebook whose reel is a scenario reel
-   *  ("notebook"): the page shows its modal for reel `id` (title `title`) and answers through VIEW_LAB.answer. */
-  ask?(kind: "reel" | "notebook", id: string, title: string): void;
+  /** A second click on a pulled reel ("reel"), on a pulled mission notebook whose reel is a scenario reel
+   *  ("notebook") or on a pulled system tape ("system", #87: `id` the tape's, not a reel of the index): the page shows
+   *  its modal for `id` (title `title`) and answers through VIEW_LAB.answer. */
+  ask?(kind: "reel" | "notebook" | "system", id: string, title: string): void;
 }
 
 /** A camera pose: where the eye is, what it looks at, its vertical field of view (deg). */
@@ -145,6 +146,10 @@ export interface BuildContext {
   maxAnisotropy: number;
   /** The site reel index (LabHooks.reels): the tape rack's reels. */
   reels?: readonly ReelInfo[];
+  /** Hold the machines' motion still (`?labmotion=0`, for repeatable screenshots): the tape units' reels and the
+   *  FASTRAND II's drums, head carriage and lamps, and the CPU lamp panel stay as they were built; labels still follow
+   *  the page. */
+  still?: boolean;
 }
 
 export type EquipmentBuilder = (ctx: BuildContext) => Equipment;
