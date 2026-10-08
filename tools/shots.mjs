@@ -152,6 +152,7 @@ const SHOT_LIST = [
       { expect: [`${LAB}.units.every(u => u.set === "apollo11-asflown" && u.flange === ${REEL_FLANGE.scenario})`, true] },
       ROOM_CLICK("reel:apollo8-asflown"), { wait: `${LAB}.out["reel:apollo8-asflown"] === 1` }, { frames: 12 }, ROOM_CLICK("reel:apollo8-asflown"),
       { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button.primary" }, { wait: `${TL("mounted")} === "apollo8-asflown"` }, { frames: 3 },
+      AT("vector"), ...AT_ST("rack"), ROOM_STILL,   // #117: the exec flew to the vector terminal; back to the rack for the system tape
       { expect: [`${LAB}.tapes.filter((t, i) => i !== 3)`, SET_LABELS("APOLLO 8")] },
       ROOM_CLICK(SYS_LAST), { wait: `${LAB}.out[${SYS_EXPR}] === 1` }, { frames: 12 }, ROOM_CLICK(SYS_LAST), { wait: `!document.getElementById("ask").hidden` },
       { click: "#askbtns button.primary" }, { wait: `document.getElementById("ask").hidden && !${LAB}.out[${SYS_EXPR}]` },
