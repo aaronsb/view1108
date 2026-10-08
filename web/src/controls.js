@@ -2,7 +2,6 @@
 "use strict";
 // ---- UI ----
 function syncUI() {
-  document.querySelectorAll("#scenes button").forEach(b => b.classList.toggle("on", +b.dataset.scene === LS.situation));
   document.getElementById("bplay").textContent = LS.playing ? "Pause" : "Play";
   const reel = document.getElementById("reel"); reel.hidden = !auto(); reel.textContent = reelLabel();   // the mounted playlist reel's TITLE (player.js)
   document.querySelector("#ppause small").textContent = LS.playing ? "PAUSE" : "PLAY";
@@ -26,19 +25,11 @@ function syncUI() {
   document.getElementById("bfrm").classList.toggle("on", frame);
 }
 const $ = id => document.getElementById(id);
-// The scene buttons, the number keys and the jump buttons, from the page's data once it is set at boot (main.js).
-// The number keys pick scenes 1 to 9, as many as there are situations.
-let KEY_SCENES = 0;
-function sceneButtons() {
-  SCENES.forEach((n, i) => {
-    const b = document.createElement("button"), s = i + 1;
-    b.textContent = s + " " + n; b.dataset.scene = s; b.onclick = () => loadReel(P({ scene: s })); $("scenes").appendChild(b);
-  });
-  KEY_SCENES = Math.min(9, SCENES.length);
-  $("hintscenes").textContent = KEY_SCENES > 1 ? `1-${KEY_SCENES}` : "1";
-  // The jump buttons, one per JUMP span of the Live scenario: its button text and its start time, h:mm:ss. Each loads
-  // Live at the jump, as a link with mode=live, its scene and its time would, and re-points the Apollo in Real Time
-  // window (timeline.js).
+// The jump buttons, from the page's data once it is set at boot (main.js): one per JUMP span of the Live scenario, its
+// button text and its start time, h:mm:ss. Each loads Live at the jump, as a link with mode=live, its scene and its
+// time would, and re-points the Apollo in Real Time window (timeline.js). The situations are entries of the event list
+// (timeline.js; #73 removed the scene buttons), and the number keys are the loaded reel's quick views.
+function jumpButtons() {
   for (const j of JUMPS) {
     const b = document.createElement("button"), g = Math.round(j.get);
     b.textContent = `${j.button} ${Math.floor(g / 3600)}:${pad2(Math.floor(g / 60) % 60)}:${pad2(g % 60)}`;
@@ -80,8 +71,8 @@ cv.addEventListener("pointermove", e => {
   const dx = e.clientX - p[0], dy = e.clientY - p[1]; p[0] = e.clientX; p[1] = e.clientY;
   if (ptrs.size === 1) {
     if (orbiting()) {   // Moon view or EXTERNAL: yaw/pitch are longitude/latitude (azimuth/elevation) around the target, so dragging spins it under the pointer
-      const Hh_ = new Float64Array(buf(), K.hdr.value, 16), R = Hh_[12] > 0 && Hh_[14] > 0 ? Hh_[12] / Hh_[14] * plotPx() / 2 : 0.85 * (LS.fov0 / LS.fov) * plotPx() / 2;   // disc radius in px: hdr(13) over the box half-width hdr(15)
-      const d = 180 / Math.PI / R;   // degrees of longitude per px at the disc centre
+      const Hh_ = new Float64Array(buf(), K.hdr.value, 16), R = Math.min(plotPx() / 2, Hh_[12] > 0 && Hh_[14] > 0 ? Hh_[12] / Hh_[14] * plotPx() / 2 : 0.85 * (LS.fov0 / LS.fov) * plotPx() / 2);   // disc radius in px: hdr(13) over the box half-width hdr(15), at most the plot half-width
+      const d = 180 / Math.PI / R;   // degrees of longitude per px at the disc centre; a disc wider than the plot (External in orbit) turns about 115 deg per plot width, not a crawl
       const y = LS.yaw - dx * d; track({ yaw: ((y + 180) % 360 + 360) % 360 - 180, pitch: Math.max(-90, Math.min(90, LS.pitch + dy * d)) });
     } else { const Hh_ = new Float64Array(buf(), K.hdr.value, 16), d = 2 * (Hh_[14] > 0 ? Hh_[14] : LS.fov / 2) / plotPx(); track({ yaw: LS.yaw - dx * d, pitch: Math.max(-90, Math.min(90, LS.pitch + dy * d)) }); }
   }
@@ -126,8 +117,7 @@ window.addEventListener("keydown", e => {
   if (k.length === 1 || k.startsWith("Arrow")) leaveAttract();
   let h = true;
   if (KEY_ACT[k]) ACT[KEY_ACT[k]]();
-  else if (/^[1-9]$/.test(k) && +k <= KEY_SCENES) loadReel(P({ scene: +k }));
-  else h = false;
+  else if (!(/^[1-9]$/.test(k) && tlQuickKey(k))) h = false;   // a quick view (timeline.js)
   if (h) e.preventDefault();
 });
 window.addEventListener("resize", resize);

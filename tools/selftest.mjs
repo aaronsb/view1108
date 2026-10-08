@@ -91,7 +91,7 @@ const crypto = await import('crypto'), { execFileSync } = await import('child_pr
 const ctxR = vm.createContext({ atob, TextDecoder, Blob, Response, DecompressionStream, Uint8Array, JSON, Error,
   Map, Number, String, parseInt, Math });
 const RP = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/reelpkg.js'), 'utf8') +
-  '\n({ readReel, reelDecks, untar, reelPages, sceneOfLink })', ctxR);
+  '\n({ readReel, reelDecks, untar, reelPages, sceneOfLink, reelSvgUnsafe })', ctxR);
 const reelsJs = fs.readFileSync(path.join(R, 'build/reels.js'), 'utf8');
 const VR = vm.runInNewContext(reelsJs + '\nVIEW_REELS');
 const sha = crypto.createHash('sha256').update(fs.readFileSync(path.join(R, 'build/view.opt.wasm'))).digest('hex');
@@ -237,8 +237,13 @@ const A11_ZERO = Date.UTC(1969, 6, 16, 13, 32, 0);   // Apollo 11's range zero, 
 {
   const bad = [], scenes = JSON.parse(fs.readFileSync(path.join(R, 'build/scenes.json'), 'utf8'));
   for (const r of reels) {
+    // A scenario reel's page.json is gen_data's with the two keys tools/pack.py adds (its listing and quick views,
+    // checked under "listing:" below); a playlist's is gen_data's byte for byte.
     const id = r.manifest.id, f = path.join(R, 'build/page', id + '.json');
-    if (!fs.existsSync(f) || fs.readFileSync(f, 'utf8') !== r.files.get('page.json')) bad.push(`${id}: page.json is not ${f}`);
+    const packed = r.files.get('page.json'), gen = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
+    const strip = t => { const j = JSON.parse(t); delete j.listing; delete j.quickviews; return JSON.stringify(j); };
+    if (gen === null || (r.manifest.kind === 'scenario' ? strip(packed) !== JSON.stringify(JSON.parse(gen)) || !('listing' in JSON.parse(packed)) : packed !== gen))
+      bad.push(`${id}: page.json is not ${f}${r.manifest.kind === 'scenario' ? ' with its listing and quick views' : ''}`);
     if (r.manifest.kind !== 'scenario') continue;
     const want = (scenes.reels.find(x => x.id === id) || { scenes: [] }).scenes;
     if (r.page.scenario.id !== 1 || r.page.situations.map(s => s.id).join() !== want.join() || want[0] !== 1)
@@ -526,12 +531,35 @@ if (W.sim_run && fs.existsSync(VSVG)) {
   const wrong = [];
   // Each member as data/ holds it: a scenario reel's mission.scn and scenario file from its mission folder, a playlist
   // reel's run.scn from data/reels/<id>/ (page.json, which gen_data writes, is checked above, "page data").
-  for (const r of reels) for (const [name, text] of r.files) {
-    if (name === 'page.json') continue;
-    const src = r.manifest.kind === 'playlist' ? path.join(R, 'data/reels', r.manifest.id, name)
-      : path.join(R, 'data/missions', r.manifest.mission.id, name);
-    if (!fs.existsSync(src) || fs.readFileSync(src, 'utf8') !== text) wrong.push(`${r.manifest.id}/${name} is not ${src}`);
+  // A notebook (#29) is notebook/notebook.md in the reel's source folder (a scenario reel's
+  // data/missions/<mission>/<scenario file stem>/, a playlist's data/reels/<id>/), each figure the render
+  // tools/notebook.py wrote into build/figures/<id>/ (the one the golden gate captures), and the reel's notebook and
+  // figures are tools/notebook.py's list for it, in order.
+  // tools/notebook.py's list gives the figures with a capture of their own, golden-refs those that are a golden case's
+  // render (#29 slice f); the reel holds both.
+  const nbOut = cmd => execFileSync('python3', [path.join(R, 'tools/notebook.py'), cmd], { cwd: R }).toString()
+    .split('\n').filter(Boolean).map(l => l.split(' '));
+  const nbRefs = nbOut('golden-refs'), nbList = [...nbOut('list'), ...nbRefs];
+  let nfig = 0, nSvgBad = 0, nSvgOk = 0;
+  for (const r of reels) {
+    const id = r.manifest.id;
+    const home = r.manifest.kind === 'playlist' ? path.join(R, 'data/reels', id)
+      : path.join(R, 'data/missions', r.manifest.mission.id);
+    for (const [name, text] of r.files) {
+      if (name === 'page.json') continue;
+      const src = name.startsWith('notebook/figures/') ? path.join(R, 'build/figures', id, name.slice(17))
+        : name.startsWith('notebook/') && r.manifest.kind === 'scenario'
+          ? path.join(home, id.slice(r.manifest.mission.id.length + 1), name) : path.join(home, name);
+      if (!fs.existsSync(src) || fs.readFileSync(src, 'utf8') !== text) wrong.push(`${id}/${name} is not ${src}`);
+    }
+    const want = nbList.filter(([rr]) => rr === id).map(([, n]) => n), have = r.notebook ? [...r.notebook.figures.keys()] : [];
+    nfig += have.length;
+    if ([...want].sort().join() !== [...have].sort().join() || (r.notebook !== null) !== fs.existsSync(path.join(R, 'build/reels', id, 'notebook')) ||
+        (r.notebook && r.notebook.text !== r.files.get('notebook/notebook.md')))
+      wrong.push(`${id}: notebook ${r.notebook ? 'with figures ' + have : 'none'}, not tools/notebook.py's ${want}`);
   }
+  const nbooks = reels.filter(r => r.notebook).map(r => r.manifest.id);
+  if (!nbooks.length) wrong.push('no reel carries a notebook');
   // The scenario reels, in their load order, are build/decks/reels.txt's, each reel's decks build/decks/<id>.txt's.
   const scen = reels.filter(r => r.manifest.kind === 'scenario');
   if (scen.map(r => r.manifest.id).join() !== REELS_IN.join()) wrong.push(`scenario reels ${scen.map(r => r.manifest.id)}, not ${REELS_IN}`);
@@ -568,23 +596,202 @@ if (W.sim_run && fs.existsSync(VSVG)) {
   // Bad packages made from the first reel's members by the packer's own tar_gz (craft MODE): reversed (the manifest
   // not first), the scenario deck dropped (listed but missing), an extra member (not listed), and the manifest's size
   // field set to -512 with its header checksum made right (the reader once looped on it).
-  const craft = mode => execFileSync('python3', ['-c', `import base64, gzip, io, sys, tarfile
+  // The notebook faults (#29), from the first reel with a notebook, its manifest edited to match: a figure without
+  // the notebook (notebook dropped), a figure the notebook names missing (its first figure dropped), a figure it does
+  // not name (one added), the notebook in the package but not listed, a figure whose file is not an SVG, one whose
+  // path is not notebook/figures/<name>.svg, a second notebook, another type under notebook/, and notebook texts
+  // naming an image other than an inline ![alt](figures/<name>.svg) (NB_TEXTS, appended to the notebook).
+  const craft = (mode, b64 = VR[0].b64, arg = '') => execFileSync('python3', ['-c', `import base64, gzip, io, json, sys, tarfile
 sys.path.insert(0, "tools"); import pack
 raw = gzip.decompress(base64.b64decode(sys.stdin.read()))
 t = tarfile.open(fileobj=io.BytesIO(raw))
 m = [(i.name, t.extractfile(i).read()) for i in t.getmembers()]
 mode = sys.argv[1]
+man = json.loads(m[0][1])
+figs = [e["path"] for e in man["contents"] if e["type"] == "figure"]
+def edit(drop=(), add=(), unlist=()):
+    man["contents"] = [e for e in man["contents"] if e["path"] not in drop and e["path"] not in unlist]
+    man["contents"] += [{"path": p, "type": ty} for p, ty, _ in add]
+    return [("manifest.json", json.dumps(man).encode())] + [x for x in m[1:] if x[0] not in drop] + [(p, b) for p, _, b in add]
+SVG = b'<svg xmlns="http://www.w3.org/2000/svg"></svg>\\n'
 if mode == "negsize":
     h = bytearray(raw)
     h[124:136] = b"-0000001000" + bytes(1)
     h[148:156] = b"        "
     h[148:156] = (b"%06o" % sum(h[:512])) + bytes(1) + b" "
     out = gzip.compress(bytes(h), mtime=0)
+elif mode.startswith("nb-"):
+    out = pack.tar_gz({
+        "nb-fig-alone": lambda: edit(drop=["notebook/notebook.md"]),
+        "nb-fig-missing": lambda: edit(drop=figs[:1]),
+        "nb-fig-unnamed": lambda: edit(add=[("notebook/figures/unnamed.svg", "figure", SVG)]),
+        "nb-unlisted": lambda: edit(unlist=["notebook/notebook.md"]),
+        "nb-not-svg": lambda: edit(drop=figs[:1], add=[(figs[0], "figure", b"GIF89a, not an SVG\\n")]),
+        "nb-fig-unsafe": lambda: edit(drop=figs[:1], add=[(figs[0], "figure", sys.argv[2].encode())]),
+        "nb-not-svg-path": lambda: edit(add=[("notebook/figures/plate.png", "figure", SVG)]),
+        "nb-two": lambda: edit(add=[("notebook/notes.md", "notebook", b"# notes\\n")]),
+        "nb-other-type": lambda: edit(add=[("notebook/plate.txt", "image", b"x\\n")]),
+        "nb-text": lambda: edit(drop=["notebook/notebook.md"],
+                                add=[("notebook/notebook.md", "notebook", dict(m)["notebook/notebook.md"] + sys.argv[2].encode())]),
+    }[mode]())
+elif mode == "page":
+    out = pack.tar_gz([(n, sys.argv[2].encode() if n == "page.json" else b) for n, b in m])
 else:
     out = pack.tar_gz({"reverse": m[::-1], "drop": m[:-1], "extra": m + [("extra.txt", b"x")]}[mode])
-sys.stdout.write(base64.b64encode(out).decode())`, mode], { cwd: R, input: VR[0].b64 }).toString();
+sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: b64 }).toString();
   await refused('the manifest not first', craft('reverse'), /manifest\.json is not first/);
   await refused('a listed file missing', craft('drop'), /is listed but missing/);
+  const nbReel = VR.find(r => r.id === nbooks[0]);
+  if (nbReel) {
+    const nbRefused = async (what, mode, want, arg) => {
+      try { await RP.readReel(craft(mode, nbReel.b64, arg), sha, nbReel.id); wrong.push(`${what}: not refused`); }
+      catch (err) { if (!want.test(String(err.message))) wrong.push(`${what}: refused as "${err.message}"`); }
+    };
+    await nbRefused('a figure without a notebook', 'nb-fig-alone', /notebook\/figures\/\S+\.svg is a figure, and it holds no notebook$/);
+    await nbRefused('a named figure missing', 'nb-fig-missing', /its notebook names figures\/\S+\.svg, which it does not hold$/);
+    await nbRefused('a figure the notebook does not name', 'nb-fig-unnamed', /notebook\/figures\/unnamed\.svg is in it, and its notebook does not name it$/);
+    await nbRefused('the notebook not listed', 'nb-unlisted', /notebook\/notebook\.md is in it but not listed$/);
+    await nbRefused('a figure not an SVG', 'nb-not-svg', /notebook\/figures\/\S+\.svg is not an SVG document$/);
+    await nbRefused('a figure not at figures/<name>.svg', 'nb-not-svg-path', /notebook\/figures\/plate\.png is a figure, not notebook\/figures\/<name>\.svg$/);
+    await nbRefused('two notebooks', 'nb-two', /it lists 2 notebooks, not one$/);
+    await nbRefused('another type under notebook/', 'nb-other-type', /notebook\/plate\.txt is under notebook\/ as type image, not notebook or figure$/);
+    // The same texts are refused by tools/notebook.py (refs) when it packs: the reader and the packer agree.
+    const NB_TEXTS = {
+      'an HTML <img>': ['\n<img src="figures/earthrise.svg">\n', /has an HTML <img>/, /an HTML <img>/],
+      'a reference definition': ['\n[r]: figures/earthrise.svg\n', /has a reference definition/, /a reference definition/],
+      'a reference-style image': ['\n![a][r]\n', /has an image not written/, /an image not written/],
+      'alt text holding "]"': ['\n![a]b](figures/earthrise.svg)\n', /has an image not written/, /an image not written/],
+      'another image path': ['\n![a](photo.png)\n', /has an image "photo\.png"/, /an image 'photo\.png'/] };
+    for (const [what, [t, js, py]] of Object.entries(NB_TEXTS)) {
+      await nbRefused(`a notebook with ${what}`, 'nb-text', js, t);
+      let msg = '';
+      try { execFileSync('python3', ['-c', 'import sys; sys.path.insert(0, "tools"); import notebook; notebook.refs(sys.argv[1])', t], { cwd: R, stdio: 'pipe' }); }
+      catch (err) { msg = String(err.stderr); }
+      if (!py.test(msg)) wrong.push(`tools/notebook.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
+    }
+    // A figure that could act when opened as a page (reviews of PR #69): the allowlist (reelpkg.js reelSvgUnsafe,
+    // tools/notebook.py svg_unsafe at render and pack) refuses each of these, the bypasses of a blocklist among them;
+    // the reader refuses the package and the Python names it: the two agree.
+    const W3 = 'xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"';
+    const SVG_BAD = {
+      'a <script>': `<svg ${W3}><script>alert(document.domain)</script></svg>\n`,
+      'an onload attribute': `<svg ${W3} onload="alert(1)"><rect/></svg>\n`,
+      'a <foreignObject>': `<svg ${W3}><foreignObject><div>x</div></foreignObject></svg>\n`,
+      'a javascript: URL': `<svg ${W3}><a href="javascript:alert(1)"><text>x</text></a></svg>\n`,
+      'an xlink:href elsewhere': `<svg ${W3}><g xlink:href="https://evil.example/x.svg#a"/></svg>\n`,
+      'an XHTML-namespace <h:script>': `<svg ${W3} xmlns:h="http://www.w3.org/1999/xhtml"><h:script>alert(1)</h:script></svg>\n`,
+      'a prefixed <s:script>': `<s:svg xmlns:s="http://www.w3.org/2000/svg"><s:script>alert(1)</s:script></s:svg>\n`,
+      'an entity-built <script>': `<!DOCTYPE svg [<!ENTITY s "&#60;script>alert(1)&#60;/script>">]><svg ${W3}>&s;</svg>\n`,
+      'a <set> to an encoded javascript:': `<svg ${W3}><a><set attributeName="href" to="&#106;avascript:alert(1)"/><text>x</text></a></svg>\n`,
+      'an <animate> of href': `<svg ${W3}><a><animate attributeName="href" values="&#x6a;avascript:alert(1)"/></a></svg>\n`,
+      'a CSS url()': `<svg ${W3}><g fill="url(https://evil.example/x#p)"/></svg>\n`,
+      'a <style> @import': `<svg ${W3}><style>@import "https://evil.example/x.css";</style></svg>\n`,
+      'a style attribute': `<svg ${W3}><rect style="fill:red"/></svg>\n`,
+      'a processing instruction': `<svg ${W3}><?xml-stylesheet href="https://evil.example/x.css"?></svg>\n`,
+      'a comment': `<svg ${W3}><!-- --></svg>\n`,
+      'a namespace swap': `<svg xmlns="http://www.w3.org/1999/xhtml"><text>x</text></svg>\n`,
+      'an unquoted attribute': `<svg ${W3}><rect x=1 onload=alert(1)/></svg>\n`,
+    };
+    for (const [what, svg] of Object.entries(SVG_BAD)) {
+      await nbRefused(`a figure with ${what}`, 'nb-fig-unsafe', /(holds .*, which a figure may not \(the allowlist\)|is not an SVG document)$/, svg);
+      const py = execFileSync('python3', ['-c', 'import sys; sys.path.insert(0, "tools"); import notebook; print(notebook.svg_unsafe(sys.argv[1]))', svg], { cwd: R }).toString().trim();
+      if (py === 'None') wrong.push(`tools/notebook.py svg_unsafe passes a figure with ${what}`);
+    }
+    nSvgBad = Object.keys(SVG_BAD).length;
+    // A positive control: what viewsvg writes, with a fragment link, passes both.
+    const okSvg = `<?xml version="1.0"?>\n<svg ${W3} width="8" height="8" viewBox="0 0 8 8"><g stroke="white" xlink:href="#a"><line x1="0" y1="0" x2="1" y2="1" stroke-dasharray="6 5"/></g><g fill="#9cf" font-family="monospace" font-size="11"><text x="1" y="2">1:2 &amp; &#60;</text></g></svg>\n`;
+    const okPy = execFileSync('python3', ['-c', 'import sys; sys.path.insert(0, "tools"); import notebook; print(notebook.svg_unsafe(sys.argv[1]))', okSvg], { cwd: R }).toString().trim();
+    if (okPy !== 'None' || RP.reelSvgUnsafe(okSvg) !== null) wrong.push(`the allowlist refuses viewsvg's own shapes: ${okPy} / ${RP.reelSvgUnsafe(okSvg)}`);
+    // Every figure and every golden render (when build/golden is there) passes both: a kernel that writes a new element
+    // or attribute fails here, loudly, not in a reader's browser.
+    const svgFiles = [...fs.readdirSync(path.join(R, 'build/figures')).flatMap(d => fs.statSync(path.join(R, 'build/figures', d)).isDirectory()
+      ? fs.readdirSync(path.join(R, 'build/figures', d)).filter(f => f.endsWith('.svg')).map(f => path.join('build/figures', d, f)) : []),
+      ...(fs.existsSync(path.join(R, 'build/golden/render')) ? fs.readdirSync(path.join(R, 'build/golden/render')).map(f => path.join('build/golden/render', f)) : [])];
+    for (const f of svgFiles) {
+      const t = fs.readFileSync(path.join(R, f), 'utf8'), k = t.indexOf('</svg>'), why = RP.reelSvgUnsafe(k >= 0 ? t.slice(0, k + 6) : t);
+      if (why) wrong.push(`${f}: the page's allowlist refuses it (${why})`);
+    }
+    try { execFileSync('python3', [path.join(R, 'tools/notebook.py'), 'check-svg', ...svgFiles], { cwd: R, stdio: 'pipe' }); }
+    catch (err) { wrong.push(`tools/notebook.py check-svg refuses: ${String(err.stdout).trim()}`); }
+    nSvgOk = svgFiles.length;
+    if (nSvgOk < nfig) wrong.push(`the allowlist checked ${nSvgOk} files, fewer than the ${nfig} figures`);
+    // A stale render is not packed: tools/notebook.py stale finds nothing today and names a changed case (its GET).
+    const st = execFileSync('python3', ['-c', `import sys; sys.path.insert(0, "tools"); import notebook as nb
+for rid, n in nb.notebooks():
+    print(rid, nb.stale(rid, n))
+    c = n["cases"][0]
+    print(rid, nb.stale(rid, dict(n, cases=[(c[0], c[1], c[2], c[3][:1] + ["1"])] + n["cases"][1:])))`], { cwd: R }).toString();
+    if (!st.split('\n').filter(Boolean).every((l, i) => i % 2 ? / its figure cases or their reels' decks have changed/.test(l) : / None$/.test(l)))
+      wrong.push(`a stale render: ${st.trim()}`);
+  }
+  // The event listing and quick views (#29 slice f, #73; tools/pack.py, reelpkg.js reelListingWrong): each scenario
+  // reel's listing holds its situations and timeline rows once each, in g.e.t. order; Apollo 11's quick views are its
+  // data/missions/apollo11/asflown/quickviews.txt (key 9 an event) and Apollo 8's, which has no such file, its first
+  // situation on key 1; a repeated name's id carries its g.e.t. Planted faults, the first reel's page.json edited: a
+  // quick view naming an id the listing does not hold, a key outside 1-9, a situation dropped, an event renamed, a
+  // situation's field changed, a kind the page does not know yet (#75's
+  // photo), no listing; each refused by the reader. The packer refuses a quickviews.txt naming an unknown id or a key
+  // twice, and tools/notebook.py a golden=<case> from another reel or not in CASES.
+  {
+    const lw = [], A11 = reels.find(r => r.manifest.id === 'apollo11-asflown'), A8 = reels.find(r => r.manifest.id === 'apollo8-asflown');
+    for (const r of [A11, A8]) {
+      const L = r.page.listing, sits = L.filter(e => e.kind === 'situation'), evs = L.filter(e => e.kind === 'event');
+      if (sits.length !== r.page.situations.length || evs.length !== r.page.timeline.events.length || L.some((e, i) => i && e.get < L[i - 1].get))
+        lw.push(`${r.manifest.id}: listing of ${sits.length} situations and ${evs.length} events, not the reel's`);
+    }
+    const qv = JSON.stringify(A11.page.quickviews), qv8 = JSON.stringify(A8.page.quickviews);
+    if (qv !== '{"1":"EARTHRISE","2":"EARTH APPROACH","3":"EARTH LIMB","4":"LM RENDEZVOUS","5":"LM DESCENT","6":"MOON VIEW","7":"TRANSPOSITION AND DOCKING","8":"DOCKED STACK","9":"translunar-injection"}')
+      lw.push(`apollo11-asflown quick views ${qv}`);
+    if (qv8 !== '{"1":"APOLLO 8 EARTHRISE"}') lw.push(`apollo8-asflown quick views ${qv8}`);
+    // A repeated name's id carries its row's g.e.t. (stable whatever is added elsewhere): a literal from SP-4029's row.
+    if (!A11.page.listing.some(e => e.id === 'midcourse-correction-ignition@26:44:58.64' && e.get === 96298.64))
+      lw.push('apollo11-asflown: no midcourse-correction-ignition@26:44:58.64 at 96298.64 s');
+    const pg = A11.page, va = VR.find(r => r.id === A11.manifest.id);
+    const sitDrop = pg.listing.filter(e => e.id !== 'EARTHRISE'), evRen = pg.listing.map(e => e.id === 'translunar-injection' ? { ...e, name: 'TLI' } : e);
+    const PAGE_BAD = {
+      'a quick view naming no entry': [{ ...pg, quickviews: { 1: 'NO SUCH VIEW' } }, /quick view 1 names "NO SUCH VIEW", which the reel's listing does not hold$/],
+      'a quick view key 0': [{ ...pg, quickviews: { 0: 'EARTHRISE' } }, /quickviews key "0" is not 1 to 9$/],
+      'a situation missing from the listing': [{ ...pg, listing: sitDrop, quickviews: {} }, /the listing holds 7 of the reel's 8 situations$/],
+      'an event renamed': [{ ...pg, listing: evRen }, /\(translunar-injection\) is not the timeline's row \d+$/],
+      'a situation with another field': [{ ...pg, listing: pg.listing.map(e => e.id === 'EARTHRISE' ? { ...e, fov: 60 } : e) }, /situation EARTHRISE's name, view, target or field is not its card's$/],
+      'a kind not known yet': [{ ...pg, listing: pg.listing.map((e, i) => i ? e : { ...e, kind: 'photo' }) }, /listing entry 1 is of kind photo, not situation or event$/],
+      'no listing': [{ ...pg, listing: undefined }, /page\.json has no listing$/] };
+    for (const [what, [p, re]] of Object.entries(PAGE_BAD)) {
+      try { await RP.readReel(craft('page', va.b64, JSON.stringify(p)), sha, va.id); lw.push(`${what}: not refused`); }
+      catch (err) { if (!re.test(String(err.message))) lw.push(`${what}: refused as "${err.message}"`); }
+    }
+    const tmpq = fs.mkdtempSync(path.join(R, 'build/qv-fault-'));
+    const PY_BAD = {
+      'quickviews.txt naming no entry': ['1 EARTHRISE\n2 NO SUCH VIEW\n', /'NO SUCH VIEW' is no entry of apollo11-asflown's listing/],
+      'quickviews.txt giving a key twice': ['1 EARTHRISE\n1 MOON VIEW\n', /key 1 given twice/] };
+    for (const [what, [t, re]] of Object.entries(PY_BAD)) {
+      fs.writeFileSync(path.join(tmpq, 'quickviews.txt'), t);
+      let msg = '';
+      try { execFileSync('python3', ['-c', `import json, pathlib, sys; sys.path.insert(0, "tools"); import pack
+page = json.loads(open("build/page/apollo11-asflown.json").read())
+pack.quickviews("apollo11-asflown", pathlib.Path(sys.argv[1]), pack.listing("apollo11-asflown", page))`, tmpq], { cwd: R, stdio: 'pipe' }); }
+      catch (err) { msg = String(err.stderr); }
+      if (!re.test(msg)) lw.push(`tools/pack.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
+    }
+    const NB_GOLD = {
+      'a golden case from another reel': ['s9-default', /golden=s9-default is drawn from reel apollo8-asflown, not this notebook's own/],
+      'a golden case not in CASES': ['no-such-case', /golden=no-such-case: no such case/] };
+    for (const [what, [gc, re]] of Object.entries(NB_GOLD)) {
+      fs.rmSync(path.join(tmpq, 'notebook'), { recursive: true, force: true });
+      fs.mkdirSync(path.join(tmpq, 'notebook'));
+      fs.writeFileSync(path.join(tmpq, 'notebook/notebook.md'), `# t\n\n![a](figures/a.svg)\n\n\`\`\`figures\na | golden=${gc}\n\`\`\`\n`);
+      let msg = '';
+      try { execFileSync('python3', ['-c', 'import pathlib, sys; sys.path.insert(0, "tools"); import notebook; notebook.load("apollo11-asflown", "scenario", pathlib.Path(sys.argv[1]), None)', tmpq], { cwd: R, stdio: 'pipe' }); }
+      catch (err) { msg = String(err.stderr); }
+      if (!re.test(msg)) lw.push(`tools/notebook.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
+    }
+    fs.rmSync(tmpq, { recursive: true, force: true });
+    if (!nbRefs.length) lw.push('no notebook figure is a golden case\'s render');
+    console.log(`listing: ${[A11, A8].map(r => `${r.manifest.id} ${r.page.listing.length} entries, quick views ${Object.keys(r.page.quickviews).join('')}`).join('; ')}; ` +
+      `${nbRefs.length} figures golden cases' renders; ${Object.keys(PAGE_BAD).length + Object.keys(PY_BAD).length + Object.keys(NB_GOLD).length} planted faults` +
+      `  ${lw.length ? 'WRONG: ' + lw.join('; ') : 'the reels\' own, each fault refused'}`);
+    if (lw.length) ok = false;
+  }
   await refused('a member not listed', craft('extra'), /extra\.txt is in it but not listed/);
   await refused('a negative size field', craft('negsize'), /does not unpack: manifest\.json: bad size/);
   try { await RP.readReel(VR[0].b64, sha, 'other-id'); wrong.push('another id: not refused'); }
@@ -596,7 +803,8 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode], { cwd: R, input: VR[0]
   if (pageSha !== sha || reels.some(r => r.manifest.kernel.sha256 !== pageSha))
     wrong.push(`the page's KERNEL_SHA ${pageSha} is not the wasm's ${sha.slice(0, 8)} or a manifest's`);
   console.log(`packages: ${reels.length} reels (${reels.map(r => `${r.manifest.id} ${r.manifest.kind}`).join(', ')}), ${ndecks} decks; ` +
-    `hash totals ${sumsR.join(', ')}  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/, packed twice the same, refusals hold'}`);
+    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, ${13 + nSvgBad} notebook faults (${nSvgBad} unsafe figures), the figure allowlist over ${nSvgOk} figures and golden renders, a stale render` +
+    `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/ and build/figures/, packed twice the same, refusals hold'}`);
   if (wrong.length) ok = false;
 }
 // A situation's defaults are its deck's whatever source the last frame drew from (vdrive.f VINIT reads the replay for
@@ -622,4 +830,109 @@ if (W.sim_run) {
     `${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'the same as fresh'}`);
   if (wrong.length) ok = false;
 }
+// The notebook viewer's renderer (#29 slice d; web/src/notebook.js), run here as the page runs it, with a stand-in
+// document that records what is built and refuses innerHTML: each reel's notebook gives only NB_TAGS elements, an
+// <img> per figure its text names (in reelpkg.js reelFigureRefs's order, src from the viewer's figure URL, never the
+// SVG text) and its figure cases as the closing table, no Markdown left in its text; and a crafted text of script and
+// HTML tags, event handlers and javascript:, data: and relative links and images builds nothing but text, http(s)
+// links and the one real figure.
+{
+  const wrong = [];
+  const NB = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/notebook.js'), 'utf8') +
+    '\n({ nbParse, nbBuild, nbTitle, NB_TAGS })', vm.createContext({ URL, Set, String }));
+  const RF = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/reelpkg.js'), 'utf8') + '\nreelFigureRefs',
+    vm.createContext({ atob, TextDecoder, Blob, Response, DecompressionStream, Uint8Array, JSON, Error, Map, Number, String, parseInt, Math }));
+  const ATTRS = new Set(['href', 'target', 'rel', 'src', 'alt', 'class']);
+  const fakeDoc = () => {
+    const el = tag => {
+      const e = { tag, attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = String(v); }, appendChild(k) { this.kids.push(k); return k; } };
+      Object.defineProperty(e, 'innerHTML', { set() { throw new Error('innerHTML set'); } });
+      return e;
+    };
+    return { createElement: t => { if (!NB.NB_TAGS.has(t)) throw new Error(`element <${t}>`); return el(t); },
+      createTextNode: text => ({ text }), createDocumentFragment: () => el('#frag') };
+  };
+  const walk = (n, f) => { f(n); for (const k of n.kids || []) walk(k, f); };
+  // Build `md` with figures `names`; returns the elements, the text and the problems found.
+  const built = (md, names) => {
+    const els = [], texts = [], bad = [];
+    const root = NB.nbBuild(NB.nbParse(md), fakeDoc(), n => names.includes(n) ? `data:image/svg+xml;base64,${n}` : null);
+    walk(root, n => {
+      if (n.text !== undefined) { texts.push(n.text); return; }
+      els.push(n);
+      for (const [k, v] of Object.entries(n.attrs)) {
+        if (!ATTRS.has(k)) bad.push(`attribute ${k}`);
+        if (k === 'href' && !/^https?:\/\/[^/]/.test(v)) bad.push(`href ${v}`);
+        if (k === 'src' && !/^data:image\/svg\+xml;base64,[a-z0-9-]+$/.test(v)) bad.push(`src ${v}`);
+        if (/javascript:|vbscript:/i.test(v) || (k !== 'src' && /data:/i.test(v))) bad.push(`${k} ${v}`);
+      }
+      if (n.tag === 'a' && /^https?:/.test(n.attrs.href) && (n.attrs.target !== '_blank' || !/noopener/.test(n.attrs.rel || ''))) bad.push(`a link without target/rel: ${n.attrs.href}`);
+    });
+    return { els, text: texts.join(''), bad };
+  };
+  let nb = 0, nimg = 0;
+  for (const r of reels.filter(r => r.notebook)) {
+    nb++;
+    const id = r.manifest.id, names = [...r.notebook.figures.keys()], b = built(r.notebook.text, names);
+    const imgs = b.els.filter(e => e.tag === 'img').map(e => e.attrs.src.slice(26));
+    nimg += imgs.length;
+    if (imgs.join() !== RF(r.notebook.text).join()) wrong.push(`${id}: figures ${imgs}, not ${RF(r.notebook.text)}`);
+    if (b.bad.length) wrong.push(`${id}: ${b.bad.join(', ')}`);
+    const last = b.els.filter(e => e.tag === 'section').pop();
+    if (!last || last.kids.filter(k => k.tag === 'table').length !== 1) wrong.push(`${id}: no figure cases table`);
+    if (/!\[|\]\(|\*\*|```|^#|\n#/.test(b.text)) wrong.push(`${id}: Markdown left in the text`);
+    if (!/scenario notebook$/.test(NB.nbTitle(r.notebook.text))) wrong.push(`${id}: title "${NB.nbTitle(r.notebook.text)}"`);
+  }
+  if (!nb) wrong.push('no notebook to render');
+  const EVIL = [
+    '# T <script>alert(1)</script>', '', 'Para <img src=x onerror=alert(1)> and <b onclick="x()">b</b> **<i>s</i>**.', '',
+    '[js](javascript:alert(1)) [JS](JaVaScRiPt:alert(1)) [tab](java\tscript:alert(1)) [data](data:text/html,<script>x</script>)',
+    '[rel](../secret.html) [quote](https://a.example/"onmouseover="x) <javascript:alert(1)> [ok](https://ok.example/p?q=1)', '',
+    '[ent](&#x6a;avascript:alert(1)) [sp]( javascript:alert(1)) [vb](vbscript:msgbox(1)) [proto](//evil.example/x) [angle](<javascript:x>)',
+    '[title](javascript:alert(1) "t") [frag](#libr) [hs](https:evil.example) [titled](https://ok.example/p?q=1 "a title")', '',
+    '![i](javascript:alert(1)) ![j](figures/../x.svg) ![k](figures/real.svg) ![l](https://x.example/a.svg)', '',
+    '> <svg onload=alert(1)>', '', '- <iframe src=x></iframe>', '', '| a | <script> |', '|---|---|', '| [x](javascript:y) | `<b>` |',
+    '', '```html', '<script>alert(2)</script>', '```', '', '```figures', '# name | args', 'real | 1', '```',
+  ].join('\n');
+  const e = built(EVIL, ['real']);
+  const tags = [...new Set(e.els.map(x => x.tag))].filter(t => t !== '#frag').sort();
+  const links = e.els.filter(x => x.tag === 'a').map(x => x.attrs.href), imgs = e.els.filter(x => x.tag === 'img').map(x => x.attrs.src);
+  if (e.bad.length) wrong.push(`crafted: ${e.bad.join(', ')}`);
+  if (links.join() !== 'https://ok.example/p?q=1,https://ok.example/p?q=1') wrong.push(`crafted: links ${links}`);
+  if (imgs.join() !== 'data:image/svg+xml;base64,real') wrong.push(`crafted: images ${imgs}`);
+  // Hostile shapes, each parsed within a time bound and without throwing: a deep quote nest, unmatched emphasis, image
+  // openers, a heading trailed by spaces (nbTitle too), a deep list; and a text over NB_MAX is refused, not parsed.
+  const HOSTILE = { 'a 20 KB quote nest': '> '.repeat(10000) + 'x', 'unmatched emphasis, 120 KB': '*a '.repeat(40000),
+    'image openers, 80 KB': '!['.repeat(40000), 'image openers and one "]"': '!['.repeat(40000) + '](x)', 'a heading and 20 K spaces': '# h' + ' '.repeat(20000) + 'x',
+    'a deep list': Array.from({ length: 400 }, (_, k) => ' '.repeat(2 * k) + '- x').join('\n'),
+    'backticks, 80 KB': '`a'.repeat(40000), 'link openers, 80 KB': '[a]('.repeat(16000) };
+  let slow = 0;
+  for (const [what, t] of Object.entries(HOSTILE)) {
+    const t0 = performance.now();
+    try { built(t, []); NB.nbTitle(t); } catch (err) { wrong.push(`${what}: threw ${err.message}`); }
+    const ms = performance.now() - t0; slow = Math.max(slow, ms);
+    if (ms > 400) wrong.push(`${what}: ${ms.toFixed(0)} ms`);
+  }
+  try { NB.nbParse('x'.repeat(300000)); wrong.push('a 300 KB text: not refused'); } catch (err) { if (!/more than/.test(err.message)) wrong.push(`a 300 KB text: ${err.message}`); }
+  if (!['<script>alert(1)</script>', 'onerror=alert(1)', '<svg onload=alert(1)>', '<iframe src=x></iframe>', '<script>alert(2)</script>'].every(t => e.text.includes(t)))
+    wrong.push('crafted: the tags are not kept as text');
+  if (tags.some(t => !NB.NB_TAGS.has(t))) wrong.push(`crafted: elements ${tags}`);
+  console.log(`notebook: ${nb} notebooks rendered, ${nimg} figures as <img> from figure URLs; a crafted text (script, img onerror, ` +
+    `javascript:/vbscript:/data:/entity/spaced/protocol-relative/angle/titled/#fragment/relative links and images, raw HTML in a quote, list, table and fence); ` +
+    `${Object.keys(HOSTILE).length} hostile shapes, slowest ${slow.toFixed(0)} ms, and an over-long text refused  ` +
+    `${wrong.length ? 'WRONG: ' + wrong.join('; ') : `inert: elements ${tags.join(' ')}, https links only, one figure`}`);
+  if (wrong.length) ok = false;
+}
+// The cabins' hidden-line tables (#71; src/viewcom.inc /COCC/): the opaque triangles and each cabin's cut pieces
+// against their maxima, from the native driver (VIEW_CABN, tools/vdump.f VCABN).  A full table refuses entries
+// (NOCX, NCPX), and a refused triangle brings hidden lines back, so any refusal, or a table filled to its maximum, fails.
+if (fs.existsSync(VSVG)) {
+  const [noc, moc, nocx, cm, lm, mcp, cmx, lmx] = execFileSync(VSVG, ['1'], { cwd: R,
+    env: Object.fromEntries(Object.entries({ ...process.env, VIEW_CABN: '1' }).filter(([k]) => !['VIEW_DECK', 'VIEW_REEL'].includes(k))) })
+    .toString().trim().split(/\s+/).map(Number);
+  const full = nocx + cmx + lmx > 0 || noc >= moc || cm >= mcp || lm >= mcp;
+  console.log(`cabin tables: ${noc} of ${moc} opaque triangles, pieces CM ${cm} LM ${lm} of ${mcp} a cabin` +
+    `  ${full ? `FULL (refused: ${nocx} triangles, ${cmx} CM and ${lmx} LM pieces)` : 'room left, none refused'}`);
+  if (full) ok = false;
+} else console.log('cabin tables: no native driver (build/viewsvg)');
 console.log(ok ? 'PASS' : 'FAIL'); process.exit(ok ? 0 : 1);

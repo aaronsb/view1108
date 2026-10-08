@@ -1,6 +1,7 @@
 // Main loop, status line and the 16 fps film rate.
 "use strict";
 // ---- main loop ----
+let kFrames = 0;   // kernel frames the loop has computed (Beam computes one only when a trace starts; views.js tgtTick)
 function step(now) {
   const dt = last ? Math.min(0.25, (now - last) / 1000) : 0; last = now;
   if (LS.reel) reelStep(dt);
@@ -14,7 +15,7 @@ function step(now) {
   else if (LS.playing) track({ get: LS.get + dt * SPEEDS[speedIdx] });
   wr("in_get", LS.get); wr("in_yaw", LS.yaw); wr("in_pitch", LS.pitch); wr("in_roll", LS.roll); wr("in_fov", LS.fov);
   wi("in_flags", 1 | (frame ? 2 : 0) | (hidden ? 4 : 0) | simFlags() | cabinFlag() | wallsFlag()); featInputs();   // labels always requested: the NAV catalog needs the 37 named stars
-  if (LS.mode !== "beam" || beamNew) { K.view_frame(); whineFrame(); }
+  if (LS.mode !== "beam" || beamNew) { K.view_frame(); whineFrame(); kFrames++; }
   draw(now); beamNew = false; updateStatus(); simTick(); featTick();
   const sc = document.getElementById("scrub"), gi = document.getElementById("geti");
   if (LS.mode === "live") { sc.min = LIVE_MIN; sc.max = LIVE_MAX; } else { sc.min = -7200; sc.max = 7200; }

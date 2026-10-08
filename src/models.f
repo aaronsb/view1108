@@ -39,10 +39,13 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
+      DOUBLE PRECISION OFF(3)
       NSOL = 0
       NXL = 0
       NMOD = 0
       NWIN = 0
+      NOC = 0
+      NOCX = 0
 C     LM, landing gear deployed (scene 4).
       CALL MODBEG(KLMD)
       CALL LMBODY
@@ -94,6 +97,12 @@ C     CM and LM crew compartments, outlines (in_flags bit 4).
       CALL LMINT
       CALL MODEND(KLMI)
       MDHL(KLMI) = 0
+C     Their hidden lines, for the design eyes (vmask.f CBCUT; ours).
+      CALL SETV(OFF, 0.0D0, 0.0D0, 0.0D0)
+      KCOK(1) = 0
+      KCOK(2) = 0
+      CALL CBCUT(KCMI, OFF)
+      CALL CBCUT(KLMI, OFF)
       RETURN
       END
 C
@@ -1489,7 +1498,8 @@ C     CMINT: the CM's crew compartment about the station eye, free
 C     lines in CSM body metres (X = 0 at the CM's widest diameter, as
 C     CSMBLD; Y toward the LM pilot, Z toward the crew's feet).  An
 C     outline model (MDHL = 0), drawn with in_flags bit 4: the camera
-C     is inside it, and stars, Earth and Moon show through its walls.
+C     is inside it, and stars, Earth and Moon show through its walls
+C     unless the window mask (bit 5) cuts them to the windows.
 C     Stations are Xc of the Apollo Operations Handbook (SM2A-03-Block
 C     II-(1), 1969, "AOH", Fig. 1-2, "XC = 0" below the aft heat
 C     shield), X = 0.0254 (Xc - 18) m, the 18 in read off that figure
@@ -1516,10 +1526,14 @@ C         3 (ours).
 C       Couches CDR, CMP, LMP from -Y, their back pans "32 by 22
 C         inches" (NR p. 79) under the eyes (DB's Y), the seat at the
 C         "85-degree position" (NR p. 72); leg pans and heights ours.
-C         The commander's back pan is not drawn (the eye is on it).
 C       Main display console, lower equipment bay, left and right hand
 C         equipment bays: placed by eye from AOH Figs. 1-26 and 1-27
 C         (ours).
+C       Opaque (ours): the console, the couches' pans, the bays' faces
+C         and the forward bulkhead about the tunnel hide the cabin's
+C         lines behind them (OCPOLY, XOCC, OCSTRP; vmask.f CBCUT).
+C         The windows and hatches are not opaque: nothing of the
+C         cabin is behind them.
 C-----------------------------------------------------------------------
       SUBROUTINE CMINT
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -1528,7 +1542,8 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION W1(3,8), W2(3,8), W3(3,8), HS(3,8), D1(3,4)
       DOUBLE PRECISION D2(3,4), CX(5), CZ(5), EB(3,6), HB(3,4), C(3)
-      DOUBLE PRECISION GA(7), CA, SA, YC, YA, YB
+      DOUBLE PRECISION GA(7), CA, SA, YC, YA, YB, QC(3,4), RI(3,16)
+      DOUBLE PRECISION RO(3,16)
       INTEGER K, J, L, N1, N2, N3, N4
 C     Main display console: left wing (panel 1; panel 3 its mirror)
 C     and centre (panel 2), hung from the wall above the side hatch.
@@ -1589,42 +1604,60 @@ C     Forward bulkhead, tunnel and forward hatch.
       CALL SETV(C, 2.286D0, 0.0D0, 0.0D0)
       CALL XRING(C, 1, 0.419D0, 16)
       CALL XRING(C, 1, 0.381D0, 16)
+C     The forward bulkhead is opaque about the tunnel's mouth: a strip
+C     from the tunnel's ring out to the wall's (OCSTRP; ours).
+      DO 35 K = 1, 16
+        CA = DCOS(DBLE(K - 1) * PI / 8.0D0)
+        SA = DSIN(DBLE(K - 1) * PI / 8.0D0)
+        CALL SETV(RI(1,K), 1.626D0, 0.419D0 * CA, 0.419D0 * SA)
+        CALL SETV(RO(1,K), 1.626D0, 0.754D0 * CA, 0.754D0 * SA)
+   35 CONTINUE
+      CALL OCSTRP(16, RI, RO)
 C     Windows (XWIN: also the window mask's) and the side hatch, on
 C     the inner wall (CMWIN): 1, left side; 2, left rendezvous; 3,
 C     hatch; the side hatch, 29 in along the cone, 34 in around.
+C     Window 2 is kept for the mask only (WKEEP): CMCAB draws its two
+C     outlines, one for each of the commander's eyes, and window 2
+C     lies between them.
       CALL CMWIN(1, N1, W1)
       CALL CMWIN(2, N2, W2)
       CALL CMWIN(3, N3, W3)
       CALL CMWIN(4, N4, HS)
       CALL XWIN(N1, W1, 1.0D0)
       CALL XWIN(N1, W1, -1.0D0)
-      CALL XWIN(N2, W2, 1.0D0)
+      CALL WKEEP(N2, W2, 1.0D0)
       CALL XWIN(N2, W2, -1.0D0)
       CALL XWIN(N3, W3, 1.0D0)
       CALL XPOLY(N4, HS, 1, 1.0D0)
-C     Main display console.
-      CALL XPOLY(4, D2, 1, 1.0D0)
-      CALL XPOLY(4, D1, 1, 1.0D0)
-      CALL XPOLY(4, D1, 1, -1.0D0)
-C     Couches: two sides, cross members at each joint; none for the
-C     commander's back pan.
+C     Main display console, opaque (XOCC).
+      CALL XOCC(4, D2, 1.0D0)
+      CALL XOCC(4, D1, 1.0D0)
+      CALL XOCC(4, D1, -1.0D0)
+C     Couches: two sides, cross members at each joint, each pan
+C     between two joints opaque (OCPOLY).  The eye is 0.22 m above the
+C     commander's back pan, which hides what is behind his head.
       DO 50 J = -1, 1
         YC = 0.622D0 * DBLE(J)
         YA = YC - 0.279D0
         YB = YC + 0.279D0
         DO 40 K = 1, 5
-          IF (J .EQ. -1 .AND. K .EQ. 1) GO TO 40
-          CALL XLINE(YA, CX(K), CZ(K), YB, CX(K), CZ(K), 0)
-          IF (K .EQ. 5) GO TO 40
+          IF (K .EQ. 5) GO TO 38
           L = K + 1
+          CALL SETV(QC(1,1), CX(K), YA, CZ(K))
+          CALL SETV(QC(1,2), CX(K), YB, CZ(K))
+          CALL SETV(QC(1,3), CX(L), YB, CZ(L))
+          CALL SETV(QC(1,4), CX(L), YA, CZ(L))
+          CALL OCPOLY(4, QC, 1.0D0)
+   38     CALL XLINE(YA, CX(K), CZ(K), YB, CX(K), CZ(K), 0)
+          IF (K .EQ. 5) GO TO 40
           CALL XLINE(YA, CX(K), CZ(K), YA, CX(L), CZ(L), 0)
           CALL XLINE(YB, CX(K), CZ(K), YB, CX(L), CZ(L), 0)
    40   CONTINUE
    50 CONTINUE
-C     Equipment bays.
-      CALL XPOLY(6, EB, 1, 1.0D0)
-      CALL XPOLY(4, HB, 1, 1.0D0)
-      CALL XPOLY(4, HB, 1, -1.0D0)
+C     Equipment bays' faces, opaque.
+      CALL XOCC(6, EB, 1.0D0)
+      CALL XOCC(4, HB, 1.0D0)
+      CALL XOCC(4, HB, -1.0D0)
       RETURN
       END
 C
@@ -1660,6 +1693,10 @@ C         bulkhead", tiers "cantered up 15 deg", "36.5 deg" (same
 C         page); the alignment optical telescope "between and above
 C         the flight stations" (LMNR p. CD-2).  Sizes and cross-
 C         sections from SG Figs. 12 and 13 by eye (ours).
+C       Opaque (ours): the floor, the panels, the side consoles' tiers,
+C         the engine cover, the aft bulkhead about the midsection and
+C         the upper deck about the overhead hatch hide the cabin's
+C         lines behind them (vmask.f CBCUT).
 C-----------------------------------------------------------------------
       SUBROUTINE LMINT
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -1669,7 +1706,7 @@ C     RESTOMOD END
       DOUBLE PRECISION FL(3,4), FH(3,4), DW(3,4), P1(3,4), P3(3,4)
       DOUBLE PRECISION P4(3,4), P5(3,4), CN(2,6), WN(3,3), EM(3,14)
       DOUBLE PRECISION C(3), A, CA, SA, X1, X2, T1, T2, T, ZF, LMWIN
-      DOUBLE PRECISION SY
+      DOUBLE PRECISION SY, QC(3,4), RI(3,16), RO(3,16), YH, R
       INTEGER K, J, I
       DATA FL / 2.094D0, -0.699D0, 0.724D0, 2.094D0, 0.699D0, 0.724D0,
      &  2.094D0, 0.699D0, 1.638D0, 2.094D0, -0.699D0, 1.638D0 /
@@ -1713,7 +1750,7 @@ C     the cylinder every 45 deg but under the floor.
 C     The front's knee, floor, forward hatch.
       CALL XLINE(-1.168D0, 3.021D0, 1.64D0, 1.168D0, 3.021D0, 1.64D0,
      &  0)
-      CALL XPOLY(4, FL, 1, 1.0D0)
+      CALL XOCC(4, FL, 1.0D0)
       CALL XPOLY(4, FH, 1, 1.0D0)
 C     Windows (XWIN: also the window mask's).
       DO 15 K = 1, 3
@@ -1721,7 +1758,13 @@ C     Windows (XWIN: also the window mask's).
           WN(I,K) = LMWIN(I,K)
    12   CONTINUE
    15 CONTINUE
-      CALL XWIN(3, WN, 1.0D0)
+C     The commander's window is kept for the mask (WKEEP) with only
+C     its outboard edge drawn (corner 3 to 1): OVLPD (llpd.f) draws
+C     its sill and inboard edge, the period frame.  The LM pilot's is
+C     drawn whole.
+      CALL WKEEP(3, WN, 1.0D0)
+      CALL XLINE(WN(2,3), WN(1,3), WN(3,3), WN(2,1), WN(1,1), WN(3,1),
+     &  0)
       CALL XWIN(3, WN, -1.0D0)
       CALL XWIN(4, DW, 1.0D0)
 C     Midsection: its section at both ends, the decks' edges and the
@@ -1741,6 +1784,16 @@ C     sides joined along it.
    25   CONTINUE
         CALL XPOLY(14, EM, 1, 1.0D0)
    30 CONTINUE
+C     The aft bulkhead is opaque about the midsection's mouth, EM at
+C     its last (forward) end: a strip from EM out to the bulkhead's
+C     ring along rays from the ring's centre (OCSTRP; ours).
+      DO 32 K = 1, 14
+        R = DSQRT((EM(1,K) - 3.0D0)**2 + EM(2,K)**2)
+        CALL SETV(RI(1,K), EM(1,K), EM(2,K), EM(3,K))
+        CALL SETV(RO(1,K), 3.0D0 + 1.168D0 * (EM(1,K) - 3.0D0) / R,
+     &            1.168D0 * EM(2,K) / R, EM(3,K))
+   32 CONTINUE
+      CALL OCSTRP(14, RI, RO)
       DO 35 K = 1, 14
         IF (K .EQ. 1 .OR. K .EQ. 4 .OR. K .EQ. 7 .OR. K .EQ. 8
      &    .OR. K .EQ. 11 .OR. K .EQ. 14) CALL XLINE(EM(2,K), EM(1,K),
@@ -1751,7 +1804,30 @@ C     The step up from the floor to the lower deck.
         SY = DBLE(J) * EM(2,7)
         CALL XLINE(SY, 2.094D0, 0.724D0, SY, 2.551D0, 0.686D0, 0)
    38 CONTINUE
-C     Ascent engine cover, overhead hatch, docking tunnel.
+C     Ascent engine cover, overhead hatch, docking tunnel.  The cover
+C     is opaque, its top and sides; so is the upper deck about the
+C     hatch, a strip from the hatch's ring out to the deck's edges,
+C     EM(2,1) either side and the midsection's ends (ours).
+      YH = EM(2,1)
+      DO 37 K = 1, 16
+        CA = DCOS(DBLE(K - 1) * PI / 8.0D0)
+        SA = DSIN(DBLE(K - 1) * PI / 8.0D0)
+        CALL SETV(RI(1,K), 2.551D0, 0.356D0 * CA, 0.356D0 * SA)
+        CALL SETV(RO(1,K), 3.249D0, 0.356D0 * CA, 0.356D0 * SA)
+   37 CONTINUE
+      CALL OCSTRP(16, RI, RO)
+      CALL OCPOLY(16, RO, 1.0D0)
+      DO 39 K = 1, 16
+        CA = DCOS(DBLE(K - 1) * PI / 8.0D0)
+        SA = DSIN(DBLE(K - 1) * PI / 8.0D0)
+        R = 1.0D3
+        IF (DABS(CA) .GT. 1.0D-9) R = YH / DABS(CA)
+        IF (DABS(SA) .GT. 1.0D-9 .AND. 0.686D0 / DABS(SA) .LT. R)
+     &    R = 0.686D0 / DABS(SA)
+        CALL SETV(RI(1,K), 4.104D0, 0.419D0 * CA, 0.419D0 * SA)
+        CALL SETV(RO(1,K), 4.104D0, R * CA, R * SA)
+   39 CONTINUE
+      CALL OCSTRP(16, RI, RO)
       CALL SETV(C, 2.551D0, 0.0D0, 0.0D0)
       CALL XRING(C, 1, 0.356D0, 16)
       CALL SETV(C, 3.249D0, 0.0D0, 0.0D0)
@@ -1770,20 +1846,26 @@ C     Ascent engine cover, overhead hatch, docking tunnel.
         CALL XLINE(0.406D0 * CA, 4.104D0, 0.406D0 * SA,
      &             0.406D0 * CA, 4.51D0, 0.406D0 * SA, 0)
    40 CONTINUE
-C     Panels.
-      CALL XPOLY(4, P1, 1, 1.0D0)
-      CALL XPOLY(4, P1, 1, -1.0D0)
-      CALL XPOLY(4, P3, 1, 1.0D0)
-      CALL XPOLY(4, P4, 1, 1.0D0)
-      CALL XPOLY(4, P5, 1, 1.0D0)
-      CALL XPOLY(4, P5, 1, -1.0D0)
-C     Side consoles, aft bulkhead to the panels' plane.
+C     Panels, opaque.
+      CALL XOCC(4, P1, 1.0D0)
+      CALL XOCC(4, P1, -1.0D0)
+      CALL XOCC(4, P3, 1.0D0)
+      CALL XOCC(4, P4, 1.0D0)
+      CALL XOCC(4, P5, 1.0D0)
+      CALL XOCC(4, P5, -1.0D0)
+C     Side consoles, aft bulkhead to the panels' plane; each tier and
+C     riser opaque (OCPOLY).
       DO 60 J = -1, 1, 2
         SY = DBLE(J)
         DO 55 K = 1, 6
           CALL XLINE(SY * CN(2,K), CN(1,K), 0.686D0,
      &               SY * CN(2,K), CN(1,K), 1.575D0, 0)
           IF (K .EQ. 6) GO TO 55
+          CALL SETV(QC(1,1), CN(1,K), CN(2,K), 0.686D0)
+          CALL SETV(QC(1,2), CN(1,K+1), CN(2,K+1), 0.686D0)
+          CALL SETV(QC(1,3), CN(1,K+1), CN(2,K+1), 1.575D0)
+          CALL SETV(QC(1,4), CN(1,K), CN(2,K), 1.575D0)
+          CALL OCPOLY(4, QC, SY)
           CALL XLINE(SY * CN(2,K), CN(1,K), 0.686D0,
      &               SY * CN(2,K+1), CN(1,K+1), 0.686D0, 0)
           CALL XLINE(SY * CN(2,K), CN(1,K), 1.575D0,
@@ -1821,9 +1903,18 @@ C     back to the first if ICL = 1; Y is multiplied by SY (-1 mirrors).
       END
 C
 C     XWIN: a window of the cabin being built, its N corners P as
-C     XPOLY takes them: drawn as a closed outline, and kept in /CWIN/
-C     for the window mask (vmask.f).
+C     XPOLY takes them: drawn as a closed outline, and kept (WKEEP).
       SUBROUTINE XWIN(N, P, SY)
+      INTEGER N
+      DOUBLE PRECISION P(3,N), SY
+      CALL XPOLY(N, P, 1, SY)
+      CALL WKEEP(N, P, SY)
+      RETURN
+      END
+C
+C     WKEEP: a window of the cabin being built, kept in /CWIN/ for the
+C     window mask (vmask.f), not drawn.
+      SUBROUTINE WKEEP(N, P, SY)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
@@ -1831,7 +1922,6 @@ C     RESTOMOD END
       INTEGER N
       DOUBLE PRECISION P(3,N), SY
       INTEGER K
-      CALL XPOLY(N, P, 1, SY)
       IF (NWIN .GE. MWIN .OR. N .GT. MWV) RETURN
       NWIN = NWIN + 1
       NWV(NWIN) = N
@@ -1840,6 +1930,86 @@ C     RESTOMOD END
         WBV(1,K,NWIN) = P(1,K)
         WBV(2,K,NWIN) = SY * P(2,K)
         WBV(3,K,NWIN) = P(3,K)
+   10 CONTINUE
+      RETURN
+      END
+C
+C     XOCC: an opaque face of the cabin being built, its N corners P
+C     as XPOLY takes them: drawn as a closed outline, and kept as an
+C     occluder (OCPOLY).
+      SUBROUTINE XOCC(N, P, SY)
+      INTEGER N
+      DOUBLE PRECISION P(3,N), SY
+      CALL XPOLY(N, P, 1, SY)
+      CALL OCPOLY(N, P, SY)
+      RETURN
+      END
+C
+C     OCPOLY: an opaque face of the cabin being built, not drawn: the
+C     N corners P (X, Y, Z, body metres, Y times SY), convex, kept in
+C     /COCC/ as a fan of triangles for the cabin's hidden lines
+C     (vmask.f CBCUT).  A triangle is plane whatever its corners, so a
+C     face need not be quite plane.
+      SUBROUTINE OCPOLY(N, P, SY)
+      INTEGER N
+      DOUBLE PRECISION P(3,N), SY
+      DOUBLE PRECISION A(3), B(3), C(3)
+      INTEGER K, I
+      DO 20 K = 2, N - 1
+        DO 10 I = 1, 3
+          A(I) = P(I,1)
+          B(I) = P(I,K)
+          C(I) = P(I,K+1)
+   10   CONTINUE
+        A(2) = SY * A(2)
+        B(2) = SY * B(2)
+        C(2) = SY * C(2)
+        CALL OCTRI(A, B, C)
+   20 CONTINUE
+      RETURN
+      END
+C
+C     OCSTRP: an opaque ring, not drawn: the strip between the closed
+C     outlines PIN and POUT of N corners each (body metres), corner K
+C     of one facing corner K of the other, as triangles (OCTRI).  A
+C     face with a hole: the forward bulkhead about the CM's tunnel.
+      SUBROUTINE OCSTRP(N, PIN, POUT)
+      INTEGER N
+      DOUBLE PRECISION PIN(3,N), POUT(3,N)
+      DOUBLE PRECISION A(3), B(3), C(3), D(3)
+      INTEGER K, L, I
+      DO 20 K = 1, N
+        L = MOD(K, N) + 1
+        DO 10 I = 1, 3
+          A(I) = PIN(I,K)
+          B(I) = PIN(I,L)
+          C(I) = POUT(I,L)
+          D(I) = POUT(I,K)
+   10   CONTINUE
+        CALL OCTRI(A, B, C)
+        CALL OCTRI(A, C, D)
+   20 CONTINUE
+      RETURN
+      END
+C
+C     OCTRI: triangle A, B, C (body metres) of the cabin being built
+C     (MDBLD), into /COCC/; counted in NOCX if the table is full.
+      SUBROUTINE OCTRI(A, B, C)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION A(3), B(3), C(3)
+      INTEGER I
+      IF (NOC .LT. MOC) GO TO 5
+      NOCX = NOCX + 1
+      RETURN
+    5 NOC = NOC + 1
+      OCMOD(NOC) = MDBLD
+      DO 10 I = 1, 3
+        OCV(I,1,NOC) = A(I)
+        OCV(I,2,NOC) = B(I)
+        OCV(I,3,NOC) = C(I)
    10 CONTINUE
       RETURN
       END

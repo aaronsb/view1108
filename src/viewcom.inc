@@ -277,9 +277,15 @@ C     IVUSE the view this frame actually uses (VIEWPT).  ILEV the
 C     label level this frame applies (VFRAME): 0 none, 1 primary, 2
 C     secondary, 3 all; with ILABL 0 it is 3 if in_flags bit 0 is
 C     set, else 0.  IVBIT the vehicles in this frame's world (VPRES,
-C     hdr 21).
-      INTEGER IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT
-      COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT
+C     hdr 21).  ITGST the target's status this frame (VIEWPT, hdr 23):
+C     0 none asked (in_target 0) or none applies (the LM station, a
+C     FIXED situation), 1 aimed at a point of its own, 2 the vehicle
+C     the camera rides, 3 docked to or carried with another vehicle
+C     (its point is that vehicle's: aimed only from outside), 4 no
+C     point here (no state; the Sun from outside), 5 as 3, the LM in
+C     the SLA before the separation (SEP).
+      INTEGER IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST
+      COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST
 C
 C     /CSCN/ scene number (the situation, row ISCN of the situation
 C     tables), flags of this frame, init done.
@@ -368,8 +374,9 @@ C     placed.
      &               NACT
       DOUBLE PRECISION MDAT(3,3,MMOD), MDP(3,MMOD), MDBO(3,MMOD)
 C     MDHL(K) = 1: model K is drawn with hidden lines removed and its
-C     solids hide other things; 0: an outline, every edge drawn and
-C     nothing hidden by it (the cabins about the eye).  TN D-6853 p. 12
+C     solids hide other things; 0: an outline, hiding nothing else
+C     (the cabins about the eye; their own lines are cut once against
+C     their opaque faces, vmask.f CBCUT).  TN D-6853 p. 12
 C     names hidden-line models of the LM and S-IVB only; the CSM's is
 C     ours.
       INTEGER MDHL(MMOD)
@@ -398,6 +405,29 @@ C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)
       INTEGER IMSKON, IMSK
       COMMON /CWIN/ WBV, WPN
       COMMON /CWINI/ NWIN, NWV, WMOD, WACT, MDBLD, IMSKON, IMSK
+C
+C     /COCC/ the cabins' hidden lines (vmask.f CBCUT; ours).  The
+C     cabins' opaque faces as triangles: triangle J of model OCMOD(J)
+C     has corners OCV(1..3, K, J) in that model's body metres (OCPOLY,
+C     OCSTRP, as MLIB builds the cabins).  Cabin IC (1 the CM's, KCMI;
+C     2 the LM's, KLMI) is drawn as its NCP(IC) visible pieces
+C     CPL(1..6, J, IC), as LXL holds a free line, cut for its eye
+C     moved by COFF(1..3, IC) body metres; KCOK(IC) = 1 once cut.
+C     NOCX triangles and NCPX(IC) pieces were refused, the tables
+C     full: the selftest fails on any (its cabin tables line).
+C     OCTA, OCTB: CBCUT's work area, a line's hidden runs (OCCUT).
+      INTEGER MOC, MCP
+C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
+C     (1978); and about 21,400 words more of core for the cabins'
+C     hidden lines (2 words a DP number), on top of /CLM/'s two
+C     thirds of the 1108's 262,144 (docs/univac-1108.md).
+      PARAMETER (MOC=512, MCP=400)
+      DOUBLE PRECISION OCV(3,3,MOC), CPL(6,MCP,2), COFF(3,2)
+      DOUBLE PRECISION OCTA(MOC), OCTB(MOC)
+      INTEGER NOC, OCMOD(MOC), NCP(2), KCOK(2), NOCX, NCPX(2)
+      COMMON /COCC/ OCV, CPL, COFF, OCTA, OCTB
+      COMMON /COCCI/ NOC, OCMOD, NCP, KCOK, NOCX, NCPX
+C     RESTOMOD END
 C
 C     /CVLAB/ work area of the vehicle labels (lvlab.f): the plot
 C     points of the model being labelled (VLPTS).

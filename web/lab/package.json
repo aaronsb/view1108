@@ -7,7 +7,8 @@
   "scripts": {
     "build": "esbuild src/main.ts --bundle --minify --format=iife --target=es2020 --legal-comments=eof --outfile=../../build/lab.js",
     "typecheck": "tsc --noEmit",
-    "gallery": "esbuild src/gallery.ts --bundle --format=iife --target=es2020 --sourcemap --outfile=../../build/lab-gallery.js"
+    "gallery": "esbuild src/gallery.ts --bundle --format=iife --target=es2020 --sourcemap --outfile=../../build/lab-gallery.js",
+    "test": "esbuild src/equipment/racklayout.test.ts --bundle --platform=node --format=esm --log-level=warning --outfile=../../build/lab-test.mjs && node ../../build/lab-test.mjs"
   },
   "dependencies": {
     "three": "0.186.1"

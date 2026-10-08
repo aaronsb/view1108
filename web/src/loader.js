@@ -1,6 +1,6 @@
 // The one loader (#16; docs/systems-model.md, section 4, rules 1 and 2). loadReel(params) is the only code that
 // changes the situation, and with it the scenario, mission and epoch, or that jumps the time or the look by command.
-// Every way in builds params and calls it: the URL (openLink, link.js), the scene buttons and number keys, the mode
+// Every way in builds params and calls it: the URL (openLink, link.js), the event list's entries and quick-view keys (timeline.js tlPick), the mode
 // buttons, Live's phases and jump buttons, Following and the timeline's events, the playlist player (Attract, Tour),
 // the Fusion photo pick, the view and target buttons and the look's reset. Continuous changes inside the loaded
 // situation (the clock running, a drag, a key or the wheel on the look, the scrubber) go through track() (state.js).
@@ -22,7 +22,11 @@
 //   event   a timeline event inside the view on screen: its time, re-centring the scrubber
 //   reset   the look and field back to the situation's own, the time kept
 //   source  the state source changed (sim.js): the situation set up again in the kernel, time and look kept
-// Without `by` the keys are a viewer's pick: reel or mode (a mode button; the player's handover to the NEXT reel), then scene (a scene button or key: Live pins it if
+//   mount   a scenario reel mounted (reels.js reelMount: the rack, a drive, the notebook modal, Tabbed's reel list,
+//           Load this reel): a fresh run, as if EXEC loaded the program anew (the operator, 2026-10-07): the reel's
+//           first situation (scene) at its defaults, Free-look, no Live pin, Beam, Following, view or target override,
+//           and the clock stopped; the tab, the Room/Tabbed choice and the speed setting are kept
+// Without `by` the keys are a viewer's pick: reel or mode (a mode button; the player's handover to the NEXT reel), then scene (a situation entry or its quick-view key: Live pins it if
 // it can, else Free-look; Beam stays), get (a typed time), fov, view, target. mode=live with a scene is a jump button:
 // as a link with those keys.
 "use strict";
@@ -46,6 +50,7 @@ function loadReel(p) {
     case "event": loadEvent(pNum(p, "get")); break;
     case "reset": { const g = LS.get, t = LS.target; mount(LS.situation); LS.get = g; LS.target = t; break; }
     case "source": { const keep = { ...LS }; mount(LS.situation); Object.assign(LS, { get: keep.get, get0: keep.get0, yaw: keep.yaw, pitch: keep.pitch, roll: keep.roll, fov: keep.fov, target: keep.target }); break; }
+    case "mount": loadMount(+p.get("scene")); break;
     default: loadPick(p);
   }
   if (p.has("photo")) loadPhoto(p);
@@ -130,7 +135,7 @@ function loadLink(p) {
   if (pFlag(p, "frame") !== null) frame = pFlag(p, "frame");
   if (pFlag(p, "hidden") !== null) hidden = pFlag(p, "hidden");
 }
-// A viewer's pick: a mode button, a scene button or key, a jump button, a typed time, the view and target buttons.
+// A viewer's pick: a mode button, a situation entry or quick-view key, a jump button, a typed time, the view and target buttons.
 function loadPick(p) {
   const m = pMode(p), sc = pNum(p, "scene");
   if (m === "live" && sc !== null) loadLive(p, sc);
@@ -144,6 +149,15 @@ function loadPick(p) {
   const v = pPick(p, "view", VIEWS), t = pPick(p, "target", TARGETS);
   if (FEAT.view && v !== null) LS.view = v;
   if (FEAT.target && t !== null) LS.target = t;
+  syncUI();
+}
+// A scenario reel mounted: a fresh run (by=mount, above). Nothing of the last run carries over but the presentation.
+function loadMount(s) {
+  livePin = null; follow = false; capName = "";
+  LS.mode = "free"; LS.reel = ""; beamNextStart = 0;
+  LS.view = 0; liveIdx = 0;
+  mount(s);
+  LS.playing = false;
   syncUI();
 }
 // Live's phase changed: keep the viewer's look and the time across it; the field returns to the situation's own,

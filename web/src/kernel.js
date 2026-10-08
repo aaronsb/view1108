@@ -56,7 +56,7 @@ async function boot() {
     for (const r of scenarioReels().reverse()) loadDecks(r);
   }
   LS.mode = REELS[DEFAULT_REEL].alias;
-  if (DEBUG) window.VIEW_KERNEL = K;
+  if (DEBUG) { window.VIEW_KERNEL = K; window.VIEW_CPU = cpuName; }   // test hooks: the kernel, and which one runs
 }
 
 // The reels embedded in the page (VIEW_REELS, build/reels.js, tools/pack.py), unpacked once at boot (reelpkg.js),

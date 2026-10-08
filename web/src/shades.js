@@ -1,7 +1,7 @@
 // Window shades: each control group's header shows or hides the group. The viewer's choice per group is remembered;
 // until one is made, a narrow screen opens only each tab's own groups and Look, and a wide one opens them all.
 "use strict";
-const SHADES_KEY = "view1108.shades", SHADES_NARROW = ["mode", "live", "beam", "film", "fusion", "look"];
+const SHADES_KEY = "view1108.shades", SHADES_NARROW = ["reels", "mode", "live", "beam", "film", "fusion", "look"];
 const shadeOpen = {};
 try { Object.assign(shadeOpen, JSON.parse(localStorage.getItem(SHADES_KEY) || "{}")); } catch (e) { /* storage unavailable */ }
 const narrow = matchMedia("(max-width: 600px)").matches;

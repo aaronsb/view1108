@@ -21,6 +21,7 @@ export interface LabState {
   epoch: number;          // the scenario's range zero, s from Apollo 11's (the kernel's hdr(16))
   zero: number;           // the scenario's range zero, UTC ms (its reel's page.json)
   frameNo: number;        // kernel frames drawn since boot; the vector screen is stale when this moves
+  mounted: string;        // the mounted reel's id in the site reel index (ReelInfo.id): the playlist while one plays, else the situation's scenario reel
   /** web/src/sound.js sndCtx, sndOut, sndOn, and soundBed (the page's ambience bed on or off; the room's sound
    *  replaces it while the room runs), and whineNode (the deflection whine at the 1558 and the film recorder,
    *  web/src/whine.js). */
@@ -35,13 +36,27 @@ export interface LabEvent {
   lines?: number;
 }
 
+/** One reel of the site reel index (web/src/kernel.js REEL_LIB, the packaged reels, #26 slice 7), as the page hands it
+ *  to the lab (LabHooks.reels): its manifest's id, title and kind; a scenario reel's mission (its manifest's mission
+ *  name) and range zero (UTC ms, from its page.json), from which the tape rack letters its shelves (#19). */
+export interface ReelInfo {
+  id: string;
+  title: string;
+  kind: "scenario" | "playlist";
+  mission: string;
+  zero: number | null;
+  /** The reel's scenario notebook (#29), if it carries one: its title (the notebook's first heading). */
+  notebook?: string | null;
+}
+
 /** Hooks the page hands to VIEW_LAB.start. */
 export interface LabHooks {
   screens: { vector: HTMLCanvasElement };   // #cv, the plot
   state(): LabState;
   /** The terminal was opened at its close-up: the page shows the tab it opens, fades the lab out and asks it to hide. `name` is
-   *  the placed name flown to ("binder:<id>" picks that document in the library). */
-  arrive(opens: Opens, name: string): void;
+   *  the placed name flown to ("binder:<id>" picks that document in the library), `from` the station whose close-up it
+   *  was opened at (the bookcase, or the rack for a notebook pulled from its half-pull there), where an overlay returns. */
+  arrive(opens: Opens, name: string, from: string): void;
   /** Lay the page out for `opens` behind the room, without showing it, and give the client rect of the element the
    *  terminal's screen becomes (#cv for the workbench, the Source workspace for source). The lab ends its flight
    *  where the screen covers that rect, so the crossfade lines up. */
@@ -50,9 +65,18 @@ export interface LabHooks {
   leave?(opens: Opens): void;
   /** The drive (a "control" station) was used: STOP or START the mounted reel's playback clock. */
   drive?(): void;
+  /** The site reel index, in load order: one reel on the tape rack per entry (#19). Read once, when the room is built. */
+  reels?: ReelInfo[];
+  /** A reel pulled at the tape rack was used on a tape unit: mount reel `id` through the page's loadReel, as the Tabbed
+   *  reel list does (no reload). */
+  mount?(id: string): void;
   /** The page's one Esc stack (web/src/esc.js): push `key` with what Esc does while it is on top, or (null) take it
-   *  off. The lab pushes its close-up and a pulled binder. */
+   *  off. The lab pushes its close-up and a pulled binder or reel ("pulled"; a reel's stays while it is carried). */
   esc?(key: string, pop: (() => void) | null): void;
+  /** A second click on a pulled reel ("reel"), on a pulled mission notebook whose reel is a scenario reel
+   *  ("notebook") or on a pulled system tape ("system", #87: `id` the tape's, not a reel of the index): the page shows
+   *  its modal for `id` (title `title`) and answers through VIEW_LAB.answer. */
+  ask?(kind: "reel" | "notebook" | "system", id: string, title: string): void;
 }
 
 /** A camera pose: where the eye is, what it looks at, its vertical field of view (deg). */
@@ -93,10 +117,18 @@ export interface Equipment {
   pull?(): boolean;
   /** It is out and opens: E or Enter at the close-up opens it. */
   pulled?(): boolean;
+  /** It is out and stays out after the close-up, carried to where it is used (a reel pulled at the tape rack, until a
+   *  tape unit mounts it or it is put back). */
+  carried?(): boolean;
+  /** Whether using it does anything now (a tape unit other than the drive: only while a reel is carried); absent,
+   *  always. While false it is not picked. */
+  usable?(): boolean;
   /** The close-up's line when it depends on the piece's state (a shelf: what is pulled out); else the station's. */
   hint?(): string;
   /** Its state, added to its hover label (the drive: its reel, running or stopped). */
   status?(): string;
+  /** How far it is out on its shelf: 0 back, HALF (pullable.ts) half out beside its out partner, 1 out. For tests. */
+  out?(): number;
   /** Something out on a shelf at a close-up (a pulled binder): put it back; false when nothing is out. */
   putBack?(): boolean;
   /** The camera is flying to this piece (true) or the room is shown again (false): a binder slides out and back. */
@@ -112,6 +144,12 @@ export interface BuildContext {
   vectorScreen: THREE.Texture;
   /** Anisotropy the renderer supports, for screen textures seen at an angle. */
   maxAnisotropy: number;
+  /** The site reel index (LabHooks.reels): the tape rack's reels. */
+  reels?: readonly ReelInfo[];
+  /** Hold the machines' motion still (`?labmotion=0`, for repeatable screenshots): the tape units' reels and the
+   *  FASTRAND II's drums, head carriage and lamps, and the CPU lamp panel stay as they were built; labels still follow
+   *  the page. */
+  still?: boolean;
 }
 
 export type EquipmentBuilder = (ctx: BuildContext) => Equipment;

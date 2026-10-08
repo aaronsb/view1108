@@ -40,6 +40,113 @@ function untar(t) {
 // build `sha`, is a scenario reel listing at least one run deck (type "scn") or a playlist reel listing its run.scn
 // (type "playlist") and the scenario reels it uses, its other members are exactly the files it lists, once each, and
 // it lists one page.json (type "page") that parses. page is that page.json's object.
+// A reel may carry a scenario notebook (#29; tools/notebook.py, tools/pack.py): at most one member of type "notebook",
+// at notebook/notebook.md, and members of type "figure", each notebook/figures/<name>.svg, an SVG document. A figure
+// needs the notebook, every figure the notebook's text names (a Markdown image figures/<name>.svg outside fenced
+// blocks, reelFigureRefs) must be in the reel and every figure in the reel must be named, and no other member is
+// under notebook/; otherwise the reel is refused. The result then carries notebook: {text, figures: Map(name -> SVG text)} in the manifest's order, else
+// notebook is null. Readers before these types load such a reel and ignore the notebook (no format change; ours).
+const REEL_FIGURE = /^notebook\/figures\/([a-z0-9][a-z0-9-]*)\.svg$/;
+// What a figure may hold (ours; reviews of PR #69): an ALLOWLIST, the same as tools/notebook.py svg_unsafe (render and
+// pack): the elements and attributes tools/viewsvg.f90 writes. Refused: a <! anywhere (doctype, entity, comment,
+// CDATA), a <? but a leading XML declaration, an element or attribute not on the list (prefixed names among them), a
+// namespace not SVG's, an href but to #..., url( or javascript:, an entity but the XML five and numeric references,
+// and a tag the scanner cannot read whole. The viewer shows figures as <img> from data: URLs; this keeps a figure
+// inert even when a reader opens it as a page.
+const REEL_SVG_ELEMENTS = new Set(["svg", "g", "line", "circle", "rect", "text"]);
+const REEL_SVG_ATTRS = new Set(["xmlns", "xmlns:xlink", "width", "height", "viewBox", "x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r",
+  "fill", "stroke", "stroke-width", "stroke-linecap", "stroke-dasharray", "font-family", "font-size", "href", "xlink:href"]);
+const REEL_SVG_NS = { "xmlns": "http://www.w3.org/2000/svg", "xmlns:xlink": "http://www.w3.org/1999/xlink" };
+/** Why SVG text `text` may not be a figure, or null. */
+function reelSvgUnsafe(text) {
+  const s = String(text).replace(/^\s*<\?xml[^<>?]*\?>/, ""), TAG = /<([^<>]*)>/g, ATTR = /\s+([^\s=/<>"']+)\s*=\s*(?:"([^"<>]*)"|'([^'<>]*)')/g;
+  if (s.includes("<!")) return "a <! declaration (doctype, entity, comment or CDATA)";
+  if (s.includes("<?")) return "a <? processing instruction";
+  for (const bad of ["javascript:", "url("]) if (s.toLowerCase().includes(bad)) return `'${bad}'`;
+  if (/&(?!(?:amp|lt|gt|quot|apos|#\d{1,7}|#x[0-9a-fA-F]{1,6});)/.test(s)) return "an entity other than the XML ones";
+  const rest = s.replace(TAG, "");
+  if (rest.includes("<") || rest.includes(">")) return "a tag the scanner cannot read whole";
+  for (const m of s.matchAll(TAG)) {
+    const body = m[1], t = /^\s*(\/?)\s*([^\s/<>]+)/.exec(body);
+    if (!t || !REEL_SVG_ELEMENTS.has(t[2])) return `an element not on the list ('${(t ? t[2] : body).slice(0, 40)}')`;
+    const tail = body.slice(t[0].length);
+    if (t[1]) { if (tail.trim()) return "a closing tag with attributes"; continue; }
+    const left = tail.replace(ATTR, "").trim();
+    if (left !== "" && left !== "/") return `a tag the scanner cannot read whole ('${left.slice(0, 40)}')`;
+    for (const a of tail.matchAll(ATTR)) {
+      const name = a[1], val = a[2] ?? a[3];
+      if (!REEL_SVG_ATTRS.has(name)) return `an attribute not on the list ('${name}')`;
+      if (name in REEL_SVG_NS && val !== REEL_SVG_NS[name]) return `a namespace not SVG's ('${val.slice(0, 40)}')`;
+      if ((name === "href" || name === "xlink:href") && !val.startsWith("#")) return "an href to anything but #...";
+    }
+  }
+  return null;
+}
+// The figure names a notebook's text names, in order of first use: its Markdown images outside fenced blocks. The
+// text names no other image: every "![" opens an inline image ![alt](figures/<name>.svg), alt text without "]", and
+// an HTML <img> or a reference definition ("[r]: ...", which reference-style images need) is refused (thrown). The
+// same rules as tools/notebook.py refs, which applies them when it packs.
+function reelFigureRefs(md) {
+  const out = [], img = /!\[[^\]]*\]\(([^)\s]*)[^)]*\)/g;
+  let fence = false;
+  for (const ln of md.split("\n")) {
+    if (ln.startsWith("```")) { fence = !fence; continue; }
+    if (fence) continue;
+    const what = JSON.stringify(ln.trim().slice(0, 60)), ms = [...ln.matchAll(img)];
+    if (/<img\b/i.test(ln)) throw new Error(`its notebook has an HTML <img> (${what}); its images are ![alt](figures/<name>.svg)`);
+    if (/^ {0,3}\[[^\]]+\]:/.test(ln)) throw new Error(`its notebook has a reference definition (${what}); its images are inline, ![alt](figures/<name>.svg)`);
+    if (ln.split("![").length - 1 !== ms.length)
+      throw new Error(`its notebook has an image not written ![alt](figures/<name>.svg) (${what}): no "]" in alt text, no reference-style images`);
+    for (const m of ms) {
+      const f = /^figures\/([a-z0-9][a-z0-9-]*)\.svg$/.exec(m[1]);
+      if (!f) throw new Error(`its notebook has an image ${JSON.stringify(m[1])}; its images are figures/<name>.svg`);
+      if (!out.includes(f[1])) out.push(f[1]);
+    }
+  }
+  return out;
+}
+// A scenario reel's event listing and quick views (#29 slice f, #73; ours): page.json's `listing` and `quickviews`,
+// which tools/pack.py generates from the reel's own situations and TIMELINE rows (its header gives the format). Why
+// they may not be the reel's, or null. The listing must hold each situation of page.json once (kind "situation", id
+// its NAME, sit its id) and each timeline row once, in the timeline's order (kind "event"), every entry with a unique
+// id, a name and a g.e.t., in g.e.t. order; a situation entry carries its title and default view, target and field,
+// each as its page.json row has it. #75 adds
+// the kind "photo". quickviews maps keys "1" to "9" to ids the listing holds.
+const REEL_LIST_KINDS = ["situation", "event"];
+function reelListingWrong(pg) {
+  const L = pg.listing, Q = pg.quickviews, ids = new Set(), sits = pg.situations || [], evs = (pg.timeline || {}).events || [];
+  if (!Array.isArray(L)) return "page.json has no listing";
+  let lastGet = -Infinity, ev = 0;
+  const seenSit = new Set();
+  for (const [k, e] of L.entries()) {
+    const at = `listing entry ${k + 1}`;
+    if (!e || typeof e !== "object") return `${at} is not an object`;
+    if (!REEL_LIST_KINDS.includes(e.kind)) return `${at} is of kind ${e.kind}, not ${REEL_LIST_KINDS.join(" or ")}`;
+    if (typeof e.id !== "string" || !e.id || ids.has(e.id)) return `${at}: id ${JSON.stringify(e.id)} is empty or not unique`;
+    ids.add(e.id);
+    if (typeof e.name !== "string" || typeof e.get !== "number" || !isFinite(e.get)) return `${at} (${e.id}) has no name or g.e.t.`;
+    if (e.get < lastGet) return `${at} (${e.id}) is out of g.e.t. order`;
+    lastGet = e.get;
+    if (e.kind === "situation") {
+      const s = sits.find(x => x.name === e.id);
+      if (!s || s.id !== e.sit || seenSit.has(e.id)) return `${at}: situation ${e.id} is not one of the reel's, once`;
+      if (e.name !== s.title || e.view !== s.view || e.target !== s.target || e.fov !== s.fov)
+        return `${at}: situation ${e.id}'s name, view, target or field is not its card's`;
+      seenSit.add(e.id);
+    } else {
+      const t = evs[ev++];
+      if (!t || t[0] !== e.get || t[1] !== e.tl || t[2] !== e.name) return `${at} (${e.id}) is not the timeline's row ${ev}`;
+    }
+  }
+  if (seenSit.size !== sits.length) return `the listing holds ${seenSit.size} of the reel's ${sits.length} situations`;
+  if (ev !== evs.length) return `the listing holds ${ev} of the timeline's ${evs.length} rows`;
+  if (!Q || typeof Q !== "object" || Array.isArray(Q)) return "page.json has no quickviews";
+  for (const [key, v] of Object.entries(Q)) {
+    if (!/^[1-9]$/.test(key)) return `quickviews key ${JSON.stringify(key)} is not 1 to 9`;
+    if (!ids.has(v)) return `quick view ${key} names ${JSON.stringify(v)}, which the reel's listing does not hold`;
+  }
+  return null;
+}
 async function readReel(b64, sha, id) {
   const no = why => new Error(`REEL ${id}: ${why}`);
   let bytes, files;
@@ -75,7 +182,32 @@ async function readReel(b64, sha, id) {
   if (pages.length !== 1) throw no(`it lists ${pages.length} page.json, not one`);
   let page;
   try { page = JSON.parse(text.get(pages[0].path)); } catch (e) { throw no(`${pages[0].path}: ${e.message}`); }
-  return { manifest, files: text, page };
+  if (manifest.kind === "scenario") { const why = reelListingWrong(page || {}); if (why) throw no(why); }
+  const books = c.filter(e => e.type === "notebook"), figs = c.filter(e => e.type === "figure");
+  for (const e of c) if (String(e.path).startsWith("notebook/") && e.type !== "notebook" && e.type !== "figure")
+    throw no(`${e.path} is under notebook/ as type ${e.type}, not notebook or figure`);
+  if (books.length > 1) throw no(`it lists ${books.length} notebooks, not one`);
+  if (books.length && books[0].path !== "notebook/notebook.md") throw no(`its notebook is ${books[0].path}, not notebook/notebook.md`);
+  if (figs.length && !books.length) throw no(`${figs[0].path} is a figure, and it holds no notebook`);
+  let notebook = null;
+  if (books.length) {
+    const figures = new Map();
+    for (const e of figs) {
+      const m = REEL_FIGURE.exec(e.path), svg = text.get(e.path);
+      if (!m) throw no(`${e.path} is a figure, not notebook/figures/<name>.svg`);
+      if (!/^\s*(<\?xml[^>]*\?>\s*)?<svg[\s>]/.test(svg) || !/<\/svg>\s*$/.test(svg)) throw no(`${e.path} is not an SVG document`);
+      const bad = reelSvgUnsafe(svg);
+      if (bad) throw no(`${e.path} holds ${bad}, which a figure may not (the allowlist)`);
+      figures.set(m[1], svg);
+    }
+    const md = text.get(books[0].path);
+    let refs;
+    try { refs = reelFigureRefs(md); } catch (e) { throw no(e.message); }
+    for (const n of refs) if (!figures.has(n)) throw no(`its notebook names figures/${n}.svg, which it does not hold`);
+    for (const n of figures.keys()) if (!refs.includes(n)) throw no(`notebook/figures/${n}.svg is in it, and its notebook does not name it`);
+    notebook = { text: md, figures };
+  }
+  return { manifest, files: text, page, notebook };
 }
 // A reel's run decks, in its manifest's order: [[path, text]], each path "<reel id>/<file>".
 const reelDecks = r => r.manifest.contents.filter(c => c.type === "scn").map(c => [`${r.manifest.id}/${c.path}`, r.files.get(c.path)]);
@@ -87,8 +219,9 @@ const reelDecks = r => r.manifest.contents.filter(c => c.type === "scn").map(c =
 //          URL's scn= and sit= (loader.js), and the kernel's view_init(id) with that reel's decks loaded (each reel
 //          numbers its own situations, #26 slice 7e). scene is the page's handle for it, and the old links' scene=N
 //          (#22): Apollo 11's eight, then Apollo 8's as 9, as one numbering gave them before.
-//   scns   by reel id: {id (the kernel's scenario number, 1 in every reel), mission, zero, spans}, the spans'
-//          situations as scenes
+//   scns   by reel id: {id (the kernel's scenario number, 1 in every reel), mission, zero, spans, listing, quick}, the
+//          spans' situations as scenes; listing the reel's event listing (reelListingWrong), each situation entry with
+//          its scene added, and quick its quick views, {key: entry id}
 //   tl     by reel id: the timeline, {name, events: [[get, kind, name], ...]}
 //   lists  the playlist reels by id: their page.json (REEL and SHOT cards), each shot with `scene` added
 // A reel without page.json, a span naming a situation its reel does not hold, a playlist using a scenario reel the
@@ -111,7 +244,9 @@ function reelPages(reels) {
       follow: follow.map(([until, s, ...rest]) => [until, scene(s), ...rest]),
       live: live.map(([until, s, name]) => [until, scene(s), name]),
       jump: jump.map(j => ({ ...j, scene: scene(j.scene) })),
-      pin: pin.map(scene) } };
+      pin: pin.map(scene) },
+      listing: (pg.listing || []).map(e => e.kind === "situation" ? { ...e, scene: scene(e.sit) } : e),
+      quick: pg.quickviews || {} };
     tl[id] = pg.timeline;
   }
   for (const r of reels.filter(x => x.manifest.kind === "playlist")) {

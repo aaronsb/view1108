@@ -1,7 +1,7 @@
 // Start-up.
 "use strict";
 boot().then(() => {
-  liveInit(); sceneButtons(); fusionList(); resize(); featInit(); loadReel(P({ scene: 1 })); simInit();
+  liveInit(); jumpButtons(); fusionList(); resize(); featInit(); loadReel(P({ scene: 1 })); simInit();
   if (BARE) { document.body.classList.add("still"); resize(); }
   if (STILL) { const tq = /[?&]t=(-?[0-9.]+)/.exec(location.search); track({ playing: false, get: LS.get0 + (tq ? parseFloat(tq[1]) : 70), roll: -3, labLv: 0 }); syncUI(); }
   else openLink();

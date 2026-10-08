@@ -5,17 +5,18 @@
 //             line (lab.ts), and the `Opens` type below;
 //   the page: VIEW_LAB.stations (main.ts), from which web/src/room.js derives what a terminal opens (roomOpens), whether
 //             that is an overlay (roomOver), the tab it shows (roomTabOf) and the terminal a tab belongs to (roomTermOf).
-// Kinds: "tab" opens a page tab (the handover crossfades to it), "overlay" opens over the page, which keeps its tab, and
-// "control" acts in place without leaving the room (the drive: STOP/START of the mounted reel's playback clock).
+// Kinds: "tab" opens a page tab (the handover crossfades to it), "overlay" opens over the page, which keeps its tab,
+// "control" acts in place without leaving the room (the drive: STOP/START of the mounted reel's playback clock), and
+// "shelf" is a close-up to take something from, opening nothing on the page (the tape rack, #19: a reel pulled there is
+// carried to a tape unit, which mounts it through the page's loadReel, LabHooks.mount).
 // Adding a station is one row here (for a new kind of opening, its page side in room.js too); both presentations follow.
-// The tape library shelf (#19) is not built yet; its row arrives with it.
 
 export interface Station {
   /** The placed name (room.ts) and the page's handle for the terminal. */
   readonly name: string;
   /** The equipment module it is (equipment/index.ts EQUIPMENT). */
   readonly kind: string;
-  readonly does: "tab" | "overlay" | "control";
+  readonly does: "tab" | "overlay" | "control" | "shelf";
   /** What it opens (the lab's `opens`; the page's arrive(opens)), or for a control what it drives. */
   readonly opens: string;
   /** The page tabs this station is: a tab picked over the room flies here. The first is the one it opens, except the
@@ -43,11 +44,17 @@ export const STATIONS = [
   { name: "drive", kind: "uniservo", does: "control", opens: "playback", tabs: [],
     label: "UNISERVO VIII-C — mounted reel", at: "",
     tabbed: "the Time group's DEMO label; Play restarts a demo the drive stopped, but Pause on a running demo takes control in Free-look (no plain STOP of the demo yet)" },
+  { name: "rack", kind: "taperack", does: "shelf", opens: "reels", tabs: [],
+    label: "Tape library — mission reels", at: "Click a reel to pull it out",
+    tabbed: "the reel list (the sim panel's [ RETURN TO REELS ], #73): one button per reel, mounting it through the same loadReel, and Read the notebook after a reel that has one" },
 ] as const satisfies readonly Station[];
 
 export type StationRow = typeof STATIONS[number];
-/** What a terminal opens when the camera arrives at it and it is opened: a tab or an overlay. */
-export type Opens = Extract<StationRow, { does: "tab" | "overlay" }>["opens"];
+/** What a station opens when the camera arrives at it: a tab or an overlay, opened from its close-up; or a shelf, whose
+ *  close-up is the place itself (nothing opens on the page). */
+export type Opens = Extract<StationRow, { does: "tab" | "overlay" | "shelf" }>["opens"];
+/** A shelf station's close-up opens nothing on the page. */
+export const isShelf = (opens: string): boolean => stationOpening(opens)?.does === "shelf";
 
 export const stationNamed = (name: string): StationRow | undefined => STATIONS.find(s => s.name === name);
 export const stationOpening = (opens: string): StationRow | undefined => STATIONS.find(s => s.opens === opens);
