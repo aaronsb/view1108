@@ -14,7 +14,9 @@
 ! (tools/vdump.f: every scenario-specific COMMON table's used entries,
 ! doubles as hex bit patterns) to stdout instead and stops.  With
 ! VIEW_CABN set, writes the cabins' hidden-line table counts against
-! their maxima (tools/vdump.f VCABN) and stops.
+! their maxima (tools/vdump.f VCABN) and stops.  With VIEW_MODT set, writes
+! the spacecraft model table's counts, maxima and refusals (tools/
+! vdump.f VMODT) and stops.
 ! The run decks come first, through the kernel's card reader
 ! (src/vdeck.f): the paths in VIEW_DECK (separated by colons), else the
 ! decks of the scenario reel VIEW_REEL names (its id; default the first
@@ -112,6 +114,11 @@ program viewsvg
   call get_environment_variable('VIEW_CABN', tv)
   if (len_trim(tv) > 0) then
     call vcabn()
+    stop
+  end if
+  call get_environment_variable('VIEW_MODT', tv)
+  if (len_trim(tv) > 0) then
+    call vmodt()
     stop
   end if
   if (na >= 2) then

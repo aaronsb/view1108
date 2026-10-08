@@ -53,11 +53,11 @@ C     RESTOMOD END
       DOUBLE PRECISION XA(64), XB(64), YA(64)
       DOUBLE PRECISION YB(64), XM(8), YM(8), H, TINY, C(3), P(3), Q(3)
       DOUBLE PRECISION R(3), V(3), XMN, XMX, YMN, YMX, X1, Y1, X2, Y2
-      INTEGER KORD(6), IDM(6), NCH(5), M, K, N, J, NP, NP0, NM, IOK
-      INTEGER ISD, IRIDE, KCSPL, KLMPL, ID
+      INTEGER KORD(7), IDM(7), NCH(5), M, K, N, J, NP, NP0, NM, IOK
+      INTEGER ISD, IRIDE, KCSPL, KLMPL, ID, KSIVPL
       DOUBLE PRECISION TS, TL, EVGET
-      DATA KORD / KCSM, KCMO, KLMD, KLMS, KLMA, KSIV /
-      DATA IDM / 5, 1, 3, 3, 3, 4 /
+      DATA KORD / KCSM, KCMO, KLMD, KLMS, KLMA, KSIV, KSTK /
+      DATA IDM / 5, 1, 3, 3, 3, 4, 4 /
       DATA NCH / 2, 2, 2, 5, 3 /
       NM = 0
 C     The name height TXALL letters at, and 0.2 percent of the field.
@@ -65,7 +65,7 @@ C     The name height TXALL letters at, and 0.2 percent of the field.
       TINY = 0.004D0 * BOXH
 C     The names already placed by the other layers are kept clear of.
       CALL VLSEED(LB, NL, H, XA, XB, YA, YB, NP)
-      DO 50 M = 1, 6
+      DO 50 M = 1, 7
         K = KORD(M)
         IF (MDON(K) .EQ. 0) GO TO 50
         CALL VLPTS(K, VLPX, VLPY, N)
@@ -139,7 +139,7 @@ C     X (DMOON6) stands for it there.
      &            XM, YM, NM)
 C     The S-IVB from its state where it is not placed: not with the
 C     CSM (SIVST's IOK 2, before separation or docked to the stack).
-   70 IF (MDON(KSIV) .EQ. 1) RETURN
+   70 IF (KSIVPL() .NE. 0) RETURN
       CALL VSTATE(GET, 3, 2, R, V, IOK)
       IF (IOK .NE. 1) RETURN
       DO 75 J = 1, 3
@@ -155,23 +155,24 @@ C     the CSM, 2 the LM, 4 the S-IVB, each if placed as a model or
 C     known by its state (VSTATE; the LM docked too, the S-IVB docked
 C     to the stack too); the vehicle the camera rides in a window or
 C     station view (IRIDE) is not counted, nor the S-IVB before the
-C     separation (SEP), while it carries the CSM.
+C     separation (SEP), while it carries the CSM, unless the launch
+C     stack is placed (KSTK, LVPL).
       SUBROUTINE VPRES(GET)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION GET, R(3), V(3), EVGET
-      INTEGER IRIDE, IOK, KCSPL, KLMPL
+      INTEGER IRIDE, IOK, KCSPL, KLMPL, KSIVPL
       IVBIT = 0
       IF (KCSPL() .NE. 0 .OR. IRIDE() .NE. 1) IVBIT = 1
       IOK = 0
       IF (IRIDE() .NE. 2) CALL VSTATE(GET, 2, 2, R, V, IOK)
       IF (KLMPL() .NE. 0 .OR. IOK .NE. 0) IVBIT = IVBIT + 2
       IOK = 0
-      IF (MDON(KSIV) .EQ. 0) CALL VSTATE(GET, 3, 1, R, V, IOK)
+      IF (KSIVPL() .EQ. 0) CALL VSTATE(GET, 3, 1, R, V, IOK)
       IF (GET .LT. EVGET(KESEP)) IOK = 0
-      IF (MDON(KSIV) .EQ. 1 .OR. IOK .NE. 0) IVBIT = IVBIT + 4
+      IF (KSIVPL() .NE. 0 .OR. IOK .NE. 0) IVBIT = IVBIT + 4
       RETURN
       END
 C
