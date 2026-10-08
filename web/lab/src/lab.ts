@@ -1,6 +1,7 @@
 // The lab: renderer, quality tier, camera (walking the room from the overview, walk.ts; flights to the terminals),
-// hover and picking, and the handover to the page. It renders only while shown; the page decides when that is
-// (web/src/room.js). While it is shown the keys are the walk's: a capture listener keeps them from the page.
+// the handover to the page (hover and picking in picking.ts, input in input.ts, a carried reel in carry.ts). It
+// renders only while shown; the page decides when that is (web/src/room.js). While it is shown the keys are the
+// walk's: a capture listener keeps them from the page.
 //
 // Looking, as in a first-person game (ours): a mouse click on the room away from a machine locks the pointer; the
 // mouse then turns the view, a crosshair marks the centre, what is under it is the hover target, and a click, E or
@@ -43,7 +44,7 @@ import { Input } from "./input";
 import { Picking } from "./picking";
 import { QualityCheck } from "./quality";
 import { anchorShot, matchShot, shotOf, type Mismatch, type Shot } from "./shot";
-import type { CameraPose, LabEvent, LabHooks, Opens, Placed, Quality, Room } from "./types";
+import type { LabEvent, LabHooks, Opens, Placed, Quality, Room } from "./types";
 
 /** A flight's time, s, by the distance flown (m): 1 s up to 2.5 m, then slower per metre, at most 1.8 s (an 11 m
  *  flight across the room takes 1.7 s). */
@@ -588,7 +589,7 @@ export class Lab {
     if (this.at) this.atEl.textContent = `${at?.equipment.hint?.() ?? stationOpening(this.at.opens)?.at ?? ""} · Esc to step back`;
   }
 
-  // ---- hover and picking ----
+  // ---- use ----
 
   /** Use a machine: flip it in place (the switch), follow its link (the door; out of pointer lock first, so the new
    *  tab is not opened under a captured mouse), or fly into it. */
