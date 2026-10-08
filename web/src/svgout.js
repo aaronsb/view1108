@@ -24,7 +24,7 @@ function svgFrame(kind) {
   // A path builder with the Path2D calls strokeText() makes; a moveTo to the pen's position is dropped.
   const pathOf = () => { const p = { d: [], pen: "", moveTo(x, y) { const q = n2(x) + " " + n2(y); if (q !== p.pen) p.d.push("M" + q); p.pen = q; }, lineTo(x, y) { const q = n2(x) + " " + n2(y); p.d.push("L" + q); p.pen = q; } }; return p; };
   const out = [`<svg xmlns="http://www.w3.org/2000/svg" width="${Wd}" height="${Hd}" viewBox="0 0 ${Wd} ${Hd}">`,
-    `<title>VIEW-1108 ${LS.scn} situation ${H[6] | 0} g.e.t. ${getStr(H[0])} ${paper ? "positive" : "negative"}</title>`,
+    `<title>VIEW-1108 ${LS.scn} situation ${H[6] | 0} g.e.t. ${getStr(H[0])} ${paper ? (kind === "clear" ? "positive clear" : "positive") : "negative"}</title>`,
     `<desc>inputs: reel ${LS.scn} situation ${H[6] | 0} in_get ${rd("in_get")} in_yaw ${rd("in_yaw")} in_pitch ${rd("in_pitch")} in_roll ${rd("in_roll")} in_fov ${rd("in_fov")} in_flags ${fl}</desc>`,
     ...(kind === "clear" ? [] : [`<rect id="film" width="${Wd}" height="${Hd}" fill="${bg}"/>`]),
     `<clipPath id="plotbox"><rect x="${n2(fr ? b.x - 2 : 0)}" y="${n2(b.y - 2)}" width="${n2(fr ? b.s + 4 : Wd)}" height="${n2(b.s + 4)}"/></clipPath>`,
