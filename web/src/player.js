@@ -57,7 +57,7 @@ function reelStep(dt) {
   while (i < L.length - 1 && t >= L[i].dur) { t -= L[i].dur; i++; }
   const sh = L[i], u = t / sh.dur;
   if (i !== autoShot) {
-    autoShot = i; loadReel(P({ by: "shot", scene: sh.scene, lab: sh.lab, view: sh.view, target: sh.target, frame: sh.frame ? 1 : 0 }));
+    autoShot = i; loadReel(P({ by: "shot", scene: sh.scene, labels: LAB_LEVELS[sh.lab], view: sh.view, target: sh.target, frame: sh.frame ? 1 : 0 }));
     shotBase = sh.rule === "ERISE" ? (K.out_terise ? rd("out_terise") : NaN) : 0;   // NaN: a kernel without the export
     capName = sh.name; autoCap = !!sh.cap; syncUI();
   }

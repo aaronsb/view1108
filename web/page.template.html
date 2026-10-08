@@ -30,8 +30,8 @@
   <button role="tab" data-tab="fusion" title="Crew photographs over the vector frame">Fusion</button>
   <button role="tab" data-tab="source" title="The kernel's FORTRAN">Source</button>
   <span class="sp"></span>
-  <!-- Room or Tiled (web/src/room.js): shown only when the page carries the lab and the screen is wide. -->
-  <button id="bspace" hidden>Room</button><button id="btiled" hidden title="The plain page">Tiled</button>
+  <!-- Room or Tabbed (web/src/room.js): shown only when the page carries the lab and the screen is wide. -->
+  <button id="bspace" hidden>Room</button><button id="btiled" hidden title="The plain page">Tabbed</button>
   <button id="bsound" title="M: machine-room sound (ours, synthesized)">Sound off</button>
   <button id="blink" title="L: copy a link to this view">Link</button>
 </nav>
@@ -165,6 +165,7 @@
 <script>__LAB_JS__</script>
 <!-- Page modules, in this order. tools/assemble.py inlines the stylesheet and joins the scripts into one
      strict-mode closure; served as is (?mock) they load as separate scripts. -->
+<script src="src/urlkeys.js"></script>
 <script src="src/config.js"></script>
 <script src="src/reelpkg.js"></script>
 <script src="src/kernel.js"></script>

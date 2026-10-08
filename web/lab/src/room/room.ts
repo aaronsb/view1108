@@ -34,6 +34,8 @@ import { batch } from "./batch";
 import type { Binder, NotebookBinder, Prop } from "../equipment/bookcase";
 import type { ReelPiece, SysTapePiece } from "../equipment/taperack";
 import type { Pullable, Shelf } from "../equipment/pullable";
+import type { NotePiece } from "../equipment/opnotebook";
+import { KEYINS } from "../equipment/exec8";
 
 /** A builder with the options some modules take (a tape drive's number, the CPU cabinet with the lamp panel). */
 type Builder = (ctx: BuildContext, opts?: Record<string, unknown>) => Equipment;
@@ -100,7 +102,10 @@ export function build(ctx: BuildContext): Room {
   for (let i = 0; i < 5; i++) place("cpu", [-wW + 0.48, 0, -0.4 + i * 0.82], E, undefined, { lampPanel: i === 2 });
   // The operator's chair at the 4009's seat (its keyboard end), facing it; without the anchor, centred in front of it.
   // The console stands far enough south that the chair leaves the tape units' 0.9 m aisle.
-  const op = place("console4009", [-0.8, 0, -1.3], N);
+  const op = place("console4009", [-0.8, 0, -1.3], N, "console");
+  // The operator's notebook on its desk (#68): each note a piece of its own, keyed in at the console's close-up.
+  const notes = op.anchors.notes as NotePiece[];
+  for (const p of notes) { p.object.userData.placed = `note:${p.keyin}`; placed.push({ name: p.object.userData.placed, equipment: p }); }
   const seat = op.anchors.seat as { position: THREE.Vector3; yaw: number } | undefined;
   const seatAt = op.object.localToWorld(seat?.position.clone() ?? new THREE.Vector3(0, 0, 0.86));
   place("chair", [seatAt.x, 0, seatAt.z], N + (seat?.yaw ?? Math.PI));
@@ -231,6 +236,7 @@ export function build(ctx: BuildContext): Room {
       ...Object.fromEntries(reels.map(p => [`reel:${p.reel.id}`, `${p.reel.title} — ${p.reel.kind} reel`])),
       ...Object.fromEntries(systapes.map(p => [`systape:${p.tape.id}`, `${p.tape.label} — system tape`])),
       fastrand: "UNIVAC FASTRAND II — drum mass storage",
+      ...Object.fromEntries(KEYINS.map(k => [`note:${k.id}`, `${k.form} — ${k.note.toLowerCase()} · click to key it in`])),
       ...Object.fromEntries(notebooks.map(b => [`binder:nb-${b.reel.id}`, b.reel.notebook ?? b.reel.title])),
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
       ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },
