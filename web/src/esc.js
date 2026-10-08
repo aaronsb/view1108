@@ -6,7 +6,7 @@
 //   ask       a modal question (ask.js; the room's reel and notebook modals): Esc puts the tape or notebook back
 //   printing  a fresh copy printing (printout.js): Esc finishes it at once
 //   library   the reference library (library.js): Esc closes it; opened from the bookcase, one of its binders or a
-//             mission notebook (room.js), back to the bookcase
+//             mission notebook (room.js), back to the close-up it was opened at (the bookcase, or the rack)
 //   listing   the listing overlay (listing.js): Esc closes it; opened from the line printer (room.js), back to the printer
 //   terminal  a terminal's page in the room (room.js): Esc fades back to the room, in front of that terminal
 //   pulled    in the room, a binder or mission notebook pulled out at the bookcase's close-up, or a reel at the tape

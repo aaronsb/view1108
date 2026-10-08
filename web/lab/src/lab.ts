@@ -294,7 +294,7 @@ export class Lab {
     const opens = piece?.equipment.opens || a.opens;
     if (isShelf(opens)) { this.back(); return; }
     const laid = this.laid;   // still the lab's to undo until the page takes it over at the end of the handover
-    const go = () => { this.laid = null; this.hooks.arrive(opens, binder ?? a.name); };
+    const go = () => { this.laid = null; this.hooks.arrive(opens, binder ?? a.name, a.name); };
     let s: Shot | null = null;
     if (binder) for (const q of this.room.placed) q.equipment.select?.(q.name === binder);
     else { const rect = this.hooks.screenRect?.(a.opens) ?? null; s = rect && this.matchShot(a.name, rect); }

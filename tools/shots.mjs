@@ -14,6 +14,42 @@ const LAB = "VIEW_LAB.info()";
 const ROOM_UP = { wait: `VIEW_LAB.running && ${LAB} && document.body.classList.contains("room")` };
 const ROOM_STILL = { wait: `${LAB}.mode !== "flight" && !document.getElementById("labhost").classList.contains("fading") && ${LAB}.lit >= 0.999` };
 
+// A click on a placed piece of the room (VIEW_LAB.project: its screen, else its origin, client px; a binder's origin is
+// at its foot, so 0.16 m up its spine), as the pointer
+// events the room's input reads; the capture is the browser's for a real pointer only, so it is a no-op here.
+const ROOM_CLICK = name => ({ js: `(() => {
+  const c = document.querySelector("#labhost canvas"), p = VIEW_LAB.project(${JSON.stringify(name)}, ${name.startsWith("binder:") ? 0.16 : 0});
+  c.setPointerCapture = () => {};
+  const o = { clientX: p.x, clientY: p.y, button: 0, pointerId: 1, pointerType: "mouse", bubbles: true };
+  c.dispatchEvent(new PointerEvent("pointerdown", o)); c.dispatchEvent(new PointerEvent("pointerup", o));
+})()` });
+const AT = (name, mode = "hold") => ({ wait: `${LAB}.at === ${JSON.stringify(name)} && ${LAB}.mode === ${JSON.stringify(mode)}`, timeout: 20000 });
+const LIB_UP = { wait: `document.getElementById("libr").classList.contains("open") && !document.body.classList.contains("room") && !document.getElementById("labhost").classList.contains("fading")`, timeout: 20000 };
+// #85: a book opened in the room, by each route, and back with ← Room or Esc: the room again at the close-up of the
+// station it was opened from (systems-model.md section 6), not the overview; the library closed and the Esc stack
+// back to the room and that close-up, nothing left out.
+const ROOM_URL = scn => `space=room&mode=free&scn=${scn}&sit=1`;
+const BOOK_OPEN = {
+  binder: [AT_ST("library"), ROOM_CLICK("binder:up7701"), { wait: `${LAB}.out["binder:up7701"] === 1` }, ROOM_CLICK("binder:up7701")],
+  read: [AT_ST("library"), ROOM_CLICK("binder:nb-apollo11-asflown"), { wait: `${LAB}.out["binder:nb-apollo11-asflown"] === 1` }, ROOM_CLICK("binder:nb-apollo11-asflown"),
+    { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button:nth-child(2)" }],
+  loadread: [AT_ST("library"), ROOM_CLICK("binder:nb-apollo11-asflown"), { wait: `${LAB}.out["binder:nb-apollo11-asflown"] === 1` }, ROOM_CLICK("binder:nb-apollo11-asflown"),
+    { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button.primary" }],
+  rack: [AT_ST("rack"), ROOM_CLICK("reel:apollo11-asflown"), { wait: `${LAB}.out["binder:nb-apollo11-asflown"] > 0 && ${LAB}.out["binder:nb-apollo11-asflown"] < 1` },
+    ROOM_CLICK("binder:nb-apollo11-asflown"), { wait: `${LAB}.out["binder:nb-apollo11-asflown"] === 1` }, ROOM_CLICK("binder:nb-apollo11-asflown"),
+    { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button:nth-child(2)" }],
+};
+function AT_ST(name) { return [{ js: `VIEW_LAB.setTarget(${JSON.stringify(name)})` }, AT(name)]; }
+const bookShots = (route, scn, from, doc, extra = []) => ["room", "esc"].map(how => ({
+  name: `room-book-${route}-${how}`, url: ROOM_URL(scn),
+  steps: [ROOM_UP, HOLD(), ROOM_STILL, ...BOOK_OPEN[route].flat(), LIB_UP,
+    { expect: [`VIEW_ESC().at(-1)`, "library"] }, { expect: [`document.querySelector("#liblist .librow.on")?.dataset.id`, doc] },
+    how === "room" ? { click: "#blibroom" } : { key: "Escape" },
+    { wait: `document.body.classList.contains("room")`, timeout: 5000 }, ROOM_STILL, { frames: 10 }, ROOM_STILL, { frames: 3 }],
+  expect: [[`${LAB}.at`, from], [`${LAB}.mode`, "hold"], [`document.body.classList.contains("room")`, true],
+    [`document.getElementById("libr").classList.contains("open")`, false], [`document.getElementById("blibroom").hidden`, true],
+    [`VIEW_ESC()`, ["room", "closeup"]], [`Object.keys(${LAB}.out)`, []], ...extra] }));
+
 export const SHOTS = [
   // The headless boot gate: the page starts (Attract), with no console error and #err empty.
   { name: "boot", url: "",
@@ -49,4 +85,13 @@ export const SHOTS = [
   { name: "cabin-cm", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=8&view=cm&cabin=1&walls=1&get=11:28:19",
     steps: [...LINKED(41299), { frames: 3 }],
     expect: [[TL("viewMode"), 2], [TL("mounted"), "apollo11-asflown"], [TL("scene"), 8]] },
+
+  // #85, a book opened in the room and back (← Room, then Esc), by each route: (a) a reference binder, the UNISCOPE
+  // 100 manual; (b) a mission notebook through its modal's READ NOTEBOOK ONLY; (c) through LOAD … AND OPEN NOTEBOOK
+  // (Apollo 8 mounted, so the Apollo 11 reel mounts as a fresh run); (d) a reel pulled at the rack, its notebook pulled
+  // from the half-pull there and read: back to the rack, where it was opened.
+  ...bookShots("binder", "apollo11-asflown", "library", "up7701"),
+  ...bookShots("read", "apollo11-asflown", "library", "nb-apollo11-asflown"),
+  ...bookShots("loadread", "apollo8-asflown", "library", "nb-apollo11-asflown", [[TL("mounted"), "apollo11-asflown"]]),
+  ...bookShots("rack", "apollo11-asflown", "rack", "nb-apollo11-asflown"),
 ];
