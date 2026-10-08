@@ -673,6 +673,17 @@ RECIPE NAME=EXTSEED ATT=S8ATT DIST=0.060
 VIEWS VIEW=EXTERNAL TARGET=CSM RIDES=NONE CM=ALWAYS LM=PLACED
 HDRREF OBJ=CSMTUNNEL OFFSET=2.743E-3 RADIUS=1.0E-2 SRC="ours"
 *
+* Launch pad, a modern addition (the view is ours): the External view of the
+* stack on LC-39A ten minutes before range zero, the camera west-southwest of
+* the pad (yaw -120, pitch 25 deg, as the launch complex shots of #97 use),
+* aimed at the S-IVB, at a 110 deg field.  The camera, complex and stack are
+* the kernel's (vdrive.f PADPL, ASCPL, LVPL); the recipe is situation 3's,
+* which holds the Earth-fixed ascent table's pad state.  Labels (the page's
+* own control) are not a card key.
+SITUATION ID=9 NAME="LAUNCH PAD" TITLE="Launch pad" CAPTION="Launch pad - Saturn V on LC-39A" GET=-0:10:00 FOV=110 LOOK=-120,25,0 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN DRAW=NOSHADE SRC="ours, a modern addition; the pad and stack from the press kit (see CLAUDE.md, the launch complex, #97)"
+RECIPE NAME=LOCALVERT BODY=EARTH MODE=FORWARD ELEV=8
+VIEWS VIEW=EXTERNAL TARGET=SIVB RIDES=CSM CM=ALWAYS LM=PLACED
+*
 * SPANS (#17; ours): how the page puts a situation on this scenario's time.
 * tools/gen_data.py writes them into the reel's page.json
 * (build/page/<reel id>.json), the page's only copy; the kernel never
