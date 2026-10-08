@@ -40,24 +40,43 @@ function featTick() {
 // A vehicle the window cannot aim at (#70). hdr(23), the target's status (vview.f TGTPOS): 1 aimed at its own
 // point, 2 the vehicle the camera rides, 3 docked to or carried with another (at Earth orbit insertion the CSM, LM
 // and S-IVB are one stack: one point), 4 no position at this time, 5 as 3, the LM stowed in the SLA before the
-// separation. A vehicle picked from the window or the CM station that is 2, 3 or 5 is shown from outside instead (EXTERNAL, which flies round the point it shares); 4 stays
-// as it is. Either way the caption line says why while that target and view hold. A kernel without hdr(23) gives 0:
-// nothing changes. Going outside, a field wider than 40 deg (the external spans' field for a vehicle, Following) closes
-// to it, so the vehicle 40-60 m off is not lost in a window's wide field.
+// separation. A kernel without hdr(23) gives 0: nothing changes.
+// The caption line says why on every frame, from the target and that frame's hdr(23) (tgtNote), so a link to the
+// external view of the docked LM says it too. Only the switch is tied to a pick: a vehicle picked from the window or
+// the CM station that the first kernel frame computed after the pick reports as 2, 3 or 5 is shown from outside
+// instead (EXTERNAL, which flies round the point it shares), its field closed to 40 deg if wider (the external
+// spans' field for a vehicle, Following), so the vehicle 40-60 m off is not lost in a window's wide field. The
+// view, field and target the switch left are kept (tgtOut): the next target pick, or Window, goes back to them
+// first, so the switch is not one way.
 const OUT_FOV = 40;
 const VEH_NAMES = { 4: "CSM", 5: "LM", 6: "S-IVB" };
-let tgtAsk = 0;      // a vehicle target just picked, until the next kernel frame reports its status
-let tgtWhy = null;   // { target, view, st, text }: the caption's note
-const tgtNote = () => tgtWhy && tgtWhy.target === LS.target && tgtWhy.view === LS.view ? tgtWhy.text : "";
+let tgtAsk = null;   // { target, prev, k }: a vehicle just picked, the target before it, kFrames at the pick
+let tgtOut = null;   // { target, view, fov, prev, why }: the switch outside a pick made, what it left, and why
+const tgtWhy = (t, st) => {
+  const n = VEH_NAMES[t];
+  return !n ? "" : st === 2 ? `CAMERA RIDES THE ${n}` : st === 3 ? (t === 6 ? "S-IVB ATTACHED" : `${n} DOCKED`)
+    : st === 5 ? "LM INSIDE SLA" : st === 4 ? `${n}: NO POSITION AT THIS TIME` : "";
+};
+// The caption's note, from the last kernel frame's hdr(23) (render.js captionText; its H holds only hdr(1..16)).
+function tgtNote() {
+  const t = LS.target, st = new Float64Array(buf(), K.hdr.value, 24)[22] | 0;
+  if (st === 4) return tgtWhy(t, st);
+  const why = tgtWhy(t, st) || (tgtOut && tgtOut.target === t && LS.view === 1 ? tgtOut.why : "");
+  return why && LS.view === 1 ? why + ": VIEWING FROM OUTSIDE" : why;
+}
+// A target button: back to what an earlier switch left, then the pick.
+function tgtPick(i) {
+  const o = tgtOut; tgtOut = null;
+  tgtAsk = VEH_NAMES[i] ? { target: i, prev: o ? o.prev : LS.target, k: kFrames } : null;
+  loadReel(P(o ? { view: o.view, fov: o.fov, target: i } : { target: i }));
+}
 function tgtTick(st) {
-  if (tgtWhy && tgtWhy.st !== 2 && st === 1) tgtWhy = null;   // undocked or back in flight since: aimed now
-  if (!tgtAsk) return;
-  const t = tgtAsk, n = VEH_NAMES[t]; tgtAsk = 0;
-  if (t !== LS.target || !(st >= 2 && st <= 5)) { tgtWhy = null; return; }
-  const why = st === 2 ? `CAMERA RIDES THE ${n}` : st === 4 ? `${n}: NO POSITION AT THIS TIME` : st === 5 ? "LM INSIDE SLA" : t === 6 ? "S-IVB ATTACHED" : `${n} DOCKED`;
-  if (st === 4) { tgtWhy = { target: t, view: LS.view, st, text: why }; return; }
-  if (LS.view !== 1) loadReel(P({ view: 1, fov: LS.fov > OUT_FOV ? OUT_FOV : null }));
-  tgtWhy = { target: t, view: 1, st, text: why + ": VIEWING FROM OUTSIDE" };
+  if (tgtOut && tgtOut.target !== LS.target) tgtOut = null;   // another target since (a scene loaded, a link)
+  if (!tgtAsk || kFrames <= tgtAsk.k) return;                  // Beam: no frame computed since the pick yet
+  const a = tgtAsk; tgtAsk = null;
+  if (a.target !== LS.target || LS.view === 1 || !(st === 2 || st === 3 || st === 5)) return;
+  tgtOut = { target: a.target, view: LS.view, fov: LS.fov, prev: a.prev, why: tgtWhy(a.target, st) };
+  loadReel(P({ view: 1, fov: LS.fov > OUT_FOV ? OUT_FOV : null }));
 }
 // After boot, before the first scene.
 function featInit() {
@@ -78,13 +97,16 @@ function featInit() {
   // 263): a scene's own field (8 deg in Earthrise) shows none of the cabin, and with its walls none of the outside.
   document.querySelectorAll("#viewgrp button:not(#bcab):not(#bwal)").forEach((b, i) => { b.onclick = () => {
     leaveAttract(); tlManual();
+    // Window after a pick's switch outside: the view, field and target the switch left (tgtOut).
+    const o = tgtOut; tgtOut = null; tgtAsk = null;
+    if (o && i === 0) { loadReel(P({ view: 0, fov: o.fov, target: o.prev })); return; }
     let f = null;
     if (i >= 2 && LS.view < 2) { stFov = [LS.fov, clampFov(Math.max(LS.fov, STATION_FOV))]; f = stFov[1]; }
     else if (i < 2 && LS.view >= 2 && stFov && LS.fov === stFov[1]) f = stFov[0];   // back out, unless zoomed since
     if (i < 2) stFov = null;
     loadReel(P({ view: i, fov: f }));
   }; });
-  document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); tlManual(); tgtAsk = VEH_NAMES[i] ? i : 0; loadReel(P({ target: i })); }; });
+  document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); tlManual(); tgtPick(i); }; });
 }
 function toggleCabin() { if (!FEAT.cabin) return; leaveAttract(); cabin = !cabin; syncUI(); }
 function toggleWalls() { if (!FEAT.walls) return; leaveAttract(); walls = !walls; syncUI(); }
