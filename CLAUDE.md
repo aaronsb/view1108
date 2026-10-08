@@ -98,7 +98,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Core | `vmask.f` | the window mask (in_flags bit 5): the pen's entry points `EMIT`, `SEG`, `MSEG` cut the outside to the cabin's windows (`WMSET`, `WMCUT`, `WMIN`); the cabins' hidden lines (`CBCUT`, `OCCUT`; ours, #71): each cabin line cut once against the cabin's opaque faces |
 | Core | `vtext.f` | text records for the character generator |
 | Core | `vmath.f` | vector and matrix utilities |
-| Core | `models.f` | the spacecraft model library (data built once) |
+| Core | `models.f`, `mpad.f` | the spacecraft model library (data built once); `mpad.f` the launch complex's models (`PADBLD`, `ARMBLD`, `PADHC`) and the box builders |
 | Layer 1 | `lframe.f` | plot frame and ticks |
 | Layer 2 | `lstars.f` | stars |
 | Layer 3 | `lsun.f` | Sun |
@@ -350,7 +350,7 @@ outline as ρ = θ. The film's descent LPD marks fit a scaled tangent law (`src/
 Spacecraft models (`src/models.f`, drawn by `src/lvehic.f`): a library built once by `MLIB`, each
 model a range of convex solids (`MKPRS` prisms) and free lines or face marks (`XLINE`) in its own
 body frame in metres, listed in the model table `/CMODI/` (numbers `KLMD`, `KLMS`, `KSIV`,
-`KCSM`, `KLMA`, `KCMO`, `KSTK`, `KSII`, `KSIC`, `KLES`, `KPAD`, `KARE`, `KARR` and the cabins in `viewcom.inc`; 16 of `MMOD` 24, 150 solids of `MSOL` 160,
+`KCSM`, `KLMA`, `KCMO`, `KSTK`, `KSII`, `KSIC`, `KLES`, `KPAD`, `KARE`, `KARR`, `KA9E`, `KA9P`, `KA9R` and the cabins in `viewcom.inc`; 19 of `MMOD` 24, 151 solids of `MSOL` 160,
 1369 free lines of `MXL` 1500; a full table refuses and counts, `NMODX`, `NSOLX`, `NXLX`, and the selftest's `model tables:` line, `build/viewsvg` with `VIEW_MODT`, `tools/vdump.f` VMODT, fails on any refusal or a table at its maximum). Per frame `SCNMOD` places models with `MPLACE(K, axes, position, body point)`,
 and `MDRALL` draws every placed model after the sky, with hidden-line removal against all placed
 solids; placed solids also hide stars, Sun, Earth and Moon. A model can ride on the observer's
@@ -383,27 +383,39 @@ separation plane at CM station 83.476 in, the tower to LES station 118.3, the sk
 tip at 400.762, "33 feet tall, four feet in diameter at the base", press kit printed p. 86; a square-frustum tower, the
 skirt, motor and nose smooth frusta and a cylinder, the widths but the base's ours, measured on that figure). The
 S-II/S-IVB interstage is left out (no held source gives its length; the step is drawn flat). LVPL places each to the
-scenario's event: `SIISEP`, `SICSEP`, `LESJET` (new EVENT kinds, from SP-4029's timeline rows: Apollo 11 printed p.
+scenario's event: `SIISEP`, `SICSEP`, `LESJET` (new EVENT kinds, with `LIFTOFF`, the launch, not to be confused with `LIFT`, the LM's lunar lift-off; from SP-4029's timeline rows: Apollo 11 printed p.
 105, 2:42.30, 3:17.90, 9:09.00; Apollo 8 p. 47); a scenario without the event places none. The launch complex (#97;
-models.f PADBLD, ARMBLD; sizes in `viewcom.inc`, `MNDH` to `ARM9H`, from the press kit's Launch Complex 39 pages,
+mpad.f PADBLD, ARMBLD; sizes in `viewcom.inc`, `MNDH` to `ARM9H`, from the press kit's Launch Complex 39 pages,
 printed pp. 164-168): the pad a truncated pyramid 48 ft high ("The top of the pad stands some 48 feet above sea level",
 p. 168), its top 400 ft square (ours) and its sides at the ramp's five percent (p. 166; all round, ours); the mobile
 launcher's base 160 by 135 ft and 25 ft high on six pedestals 22 ft high (p. 164; the pedestals' places ours), the
 vehicle at the base's centre (ours); the umbilical tower 398 ft above the deck on the base's end (p. 164), 40 ft square
 with its lowest 30 ft flared to 46 ft (ours), the hammerhead crane 85 ft each side of its centre (p. 164); nine service
-arms as thin boxes to the vehicle, arm 9, the access arm, at the 320-foot level (p. 165), the others' levels ours,
-swung out (`KARE`) before lift-off and swung back (`KARR`) from it (the press kit retracts four earlier in the count;
-all at lift-off is ours). `PADAX` (`vdrive.f`) gives the complex's axes at the pad's place on the drawn Earth (learth.f
-`PADEF`, where DPAD marks it; geodetic, on the coastlines' footing): X up, -Z north, toward the tower (ours: no held
-source says which side the tower stood), so the CM's side hatch (-Z) faces the access arm. `PADPL` places it, fixed
-to the turning Earth, wherever CSMCAM places the CSM (an external view of a camera riding the CSM) and the pad is
-within 500 km of the camera (ours), where the scenario has a PAD card and a `LIFTOFF` event. `ASCPL` places the CSM
-for CSMCAM from the pad to `SIISEP`: before `LIFTOFF` (Apollo 11 0.63 s, Apollo 8 0.67 s, SP-4029 pp. 105, 47) on the
-pad, on the deck at the stack's height, in the complex's axes; after it at its state plus the pad's offset at lift-off
-(the drawn pad and the ascent table's geocentric rows put the vehicle about 18 km and 70 m apart), held Earth fixed
-(`MEFAT`) and fading linearly to `SICSEP`, its X along the velocity relative to the turning Earth with the pad's up
-added at 50 m/s, Z from the pad's (no roll programme; all ours). From `SIISEP` on the CSM is placed around the camera
-as before, so its attitude steps there (a few degrees). Code that asks which LM, CSM or S-IVB model is placed uses
+arms as thin boxes to the vehicle (mpad.f ARMBLD), arm 9, the access arm, at the 320-foot level (p. 165), the others'
+levels ours. Arms 1-8 are swung out (`KARE`) before lift-off and swung back (`KARR`) from it (the press kit retracts
+some earlier in the count, p. 164; all at lift-off is ours). Arm 9 is at the spacecraft (`KA9E`), "moved to a parked
+position, 12 degrees from the spacecraft, at about T-43 minutes" (`KA9P`) and "fully retracted at the T-5 minute
+mark" (`KA9R`; p. 165), the count's T- taken as g.e.t. before range zero; its hinge and the sense it turns are ours.
+`PADAX` (`vdrive.f`) gives the complex's axes from the pad's place on the drawn Earth (learth.f `PADEF`, where DPAD
+marks it; geodetic, on the coastlines' footing): X up, -Z north, toward the tower (ours: no held source says which
+side the tower stood), so the CM's side hatch (-Z) faces the access arm. Its foot is where the ascent table stands the
+CSM before lift-off: the CSM's state at `LIFTOFF`, held Earth fixed (`MEFAT`, which VFRAME's `MEF` uses too) and turned
+with the Earth, less the stack's height (mpad.f `PADHC`) along X. The table's latitudes are geocentric, so the complex
+stands 17.9 km south of DPAD's mark (0.161 deg at 28.447 deg N), and about 70 m inside the drawn sphere (the table's
+lift-off altitude, 0.032 n mi, is less than the stack's height; ours); every ascent frame already put the vehicle
+there (the root fix, blending TABRV's latitude below 50 n mi, is filed on #105). `PADPL` places the complex, fixed to
+the turning Earth, wherever CSMCAM places the CSM (an external view of a camera riding the CSM), before `SIISEP`
+(without one, before `LIFTOFF`) and within 500 km of the camera (ours), where the scenario has a PAD card and a
+`LIFTOFF` event. `ASCPL` places the CSM for CSMCAM from the pad to `SIISEP`: before `LIFTOFF` (Apollo 11 0.63 s,
+Apollo 8 0.67 s, SP-4029 pp. 105, 47) on the pad, `PADHC` above its foot, in the complex's axes; after it at its
+own state, so it rises from the pad along the table, its X along the velocity relative to the turning Earth with the
+pad's up added at 50 m/s, Z from the pad's (no roll programme; all ours). While the complex is placed the External
+view keeps the scene's own boresight instead of aiming along the few tens of metres from the camera, on the CSM, to a
+target in the stack (`vview.f` VIEWPT; ours). The golden gate's lift-off check (`PADCK`
+in `tools/golden.sh`, `build/viewsvg` with `VIEW_PADCK`, `tools/vdump.f` VPADCK) holds the CSM on the pad's axis at
+-600 s and within 100 m and 400 m of it at 10 s and 30 s. The camera can sit inside a solid of the complex or the
+stack (free-look at 40-60 m from a target); `lvehic.f`'s rule handles that, a solid with the camera inside hiding
+nothing. From `SIISEP` on the CSM is placed around the camera as before, so its attitude steps there (a few degrees). Code that asks which LM, CSM or S-IVB model is placed uses
 `KLMPL()`, `KCSPL()` and `KSIVPL()`. The CSM and the lone CM are hidden-line
 models like the LM: the CM cone, SM and SPS nozzle are 24-sided solids flagged smooth (`LSMO`),
 whose side edges `lvehic.f` draws only where they are the outline, so curved surfaces read as

@@ -123,16 +123,26 @@ C     system, each dropped at its own event (vdrive.f LVPL; #97).
       CALL LESBLD
       CALL MODEND(KLES)
 C     The launch complex fixed to the Earth at the pad, with the
-C     umbilical tower's arms swung out and swung back (vdrive.f PADPL).
+C     umbilical tower's arms swung out and swung back, the access
+C     arm also parked (mpad.f; vdrive.f PADPL).
       CALL MODBEG(KPAD)
       CALL PADBLD
       CALL MODEND(KPAD)
       CALL MODBEG(KARE)
-      CALL ARMBLD(0)
+      CALL ARMBLD(1, 8, 0.0D0)
       CALL MODEND(KARE)
       CALL MODBEG(KARR)
-      CALL ARMBLD(1)
+      CALL ARMBLD(1, 8, 90.0D0)
       CALL MODEND(KARR)
+      CALL MODBEG(KA9E)
+      CALL ARMBLD(9, 9, 0.0D0)
+      CALL MODEND(KA9E)
+      CALL MODBEG(KA9P)
+      CALL ARMBLD(9, 9, 12.0D0)
+      CALL MODEND(KA9P)
+      CALL MODBEG(KA9R)
+      CALL ARMBLD(9, 9, 90.0D0)
+      CALL MODEND(KA9R)
       RETURN
       END
 C
@@ -776,154 +786,6 @@ C     RESTOMOD END
      &           DM)
       CALL LVFRU(X0 + LESMO * 0.0254D0, (LESTP - LESMO) * 0.0254D0,
      &           DM, 4.0D0 / DM)
-      RETURN
-      END
-C
-C-----------------------------------------------------------------------
-C     PADBLD: Launch Complex 39, Pad A, with the mobile launcher (#97;
-C     the sizes and their sources in viewcom.inc, MNDH to ARM9H).  Body
-C     axes X up the local vertical, -Z toward the umbilical tower, Y to
-C     make them right handed; origin on the vehicle's axis at the foot
-C     of the pad, on the drawn Earth (vdrive.f PADAX).  Feet below.
-C       Pad: a truncated pyramid MNDH high, its top MNDT square, its
-C         sides at the ramp's five percent all round (ours: the pad is
-C         "roughly octagonal", printed p. 168, and its slopes are not
-C         given).
-C       Mobile launcher: six pedestals MLPED high (8 ft square, their
-C         places ours) and the base on them, a box MLBW across Y and
-C         MLBL along Z, MLBH high, its deck MNDH + MLPED + MLBH above
-C         the foot of the pad; the vehicle stands on the deck at the
-C         base's centre (ours: the 45-foot opening it stands over is not
-C         drawn, nor the hold-down arms).
-C       Umbilical tower: on the base's -Z end, its centre LUTZ from the
-C         vehicle's axis, LUTW square (ours) and LUTH above the deck;
-C         the lowest LUTFH flared to LUTFW square (ours); the hammerhead
-C         crane a box along Y, LUTCR each side of the tower's centre, 10
-C         ft deep and wide, the tower's top 10 ft (ours).
-C     Plain primitives, none smooth: every edge is drawn where seen.
-C-----------------------------------------------------------------------
-      SUBROUTINE PADBLD
-C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
-      INCLUDE 'viewdims.inc'
-      INCLUDE 'viewcom.inc'
-C     RESTOMOD END
-      DOUBLE PRECISION FT, HT, HB, XB, XD, ZT, PY(2), PZ(3)
-      INTEGER I, J
-      DATA PY / -50.0D0, 50.0D0 /
-      DATA PZ / -60.0D0, 0.0D0, 60.0D0 /
-      FT = 0.3048D0
-      HT = 0.5D0 * MNDT * FT
-      HB = HT + MNDH / MNDG * FT
-      CALL MKBOX(0.0D0, MNDH * FT, 0.0D0, 0.0D0, HB, HB, HT / HB)
-      XB = (MNDH + MLPED) * FT
-      DO 20 I = 1, 2
-        DO 10 J = 1, 3
-          CALL MKBOX(MNDH * FT, MLPED * FT, PY(I) * FT, PZ(J) * FT,
-     &               4.0D0 * FT, 4.0D0 * FT, 1.0D0)
-   10   CONTINUE
-   20 CONTINUE
-      CALL MKBOX(XB, MLBH * FT, 0.0D0, 0.0D0, 0.5D0 * MLBW * FT,
-     &           0.5D0 * MLBL * FT, 1.0D0)
-      XD = XB + MLBH * FT
-      ZT = -LUTZ * FT
-      CALL MKBOX(XD, LUTFH * FT, 0.0D0, ZT, 0.5D0 * LUTFW * FT,
-     &           0.5D0 * LUTFW * FT, LUTW / LUTFW)
-      CALL MKBOX(XD + LUTFH * FT, (LUTH - LUTFH - 10.0D0) * FT, 0.0D0,
-     &           ZT, 0.5D0 * LUTW * FT, 0.5D0 * LUTW * FT, 1.0D0)
-      CALL MKBOX(XD + (LUTH - 10.0D0) * FT, 10.0D0 * FT, 0.0D0, ZT,
-     &           LUTCR * FT, 5.0D0 * FT, 1.0D0)
-      RETURN
-      END
-C
-C-----------------------------------------------------------------------
-C     ARMBLD(IR): the umbilical tower's nine service arms (press kit,
-C     printed p. 164), in PADBLD's frame, swung out to the vehicle (IR
-C     0) or swung back (IR 1) against the tower's face.  "The remaining
-C     five arms are set to swing back at vehicle first motion" and the
-C     others earlier in the count (printed pp. 164-165); we swing all
-C     nine at lift-off (vdrive.f PADPL; ours).  Each a box 6 ft wide
-C     and 8 ft deep (ours), from the tower's face to the vehicle's skin
-C     at its level, AH ft above the deck, reaching to AR ft from the
-C     vehicle's axis: arm 9, the Apollo access arm, "at the 320-foot
-C     level above the launcher base" (ARM9H) to the CM's side hatch;
-C     the others' levels ours, two at the S-IC, three at the S-II, two
-C     at the S-IVB and one at the instrument unit.  Swung back, an arm
-C     turns a quarter turn about a hinge at its +Y side on the face and
-C     lies along the face toward -Y (ours).
-C-----------------------------------------------------------------------
-      SUBROUTINE ARMBLD(IR)
-C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
-      INCLUDE 'viewdims.inc'
-      INCLUDE 'viewcom.inc'
-C     RESTOMOD END
-      INTEGER IR
-      DOUBLE PRECISION FT, AH(9), AR(9), XD, ZF, XC, O(3), AX(3), AY(3)
-      DOUBLE PRECISION AZ(3), AM(3)
-      INTEGER K
-      DATA AH / 60.0D0, 120.0D0, 150.0D0, 185.0D0, 212.0D0, 228.0D0,
-     &  262.0D0, 279.0D0, 0.0D0 /
-      DATA AR / 16.5D0, 16.5D0, 16.5D0, 16.5D0, 16.5D0, 10.83D0,
-     &  10.83D0, 10.83D0, 7.0D0 /
-      AH(9) = ARM9H
-      FT = 0.3048D0
-      XD = (MNDH + MLPED + MLBH) * FT
-      ZF = -(LUTZ - 0.5D0 * LUTW) * FT
-      CALL SETV(AX, 1.0D0, 0.0D0, 0.0D0)
-      CALL SETV(AY, 0.0D0, 1.0D0, 0.0D0)
-      CALL SETV(AZ, 0.0D0, 0.0D0, 1.0D0)
-      CALL SETV(AM, 0.0D0, -1.0D0, 0.0D0)
-      DO 10 K = 1, 9
-        XC = XD + (AH(K) + 4.0D0) * FT
-C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-        IF (IR .EQ. 0) THEN
-          CALL SETV(O, XC, 0.0D0, ZF)
-          CALL MKBAR(O, AY, AX, AZ, 3.0D0 * FT, 4.0D0 * FT,
-     &               -ZF - AR(K) * FT)
-        ELSE
-          CALL SETV(O, XC, 3.0D0 * FT, ZF + 3.0D0 * FT)
-          CALL MKBAR(O, AZ, AX, AM, 3.0D0 * FT, 4.0D0 * FT,
-     &               -ZF - AR(K) * FT)
-        END IF
-C     RESTOMOD END
-   10 CONTINUE
-      RETURN
-      END
-C
-C     MKBOX: a box on the model's X axis, from X0 for H (m), centred on
-C     (YC, ZC), HY by HZ (m) each side of it across, its top scaled by
-C     SC (1 a box, below 1 a truncated pyramid).
-      SUBROUTINE MKBOX(X0, H, YC, ZC, HY, HZ, SC)
-      DOUBLE PRECISION X0, H, YC, ZC, HY, HZ, SC
-      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,4)
-      CALL SETV(O, X0, YC, ZC)
-      CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
-      CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
-      CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
-      P(1,1) = HY
-      P(2,1) = -HZ
-      P(1,2) = HY
-      P(2,2) = HZ
-      P(1,3) = -HY
-      P(2,3) = HZ
-      P(1,4) = -HY
-      P(2,4) = -HZ
-      CALL MKFRU(4, P, O, A1, A2, AN, H, SC)
-      RETURN
-      END
-C
-C     MKBAR: a box along AN from O, the centre of its base, for H (m),
-C     HA along A1 and HB along A2 each side of it.
-      SUBROUTINE MKBAR(O, A1, A2, AN, HA, HB, H)
-      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), HA, HB, H, P(2,4)
-      P(1,1) = HA
-      P(2,1) = -HB
-      P(1,2) = HA
-      P(2,2) = HB
-      P(1,3) = -HA
-      P(2,3) = HB
-      P(1,4) = -HA
-      P(2,4) = -HB
-      CALL MKPRS(4, P, O, A1, A2, AN, H)
       RETURN
       END
 C

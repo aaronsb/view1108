@@ -372,10 +372,10 @@ export const SHOTS = [
       [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[20]`, 7],
       [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[22]`, 1]] },
 
-  // The launch complex (#97): External on the S-IVB ten minutes before lift-off, the whole Saturn V on the mobile
+  // The launch complex (#97): External on the S-IVB ten minutes before lift-off from the west-southwest, the whole Saturn V on the mobile
   // launcher at LC-39A beside the umbilical tower, its service arms swung out; the world (hdr(21)) holds the CSM, the
   // LM stowed in the SLA and the S-IVB in the stack, the S-IVB carried with the CSM (hdr(23) 3).
-  { name: "ext-pad", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=3&view=external&target=sivb&lab=1&get=-600&fov=110&yaw=30&pitch=25",
+  { name: "ext-pad", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=3&view=external&target=sivb&lab=1&get=-600&fov=110&yaw=-120&pitch=25",
     steps: [...LINKED(-600), { frames: 3 }],
     expect: [[TL("viewMode"), 1], [TL("targetId"), 6], [TL("scene"), 3],
       [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[20]`, 7],

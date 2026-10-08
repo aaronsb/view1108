@@ -107,6 +107,11 @@ C     the CSM placed here.
 C     Reference boresight at the target, up kept as near the scene's
 C     as it can be.
       IF (VDOT(D, D) .LE. 1.0D-18) GO TO 21
+C     On the pad and in the ascent (the launch complex placed, PADPL)
+C     the target is in the stack the camera rides, a few tens of metres
+C     up or down it, which says nothing of where to look from: the
+C     scene's own boresight is kept (ours, #97).
+      IF (MDON(KPAD) .EQ. 1) GO TO 21
       CALL VUNIT(D)
       DO 20 I = 1, 3
         BREF(I) = D(I)

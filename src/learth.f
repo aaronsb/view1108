@@ -92,22 +92,28 @@ C     RESTOMOD END
       DOUBLE PRECISION VB(5,MAXV), LB(4,MAXL)
       INTEGER NV, NL
       DOUBLE PRECISION U(3), EN(3), Q(3), P(3), X, Y, W, H, D, R(3)
+      DOUBLE PRECISION C(3), AT(3,3)
       INTEGER I, IOK, ISVIS
       CALL PADEF(U, EN, IOK)
       IF (IOK .EQ. 0) RETURN
       CALL MXV(MEF, U, Q)
-      CALL MXV(MEF, EN, R)
+      DO 10 I = 1, 3
+        P(I) = EPOS(I) + RE * Q(I)
+   10 CONTINUE
 C     Where the launch complex is placed (vdrive.f PADPL) it stands for
-C     the mark, which would be inside its pad: the name alone, 20 ft
-C     above the umbilical tower's top (ours).
-      H = 0.0D0
-      D = 0.0D0
-      IF (MDON(KPAD) .EQ. 0) GO TO 5
+C     the mark: the name alone, 20 ft above the umbilical tower's top,
+C     on the complex's own foot (PADAX; ours).
+      IF (MDON(KPAD) .EQ. 0) GO TO 20
+      DO 12 I = 1, 3
+        C(I) = -EPOS(I)
+   12 CONTINUE
+      CALL PADAX(C, AT, R, IOK)
       H = (MNDH + MLPED + MLBH + LUTH + 20.0D0) * 0.3048D-3
       D = LUTZ * 0.3048D-3
-    5 DO 10 I = 1, 3
-        P(I) = EPOS(I) + (RE + H) * Q(I) + D * R(I)
-   10 CONTINUE
+      DO 15 I = 1, 3
+        P(I) = R(I) + H * AT(I,1) - D * AT(I,3)
+   15 CONTINUE
+   20 CONTINUE
       IF (P(1)*CB(1) + P(2)*CB(2) + P(3)*CB(3) .LE. 0.0D0) RETURN
       IVMODE = 1
       IF (ISVIS(P) .EQ. 0) GO TO 90

@@ -51,7 +51,8 @@
 *   ROW      T= LAT= LON= ALT= (n mi above the ellipsoid) V= (ft/s) FPA=
 *            HDG= (deg): space-fixed, or with VEL=EF relative to the
 *            turning Earth.
-*   EVENT    KIND= T=  (an event the kernel keys on)
+*   EVENT    KIND= T=  (an event the kernel keys on; LIFTOFF is the launch from
+*            the pad, LIFT the LM's lunar lift-off)
 *   TIMELINE T= KIND= NAME=  (a row of the mission's timeline; see TIMELINE below)
 *   BURNCUE  IGN= CUT= VEH= ENG=  (a main-engine firing between two TIMELINE
 *            rows, named; see Burn cue at the end)
@@ -170,9 +171,9 @@ EVENT KIND=CMSEP T=194:49:12.7 SRC="MR Table 7-II p. 7-9, command module/service
 * the mobile launcher at the pad before lift-off, then drops the S-IC, the
 * launch escape tower and the S-II at these rows of the timeline below.
 EVENT KIND=LIFTOFF T=0:00:00.63 SRC="SP p. 105, Liftoff (umbilical disconnected) 000:00:00.63"
-EVENT KIND=SICSEP T=0:02:42.30 SRC="SP p. 105, S-IC/S-II separation 000:02:42.30"
+EVENT KIND=SICSEP T=0:02:42.30 SRC="SP p. 105, S-IC maximum Earth-fixed velocity. S-IC/S-II separation command 000:02:42.30"
 EVENT KIND=LESJET T=0:03:17.90 SRC="SP p. 105, Launch escape tower jettisoned 000:03:17.90"
-EVENT KIND=SIISEP T=0:09:09.00 SRC="SP p. 105, S-II/S-IVB separation 000:09:09.00"
+EVENT KIND=SIISEP T=0:09:09.00 SRC="SP p. 105, S-II maximum Earth-fixed velocity. S-II/S-IVB separation command 000:09:09.00"
 *
 * The S-IVB (traj.f SIVST): with the CSM to SEP, scene 7's geometry to the
 * spacecraft's ejection, then the CSM's state less the separation the CSM

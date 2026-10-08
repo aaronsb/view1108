@@ -48,7 +48,7 @@ C     RESTOMOD BEGIN: real-valued PARAMETERs (as above)
       PARAMETER (LESXC=83.476D0, LESTW=118.3D0, LESSK=138.0D0)
       PARAMETER (LESMO=363.7D0, LESTP=400.762D0, LESBD=48.0D0)
 C     RESTOMOD END
-C     Launch Complex 39, Pad A and the mobile launcher (models.f PADBLD,
+C     Launch Complex 39, Pad A and the mobile launcher (mpad.f PADBLD,
 C     ARMBLD; vdrive.f PADPL, ASCPL; #97), in feet, from the press kit's
 C     Launch Complex 39 pages: "The top of the pad stands some 48 feet
 C     above sea level" (MNDH, the mound's height above the drawn
@@ -87,7 +87,7 @@ C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
 C     (1978); FORTRAN V wrote PARAMETER I = 2 (UP-4046 Rev 3, sec.
 C     10.4.1).  And 160 solids (the LM's RCS clusters are 20 a model,
 C     in three LM models; the CSM's quads 20 more; the launch vehicle's
-C     stages, the escape system and the launch complex 35 more, #97)
+C     stages, the escape system and the launch complex 36 more, #97)
 C     make /CLM/ and /CLMI/ about 228K words (our count: 1,294 words a
 C     solid, 21,000 for the free lines, 2 words a DP number), 87
 C     percent of the 1108's 262,144 (docs/univac-1108.md).  24 models.
@@ -103,14 +103,16 @@ C     (after lunar lift-off), CM alone (after CM/SM separation), the
 C     launch stack behind the CSM before separation: S-IVB, IU and
 C     the closed SLA (LVSTK); and (#97) the launch complex (PADBLD:
 C     the pad's mound, the mobile launcher's base and its umbilical
-C     tower), the tower's service arms swung out to the vehicle and
-C     swung back (ARMBLD), the S-II, the S-IC (LVSII, LVSIC) and the
+C     tower), the tower's service arms 1-8 swung out to the vehicle and
+C     swung back and the access arm out, parked and back (mpad.f
+C     ARMBLD), the S-II, the S-IC (LVSII, LVSIC) and the
 C     launch escape system (LESBLD).
-      INTEGER KPAD, KARE, KARR, KSII, KSIC, KLES
+      INTEGER KPAD, KARE, KARR, KSII, KSIC, KLES, KA9E, KA9P, KA9R
 C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)
       PARAMETER (KLMD=1, KLMS=2, KSIV=3, KCSM=4, KCMC=5, KCMI=6,
      &           KLMI=7, KLMA=8, KCMO=9, KSTK=10, KPAD=11, KARE=12,
-     &           KARR=13, KSII=14, KSIC=15, KLES=16)
+     &           KARR=13, KSII=14, KSIC=15, KLES=16, KA9E=17, KA9P=18,
+     &           KA9R=19)
 C
 C     Tables loaded by BLOCK DATA VIEWBD (viewdata.f)
 C     RESTOMOD BEGIN: post-1969 data: Natural Earth coast (2009),
