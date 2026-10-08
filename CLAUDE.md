@@ -154,8 +154,9 @@ All exported names are `bind(c)`. JS reads globals via `exports.<name>.value` as
 into `exports.memory`.
 
 Entry points:
-- `view_init(scene)` (int32 by value) — selects a scene and writes its default inputs
-  (`in_get`, `in_yaw`, `in_pitch`, `in_roll`, `in_fov`) so the page can read them back.
+- `view_init(scene)` (int32 by value) — selects a situation of the loaded scenario reel by its
+  id there, 1..N (out of range: 1), and writes its default inputs (`in_get`, `in_yaw`,
+  `in_pitch`, `in_roll`, `in_fov`) so the page can read them back.
 - `view_frame()` — computes geometry at the current inputs and fills the output buffers.
 - `deck_open()`, `deck_card(n)` (int32 by value), `deck_file()`, `deck_close()`, `deck_sum()` — the
   card reader (`src/vdeck.f`): `deck_open` empties the run tables, `deck_card(n)` reads the `n`
@@ -242,7 +243,9 @@ Inputs (written by JS):
 Outputs (written by the kernel):
 - `out_terise` real(8), read-only: the Earthrise time (g.e.t. s) of the last Earthrise search
   (`ERFIND`, `TERISE` in `/CORB/`), copied out by the chassis after each `view_init`; the
-  search runs for a situation whose GET rule is ERISE. The playlist player times ERISE shots
+  search runs for a situation whose GET rule is ERISE, and always on the replay (`VINIT` saves the
+  state source, `ISRC`, and restores it after; ours, #26 slice 7c), so a situation's default time
+  does not follow the source toggle. The playlist player times ERISE shots
   from it (`web/src/player.js`). Read only after `view_init` of such a situation.
 - `vbuf(5, MAXV)` real(8), `nvec` int32: line segments `x1, y1, x2, y2, style` in plot
   degrees (the report's "X, deg" / "Y, deg"). style 1 = solid, 2 = dashed (hidden line).
@@ -260,7 +263,7 @@ Outputs (written by the kernel):
   be empty; `VIEW_NAMES.CRATER_KM[id-1]` is the crater's diameter, km, for the secondary
   level's 25 km cut). Sun, Earth, Moon use id 0.
 - `hdr(24)` real(8): 1 GET s, 2 FOV deg, 3 range to reference body centre n.mi.,
-  4 altitude stat. mi., 5 inertial speed ft/s, 6 reference body (1 Earth, 2 Moon), 7 scene,
+  4 altitude stat. mi., 5 inertial speed ft/s, 6 reference body (1 Earth, 2 Moon), 7 the situation's id in its reel,
   8 window code (1 CSM window, 2 LM front window), 9 range from the CSM to the LM ft, wherever
   both have a state (`VSTATE`; 0 docked, 300 from undocking to the separation burn; scene 7:
   CSM to LM docking ring, 100 down to 0 at docking; the page letters it under 10 n mi), 10 LM altitude ft (scene 5: the footpads above the
@@ -347,7 +350,7 @@ placed about the eye by the station views (`vview.f`); their windows are also ke
 `/CWIN/` (`XWIN`) for the window mask. Each window outline is convex as seen from its eye (our
 check), which the mask's plane test needs; a new window outline must be too, or be split.
 
-## Scenes (priority order; match the video frames)
+## Scenes (numbered as the page's scenes, `scene=N`; priority order; match the video frames)
 
 Fidelity rule: best effort within the spirit of what VIEW had in 1969 (trajectory data,
 catalogs, engineering drawings, a vector recorder). Where a source is silent, choose what a
