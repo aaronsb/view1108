@@ -75,8 +75,14 @@ export class Lighting {
     if (q === "high") {
       key.castShadow = true;
       key.shadow.mapSize.set(2048, 2048);
-      Object.assign(key.shadow.camera, { left: -ROOM.w / 2 - 0.5, right: ROOM.w / 2 + 0.5, top: ROOM.d / 2 + 1, bottom: -ROOM.d / 2 - 1, near: 0.5, far: 12 });
-      key.shadow.camera.updateProjectionMatrix();
+      // The shadow camera's box fitted to the room's eight corners as the light sees them (a little margin).
+      const cam = key.shadow.camera, box = new THREE.Box3(), c = new THREE.Vector3();
+      cam.position.copy(key.position); cam.lookAt(key.target.position); cam.updateMatrixWorld();
+      for (const x of [-1, 1]) for (const y of [0, 1]) for (const z of [-1, 1])
+        box.expandByPoint(c.set(x * ROOM.w / 2, y * ROOM.h, z * ROOM.d / 2).applyMatrix4(cam.matrixWorldInverse));
+      box.expandByScalar(0.2);
+      Object.assign(cam, { left: box.min.x, right: box.max.x, bottom: box.min.y, top: box.max.y, near: Math.max(0.1, -box.max.z), far: -box.min.z });
+      cam.updateProjectionMatrix();
       key.shadow.radius = 5; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
     }
     add(key.target);

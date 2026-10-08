@@ -18,7 +18,9 @@ export const TROFFERS = {
 };
 /** The door, on the south wall: the x of its centre, its width and height; it opens inward, hinged on its west side. */
 export const DOOR = { x: -0.6, w: 0.92, h: 2.13 };
-const CLOCK = { x: -3.44, y: 2.32, r: 0.16 };    // on the north wall, above the middle tape drive
+/** The tape row on the north wall: the westmost drive's x, the pitch and the count (the middle one is the drive). */
+export const DRIVES = { x0: -5.9, pitch: 0.82, n: 7 };
+const CLOCK = { x: DRIVES.x0 + 3 * DRIVES.pitch, y: 2.32, r: 0.16 };    // on the north wall, above the middle tape drive
 
 export interface Shell {
   object: THREE.Group;

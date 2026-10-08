@@ -22,7 +22,7 @@ const DUCK_DB = -8;            // the room under a terminal's page
 const WET = 0.35;              // send into the room response
 const MAX_SHOTS = 12;
 const MAINS = 60;              // Hz, US mains
-const WHINE_ROLLOFF = 4;       // the 1558's whine: -22 dB at the overview (4.1 m), -10 dB at 1.5 m
+const WHINE_ROLLOFF = 4;       // the 1558's whine: -24 dB at the overview (4.9 m), -10 dB at 1.5 m
 
 // The drums (UP-4046 rev. 3): FH-432 7,200 rev/min (p. 8-5), FH-1782 1,800 rev/min (p. 8-6), FASTRAND II 880 rev/min
 // (p. 8-10), its 64 heads moved together in 30 to 86 ms (p. 8-8). The minimum 1108 system has three FH-432 drums (or
