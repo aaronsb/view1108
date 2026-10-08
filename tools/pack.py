@@ -15,7 +15,9 @@ writes each page.json as build/page/<id>.json and this copies it. A reel with a 
 notebook/notebook.md in data/missions/<mission>/<scenario file stem>/ or data/reels/<id>/, tools/notebook.py) also
 holds notebook/notebook.md, byte for byte (type "notebook"), and each figure it names as notebook/figures/<name>.svg
 (type "figure"), the SVG tools/notebook.py rendered into build/figures/<id>/<name>.svg, the same file the golden gate
-captures (tools/golden.sh, case nb-<id>-<name>); tools/build.sh renders the figures before it packs. The manifest names the kernel build the
+captures (tools/golden.sh, case nb-<id>-<name>); tools/build.sh renders the figures before it packs. The notebook's
+photographs, notebook/media/<name>.jpg or .png beside its source (raster only, each named by an attach block; #29 slice
+g), are packed byte for byte as notebook/media/<name>.jpg or .png (type "media"). The manifest names the kernel build the
 reel is for, by the SHA-256 of build/view.opt.wasm, and never carries code (#26, 2026-10-06 decision). Packages are reproducible: USTAR members with mtime 0,
 uid/gid 0, no user or group names, mode 0644, no directory entries; gzip with mtime 0 and no file
 name: the same bytes again for a given Python and zlib (the selftest packs twice and compares). Writes:
@@ -93,6 +95,14 @@ def notebook_members(rid, kind, src, uses, sits):
             sys.exit(f"pack.py: {rid}: {fig.relative_to(R)} holds {bad}, which a figure may not (tools/notebook.py svg_unsafe, the allowlist)")
         members.append((path, fig.read_bytes()))
         entries.append({"path": path, "type": "figure"})
+    # The notebook's photographs (#29 slice g): each file of notebook/media/, raster only and attached (notebook.load
+    # checks both), byte for byte.
+    for name, data in nb["media"].items():
+        path = f"notebook/media/{name}"
+        if len(path) > 100:
+            sys.exit(f"pack.py: {rid}: {path}: a member name longer than 100 characters (USTAR)")
+        members.append((path, data))
+        entries.append({"path": path, "type": "media"})
     return members, entries
 
 

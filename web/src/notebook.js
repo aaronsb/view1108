@@ -7,13 +7,15 @@
 //   quotes, pipe tables (a header row and a --- row), "---" rules, fenced code; a paragraph that is one image is a
 //   figure, its alt text the caption. A fence whose info string is `figures` is the figure cases (tools/notebook.py:
 //   build metadata, golden.sh's CASES columns) and is shown at the end as a small table, "Figures, as rendered",
-//   because the notebooks' own text sends the reader to "the case of its name in the figures block at the end".
+//   because the notebooks' own text sends the reader to "the case of its name in the figures block at the end". A
+//   fence whose info string is `finding` or `attach` (#29 slice g; reelpkg.js reelSlip) is a typed slip pasted beside
+//   the text or an attached print (plate, clip, tape, insert; photo, film, copy), the classes page.css draws them by.
 //   Inline: `code`, **strong**, *em* and _em_, [text](href), ![alt](figures/<name>.svg), <https://...> and bare
 //   http(s) URLs, backslash escapes; anything else (raw HTML among it) stays text.
 //   Links: only absolute http: and https: URLs become links (a new tab, rel noopener noreferrer); any other href
 //   (javascript:, data:, //host, a relative path, a #fragment: the viewer gives its headings no ids) is dropped and
-//   its text kept. Images: only figures/<name>.svg, which the viewer shows as <img> from a data: URL of the reel's own
-//   SVG (a data: document has an opaque origin, so even a figure opened as a page cannot reach the site; reelpkg.js
+//   its text kept. Images: only figures/<name>.svg (and an attach's photograph, a JPEG or PNG the reel carries, the same
+//   way), which the viewer shows as <img> from a data: URL of the reel's own SVG (a data: document has an opaque origin, so even a figure opened as a page cannot reach the site; reelpkg.js
 //   also refuses a figure holding script, handlers, foreignObject or outside links); any other image is its alt text.
 //   Limits (review of PR #69): a text over NB_MAX characters is refused (nbParse throws; the viewer shows it as plain
 //   text), quotes and lists nest at most NB_DEPTH deep and emphasis at most NB_IDEPTH (deeper is text), and every
@@ -21,7 +23,7 @@
 "use strict";
 /** The elements the builder may make. */
 const NB_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6", "p", "em", "strong", "code", "pre", "ul", "ol", "li", "a",
-  "blockquote", "table", "thead", "tbody", "tr", "th", "td", "hr", "img", "figure", "figcaption", "section"]);
+  "blockquote", "table", "thead", "tbody", "tr", "th", "td", "hr", "img", "figure", "figcaption", "section", "aside", "div", "span"]);
 const NB_FIG = /^figures\/([a-z0-9][a-z0-9-]*)\.svg$/;
 const NB_MAX = 262144, NB_DEPTH = 8, NB_IDEPTH = 12;
 /** A link's target if it may be one: an absolute http(s) URL; else null. */
@@ -105,9 +107,39 @@ function nbHeading(ln) {
 }
 /** A thematic break: three or more of one of - * _, with spaces between. */
 const nbHr = ln => { const t = ln.replace(/ /g, ""); return /^ {0,3}\S/.test(ln) && t.length >= 3 && /^([-*_])\1+$/.test(t); };
-/** Block Markdown to a list of nodes; `figs` collects the figures fence's rows (the top level passes one); `depth`:
- *  how deep in quotes and lists (at NB_DEPTH a quote or list is read as a paragraph). */
-function nbBlocks(lines, figs, depth = 0) {
+/** A node's text, its markup dropped (an image's alt text). */
+const nbFlat = n => typeof n === "string" ? n : n.t === "img" ? n.alt || "" : (n.c || []).map(nbFlat).join("");
+/** A paragraph's lines as one line. */
+const nbJoin = t => t.split("\n").map(l => l.trim()).filter(Boolean).join(" ");
+/** A `finding` or `attach` block (#29 slice g; reelpkg.js reelSlip checks it, tools/notebook.py too) as a node, or null
+ *  if it is not one, which is then shown as its lines. `top`: the notebook's {rows: its figures block's golden rows,
+ *  plates: the plates numbered so far}. A finding is a typed slip: FINDING and its date, its text, its source. An
+ *  attachment is a print (div.nbprint: the figure or photograph as <img>, and for the tape style its four pieces of
+ *  tape, for the clip style its paper clip) and its caption (a plate numbered PLATE N.; a photograph's credit and source after it); its style and finish,
+ *  each one of reelpkg.js's few words, are its classes. */
+function nbSlip(kind, body, top) {
+  let f, src;
+  try {
+    f = reelSlip(kind, body);
+    if (kind === "attach") src = f.source.startsWith("media/") ? { media: f.source.slice(6) } : { fig: reelAttachFigure(f.source, top.rows) };
+  } catch (e) { return null; }
+  if (kind === "finding") return { t: "aside", cls: "nbfinding", c: [
+    { t: "p", cls: "nbslip", c: [`FINDING  ${f.date}`] },
+    ...f.body.split(/\n[ \t]*\n/).map(p => ({ t: "p", c: nbInline(nbJoin(p)) })),
+    { t: "p", cls: "nbcite", c: ["Source: ", ...nbInline(f.cite)] }] };
+  const cap = nbInline(nbJoin(f.body)), plate = f.style === "plate" ? ++top.plates : 0;
+  const credit = [...(f.credit ? [`Credit: ${f.credit}.${f.cite ? " " : ""}`] : []), ...(f.cite ? ["Source: ", ...nbInline(f.cite)] : [])];
+  return { t: "figure", cls: `nbattach nb-${f.style} nb-${f.finish}`, c: [
+    { t: "div", cls: "nbprint", c: [{ t: "img", ...src, alt: cap.map(nbFlat).join("") },
+      ...(f.style === "tape" ? ["tl", "tr", "bl", "br"].map(p => ({ t: "div", cls: `nbtape ${p}` })) : []),
+      ...(f.style === "clip" ? [{ t: "div", cls: "nbclip" }] : [])] },
+    { t: "figcaption", c: [...(plate ? [{ t: "strong", c: [`PLATE ${plate}.`] }, " "] : []), ...cap,
+      ...(credit.length ? [{ t: "span", cls: "nbcredit", c: credit }] : [])] }] };
+}
+/** Block Markdown to a list of nodes; `top` (the top level passes one, nbParse) collects the figures fence's rows in
+ *  top.figs and numbers the plates, and only there are finding and attach blocks read; `depth`: how deep in quotes and
+ *  lists (at NB_DEPTH a quote or list is read as a paragraph). */
+function nbBlocks(lines, top, depth = 0) {
   const out = [];
   let i = 0;
   const blank = l => !l.trim();
@@ -121,7 +153,9 @@ function nbBlocks(lines, figs, depth = 0) {
       const body = [];
       for (i++; i < lines.length && !/^ {0,3}```\s*$/.test(lines[i]); i++) body.push(lines[i]);
       i++;
-      if (m[1] === "figures" && figs) figs.push(...body.filter(l => l.trim()).map(l => l.replace(/^#\s*/, "").split("|").map(x => x.trim())));
+      const info = ln.startsWith("```") ? ln.slice(3).trim() : null, slip = top && (info === "finding" || info === "attach") ? nbSlip(info, body, top) : null;
+      if (m[1] === "figures" && top) top.figs.push(...body.filter(l => l.trim()).map(l => l.replace(/^#\s*/, "").split("|").map(x => x.trim())));
+      else if (slip) out.push(slip);
       else out.push({ t: "pre", c: [{ t: "code", c: [body.join("\n")] }] });
       continue;
     }
@@ -179,7 +213,7 @@ function nbBlocks(lines, figs, depth = 0) {
 function nbParse(md) {
   const s = String(md);
   if (s.length > NB_MAX) throw new Error(`notebook: ${s.length} characters, more than ${NB_MAX}`);
-  const figs = [], out = nbBlocks(s.replace(/\r\n?/g, "\n").split("\n"), figs);
+  const top = { figs: [], rows: reelGoldenRows(s), plates: 0 }, figs = top.figs, out = nbBlocks(s.replace(/\r\n?/g, "\n").split("\n"), top);
   if (figs.length > 1) out.push({ t: "section", c: [
     { t: "h2", c: ["Figures, as rendered"] },
     { t: "p", c: ["The case each figure was drawn at by the native driver (tools/notebook.py; ours): its name, environment, reel and viewsvg arguments, or golden=<case> for a figure that is that golden case's render (tools/golden.sh)."] },
@@ -199,18 +233,19 @@ function nbTitle(md) {
   }
   return "";
 }
-/** Build the tree with `doc` (the document) into a fragment. `fig(name)` gives a figure's image URL (null: none, and
- *  the alt text stands in). Elements only from NB_TAGS; strings only as text nodes; attributes only href (checked
- *  again), target, rel, src (from fig), alt and class. */
-function nbBuild(nodes, doc, fig) {
+/** Build the tree with `doc` (the document) into a fragment. `fig(name)` gives a figure's image URL and `media(file)`
+ *  a photograph's (null: none, and the alt text stands in). Elements only from NB_TAGS; strings only as text nodes;
+ *  attributes only href (checked again), target, rel, src (from fig or media), alt and class (the builder's own
+ *  words: lowercase letters, digits, hyphens and spaces). */
+function nbBuild(nodes, doc, fig, media = () => null) {
   const frag = doc.createDocumentFragment();
   const add = (parent, n) => {
     if (typeof n === "string") { parent.appendChild(doc.createTextNode(n)); return; }
     if (n.t === "img") {
-      const src = fig(n.fig);
+      const src = n.media !== undefined ? media(n.media) : fig(n.fig);
       if (!src) { parent.appendChild(doc.createTextNode(n.alt || "")); return; }
       const img = doc.createElement("img");
-      img.setAttribute("alt", n.alt || ""); img.setAttribute("src", src); img.setAttribute("class", "nbfig");
+      img.setAttribute("alt", n.alt || ""); img.setAttribute("src", src); img.setAttribute("class", n.media !== undefined ? "nbmedia" : "nbfig");
       parent.appendChild(img); return;
     }
     if (!NB_TAGS.has(n.t)) { for (const k of n.c || []) add(parent, k); return; }
@@ -218,7 +253,8 @@ function nbBuild(nodes, doc, fig) {
     if (n.t === "a" && !href) { for (const k of n.c || []) add(parent, k); return; }
     const el = doc.createElement(n.t);
     if (href) { el.setAttribute("href", href); el.setAttribute("target", "_blank"); el.setAttribute("rel", "noopener noreferrer"); }
-    if (n.t === "section") el.setAttribute("class", "nbcases");
+    const cls = n.t === "section" ? "nbcases" : n.cls;
+    if (cls && /^[a-z0-9 -]+$/.test(cls)) el.setAttribute("class", cls);
     for (const k of n.c || []) add(el, k);
     parent.appendChild(el);
   };

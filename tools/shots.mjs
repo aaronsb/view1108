@@ -22,7 +22,16 @@ const RS_FITS = `(pg => { const cs = getComputedStyle(pg), w = pg.clientWidth - 
   - (parseInt(cs.columnCount, 10) - 1) * parseFloat(cs.columnGap);
   const rows = [...pg.querySelectorAll(".runsheet tr")].filter(r => r.offsetParent !== null);
   return rows.length > 0 && rows.every(r => [...r.getClientRects()].every(q => q.width <= w / parseInt(cs.columnCount, 10) + 0.5)); })(document.querySelector("#libmd .nbpages"))`;
-const VISIBLE_ROWS = `[...document.querySelectorAll("#libmd .runsheet tbody tr")].filter(r => r.offsetParent !== null).length`;   // the run sheet's rows shown
+// Findings and attachments (#29 slice g): the Apollo 8 notebook opened likewise; the binder paged forward (its Next
+// button) until the element `sel` has come into view, its photographs and figures decoded; and the check that `sel`
+// lies whole inside the binder's view.
+const NB8_OPEN = [{ js: `document.getElementById("blib").click()` },
+  { js: `document.querySelector('#liblist .librow[data-id="nb-apollo8-asflown"]').click()` }, { frames: 2 }];
+const NB_TO = sel => [{ js: `(() => { const pg = document.querySelector("#libmd .nbpages"), el = document.querySelector(${JSON.stringify(sel)}), nx = document.querySelector("#libmd .nbnext");
+  for (let k = 0; k < 60 && el.getBoundingClientRect().left >= pg.getBoundingClientRect().right - 1 && !nx.disabled; k++) nx.click(); })()` },
+  { wait: `[...document.querySelectorAll("#libmd img")].every(i => i.complete && i.naturalWidth > 0)` }, { frames: 2 }];
+const NB_SHOWN = sel => `(r => (p => r.width > 0 && r.left >= p.left - 1 && r.right <= p.right + 1)(document.querySelector("#libmd .nbpages").getBoundingClientRect()))(document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect())`;
+const VISIBLE_ROWS =`[...document.querySelectorAll("#libmd .runsheet tbody tr")].filter(r => r.offsetParent !== null).length`;   // the run sheet's rows shown
 const ROOM_UP = { wait: `VIEW_LAB.running && ${LAB} && document.body.classList.contains("room")` };
 const ROOM_STILL = { wait: `${LAB}.mode !== "flight" && !document.getElementById("labhost").classList.contains("fading") && ${LAB}.lit >= 0.999` };
 
@@ -263,6 +272,43 @@ export const SHOTS = [
     expect: [[`document.getElementById("libmd").className`, "dark"], [`document.getElementById("blibtheme").textContent`, "Light"],
       [`JSON.parse(localStorage.getItem("view1108.prefs")).notebook`, "dark"], [`getComputedStyle(document.querySelector("#libmd .nbnav")).display`, "none"],
       [`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"]] },
+
+  // Findings and attachments (#29 slice g; the look is ours): a finding, a typed slip pasted beside the text (Apollo 8,
+  // TN D-6853 p. 3).
+  { name: "notebook-finding", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB8_OPEN, ...NB_TO("#libmd aside.nbfinding")],
+    expect: [[NB_SHOWN("#libmd aside.nbfinding")], [`document.querySelector("#libmd aside.nbfinding .nbslip").textContent`, "FINDING  2026-10-08"],
+      [`document.querySelector("#libmd aside.nbfinding .nbcite").textContent`, "Source: TN D-6853, printed p. 3"]] },
+  // A plate, printed on the page and numbered: Apollo 8's LOI figure, a glossy photo finish.
+  { name: "notebook-attach-plate", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB8_OPEN, ...NB_TO("#libmd figure.nb-plate")],
+    expect: [[NB_SHOWN("#libmd figure.nb-plate")], [`document.querySelector("#libmd figure.nb-plate").className`, "nbattach nb-plate nb-photo"],
+      [`document.querySelector("#libmd figure.nb-plate figcaption strong").textContent`, "PLATE 1."]] },
+  // Taped in and clipped on: the golden render of the Earthrise as a film-recorder print taped at its corners, and the
+  // photograph AS08-14-2383 (a media member, JPEG) as a glossy print under a paper clip beside it.
+  { name: "notebook-attach-tape-clip", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB8_OPEN, ...NB_TO("#libmd figure.nb-tape")],
+    expect: [[NB_SHOWN("#libmd figure.nb-tape")], [NB_SHOWN("#libmd figure.nb-clip")],
+      [`document.querySelector("#libmd figure.nb-tape").className`, "nbattach nb-tape nb-film"], [`document.querySelectorAll("#libmd figure.nb-tape .nbtape").length`, 4],
+      [`document.querySelector("#libmd figure.nb-clip").className`, "nbattach nb-clip nb-photo"],
+      [`(i => i.naturalWidth + "x" + i.naturalHeight + " " + i.src.slice(0, 23))(document.querySelector("#libmd figure.nb-clip img.nbmedia"))`, "800x800 data:image/jpeg;base64,"]] },
+  // An insert, a sheet of its own tipped in: a page of MSC IN 69-FM-197 (a media member, PNG) with the copy finish, in
+  // Apollo 11's notebook; on the facing page our late-descent render as a plate with the film finish.
+  { name: "notebook-attach-insert", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB_OPEN, ...NB_TO("#libmd figure.nb-insert")],
+    expect: [[NB_SHOWN("#libmd figure.nb-insert")], [`document.querySelector("#libmd figure.nb-insert").className`, "nbattach nb-insert nb-copy"],
+      [`(i => i.naturalWidth + " " + i.src.slice(0, 22))(document.querySelector("#libmd figure.nb-insert img.nbmedia"))`, "1100 data:image/png;base64,"],
+      [`(f => Math.abs(f.getBoundingClientRect().height - (f.parentElement.clientHeight - parseFloat(getComputedStyle(f.parentElement).paddingTop) - parseFloat(getComputedStyle(f.parentElement).paddingBottom))) < 2)(document.querySelector("#libmd figure.nb-insert"))`]] },
+  { name: "notebook-attach-plate-film", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB_OPEN, ...NB_TO("#libmd figure.nb-film")],
+    expect: [[NB_SHOWN("#libmd figure.nb-film")], [`document.querySelector("#libmd figure.nb-film").className`, "nbattach nb-plate nb-film"],
+      [`document.querySelector("#libmd figure.nb-film figcaption strong").textContent`, "PLATE 1."]] },
+  // DARK shows attachments plainly: the photograph and its credit, no clip, tape or finish.
+  { name: "notebook-dark-attach", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1&notebook=dark",
+    steps: [HOLD(), ...NB8_OPEN, { js: `document.querySelector("#libmd figure.nb-clip").scrollIntoView({ block: "center" })` },
+      { wait: `[...document.querySelectorAll("#libmd img")].every(i => i.complete && i.naturalWidth > 0)` }, { frames: 2 }],
+    expect: [[`document.getElementById("libmd").className`, "dark"], [`getComputedStyle(document.querySelector("#libmd .nbclip")).display`, "none"],
+      [`document.querySelector("#libmd figure.nb-clip .nbcredit").textContent.startsWith("Credit: NASA. Source: ")`, true]] },
 
   // ?notebook=dark holds DARK for the visit without touching the remembered choice.
   { name: "notebook-dark-url", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1&notebook=dark",

@@ -29,10 +29,35 @@ the golden case's capture covers the frame, and capture and check draw the case 
 package carries (build/reels/<id>/notebook/figures/<name>.svg) to equal it, so a stale package fails.
 
 Lines starting with # and blank lines in the block are skipped. Every figure the text names has a case, every case
-is named in the text, and the text names no other image: outside fenced blocks every "![" must open an inline image
+is named in the text (an image, or an attach block's source, below), and the text names no other image: outside fenced blocks every "![" must open an inline image
 ![alt](figures/<name>.svg) (alt text without "]"), and an HTML <img> or a reference definition ("[r]: ...", which
 reference-style images need) is refused. web/src/reelpkg.js reelFigureRefs applies the same rules. The block stays in the packed notebook.md (copied byte for
 byte), so a reader of the reel can see how each figure was made.
+
+Findings and attachments (#29 slice g; the markup is ours): two more fenced blocks, each a few `key: value` header lines
+(lowercase keys, each once, no empty value), a blank line, then the body (one line per paragraph):
+
+    ```finding                          ```attach
+    date: 2026-10-08                    source: media/as08-14-2383.jpg
+    cite: TN D-6853, printed p. 3       style: clip
+                                        finish: photo
+    What was found, in Markdown         credit: NASA
+    inline text.                        cite: https://images.nasa.gov/details/as08-14-2383
+    ```
+                                        The caption, in Markdown inline text.
+                                        ```
+
+  finding   a later addition, typed on a slip pasted beside the text: date (YYYY-MM-DD, the day it was added) and cite
+            (its source, under the sourcing rule) are required, and so is the text after the header
+  attach    source: media/<file> (a photograph packed with the reel), figures/<name>.svg (a figure of the figures
+            block) or golden=<case> (the figure whose row is `name | golden=<case>`); style: plate | clip | tape |
+            insert; finish: photo | film | copy; the text after the header is the caption, required. A media source
+            needs credit and cite. Any source with any style and finish.
+
+A notebook may hold media files beside notebook.md, notebook/media/<name>.jpg or .png ([a-z0-9][a-z0-9-]* names),
+raster only: the file's own first bytes must be JPEG's (FF D8 FF) or PNG's signature, as its extension says, and it is
+at most MEDIA_MAX bytes. Every media file is attached and every attached file is there. tools/pack.py packs each as
+notebook/media/<file> (type "media"); web/src/reelpkg.js readReel applies the same rules (reelSlips).
 
 One render serves the golden gate and the package: `render` runs build/viewsvg once per case and writes
 build/figures/<reel id>/<name>.svg (stdout) and .hdr (stderr, VIEW_HDR=1); tools/golden.sh captures those files as
@@ -47,7 +72,7 @@ case, deck or driver changed since the render cannot be packed with the old figu
                                  golden=<case> rows, whose capture is the golden case's)
   tools/notebook.py golden-refs  print each golden=<case> row as "<reel id> <name> <case>"
 """
-import hashlib, json, os, pathlib, re, shutil, subprocess, sys
+import datetime, hashlib, json, os, pathlib, re, shutil, subprocess, sys
 
 R = pathlib.Path(__file__).resolve().parent.parent
 D = R / "data"
@@ -58,6 +83,12 @@ IMAGE = re.compile(r"!\[[^\]]*\]\(([^)\s]*)[^)]*\)")
 REFDEF = re.compile(r" {0,3}\[[^\]]+\]:")
 HTMLIMG = re.compile(r"<img\b", re.I)
 NUM = re.compile(r"(-|[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?)$")
+# Findings and attachments (#29 slice g; ours): the header keys each block takes, the attach choices, the media files.
+SLIP_KEYS = {"finding": ("date", "cite"), "attach": ("source", "style", "finish", "credit", "cite")}
+STYLES, FINISHES = ("plate", "clip", "tape", "insert"), ("photo", "film", "copy")
+MEDIA = re.compile(r"[a-z0-9][a-z0-9-]*\.(jpg|png)")
+MEDIA_MAGIC = {"jpg": b"\xff\xd8\xff", "png": b"\x89PNG\r\n\x1a\n"}
+MEDIA_MAX = 262144
 
 
 def fail(where, why):
@@ -79,23 +110,93 @@ def reels():
     return out
 
 
-def prose(text, where="notebook.md"):
-    """The notebook's lines outside fenced blocks, and its `figures` blocks' lines: (prose lines, [block lines])."""
+def prose(text, where="notebook.md", slips=None):
+    """The notebook's lines outside fenced blocks, and its `figures` blocks' lines: (prose lines, [block lines]). With
+    `slips` a list, each `finding` and `attach` block is appended to it as (info string, [lines], line number)."""
     lines, blocks, fence = [], [], None
-    for ln in text.split("\n"):
+    for n, ln in enumerate(text.split("\n"), 1):
         if fence is None and ln.startswith("```"):
             fence = ln[3:].strip()
             if fence == "figures":
                 blocks.append([])
+            if fence in SLIP_KEYS and slips is not None:
+                slips.append((fence, [], n))
         elif fence is not None and ln.startswith("```"):
             fence = None
         elif fence == "figures":
             blocks[-1].append(ln)
+        elif fence in SLIP_KEYS:
+            if slips is not None:
+                slips[-1][1].append(ln)
         elif fence is None:
             lines.append(ln)
     if fence is not None:
         fail(where, "a fenced block is not closed")
     return lines, blocks
+
+
+def slip(kind, lines, where):
+    """A `finding` or `attach` block's lines, checked (the module's docstring): {key: value, ..., "body": its text}. The
+    same rules as web/src/reelpkg.js reelSlip."""
+    f, k = {}, 0
+    while k < len(lines) and lines[k].strip():
+        m = re.fullmatch(r"([a-z]+):(.*)", lines[k])
+        if not m:
+            fail(where, f"{kind}: {lines[k].strip()[:60]!r} is not a 'key: value' header line (a blank line ends them)")
+        key, val = m.group(1), m.group(2).strip(" \t")
+        if key not in SLIP_KEYS[kind]:
+            fail(where, f"{kind}: no key {key!r} (its keys: {', '.join(SLIP_KEYS[kind])})")
+        if key in f:
+            fail(where, f"{kind}: {key} given twice")
+        if not val:
+            fail(where, f"{kind}: {key} is empty")
+        f[key] = val
+        k += 1
+    body = "\n".join(lines[k:]).strip()
+    if kind == "finding":
+        for key in ("date", "cite"):
+            if key not in f:
+                fail(where, f"finding: no {key} (a finding carries the date it was added and its source)")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", f["date"]) or not _date_ok(f["date"]):
+            fail(where, f"finding: date {f['date']!r} is not a YYYY-MM-DD date")
+        if not body:
+            fail(where, "finding: no text after its header")
+    else:
+        for key in ("source", "style", "finish"):
+            if key not in f:
+                fail(where, f"attach: no {key}")
+        if f["style"] not in STYLES:
+            fail(where, f"attach: style {f['style']!r} is not one of {', '.join(STYLES)}")
+        if f["finish"] not in FINISHES:
+            fail(where, f"attach: finish {f['finish']!r} is not one of {', '.join(FINISHES)}")
+        if not body:
+            fail(where, "attach: no caption after its header")
+        s = f["source"]
+        if s.startswith("media/"):
+            if not MEDIA.fullmatch(s[6:]):
+                fail(where, f"attach: source {s!r}: a photograph is media/<name>.jpg or .png")
+            for key in ("credit", "cite"):
+                if key not in f:
+                    fail(where, f"attach: source {s} is a photograph and has no {key}")
+        elif not re.fullmatch(r"figures/[a-z0-9][a-z0-9-]*\.svg|golden=[A-Za-z0-9_-]+", s):
+            fail(where, f"attach: source {s!r} is not media/<file>, figures/<name>.svg or golden=<case>")
+    f["body"] = body
+    return f
+
+
+def _date_ok(d):
+    try:
+        datetime.date.fromisoformat(d)
+        return True
+    except ValueError:
+        return False
+
+
+def slips(text, where="notebook.md"):
+    """The text's `finding` and `attach` blocks, checked: [(kind, fields)] in order."""
+    out = []
+    prose(text, where, out)
+    return [(kind, slip(kind, lines, f"{where}:{n}")) for kind, lines, n in out]
 
 
 def refs(text, where="notebook.md"):
@@ -134,9 +235,22 @@ def load(rid, kind, src, uses, sits=None):
     if not nd.exists():
         return None
     where = str((nd / "notebook.md").relative_to(R))
-    extra = sorted(str(p.relative_to(R)) for p in nd.rglob("*") if p.name != "notebook.md" or p.parent != nd)
+    md = nd / "media"
+    extra = sorted(str(p.relative_to(R)) for p in nd.rglob("*")
+                   if not (p.parent == nd and p.name == "notebook.md") and p != md and p.parent != md)
     if extra:
-        fail(where, f"notebook/ holds {', '.join(extra)}: only notebook.md (figures are renders, never stored)")
+        fail(where, f"notebook/ holds {', '.join(extra)}: only notebook.md and media/ (figures are renders, never stored)")
+    media = {}
+    for p in sorted(md.iterdir()) if md.is_dir() else []:
+        m = MEDIA.fullmatch(p.name)
+        if not m or p.is_symlink() or not p.is_file():
+            fail(where, f"media/{p.name}: a media file is media/<name>.jpg or .png, raster only, a plain file")
+        b = p.read_bytes()
+        if not b.startswith(MEDIA_MAGIC[m.group(1)]):
+            fail(where, f"media/{p.name}: not a {m.group(1).upper()} file (by its first bytes; raster only)")
+        if len(b) > MEDIA_MAX:
+            fail(where, f"media/{p.name}: {len(b)} bytes, more than {MEDIA_MAX}")
+        media[p.name] = b
     if not (nd / "notebook.md").is_file():
         fail(where, "missing (notebook/ holds nothing else)")
     raw = (nd / "notebook.md").read_bytes()
@@ -194,14 +308,36 @@ def load(rid, kind, src, uses, sits=None):
             fail(where, f"figure case {name}: {reel} has no situation {args[0]}")
         cases.append((name, env, reel, args))
     named = refs(text, where)
+    by_case = {gc: name for name, gc in golden.items()}
+    attached = set()
+    for kind, f in slips(text, where):
+        if kind != "attach":
+            continue
+        s = f["source"]
+        if s.startswith("media/"):
+            if s[6:] not in media:
+                fail(where, f"an attach names {s}, which notebook/media/ does not hold")
+            attached.add(s[6:])
+            continue
+        if s.startswith("golden="):
+            if s[7:] not in by_case:
+                fail(where, f"an attach names {s}, and the figures block has no row 'name | {s}'")
+            n = by_case[s[7:]]
+        else:
+            n = s[len("figures/"):-len(".svg")]
+        if n not in named:
+            named.append(n)
+    for name in media:
+        if name not in attached:
+            fail(where, f"media/{name} is in notebook/media/, and no attach names it")
     have = [c[0] for c in cases]
     for n in named:
         if n not in have:
             fail(where, f"the text names figures/{n}.svg, which has no case in the figures block")
     for n in have:
         if n not in named:
-            fail(where, f"figure case {n} is not named in the text (an image figures/{n}.svg)")
-    return {"text": raw, "cases": cases, "golden": golden}
+            fail(where, f"figure case {n} is not named in the text (an image figures/{n}.svg, or an attach's source)")
+    return {"text": raw, "cases": cases, "golden": golden, "media": media}
 
 
 def golden_cases():

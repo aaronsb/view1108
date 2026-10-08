@@ -540,7 +540,7 @@ if (W.sim_run && fs.existsSync(VSVG)) {
   const nbOut = cmd => execFileSync('python3', [path.join(R, 'tools/notebook.py'), cmd], { cwd: R }).toString()
     .split('\n').filter(Boolean).map(l => l.split(' '));
   const nbRefs = nbOut('golden-refs'), nbList = [...nbOut('list'), ...nbRefs];
-  let nfig = 0, nSvgBad = 0, nSvgOk = 0, nSvgSlow = 0;
+  let nfig = 0, nSvgBad = 0, nSvgOk = 0, nSvgSlow = 0, nmedia = 0, nMediaBad = 0;
   for (const r of reels) {
     const id = r.manifest.id;
     const home = r.manifest.kind === 'playlist' ? path.join(R, 'data/reels', id)
@@ -551,6 +551,12 @@ if (W.sim_run && fs.existsSync(VSVG)) {
         : name.startsWith('notebook/') && r.manifest.kind === 'scenario'
           ? path.join(home, id.slice(r.manifest.mission.id.length + 1), name) : path.join(home, name);
       if (!fs.existsSync(src) || fs.readFileSync(src, 'utf8') !== text) wrong.push(`${id}/${name} is not ${src}`);
+    }
+    // Its photographs (#29 slice g), byte for byte as notebook/media/ beside its notebook source holds them.
+    for (const [name, m] of r.notebook ? r.notebook.media : []) {
+      const src = path.join(home, id.slice(r.manifest.mission.id.length + 1), 'notebook/media', name);
+      if (!fs.existsSync(src) || !fs.readFileSync(src).equals(Buffer.from(m.bytes))) wrong.push(`${id}/notebook/media/${name} is not ${src}`);
+      nmedia++;
     }
     const want = nbList.filter(([rr]) => rr === id).map(([, n]) => n), have = r.notebook ? [...r.notebook.figures.keys()] : [];
     nfig += have.length;
@@ -633,6 +639,9 @@ elif mode.startswith("nb-"):
         "nb-other-type": lambda: edit(add=[("notebook/plate.txt", "image", b"x\\n")]),
         "nb-text": lambda: edit(drop=["notebook/notebook.md"],
                                 add=[("notebook/notebook.md", "notebook", dict(m)["notebook/notebook.md"] + sys.argv[2].encode())]),
+        "nb-media": lambda: edit(drop=["notebook/notebook.md"],
+                                 add=[("notebook/notebook.md", "notebook", dict(m)["notebook/notebook.md"] + json.loads(sys.argv[2])["text"].encode())] +
+                                     [(p, "media", base64.b64decode(b)) for p, b in json.loads(sys.argv[2])["files"]]),
     }[mode]())
 elif mode == "page":
     out = pack.tar_gz([(n, sys.argv[2].encode() if n == "page.json" else b) for n, b in m])
@@ -654,7 +663,7 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
     await nbRefused('a figure not an SVG', 'nb-not-svg', /notebook\/figures\/\S+\.svg is not an SVG document$/);
     await nbRefused('a figure not at figures/<name>.svg', 'nb-not-svg-path', /notebook\/figures\/plate\.png is a figure, not notebook\/figures\/<name>\.svg$/);
     await nbRefused('two notebooks', 'nb-two', /it lists 2 notebooks, not one$/);
-    await nbRefused('another type under notebook/', 'nb-other-type', /notebook\/plate\.txt is under notebook\/ as type image, not notebook or figure$/);
+    await nbRefused('another type under notebook/', 'nb-other-type', /notebook\/plate\.txt is under notebook\/ as type image, not notebook, figure or media$/);
     // The same texts are refused by tools/notebook.py (refs) when it packs: the reader and the packer agree.
     const NB_TEXTS = {
       'an HTML <img>': ['\n<img src="figures/earthrise.svg">\n', /has an HTML <img>/, /an HTML <img>/],
@@ -669,6 +678,39 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
       catch (err) { msg = String(err.stderr); }
       if (!py.test(msg)) wrong.push(`tools/notebook.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
     }
+    // Findings, attachments and photographs (#29 slice g): each fault refused by the page's reader (the first notebook
+    // reel, its notebook gaining the block and the package the member) and by tools/notebook.py load (a scratch
+    // notebook/ holding a one-figure notebook, the block and the file): the two agree. A photograph is raster by its
+    // own bytes: an SVG under media/, an SVG named .png; one no attach names; an attach naming none; a bad style, a bad
+    // finish; a finding without a date or a source; a photograph's attach without its credit.
+    const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('not really a PNG body')]).toString('base64');
+    const SVGB = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>\n`).toString('base64');
+    const att = (src, extra = '') => `\n\`\`\`attach\nsource: ${src}\nstyle: clip\nfinish: photo\ncredit: NASA\ncite: a test\n${extra}\nA caption.\n\`\`\`\n`;
+    const MEDIA_BAD = {
+      'an SVG under media/': [{ files: [['x.svg', SVGB]], text: att('media/x.svg') }, /notebook\/media\/x\.svg is media, not notebook\/media\/<name>\.jpg or \.png/, /media\/x\.svg: a media file is media\/<name>\.jpg or \.png/],
+      'an SVG named .png': [{ files: [['fake.png', SVGB]], text: att('media/fake.png') }, /notebook\/media\/fake\.png is not a PNG file/, /media\/fake\.png: not a PNG file/],
+      'a photograph no attach names': [{ files: [['extra.png', PNG]], text: '' }, /notebook\/media\/extra\.png is in it, and no attach names it$/, /media\/extra\.png is in notebook\/media\/, and no attach names it/],
+      'an attach naming a missing photograph': [{ files: [], text: att('media/missing.jpg') }, /an attach names media\/missing\.jpg, which it does not hold$/, /an attach names media\/missing\.jpg, which notebook\/media\/ does not hold/],
+      'an attach with a bad style': [{ files: [], text: '\n```attach\nsource: figures/tli-cm.svg\nstyle: pinned\nfinish: photo\n\nA caption.\n```\n' }, /attach: style 'pinned' is not one of plate, clip, tape, insert$/, /attach: style 'pinned' is not one of plate, clip, tape, insert/],
+      'an attach with a bad finish': [{ files: [], text: '\n```attach\nsource: figures/tli-cm.svg\nstyle: tape\nfinish: gloss\n\nA caption.\n```\n' }, /attach: finish 'gloss' is not one of photo, film, copy$/, /attach: finish 'gloss' is not one of photo, film, copy/],
+      'a finding without a date': [{ files: [], text: '\n```finding\ncite: TN D-6853, printed p. 3\n\nA finding.\n```\n' }, /finding: no date \(/, /finding: no date \(/],
+      'a finding without a source': [{ files: [], text: '\n```finding\ndate: 2026-10-08\n\nA finding.\n```\n' }, /finding: no cite \(/, /finding: no cite \(/],
+      'a photograph without a credit': [{ files: [['p.png', PNG]], text: '\n```attach\nsource: media/p.png\nstyle: tape\nfinish: copy\ncite: a test\n\nA caption.\n```\n' }, /attach: source media\/p\.png is a photograph and has no credit$/, /attach: source media\/p\.png is a photograph and has no credit/],
+    };
+    const tmpm = fs.mkdtempSync(path.join(R, 'build/media-fault-'));
+    for (const [what, [arg, js, py]] of Object.entries(MEDIA_BAD)) {
+      await nbRefused(`a notebook with ${what}`, 'nb-media', js, JSON.stringify({ text: arg.text, files: arg.files.map(([n, b]) => [`notebook/media/${n}`, b]) }));
+      fs.rmSync(path.join(tmpm, 'notebook'), { recursive: true, force: true });
+      fs.mkdirSync(path.join(tmpm, 'notebook/media'), { recursive: true });
+      fs.writeFileSync(path.join(tmpm, 'notebook/notebook.md'), `# t\n\n![a](figures/tli-cm.svg)\n\n\`\`\`figures\ntli-cm | golden=s7-default\n\`\`\`\n${arg.text}`);
+      for (const [n, b] of arg.files) fs.writeFileSync(path.join(tmpm, 'notebook/media', n), Buffer.from(b, 'base64'));
+      let msg = '';
+      try { execFileSync('python3', ['-c', 'import pathlib, sys; sys.path.insert(0, "tools"); import notebook; notebook.load("apollo11-asflown", "scenario", pathlib.Path(sys.argv[1]), None)', tmpm], { cwd: R, stdio: 'pipe' }); }
+      catch (err) { msg = String(err.stderr); }
+      if (!py.test(msg)) wrong.push(`tools/notebook.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
+    }
+    fs.rmSync(tmpm, { recursive: true, force: true });
+    nMediaBad = Object.keys(MEDIA_BAD).length;
     // A figure that could act when opened as a page (reviews of PR #69): the allowlist (reelpkg.js reelSvgUnsafe,
     // tools/notebook.py svg_unsafe at render and pack) refuses each of these, the bypasses of a blocklist among them;
     // the reader refuses the package and the Python names it: the two agree.
@@ -830,7 +872,7 @@ pack.quickviews("apollo11-asflown", pathlib.Path(sys.argv[1]), pack.listing("apo
   if (pageSha !== sha || reels.some(r => r.manifest.kernel.sha256 !== pageSha))
     wrong.push(`the page's KERNEL_SHA ${pageSha} is not the wasm's ${sha.slice(0, 8)} or a manifest's`);
   console.log(`packages: ${reels.length} reels (${reels.map(r => `${r.manifest.id} ${r.manifest.kind}`).join(', ')}), ${ndecks} decks; ` +
-    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, ${13 + nSvgBad} notebook faults (${nSvgBad} unsafe figures), ${nSvgSlow} hostile figures timed, the figure allowlist over ${nSvgOk} figures and golden renders, a stale render` +
+    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, ${nmedia} photographs, ${13 + nSvgBad + nMediaBad} notebook faults (${nSvgBad} unsafe figures, ${nMediaBad} findings, attachments and photographs), ${nSvgSlow} hostile figures timed, the figure allowlist over ${nSvgOk} figures and golden renders, a stale render` +
     `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/ and build/figures/, packed twice the same, refusals hold'}`);
   if (wrong.length) ok = false;
 }
@@ -865,11 +907,16 @@ if (W.sim_run) {
 // links and the one real figure.
 {
   const wrong = [];
-  const NB = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/notebook.js'), 'utf8') +
+  // notebook.js reads its finding and attach blocks with reelpkg.js's reelSlip, as in the page, where both share one
+  // closure.
+  const NB = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/reelpkg.js'), 'utf8') + '\n' + fs.readFileSync(path.join(R, 'web/src/notebook.js'), 'utf8') +
     '\n({ nbParse, nbBuild, nbTitle, NB_TAGS })', vm.createContext({ URL, Set, String }));
   const RF = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/reelpkg.js'), 'utf8') + '\nreelFigureRefs',
     vm.createContext({ atob, TextDecoder, Blob, Response, DecompressionStream, Uint8Array, JSON, Error, Map, Number, String, parseInt, Math }));
   const ATTRS = new Set(['href', 'target', 'rel', 'src', 'alt', 'class']);
+  // The classes the builder may give: its own words, an attachment's style and finish among them.
+  const CLASSES = new Set(['nbfig', 'nbmedia', 'nbcases', 'nbfinding', 'nbslip', 'nbcite', 'nbattach', 'nbprint', 'nbcredit', 'nbtape', 'nbclip',
+    'tl', 'tr', 'bl', 'br', ...['plate', 'clip', 'tape', 'insert', 'photo', 'film', 'copy'].map(w => `nb-${w}`)]);
   const fakeDoc = () => {
     const el = tag => {
       const e = { tag, attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = String(v); }, appendChild(k) { this.kids.push(k); return k; } };
@@ -880,28 +927,40 @@ if (W.sim_run) {
       createTextNode: text => ({ text }), createDocumentFragment: () => el('#frag') };
   };
   const walk = (n, f) => { f(n); for (const k of n.kids || []) walk(k, f); };
-  // Build `md` with figures `names`; returns the elements, the text and the problems found.
-  const built = (md, names) => {
+  // Build `md` with figures `names` and photographs `pics`; returns the elements, the text and the problems found.
+  const built = (md, names, pics = []) => {
     const els = [], texts = [], bad = [];
-    const root = NB.nbBuild(NB.nbParse(md), fakeDoc(), n => names.includes(n) ? `data:image/svg+xml;base64,${n}` : null);
+    const root = NB.nbBuild(NB.nbParse(md), fakeDoc(), n => names.includes(n) ? `data:image/svg+xml;base64,${n}` : null,
+      f => pics.includes(f) ? `data:image/${f.endsWith('.png') ? 'png' : 'jpeg'};base64,${f}` : null);
     walk(root, n => {
       if (n.text !== undefined) { texts.push(n.text); return; }
       els.push(n);
       for (const [k, v] of Object.entries(n.attrs)) {
         if (!ATTRS.has(k)) bad.push(`attribute ${k}`);
         if (k === 'href' && !/^https?:\/\/[^/]/.test(v)) bad.push(`href ${v}`);
-        if (k === 'src' && !/^data:image\/svg\+xml;base64,[a-z0-9-]+$/.test(v)) bad.push(`src ${v}`);
+        if (k === 'src' && !(n.attrs.class === 'nbfig' ? /^data:image\/svg\+xml;base64,[a-z0-9-]+$/ : /^data:image\/(jpeg|png);base64,[a-z0-9-]+\.(jpg|png)$/).test(v)) bad.push(`src ${v}`);
+        if (k === 'class' && v.split(' ').some(c => !CLASSES.has(c))) bad.push(`class ${v}`);
         if (/javascript:|vbscript:/i.test(v) || (k !== 'src' && /data:/i.test(v))) bad.push(`${k} ${v}`);
       }
       if (n.tag === 'a' && /^https?:/.test(n.attrs.href) && (n.attrs.target !== '_blank' || !/noopener/.test(n.attrs.rel || ''))) bad.push(`a link without target/rel: ${n.attrs.href}`);
     });
     return { els, text: texts.join(''), bad };
   };
-  let nb = 0, nimg = 0;
+  let nb = 0, nimg = 0, nphoto = 0, nslip = 0;
+  const RS = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/reelpkg.js'), 'utf8') + '\nreelSlips', vm.createContext({}));
   for (const r of reels.filter(r => r.notebook)) {
     nb++;
-    const id = r.manifest.id, names = [...r.notebook.figures.keys()], b = built(r.notebook.text, names);
-    const imgs = b.els.filter(e => e.tag === 'img').map(e => e.attrs.src.slice(26));
+    const id = r.manifest.id, names = [...r.notebook.figures.keys()], pics = [...r.notebook.media.keys()], b = built(r.notebook.text, names, pics);
+    const imgs = b.els.filter(e => e.tag === 'img' && e.attrs.class === 'nbfig').map(e => e.attrs.src.slice(26));
+    const photos = b.els.filter(e => e.tag === 'img' && e.attrs.class === 'nbmedia').map(e => e.attrs.src.replace(/^.*base64,/, ''));
+    nphoto += photos.length;
+    if ([...new Set(photos)].sort().join() !== [...pics].sort().join()) wrong.push(`${id}: photographs ${photos}, not ${pics}`);
+    // Each finding and attach block of the text is built: a slip per finding, a print per attach.
+    const kinds = RS(r.notebook.text).map(([k]) => k);
+    if (b.els.filter(e => e.tag === 'aside' && e.attrs.class === 'nbfinding').length !== kinds.filter(k => k === 'finding').length ||
+        b.els.filter(e => e.tag === 'figure' && /^nbattach /.test(e.attrs.class || '')).length !== kinds.filter(k => k === 'attach').length)
+      wrong.push(`${id}: its ${kinds.length} finding and attach blocks are not all built`);
+    nslip += kinds.length;
     nimg += imgs.length;
     if (imgs.join() !== RF(r.notebook.text).join()) wrong.push(`${id}: figures ${imgs}, not ${RF(r.notebook.text)}`);
     if (b.bad.length) wrong.push(`${id}: ${b.bad.join(', ')}`);
@@ -919,20 +978,31 @@ if (W.sim_run) {
     '[title](javascript:alert(1) "t") [frag](#libr) [hs](https:evil.example) [titled](https://ok.example/p?q=1 "a title")', '',
     '![i](javascript:alert(1)) ![j](figures/../x.svg) ![k](figures/real.svg) ![l](https://x.example/a.svg)', '',
     '> <svg onload=alert(1)>', '', '- <iframe src=x></iframe>', '', '| a | <script> |', '|---|---|', '| [x](javascript:y) | `<b>` |',
-    '', '```html', '<script>alert(2)</script>', '```', '', '```figures', '# name | args', 'real | 1', '```',
+    '', '```html', '<script>alert(2)</script>', '```', '',
+    '```finding', 'date: 2026-10-08', 'cite: <script>alert(3)</script> [c](javascript:alert(1))', '', '<img src=x onerror=alert(4)> [ok](https://ok.example/p?q=1)', '```', '',
+    '```attach', 'source: media/evil.jpg', 'style: clip', 'finish: copy', 'credit: <b onclick="x()">NASA</b>', 'cite: <iframe src=x></iframe>', '',
+    '<script>alert(5)</script> caption', '```', '',
+    '```attach', 'source: figures/real.svg', 'style: clip" onmouseover="x', 'finish: photo', '', '<script>alert(6)</script>', '```', '',
+    '```figures', '# name | args', 'real | 1', '```',
   ].join('\n');
-  const e = built(EVIL, ['real']);
+  const e = built(EVIL, ['real'], ['evil.jpg']);
   const tags = [...new Set(e.els.map(x => x.tag))].filter(t => t !== '#frag').sort();
   const links = e.els.filter(x => x.tag === 'a').map(x => x.attrs.href), imgs = e.els.filter(x => x.tag === 'img').map(x => x.attrs.src);
   if (e.bad.length) wrong.push(`crafted: ${e.bad.join(', ')}`);
-  if (links.join() !== 'https://ok.example/p?q=1,https://ok.example/p?q=1') wrong.push(`crafted: links ${links}`);
-  if (imgs.join() !== 'data:image/svg+xml;base64,real') wrong.push(`crafted: images ${imgs}`);
+  if (links.join() !== 'https://ok.example/p?q=1,https://ok.example/p?q=1,https://ok.example/p?q=1') wrong.push(`crafted: links ${links}`);
+  if (imgs.join() !== 'data:image/svg+xml;base64,real,data:image/jpeg;base64,evil.jpg') wrong.push(`crafted: images ${imgs}`);
+  // The crafted finding and photograph are built as a slip and a print, their header and text as text only; the attach
+  // with a style outside the list is shown as its lines.
+  if (e.els.filter(x => x.tag === 'aside').length !== 1 || e.els.filter(x => x.tag === 'figure' && /^nbattach nb-clip nb-copy$/.test(x.attrs.class || '')).length !== 1)
+    wrong.push('crafted: the finding and the attach are not one slip and one clip of a copy');
   // Hostile shapes, each parsed within a time bound and without throwing: a deep quote nest, unmatched emphasis, image
   // openers, a heading trailed by spaces (nbTitle too), a deep list; and a text over NB_MAX is refused, not parsed.
   const HOSTILE = { 'a 20 KB quote nest': '> '.repeat(10000) + 'x', 'unmatched emphasis, 120 KB': '*a '.repeat(40000),
     'image openers, 80 KB': '!['.repeat(40000), 'image openers and one "]"': '!['.repeat(40000) + '](x)', 'a heading and 20 K spaces': '# h' + ' '.repeat(20000) + 'x',
     'a deep list': Array.from({ length: 400 }, (_, k) => ' '.repeat(2 * k) + '- x').join('\n'),
-    'backticks, 80 KB': '`a'.repeat(40000), 'link openers, 80 KB': '[a]('.repeat(16000) };
+    'backticks, 80 KB': '`a'.repeat(40000), 'link openers, 80 KB': '[a]('.repeat(16000),
+    'a finding header of 200 K spaces': '```finding\ndate:' + ' '.repeat(200000) + 'x\ncite: c\n\nt\n```',
+    'a finding of 40 K lines, unmatched emphasis': '```finding\ndate: 2026-10-08\ncite: c\n\n' + 'a *b\n'.repeat(40000) + '```' };
   let slow = 0;
   for (const [what, t] of Object.entries(HOSTILE)) {
     const t0 = performance.now();
@@ -941,13 +1011,14 @@ if (W.sim_run) {
     if (ms > 400) wrong.push(`${what}: ${ms.toFixed(0)} ms`);
   }
   try { NB.nbParse('x'.repeat(300000)); wrong.push('a 300 KB text: not refused'); } catch (err) { if (!/more than/.test(err.message)) wrong.push(`a 300 KB text: ${err.message}`); }
-  if (!['<script>alert(1)</script>', 'onerror=alert(1)', '<svg onload=alert(1)>', '<iframe src=x></iframe>', '<script>alert(2)</script>'].every(t => e.text.includes(t)))
+  if (!['<script>alert(1)</script>', 'onerror=alert(1)', '<svg onload=alert(1)>', '<iframe src=x></iframe>', '<script>alert(2)</script>', '<script>alert(3)</script>',
+    'onerror=alert(4)', '<b onclick="x()">NASA</b>', '<script>alert(5)</script>', 'style: clip" onmouseover="x', '<script>alert(6)</script>'].every(t => e.text.includes(t)))
     wrong.push('crafted: the tags are not kept as text');
   if (tags.some(t => !NB.NB_TAGS.has(t))) wrong.push(`crafted: elements ${tags}`);
-  console.log(`notebook: ${nb} notebooks rendered, ${nimg} figures as <img> from figure URLs; a crafted text (script, img onerror, ` +
-    `javascript:/vbscript:/data:/entity/spaced/protocol-relative/angle/titled/#fragment/relative links and images, raw HTML in a quote, list, table and fence); ` +
+  console.log(`notebook: ${nb} notebooks rendered, ${nimg} figures and ${nphoto} photographs as <img> from data: URLs, ${nslip} findings and attachments; a crafted text (script, img onerror, ` +
+    `javascript:/vbscript:/data:/entity/spaced/protocol-relative/angle/titled/#fragment/relative links and images, raw HTML in a quote, list, table, fence, finding and attach); ` +
     `${Object.keys(HOSTILE).length} hostile shapes, slowest ${slow.toFixed(0)} ms, and an over-long text refused  ` +
-    `${wrong.length ? 'WRONG: ' + wrong.join('; ') : `inert: elements ${tags.join(' ')}, https links only, one figure`}`);
+    `${wrong.length ? 'WRONG: ' + wrong.join('; ') : `inert: elements ${tags.join(' ')}, https links only, one figure, one photograph`}`);
   if (wrong.length) ok = false;
 }
 // The cabins' hidden-line tables (#71; src/viewcom.inc /COCC/): the opaque triangles and each cabin's cut pieces

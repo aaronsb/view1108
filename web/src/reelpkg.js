@@ -44,8 +44,12 @@ function untar(t) {
 // at notebook/notebook.md, and members of type "figure", each notebook/figures/<name>.svg, an SVG document. A figure
 // needs the notebook, every figure the notebook's text names (a Markdown image figures/<name>.svg outside fenced
 // blocks, reelFigureRefs) must be in the reel and every figure in the reel must be named, and no other member is
-// under notebook/; otherwise the reel is refused. The result then carries notebook: {text, figures: Map(name -> SVG text)} in the manifest's order, else
-// notebook is null. Readers before these types load such a reel and ignore the notebook (no format change; ours).
+// under notebook/ but its photographs (#29 slice g): members of type "media", each notebook/media/<name>.jpg or .png,
+// raster only by its own first bytes, each named by an attach block, every attach's photograph present (reelSlips;
+// its finding and attach blocks are checked too); otherwise the reel is refused. A media member is kept as bytes, every
+// other member as text. The result then carries notebook: {text, figures: Map(name -> SVG text), media: Map(file ->
+// {bytes, type: its MIME type})} in the manifest's order, else notebook is null. Readers before these types load such
+// a reel and ignore the notebook (no format change; ours); a reader before media refuses a reel that carries any.
 const REEL_FIGURE = /^notebook\/figures\/([a-z0-9][a-z0-9-]*)\.svg$/;
 // What a figure may hold (ours; reviews of PR #69): an ALLOWLIST, the same as tools/notebook.py svg_unsafe (render and
 // pack): the elements and attributes tools/viewsvg.f90 writes. Refused: a <! anywhere (doctype, entity, comment,
@@ -92,15 +96,113 @@ function reelSvgUnsafe(text) {
   }
   return null;
 }
-// The figure names a notebook's text names, in order of first use: its Markdown images outside fenced blocks. The
-// text names no other image: every "![" opens an inline image ![alt](figures/<name>.svg), alt text without "]", and
-// an HTML <img> or a reference definition ("[r]: ...", which reference-style images need) is refused (thrown). The
-// same rules as tools/notebook.py refs, which applies them when it packs.
+// Findings and attachments (#29 slice g; the markup is ours, tools/notebook.py's docstring gives it): a fenced block
+// whose info string is `finding` or `attach`, starting in the line's first column, holds `key: value` header lines
+// (lowercase keys, each once, none empty) up to a blank line, then its text. A finding needs date (YYYY-MM-DD, a real
+// day) and cite, and text. An attach needs source (media/<name>.jpg or .png, figures/<name>.svg, or golden=<case>),
+// style (plate, clip, tape, insert), finish (photo, film, copy) and a caption (its text); a media source needs credit
+// and cite too. Media members are photographs, raster only: notebook/media/<name>.jpg or .png, type "media", whose own
+// first bytes are JPEG's or PNG's as the name says, at most REEL_MEDIA_MAX bytes. The same rules as tools/notebook.py
+// slip and load.
+const REEL_SLIP_KEYS = { finding: ["date", "cite"], attach: ["source", "style", "finish", "credit", "cite"] };
+const REEL_STYLES = ["plate", "clip", "tape", "insert"], REEL_FINISHES = ["photo", "film", "copy"];
+const REEL_MEDIA = /^notebook\/media\/([a-z0-9][a-z0-9-]*\.(jpg|png))$/, REEL_MEDIA_NAME = /^[a-z0-9][a-z0-9-]*\.(jpg|png)$/;
+const REEL_MEDIA_MAGIC = { jpg: [0xff, 0xd8, 0xff], png: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] };
+const REEL_MEDIA_TYPE = { jpg: "image/jpeg", png: "image/png" }, REEL_MEDIA_MAX = 262144;
+/** A `finding` or `attach` block's lines, checked: {key: value, ..., body: its text}; throws why not. */
+function reelSlip(kind, lines) {
+  const f = {}, no = why => { throw new Error(`${kind}: ${why}`); };
+  let k = 0;
+  for (; k < lines.length && lines[k].trim(); k++) {
+    const m = /^([a-z]+):([^\n]*)$/.exec(lines[k]);
+    if (!m) no(`${JSON.stringify(lines[k].trim().slice(0, 60))} is not a 'key: value' header line (a blank line ends them)`);
+    let a = 0, b = m[2].length;   // the value, spaces and tabs trimmed (a loop: linear on any run of them)
+    while (a < b && (m[2][a] === " " || m[2][a] === "\t")) a++;
+    while (b > a && (m[2][b - 1] === " " || m[2][b - 1] === "\t")) b--;
+    const val = m[2].slice(a, b);
+    if (!REEL_SLIP_KEYS[kind].includes(m[1])) no(`no key '${m[1]}' (its keys: ${REEL_SLIP_KEYS[kind].join(", ")})`);
+    if (m[1] in f) no(`${m[1]} given twice`);
+    if (!val) no(`${m[1]} is empty`);
+    f[m[1]] = val;
+  }
+  const body = lines.slice(k).join("\n").trim();
+  if (kind === "finding") {
+    for (const key of ["date", "cite"]) if (!(key in f)) no(`no ${key} (a finding carries the date it was added and its source)`);
+    const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f.date), t = new Date(0);
+    if (d) t.setUTCFullYear(+d[1], +d[2] - 1, +d[3]);
+    if (!d || +d[1] < 1 || t.getUTCFullYear() !== +d[1] || t.getUTCMonth() !== +d[2] - 1 || t.getUTCDate() !== +d[3])
+      no(`date '${f.date}' is not a YYYY-MM-DD date`);
+    if (!body) no("no text after its header");
+  } else {
+    for (const key of ["source", "style", "finish"]) if (!(key in f)) no(`no ${key}`);
+    if (!REEL_STYLES.includes(f.style)) no(`style '${f.style}' is not one of ${REEL_STYLES.join(", ")}`);
+    if (!REEL_FINISHES.includes(f.finish)) no(`finish '${f.finish}' is not one of ${REEL_FINISHES.join(", ")}`);
+    if (!body) no("no caption after its header");
+    const s = f.source;
+    if (s.startsWith("media/")) {
+      if (!REEL_MEDIA_NAME.test(s.slice(6))) no(`source '${s}': a photograph is media/<name>.jpg or .png`);
+      for (const key of ["credit", "cite"]) if (!(key in f)) no(`source ${s} is a photograph and has no ${key}`);
+    } else if (!/^(figures\/[a-z0-9][a-z0-9-]*\.svg|golden=[A-Za-z0-9_-]+)$/.test(s))
+      no(`source '${s}' is not media/<file>, figures/<name>.svg or golden=<case>`);
+  }
+  f.body = body;
+  return f;
+}
+/** A notebook text's `finding` and `attach` blocks, checked, in order: [[kind, fields]]; throws why not. Fences as
+ *  tools/notebook.py prose reads them: a line starting ``` opens one (its info string the rest, trimmed) and the next
+ *  such line closes it. */
+function reelSlips(md) {
+  const out = [];
+  let fence = null, cur = null;
+  for (const ln of String(md).split("\n")) {
+    if (fence === null && ln.startsWith("```")) {
+      fence = ln.slice(3).trim();
+      if (fence in REEL_SLIP_KEYS) out.push(cur = [fence, []]);
+    } else if (fence !== null && ln.startsWith("```")) { fence = null; cur = null; }
+    else if (cur) cur[1].push(ln);
+  }
+  return out.map(([kind, lines]) => [kind, reelSlip(kind, lines)]);
+}
+/** The figure name an attach source names (figures/<name>.svg, or golden=<case> through the figures block's row
+ *  `name | golden=<case>`, `rows` its [name, golden case] pairs), or null for a photograph; throws for a golden case
+ *  without a row. */
+function reelAttachFigure(source, rows) {
+  if (source.startsWith("media/")) return null;
+  if (source.startsWith("figures/")) return source.slice(8, -4);
+  const r = rows.find(([, gc]) => gc === source.slice(7));
+  if (!r) throw new Error(`an attach names ${source}, and the figures block has no row 'name | ${source}'`);
+  return r[0];
+}
+/** The figures block's `name | golden=<case>` rows: [[name, case]]. */
+function reelGoldenRows(md) {
+  const rows = [];
+  let fence = null;
+  for (const ln of String(md).split("\n")) {
+    if (fence === null && ln.startsWith("```")) fence = ln.slice(3).trim();
+    else if (fence !== null && ln.startsWith("```")) fence = null;
+    else if (fence === "figures") {
+      const f = ln.split("|").map(x => x.trim());
+      if (f.length === 2 && f[1].startsWith("golden=") && !ln.trimStart().startsWith("#")) rows.push([f[0], f[1].slice(7)]);
+    }
+  }
+  return rows;
+}
+// The figure names a notebook's text names, in order of first use: its Markdown images outside fenced blocks and its
+// attach blocks' figure sources. The text names no other image: every "![" opens an inline image
+// ![alt](figures/<name>.svg), alt text without "]", and an HTML <img> or a reference definition ("[r]: ...", which
+// reference-style images need) is refused (thrown), as is a finding or attach block reelSlips refuses. The same rules
+// as tools/notebook.py refs and load, which apply them when it packs.
 function reelFigureRefs(md) {
-  const out = [], img = /!\[[^\]]*\]\(([^)\s]*)[^)]*\)/g;
-  let fence = false;
+  const out = [], img = /!\[[^\]]*\]\(([^)\s]*)[^)]*\)/g, slips = reelSlips(md), rows = reelGoldenRows(md);
+  let fence = false, k = 0;
   for (const ln of md.split("\n")) {
-    if (ln.startsWith("```")) { fence = !fence; continue; }
+    if (ln.startsWith("```")) {
+      if (!fence && ln.slice(3).trim() in REEL_SLIP_KEYS) {
+        const [kind, f] = slips[k++], n = kind === "attach" ? reelAttachFigure(f.source, rows) : null;
+        if (n && !out.includes(n)) out.push(n);
+      }
+      fence = !fence; continue;
+    }
     if (fence) continue;
     const what = JSON.stringify(ln.trim().slice(0, 60)), ms = [...ln.matchAll(img)];
     if (/<img\b/i.test(ln)) throw new Error(`its notebook has an HTML <img> (${what}); its images are ![alt](figures/<name>.svg)`);
@@ -163,13 +265,15 @@ async function readReel(b64, sha, id) {
   try { bytes = await gunzip(reelBytes(b64)); } catch (e) { throw no(`does not unpack: not a gzip stream (${e.message || e.name})`); }
   try { files = untar(bytes); } catch (e) { throw no(`does not unpack: ${e.message}`); }
   if (!files.length || files[0][0] !== "manifest.json") throw no("manifest.json is not first");
-  const dec = new TextDecoder("utf-8", { fatal: true }), text = new Map();
+  // Every member is UTF-8 text but the photographs, kept as bytes (`blobs`): a member its manifest lists as type media.
+  const dec = new TextDecoder("utf-8", { fatal: true }), text = new Map(), blobs = new Map();
   let manifest;
   try {
     manifest = JSON.parse(dec.decode(files[0][1]));
+    const media = new Set(manifest && Array.isArray(manifest.contents) ? manifest.contents.filter(e => e && e.type === "media").map(e => e.path) : []);
     for (const [n, b] of files.slice(1)) {
-      if (text.has(n) || n === "manifest.json") throw new Error(`${n} is in it twice`);
-      text.set(n, dec.decode(b));
+      if (text.has(n) || blobs.has(n) || n === "manifest.json") throw new Error(`${n} is in it twice`);
+      if (media.has(n)) blobs.set(n, b); else text.set(n, dec.decode(b));
     }
   } catch (e) { throw no(e.message); }
   if (!manifest || typeof manifest !== "object") throw no("its manifest is not an object");
@@ -186,19 +290,20 @@ async function readReel(b64, sha, id) {
     if (!Array.isArray(manifest.uses) || !manifest.uses.every(u => typeof u === "string")) throw no("its manifest lists no reels it uses");
   } else throw no(`kind ${manifest.kind}, not scenario or playlist`);
   const listed = new Set(c.map(e => e && e.path));
-  for (const e of c) if (!text.has(e && e.path)) throw no(`${e && e.path} is listed but missing`);
-  for (const n of text.keys()) if (!listed.has(n)) throw no(`${n} is in it but not listed`);
+  for (const e of c) if (!text.has(e && e.path) && !blobs.has(e && e.path)) throw no(`${e && e.path} is listed but missing`);
+  for (const n of [...text.keys(), ...blobs.keys()]) if (!listed.has(n)) throw no(`${n} is in it but not listed`);
   const pages = c.filter(e => e.type === "page");
   if (pages.length !== 1) throw no(`it lists ${pages.length} page.json, not one`);
   let page;
   try { page = JSON.parse(text.get(pages[0].path)); } catch (e) { throw no(`${pages[0].path}: ${e.message}`); }
   if (manifest.kind === "scenario") { const why = reelListingWrong(page || {}); if (why) throw no(why); }
-  const books = c.filter(e => e.type === "notebook"), figs = c.filter(e => e.type === "figure");
-  for (const e of c) if (String(e.path).startsWith("notebook/") && e.type !== "notebook" && e.type !== "figure")
-    throw no(`${e.path} is under notebook/ as type ${e.type}, not notebook or figure`);
+  const books = c.filter(e => e.type === "notebook"), figs = c.filter(e => e.type === "figure"), pics = c.filter(e => e.type === "media");
+  for (const e of c) if (String(e.path).startsWith("notebook/") && !["notebook", "figure", "media"].includes(e.type))
+    throw no(`${e.path} is under notebook/ as type ${e.type}, not notebook, figure or media`);
   if (books.length > 1) throw no(`it lists ${books.length} notebooks, not one`);
   if (books.length && books[0].path !== "notebook/notebook.md") throw no(`its notebook is ${books[0].path}, not notebook/notebook.md`);
   if (figs.length && !books.length) throw no(`${figs[0].path} is a figure, and it holds no notebook`);
+  if (pics.length && !books.length) throw no(`${pics[0].path} is media, and it holds no notebook`);
   let notebook = null;
   if (books.length) {
     // The allowlist reads a figure as tools/notebook.py does, its byte order marks kept (dec drops a leading one).
@@ -211,12 +316,25 @@ async function readReel(b64, sha, id) {
       if (bad) throw no(`${e.path} holds ${bad}, which a figure may not (the allowlist)`);
       figures.set(m[1], svg);
     }
+    // Its photographs: raster only, by their own first bytes; each one an attach names, each named one here
+    // (below, after the text's blocks are read).
+    const media = new Map();
+    for (const e of pics) {
+      const m = REEL_MEDIA.exec(e.path), b = blobs.get(e.path);
+      if (!m) throw no(`${e.path} is media, not notebook/media/<name>.jpg or .png (raster only)`);
+      if (!REEL_MEDIA_MAGIC[m[2]].every((x, i) => b[i] === x)) throw no(`${e.path} is not a ${m[2].toUpperCase()} file (by its first bytes; raster only)`);
+      if (b.length > REEL_MEDIA_MAX) throw no(`${e.path}: ${b.length} bytes, more than ${REEL_MEDIA_MAX}`);
+      media.set(m[1], { bytes: b, type: REEL_MEDIA_TYPE[m[2]] });
+    }
     const md = text.get(books[0].path);
     let refs;
     try { refs = reelFigureRefs(md); } catch (e) { throw no(e.message); }
     for (const n of refs) if (!figures.has(n)) throw no(`its notebook names figures/${n}.svg, which it does not hold`);
     for (const n of figures.keys()) if (!refs.includes(n)) throw no(`notebook/figures/${n}.svg is in it, and its notebook does not name it`);
-    notebook = { text: md, figures };
+    const named = new Set(reelSlips(md).filter(([kind, f]) => kind === "attach" && f.source.startsWith("media/")).map(([, f]) => f.source.slice(6)));
+    for (const n of named) if (!media.has(n)) throw no(`an attach names media/${n}, which it does not hold`);
+    for (const n of media.keys()) if (!named.has(n)) throw no(`notebook/media/${n} is in it, and no attach names it`);
+    notebook = { text: md, figures, media };
   }
   return { manifest, files: text, page, notebook };
 }
