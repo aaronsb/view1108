@@ -90,11 +90,9 @@
   </div>
   <div class="grp"><span id="simread" class="lbl" role="status"></span></div>
   <div class="grp note">Modern addition: VIEW drew pre-flight predictions; this engine integrates our own trajectory.</div></section>
-  <!-- Reels (web/src/reels.js): one button per reel of the site reel index, mounting it; the room's tape rack is the same list (#19). -->
+  <!-- Reels (web/src/reels.js, #73): back to the tape shelf: in the room the camera flies to the rack, in Tabbed the reel list opens. -->
   <section class="shade" data-shade="reels" data-tabs="review simulate print"><button class="shade-h" type="button">Reels</button>
-  <div class="grp" id="reels"></div></section>
-  <section class="shade" data-shade="scene" data-tabs="review simulate print"><button class="shade-h" type="button">Scene</button>
-  <div class="grp" id="scenes"></div></section>
+  <div class="grp"><button id="breels" type="button" title="Leave the simulation for the tape shelf: the rack in the room, the reel list in Tabbed">Return to reels</button></div></section>
   <section class="shade" data-shade="time" data-tabs="review simulate print"><button class="shade-h" type="button">Time</button>
   <div class="grp">
     <span id="reel" class="lbl" hidden title="The mounted reel: the demo, Attract then Tour (Pause takes control in Free-look)">DEMO</span><button id="bplay">Pause</button>
@@ -102,8 +100,8 @@
     <button id="breset" title="R">Reset view</button>
   </div>
   <div class="grp"><span class="lbl">g.e.t.</span><input id="geti" type="text" size="19" value="0:00:00" aria-label="ground elapsed time h:mm:ss, or a UTC timestamp YYYY-MM-DD HH:MM:SS"><span id="utc" class="lbl"></span><span id="scrubw"><input id="scrub" type="range" min="-7200" max="7200" step="1" value="0" aria-label="time offset"><span id="tlmarks" aria-hidden="true"></span></span></div></section>
-  <!-- Timeline (web/src/timeline.js): the scenario's events from SP-4029, and the Apollo in Real Time companion. -->
-  <section class="shade" data-shade="timeline" data-tabs="review" id="tlgrp"><button class="shade-h" type="button">Timeline</button>
+  <!-- Timeline (web/src/timeline.js): the reel's event listing (its situations, marked, and its events from SP-4029), and the Apollo in Real Time companion. -->
+  <section class="shade" data-shade="timeline" data-tabs="review simulate print" id="tlgrp"><button class="shade-h" type="button">Timeline</button>
   <div class="grp"><button id="bfollow" hidden title="Follow: the scene changes with the mission phase as the replay plays (the scenario's FOLLOW spans), in Free-look; click again to stop">Follow</button></div>
   <div id="tlairt">
     <div class="grp"><button id="bairt" title="Open Apollo in Real Time at this g.e.t. in its own window">Companion</button><button id="bairtre" title="Point the companion at this g.e.t. again">Resync</button></div>
@@ -142,7 +140,7 @@
   <div class="grp"><span class="lbl">Screen</span><button data-disp="auto" title="S: the 1558 scope where the page was reached through the room (not in Attract or Print), else film">Auto</button><button data-disp="film" title="S: the microfilm recorder, with its film effects">Film</button><button data-disp="scope" title="S: the room's UNIVAC 1558 vector console: no film effects">Scope</button></div>
   <div class="grp"><span class="lbl">Refresh</span><button data-hz="16" title="H: the scope redraws the picture every 1/16 s on a fading phosphor">16 Hz</button><button data-hz="steady" title="H: a steady, modern vector picture">Steady</button></div></section>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. <span id="hintscenes"></span>: scene. J: film jitter. D: dust. F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. S: screen (film or scope). H: scope refresh. I: cabin. W: cabin walls. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. <span id="hintscenes"></span>: quick views (the numbered entries of the event list). J: film jitter. D: dust. F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. S: screen (film or scope). H: scope refresh. I: cabin. W: cabin walls. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
 <div id="about"><p>A reconstruction of VIEW, the Manned Spacecraft Center program that drew Apollo window views on a UNIVAC 1108 (FORTRAN V, output photographed from a CRT onto microfilm: NASA TN D-6853, p. 3). We know of no surviving source code; the geometry here is our own FORTRAN and this page only films it.</p>G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197. Code MIT; data, fonts and three.js under their own licences: <a href="https://github.com/aaronsb/view1108/blob/main/THIRD_PARTY.md" target="_blank" rel="noopener">THIRD_PARTY.md</a>.</div>
 </div>
 </div>

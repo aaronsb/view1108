@@ -237,8 +237,13 @@ const A11_ZERO = Date.UTC(1969, 6, 16, 13, 32, 0);   // Apollo 11's range zero, 
 {
   const bad = [], scenes = JSON.parse(fs.readFileSync(path.join(R, 'build/scenes.json'), 'utf8'));
   for (const r of reels) {
+    // A scenario reel's page.json is gen_data's with the two keys tools/pack.py adds (its listing and quick views,
+    // checked under "listing:" below); a playlist's is gen_data's byte for byte.
     const id = r.manifest.id, f = path.join(R, 'build/page', id + '.json');
-    if (!fs.existsSync(f) || fs.readFileSync(f, 'utf8') !== r.files.get('page.json')) bad.push(`${id}: page.json is not ${f}`);
+    const packed = r.files.get('page.json'), gen = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
+    const strip = t => { const j = JSON.parse(t); delete j.listing; delete j.quickviews; return JSON.stringify(j); };
+    if (gen === null || (r.manifest.kind === 'scenario' ? strip(packed) !== JSON.stringify(JSON.parse(gen)) || !('listing' in JSON.parse(packed)) : packed !== gen))
+      bad.push(`${id}: page.json is not ${f}${r.manifest.kind === 'scenario' ? ' with its listing and quick views' : ''}`);
     if (r.manifest.kind !== 'scenario') continue;
     const want = (scenes.reels.find(x => x.id === id) || { scenes: [] }).scenes;
     if (r.page.scenario.id !== 1 || r.page.situations.map(s => s.id).join() !== want.join() || want[0] !== 1)
@@ -530,8 +535,11 @@ if (W.sim_run && fs.existsSync(VSVG)) {
   // data/missions/<mission>/<scenario file stem>/, a playlist's data/reels/<id>/), each figure the render
   // tools/notebook.py wrote into build/figures/<id>/ (the one the golden gate captures), and the reel's notebook and
   // figures are tools/notebook.py's list for it, in order.
-  const nbList = execFileSync('python3', [path.join(R, 'tools/notebook.py'), 'list'], { cwd: R }).toString()
+  // tools/notebook.py's list gives the figures with a capture of their own, golden-refs those that are a golden case's
+  // render (#29 slice f); the reel holds both.
+  const nbOut = cmd => execFileSync('python3', [path.join(R, 'tools/notebook.py'), cmd], { cwd: R }).toString()
     .split('\n').filter(Boolean).map(l => l.split(' '));
+  const nbRefs = nbOut('golden-refs'), nbList = [...nbOut('list'), ...nbRefs];
   let nfig = 0, nSvgBad = 0, nSvgOk = 0;
   for (const r of reels) {
     const id = r.manifest.id;
@@ -546,7 +554,7 @@ if (W.sim_run && fs.existsSync(VSVG)) {
     }
     const want = nbList.filter(([rr]) => rr === id).map(([, n]) => n), have = r.notebook ? [...r.notebook.figures.keys()] : [];
     nfig += have.length;
-    if (want.join() !== have.join() || (r.notebook !== null) !== fs.existsSync(path.join(R, 'build/reels', id, 'notebook')) ||
+    if ([...want].sort().join() !== [...have].sort().join() || (r.notebook !== null) !== fs.existsSync(path.join(R, 'build/reels', id, 'notebook')) ||
         (r.notebook && r.notebook.text !== r.files.get('notebook/notebook.md')))
       wrong.push(`${id}: notebook ${r.notebook ? 'with figures ' + have : 'none'}, not tools/notebook.py's ${want}`);
   }
@@ -626,6 +634,8 @@ elif mode.startswith("nb-"):
         "nb-text": lambda: edit(drop=["notebook/notebook.md"],
                                 add=[("notebook/notebook.md", "notebook", dict(m)["notebook/notebook.md"] + sys.argv[2].encode())]),
     }[mode]())
+elif mode == "page":
+    out = pack.tar_gz([(n, sys.argv[2].encode() if n == "page.json" else b) for n, b in m])
 else:
     out = pack.tar_gz({"reverse": m[::-1], "drop": m[:-1], "extra": m + [("extra.txt", b"x")]}[mode])
 sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: b64 }).toString();
@@ -713,6 +723,74 @@ for rid, n in nb.notebooks():
     print(rid, nb.stale(rid, dict(n, cases=[(c[0], c[1], c[2], c[3][:1] + ["1"])] + n["cases"][1:])))`], { cwd: R }).toString();
     if (!st.split('\n').filter(Boolean).every((l, i) => i % 2 ? / its figure cases or their reels' decks have changed/.test(l) : / None$/.test(l)))
       wrong.push(`a stale render: ${st.trim()}`);
+  }
+  // The event listing and quick views (#29 slice f, #73; tools/pack.py, reelpkg.js reelListingWrong): each scenario
+  // reel's listing holds its situations and timeline rows once each, in g.e.t. order; Apollo 11's quick views are its
+  // data/missions/apollo11/asflown/quickviews.txt (key 9 an event) and Apollo 8's, which has no such file, its first
+  // situation on key 1; a repeated name's id carries its g.e.t. Planted faults, the first reel's page.json edited: a
+  // quick view naming an id the listing does not hold, a key outside 1-9, a situation dropped, an event renamed, a
+  // situation's field changed, a kind the page does not know yet (#75's
+  // photo), no listing; each refused by the reader. The packer refuses a quickviews.txt naming an unknown id or a key
+  // twice, and tools/notebook.py a golden=<case> from another reel or not in CASES.
+  {
+    const lw = [], A11 = reels.find(r => r.manifest.id === 'apollo11-asflown'), A8 = reels.find(r => r.manifest.id === 'apollo8-asflown');
+    for (const r of [A11, A8]) {
+      const L = r.page.listing, sits = L.filter(e => e.kind === 'situation'), evs = L.filter(e => e.kind === 'event');
+      if (sits.length !== r.page.situations.length || evs.length !== r.page.timeline.events.length || L.some((e, i) => i && e.get < L[i - 1].get))
+        lw.push(`${r.manifest.id}: listing of ${sits.length} situations and ${evs.length} events, not the reel's`);
+    }
+    const qv = JSON.stringify(A11.page.quickviews), qv8 = JSON.stringify(A8.page.quickviews);
+    if (qv !== '{"1":"EARTHRISE","2":"EARTH APPROACH","3":"EARTH LIMB","4":"LM RENDEZVOUS","5":"LM DESCENT","6":"MOON VIEW","7":"TRANSPOSITION AND DOCKING","8":"DOCKED STACK","9":"translunar-injection"}')
+      lw.push(`apollo11-asflown quick views ${qv}`);
+    if (qv8 !== '{"1":"APOLLO 8 EARTHRISE"}') lw.push(`apollo8-asflown quick views ${qv8}`);
+    // A repeated name's id carries its row's g.e.t. (stable whatever is added elsewhere): a literal from SP-4029's row.
+    if (!A11.page.listing.some(e => e.id === 'midcourse-correction-ignition@26:44:58.64' && e.get === 96298.64))
+      lw.push('apollo11-asflown: no midcourse-correction-ignition@26:44:58.64 at 96298.64 s');
+    const pg = A11.page, va = VR.find(r => r.id === A11.manifest.id);
+    const sitDrop = pg.listing.filter(e => e.id !== 'EARTHRISE'), evRen = pg.listing.map(e => e.id === 'translunar-injection' ? { ...e, name: 'TLI' } : e);
+    const PAGE_BAD = {
+      'a quick view naming no entry': [{ ...pg, quickviews: { 1: 'NO SUCH VIEW' } }, /quick view 1 names "NO SUCH VIEW", which the reel's listing does not hold$/],
+      'a quick view key 0': [{ ...pg, quickviews: { 0: 'EARTHRISE' } }, /quickviews key "0" is not 1 to 9$/],
+      'a situation missing from the listing': [{ ...pg, listing: sitDrop, quickviews: {} }, /the listing holds 7 of the reel's 8 situations$/],
+      'an event renamed': [{ ...pg, listing: evRen }, /\(translunar-injection\) is not the timeline's row \d+$/],
+      'a situation with another field': [{ ...pg, listing: pg.listing.map(e => e.id === 'EARTHRISE' ? { ...e, fov: 60 } : e) }, /situation EARTHRISE's name, view, target or field is not its card's$/],
+      'a kind not known yet': [{ ...pg, listing: pg.listing.map((e, i) => i ? e : { ...e, kind: 'photo' }) }, /listing entry 1 is of kind photo, not situation or event$/],
+      'no listing': [{ ...pg, listing: undefined }, /page\.json has no listing$/] };
+    for (const [what, [p, re]] of Object.entries(PAGE_BAD)) {
+      try { await RP.readReel(craft('page', va.b64, JSON.stringify(p)), sha, va.id); lw.push(`${what}: not refused`); }
+      catch (err) { if (!re.test(String(err.message))) lw.push(`${what}: refused as "${err.message}"`); }
+    }
+    const tmpq = fs.mkdtempSync(path.join(R, 'build/qv-fault-'));
+    const PY_BAD = {
+      'quickviews.txt naming no entry': ['1 EARTHRISE\n2 NO SUCH VIEW\n', /'NO SUCH VIEW' is no entry of apollo11-asflown's listing/],
+      'quickviews.txt giving a key twice': ['1 EARTHRISE\n1 MOON VIEW\n', /key 1 given twice/] };
+    for (const [what, [t, re]] of Object.entries(PY_BAD)) {
+      fs.writeFileSync(path.join(tmpq, 'quickviews.txt'), t);
+      let msg = '';
+      try { execFileSync('python3', ['-c', `import json, pathlib, sys; sys.path.insert(0, "tools"); import pack
+page = json.loads(open("build/page/apollo11-asflown.json").read())
+pack.quickviews("apollo11-asflown", pathlib.Path(sys.argv[1]), pack.listing("apollo11-asflown", page))`, tmpq], { cwd: R, stdio: 'pipe' }); }
+      catch (err) { msg = String(err.stderr); }
+      if (!re.test(msg)) lw.push(`tools/pack.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
+    }
+    const NB_GOLD = {
+      'a golden case from another reel': ['s9-default', /golden=s9-default is drawn from reel apollo8-asflown, not this notebook's own/],
+      'a golden case not in CASES': ['no-such-case', /golden=no-such-case: no such case/] };
+    for (const [what, [gc, re]] of Object.entries(NB_GOLD)) {
+      fs.rmSync(path.join(tmpq, 'notebook'), { recursive: true, force: true });
+      fs.mkdirSync(path.join(tmpq, 'notebook'));
+      fs.writeFileSync(path.join(tmpq, 'notebook/notebook.md'), `# t\n\n![a](figures/a.svg)\n\n\`\`\`figures\na | golden=${gc}\n\`\`\`\n`);
+      let msg = '';
+      try { execFileSync('python3', ['-c', 'import pathlib, sys; sys.path.insert(0, "tools"); import notebook; notebook.load("apollo11-asflown", "scenario", pathlib.Path(sys.argv[1]), None)', tmpq], { cwd: R, stdio: 'pipe' }); }
+      catch (err) { msg = String(err.stderr); }
+      if (!re.test(msg)) lw.push(`tools/notebook.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
+    }
+    fs.rmSync(tmpq, { recursive: true, force: true });
+    if (!nbRefs.length) lw.push('no notebook figure is a golden case\'s render');
+    console.log(`listing: ${[A11, A8].map(r => `${r.manifest.id} ${r.page.listing.length} entries, quick views ${Object.keys(r.page.quickviews).join('')}`).join('; ')}; ` +
+      `${nbRefs.length} figures golden cases' renders; ${Object.keys(PAGE_BAD).length + Object.keys(PY_BAD).length + Object.keys(NB_GOLD).length} planted faults` +
+      `  ${lw.length ? 'WRONG: ' + lw.join('; ') : 'the reels\' own, each fault refused'}`);
+    if (lw.length) ok = false;
   }
   await refused('a member not listed', craft('extra'), /extra\.txt is in it but not listed/);
   await refused('a negative size field', craft('negsize'), /does not unpack: manifest\.json: bad size/);

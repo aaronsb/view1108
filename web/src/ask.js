@@ -1,6 +1,7 @@
 // A modal question (ours; #19, the operator's reel and notebook modals of 2026-10-07): a title and a row of buttons
 // over everything, the page's overlay style. room.js asks it for the lab (hooks.ask): a pulled reel's LOAD NEW
-// SIMULATION SCENARIO? and a pulled mission notebook's LOAD SIMULATION AND REVIEW NOTEBOOK?. Built from DOM nodes only.
+// SIMULATION SCENARIO? and a pulled mission notebook's LOAD SIMULATION AND REVIEW NOTEBOOK?; reels.js asks it for
+// Tabbed's reel list (#73), its buttons stacked. Built from DOM nodes only.
 // Open, it is on the Esc stack as "ask" (esc.js), and Esc does its `back` (put the tape or notebook back). Keys: Enter
 // presses the focused button (the primary one has focus when it opens), Tab and Shift+Tab move between the buttons
 // only, and no other key reaches anything behind it (the room's walking keys among them): its listener is a capture
@@ -8,15 +9,21 @@
 // room is shown, else to what had it.
 "use strict";
 let askOn = null;   // the open question: { back, prev }, prev what had the focus
-/** Ask `title` with `actions` ([{ label, run, primary }], the primary first gets focus); `back` is what Esc does. */
-function askOpen(title, actions, back) {
+/** Ask `title` with `actions` ([{ label, run, primary, cls, title, data }], the primary first gets focus; cls a class,
+ *  title a tooltip, data dataset entries); `back` is what Esc does. layout "list" stacks the buttons, one per line
+ *  (Tabbed's reel list, reels.js). */
+function askOpen(title, actions, back, layout = "") {
   askClose();
   const btns = $("askbtns");
   $("asktitle").textContent = title; btns.textContent = "";
+  $("ask").classList.toggle("list", layout === "list");
   for (const a of actions) {
     const b = document.createElement("button");
     b.type = "button"; b.textContent = a.label;
     if (a.primary) b.classList.add("primary");
+    if (a.cls) b.classList.add(a.cls);
+    if (a.title) b.title = a.title;
+    Object.assign(b.dataset, a.data || {});
     b.onclick = () => { askClose(); a.run(); };
     btns.appendChild(b);
   }

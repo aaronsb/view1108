@@ -21,6 +21,13 @@ string `figures`, one case per line in tools/golden.sh's CASES columns (ours):
   arguments     build/viewsvg's: situation (its id in that reel), then GET, yaw, pitch, roll, fov, flags, each a
                 number or '-' (the situation's default)
 
+A row may instead be `name | golden=<case>` (#29 slice f; ours): the figure is the render of that case of
+tools/golden.sh's CASES, which must be drawn from the notebook's own reel (a playlist's: a reel it uses), so a figure
+that one golden case already draws has one render and one check. It is rendered with the case's environment, reel and
+arguments into the same build/figures/ file and packed like any figure, but golden.sh captures no nb-* case for it:
+the golden case's capture covers the frame, and capture and check draw the case again and require the figure the reel
+package carries (build/reels/<id>/notebook/figures/<name>.svg) to equal it, so a stale package fails.
+
 Lines starting with # and blank lines in the block are skipped. Every figure the text names has a case, every case
 is named in the text, and the text names no other image: outside fenced blocks every "![" must open an inline image
 ![alt](figures/<name>.svg) (alt text without "]"), and an HTML <img> or a reference definition ("[r]: ...", which
@@ -36,7 +43,9 @@ case, deck or driver changed since the render cannot be packed with the old figu
 
   tools/notebook.py render       render every notebook's figures into build/figures/ (needs build/viewsvg,
                                  build/decks/ and build/scenes.json: tools/build.sh native)
-  tools/notebook.py list         print each case as "<reel id> <name>", the notebooks in load order
+  tools/notebook.py list         print each case as "<reel id> <name>", the notebooks in load order (not the
+                                 golden=<case> rows, whose capture is the golden case's)
+  tools/notebook.py golden-refs  print each golden=<case> row as "<reel id> <name> <case>"
 """
 import hashlib, json, os, pathlib, re, shutil, subprocess, sys
 
@@ -139,13 +148,31 @@ def load(rid, kind, src, uses, sits=None):
     if len(blocks) > 1:
         fail(where, f"{len(blocks)} figures blocks, not one")
     sits = scenes() if sits is None else sits
-    cases = []
+    cases, golden = [], {}
     for ln in blocks[0] if blocks else []:
         if not ln.strip() or ln.lstrip().startswith("#"):
             continue
         f = [x.strip() for x in ln.split("|")]
+        if len(f) == 2 and f[1].startswith("golden="):
+            # A golden case's render as the figure (#29; ours): the case of that name in tools/golden.sh's CASES,
+            # drawn from this notebook's own reel (a playlist's: one it uses). One render, one check: its capture is
+            # the golden case's, and the packed figure must equal that case drawn again (golden.sh, capture and check).
+            name, gc = f[0], f[1][len("golden="):]
+            if not NAME.match(name):
+                fail(where, f"figure case {name!r}: a name is [a-z0-9][a-z0-9-]*")
+            if any(c[0] == name for c in cases):
+                fail(where, f"figure case {name}: named twice")
+            g = golden_cases().get(gc)
+            if not g:
+                fail(where, f"figure case {name}: golden={gc}: no such case in tools/golden.sh's CASES")
+            if (kind == "scenario" and g[1] != rid) or (kind == "playlist" and g[1] not in uses):
+                fail(where, f"figure case {name}: golden={gc} is drawn from reel {g[1]}, not this notebook's own")
+            cases.append((name, g[0], g[1], g[2]))
+            golden[name] = gc
+            continue
         if len(f) != 4:
-            fail(where, f"figure case {ln.strip()!r}: not four fields (name | environment | reel | arguments)")
+            fail(where, f"figure case {ln.strip()!r}: not four fields (name | environment | reel | arguments) "
+                        "or two (name | golden=<case>)")
         name, envs, reel, args = f[0], f[1].split(), f[2], f[3].split()
         if not NAME.match(name):
             fail(where, f"figure case {name!r}: a name is [a-z0-9][a-z0-9-]*")
@@ -174,7 +201,21 @@ def load(rid, kind, src, uses, sits=None):
     for n in have:
         if n not in named:
             fail(where, f"figure case {n} is not named in the text (an image figures/{n}.svg)")
-    return {"text": raw, "cases": cases}
+    return {"text": raw, "cases": cases, "golden": golden}
+
+
+def golden_cases():
+    """tools/golden.sh's CASES: {case name: ({environment}, reel, [arguments])}, read from the script itself."""
+    t = (R / "tools" / "golden.sh").read_text()
+    m = re.search(r"^CASES=\$\(cat <<'EOF'\n(.*?)\nEOF$", t, re.M | re.S)
+    if not m:
+        fail("tools/golden.sh", "no CASES block")
+    out = {}
+    for ln in m.group(1).split("\n"):
+        f = [x.strip() for x in ln.split("|")]
+        if len(f) == 4:
+            out[f[0]] = (dict(e.split("=", 1) for e in f[1].split()), f[2], f[3].split())
+    return out
 
 
 def notebooks():
@@ -251,7 +292,8 @@ def stamp(nb):
         lst = R / "build" / "decks" / f"{reel}.txt"
         return hashlib.sha256(b"".join(sha(R / f).encode() for f in lst.read_text().split())).hexdigest()
     return {"viewsvg": sha(R / "build" / "viewsvg"),
-            "cases": [[name, env, reel, args, decks(reel)] for name, env, reel, args in nb["cases"]]}
+            "cases": [[name, env, reel, args, decks(reel)] for name, env, reel, args in nb["cases"]],
+            "golden": nb["golden"]}
 
 
 def stale(rid, nb):
@@ -262,7 +304,7 @@ def stale(rid, nb):
     was, now = json.loads(f.read_text()), stamp(nb)
     if was["viewsvg"] != now["viewsvg"]:
         return "build/viewsvg has changed since the figures were rendered"
-    if was["cases"] != now["cases"]:
+    if was["cases"] != now["cases"] or was.get("golden") != now["golden"]:
         return "its figure cases or their reels' decks have changed since the figures were rendered"
     return None
 
@@ -314,9 +356,14 @@ def main():
     elif sys.argv[1:] == ["list"]:
         for rid, nb in notebooks():
             for c in nb["cases"]:
-                print(rid, c[0])
+                if c[0] not in nb["golden"]:
+                    print(rid, c[0])
+    elif sys.argv[1:] == ["golden-refs"]:
+        for rid, nb in notebooks():
+            for name, gc in nb["golden"].items():
+                print(rid, name, gc)
     else:
-        sys.exit("usage: tools/notebook.py render|list")
+        sys.exit("usage: tools/notebook.py render|list|golden-refs")
 
 
 if __name__ == "__main__":

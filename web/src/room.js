@@ -5,7 +5,7 @@
 // the kernel listing on greenbar over the page, the bookcase (or one of its binders) the library over it; clicking one
 // flies the camera to its close-up, and a click there shows that tab or overlay. The drive is the mounted reel's
 // STOP/START (drivePlay, player.js), used in place. The tape rack holds the site reel index (reels.js reelIndex, handed
-// over as hooks.reels): a reel pulled there and used on a tape unit is mounted through reelMount, the Reels group's
+// over as hooks.reels): a reel pulled there and used on a tape unit is mounted through reelMount, Tabbed's reel list's
 // loadReel (#19). A second click on a pulled reel, or on a pulled mission notebook on the bookcase, asks a modal
 // (ask.js, roomAsk; the operator, 2026-10-07): LOAD NEW SIMULATION SCENARIO? mounts the reel through reelMount, LOAD
 // SIMULATION AND REVIEW NOTEBOOK? mounts it and opens the notebook, or only opens it (#29). The notebook viewer's "Load
@@ -84,12 +84,20 @@ function roomLibraryClose() { roomLibrary = false; $("blibroom").hidden = true; 
 // unit (its notebook half out on the bookcase), on the Esc stack as "pulled" (the lab's carryReel). From a page, the
 // room comes back in front of the rack; with the room already shown (the library left open as the window widened into
 // the room), the camera flies to the rack; while a flight or a crossfade runs, it waits for it.
-function roomCarry(id, tries = 0) {
+function roomCarry(id) {
   roomLibraryClose();
-  if (roomBusy()) { if (tries < 40) setTimeout(() => roomCarry(id, tries + 1), 100); return; }
-  if (roomShown) { LAB.carry(id); LAB.setTarget("rack"); return; }
+  roomToRack(() => LAB.carry(id));
+}
+// The room at the tape rack (the sim panel's [ RETURN TO REELS ], #73; and roomCarry): from a page, the room comes back
+// in front of the rack, and with `close` goes on to the rack's close-up once it has faded in, so a reel can be pulled
+// at once; with the room shown, the camera flies to the close-up. While a flight or a crossfade runs, it waits. `then`
+// runs once the lab is at (or flying to) the rack.
+function roomToRack(then = () => {}, close = false, tries = 0) {
+  if (roomBusy()) { if (tries < 40) setTimeout(() => roomToRack(then, close, tries + 1), 100); return; }
+  if (roomShown) { then(); LAB.setTarget("rack"); return; }
   roomShowLab("rack");
-  LAB.carry(id);
+  then();
+  if (close) roomToRack();
 }
 // The lab asks about what was pulled (hooks.ask): the reel modal or the notebook modal; the answer goes back to the lab
 // (VIEW_LAB.answer), which puts it back, mounts its reel (reelMount: a fresh run, the clock stopped) or opens the
