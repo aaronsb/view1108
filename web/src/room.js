@@ -17,10 +17,10 @@ const ROOM_KEY = "view1108.space";
 let roomAvail = !!LAB && LAB.supported() && !BARE;   // BARE covers ?still too
 let roomPref = "room";   // the viewer's stored choice; Room unless they chose Tiled
 try { const v = localStorage.getItem(ROOM_KEY); if (v === "room" || v === "tiled") roomPref = v; } catch (e) { /* storage unavailable */ }
-// A link naming a view (a tab, mode, situation (scn, sit or scene), code location or photograph) opens on that view: Tiled for this visit,
-// unless it says ?space= itself.
-const roomDeep = ["tab", "mode", "scn", "sit", "scene", "code", "photo"].some(k => UP.has(k));
-let roomWant = UP.get("space") === "room" || UP.get("space") === "tiled" ? UP.get("space") : roomDeep ? "tiled" : roomPref;   // ?space= for this visit only
+// A link naming a view (a tab, mode or reel, mission or situation (scn, sit or scene), code location or photograph) opens on that view:
+// Tabbed for this visit, unless it says ?space= itself (room or tabbed; "tiled" is Tabbed's stored name, #22).
+const roomDeep = ["tab", "mode", "reel", "mission", "scn", "sit", "scene", "code", "photo"].some(k => UP.has(k));
+let roomWant = UP.get("space") === "room" ? "room" : UP.get("space") === "tabbed" || roomDeep ? "tiled" : roomPref;   // ?space= for this visit only
 let roomIn = false;      // the lab is running (Room, on a wide screen)
 let roomShown = false;   // the lab is on screen and the page hidden
 let roomCanvasTab = "review";   // the plot tab the vector terminal opens (Review, Simulate or Fusion)

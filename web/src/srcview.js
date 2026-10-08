@@ -40,8 +40,7 @@ function srcBuild() {
 function srcShow() {
   if (SV.built) return;
   SV.built = true; srcBuild();
-  const s = UP.get("src"), q = UP.get("code") || (s && s !== "replay" && s !== "sim" ? s : null);
-  sxGo(sxParse(q) || sxParse("VFRAME") || { path: SX.sym.files.find(f => SX.src[f.path])?.path });
+  sxGo(sxParse(UP.get("code")) || sxParse("VFRAME") || { path: SX.sym.files.find(f => SX.src[f.path])?.path });
 }
 
 // ---- tree ----

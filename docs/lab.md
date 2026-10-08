@@ -76,7 +76,7 @@ the UNISCOPE 100, from one atlas shared with it (`kit.ts` keyLegends): one more 
 ## What moves
 
 - **Tape units.** The reels turn at tape speed over their pack radius, so the emptier reel turns faster. The packs trade radius as the tape moves, from 2400 ft of tape 1.5 mil thick (the thickness is inferred), at 12 times the real rate so that a burst shows. An idle unit makes a short shuttle now and then. While a scenario reel is mounted the six units beside the drive carry the system tapes (The drive, below) and run bursts of reads of their own, start, run, stop and now and then a rewind, each at its own times, staggered unit by unit (they start one after another after a mount), so the row never moves in unison. When the engine runs (`tape`), about two units in three run a burst, each after a pause of its own. The file reel's hub label turns with it. The meanings of the lamps on the top strip, the pace of the bursts and the staggering are ours. `?labmotion=0` holds every reel still for screenshots (`make shots`).
-- **FASTRAND II.** The drums turn behind the window, slowly (the real 880 rev/min, UP-4046 p. 8-10, would strobe at a display's frame rate; the pace is ours), their streaked surface catching the light. The head carriage steps along the drums on a seek, every 4 to 15 s when idle and every second or so while busy; its travel is drawn larger than the real track pitch so that it reads (ours). The red lamps flicker with that activity, brighter and busier after the engine runs (`tape`) or a reel is mounted (their meaning ours). `?labmotion=0` holds it still.
+- **FASTRAND II.** The drums turn behind the window, contra to each other (ours, the operator's call; no source we hold gives their directions), slowly (the real 880 rev/min, UP-4046 p. 8-10, would strobe at a display's frame rate; the pace is ours), their streaked surface catching the light. The head carriage steps along the drums on a seek, every 4 to 15 s when idle and every second or so while busy; its travel is drawn larger than the real track pitch so that it reads (ours). The red lamps flicker with that activity, brighter and busier after the engine runs (`tape`) or a reel is mounted (their meaning ours). `?labmotion=0` holds it still.
 - **CPU lamp panel.** 36 lamps a row in octal groups of three, one row per 36-bit word. The top row counts the kernel
   frames drawn, the second shows the g.e.t. in seconds, and the rest are random words (ours). The lamps change about
   20 times a second while the page plays and slowly when it is idle; `?labmotion=0` holds them for screenshots.
@@ -294,7 +294,7 @@ filters, a panner per source and one convolver with a made-up response for the r
 what MSC's machine room sounded like. The aim is a room that was "not quiet but tolerable", with the air handling
 and the fans as a steady bed and the machines heard when you are near them. It plays only with Sound on, through
 the page's master gain, so the Sound button and M mute it everywhere (a 15 ms fade, then the context suspends). While
-the room runs it replaces the page's ambience bed (`web/src/sound.js`); Tiled plays that bed. With a terminal's page
+the room runs it replaces the page's ambience bed (`web/src/sound.js`); Tabbed plays that bed. With a terminal's page
 shown the room ducks 8 dB and its tape units keep turning, so an engine run is still heard.
 
 | Source | Where | What it is | Sourced | Ours |

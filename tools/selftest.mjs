@@ -283,6 +283,115 @@ const A11_ZERO = Date.UTC(1969, 6, 16, 13, 32, 0);   // Apollo 11's range zero, 
     `open the same (reel, situation)  ${bad.length ? 'WRONG: ' + bad.join('; ') : 'ok'}`);
   if (bad.length) ok = false;
 }
+// The link's keys (#22): web/src/urlkeys.js against docs/modes.md's Link parameters (its key, switch and old-key
+// tables) and against the page: every key the page and the room read (through UP, a loader param, any variable made
+// from new URLSearchParams( or canonUrl(, single or double quotes, get, getAll or has; a regex on location.search; QP)
+// is a key or switch of the table, or an old key the loader reads (scene, a playlist's mode), and every key and switch
+// is read somewhere; only the files that read the link now may touch location.search or new URLSearchParams( (a new
+// reader must be looked at); the LINK button (link.js linkURL) writes keys only; canonUrl reads each old key or value
+// as its canonical one, a canonical value given beside it winning, else the first old one, and leaves the rest alone;
+// the loader's old modes are the playlist reels' ALIASes; and the README points to the table instead of keeping one.
+// Eight planted faults must each be found.
+{
+  const UK = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/urlkeys.js'), 'utf8') +
+    '\n({ URL_KEYS, URL_SWITCHES, URL_ALIASES, canonUrl })', vm.createContext({ URLSearchParams }));
+  const ticks = c => [...c.matchAll(/`([^`]*)`/g)].map(m => m[1]);
+  // The docs' three tables: rows under a header whose first cell is Key, Switch or Old.
+  const tables = md => {
+    const sec = md.slice(md.indexOf('## Link parameters\n')), end = sec.indexOf('\n## ', 4), t = { Key: [], Switch: [], Old: [] };
+    let cur = null;
+    for (const line of (end < 0 ? sec : sec.slice(0, end)).split('\n')) {
+      const cells = line.startsWith('|') ? line.split('|').slice(1, -1).map(c => c.trim()) : null;
+      if (!cells) { cur = null; continue; }
+      if (cells[0] in t) { cur = cells[0]; continue; }
+      if (cur && !/^-+$/.test(cells[0])) t[cur].push(cells);
+    }
+    return { keys: t.Key.flatMap(c => ticks(c[0])), switches: t.Switch.flatMap(c => ticks(c[0])),
+      old: t.Old.map(c => [ticks(c[0])[0], ticks(c[1]).join('&')]) };
+  };
+  // The keys a source reads. Receivers: UP, p (the loader's params), qs, and any variable assigned from
+  // new URLSearchParams( or canonUrl(; a list of keys counts where it is the loop of a read (for (const k of [...]) ...
+  // UP.get(k)), the keys of .some(k => UP.has(k)) or pGet's default keys.
+  const Q = `["']`;
+  const readKeys = src => {
+    const out = new Set(), recv = new Set(['UP', 'p', 'qs']);
+    for (const m of src.matchAll(/\b(?:const|let|var)\s+(\w+)\s*=\s*(?:new URLSearchParams|canonUrl)\(/g)) recv.add(m[1]);
+    for (const m of src.matchAll(/,\s*(\w+)\s*=\s*(?:new URLSearchParams|canonUrl)\(/g)) recv.add(m[1]);
+    const rxs = [new RegExp(`(?:\\b(?:${[...recv].join('|')})|URLSearchParams\\([^()]*\\))\\.(?:get|getAll|has)\\(${Q}(\\w+)${Q}\\)`, 'g'),
+      new RegExp(`\\bp(?:Num|Flag|Pick)\\(p, ${Q}(\\w+)${Q}`, 'g'), new RegExp(`\\bQP\\(${Q}(\\w+)${Q}\\)`, 'g'), /\[\?&\](\w+)(?:=|\\b)/g];
+    for (const rx of rxs) for (const m of src.matchAll(rx)) out.add(m[1]);
+    for (const m of src.matchAll(/(for \(const k of |keys = )?\[((?:["']\w+["'],?\s*)+)\]([^\n]*)/g))
+      if (m[1] === 'keys = ' || (m[1] && /\.(?:get|getAll|has)\(k\)|pNum\(p, k\)|QP\(k\)/.test(m[3])) || /^\.some\(k => \w+\.has\(k\)\)/.test(m[3]))
+        for (const k of m[2].match(/\w+/g)) out.add(k);
+    return out;
+  };
+  // The files that read the link now; any other that touches location.search or new URLSearchParams( fails.
+  const READERS = { search: ['web/src/config.js', 'web/src/kernel.js', 'web/src/player.js', 'web/src/main.js', 'web/lab/src/lab.ts'],
+    usp: ['web/src/config.js', 'web/src/link.js', 'web/src/loader.js', 'web/src/urlkeys.js', 'web/lab/src/lab.ts'] };
+  const files = [...fs.readdirSync(path.join(R, 'web/src')).filter(f => f.endsWith('.js')).map(f => path.join('web/src', f)),
+    ...fs.readdirSync(path.join(R, 'web/lab/src'), { recursive: true }).filter(f => f.endsWith('.ts') && !f.endsWith('.test.ts') && f !== 'gallery.ts')
+      .map(f => path.join('web/lab/src', f))];
+  const SRC = Object.fromEntries(files.map(f => [f, fs.readFileSync(path.join(R, f), 'utf8')]));
+  const LINKJS = SRC['web/src/link.js'];
+  const oldStr = ([k, v, ck, cv]) => `${v === null ? k : k + '=' + v}>${cv === null || typeof cv === 'function' ? ck : ck + '=' + cv}`;
+  const check = (md, readme, src, linkjs) => {
+    const bad = [], d = tables(md), K = UK.URL_KEYS, S = UK.URL_SWITCHES;
+    const same = (what, a, b) => { if (a.join() !== b.join()) bad.push(`${what}: docs ${a.join(',')} / urlkeys.js ${b.join(',')}`); };
+    same('keys', d.keys, K); same('switches', d.switches, S);
+    same('old keys', d.old.map(x => x.join('>')), UK.URL_ALIASES.map(oldStr));
+    const late = new Set(UK.URL_ALIASES.filter(a => a[4] === 'loader').map(a => a[0])), internal = new Set(['by']), seen = new Set();
+    for (const [f, t] of Object.entries(src)) {
+      if (/location\.search/.test(t) && !READERS.search.includes(f)) bad.push(`${f} reads location.search, not a known reader`);
+      if (/new URLSearchParams\(/.test(t) && !READERS.usp.includes(f)) bad.push(`${f} makes a URLSearchParams, not a known reader`);
+      for (const k of readKeys(t)) {
+        seen.add(k);
+        if (!K.includes(k) && !S.includes(k) && !late.has(k) && !internal.has(k)) bad.push(`${f} reads ${k}, which the table lacks`);
+      }
+    }
+    for (const k of [...K, ...S]) if (!seen.has(k)) bad.push(`${k}: in the table, read nowhere`);
+    const body = linkjs.slice(linkjs.indexOf('function linkURL'), linkjs.indexOf('function copyLink'));
+    for (const m of body.matchAll(/\badd\(["'](\w+)["']/g)) if (!K.includes(m[1])) bad.push(`the LINK button writes ${m[1]}`);
+    const rd = readme.slice(readme.indexOf('## Link parameters'), readme.indexOf('\n## ', readme.indexOf('## Link parameters') + 4));
+    if (!rd.includes('(docs/modes.md#link-parameters)') || /^\|/m.test(rd)) bad.push('README: no pointer to docs/modes.md#link-parameters, or a table of its own');
+    return bad;
+  };
+  const MD = fs.readFileSync(path.join(R, 'docs/modes.md'), 'utf8'), README = fs.readFileSync(path.join(R, 'README.md'), 'utf8');
+  const bad = check(MD, README, SRC, LINKJS);
+  // canonUrl: each old key or value alone; lab= as the loader read it before #22 (a number 0-3, rounded); a canonical
+  // value beside an old one (it wins, either order); old ones together (the first wins); the same key twice; keys that
+  // are not old, untouched.
+  const cu = q => UK.canonUrl(new URLSearchParams(q)).toString();
+  const CASES = [['space=tiled', 'space=tabbed'], ['src=replay', 'traj=replay'], ['src=sim', 'traj=sim'], ['src=pen.f:120', 'code=pen.f%3A120'],
+    ['src=', 'code='], ['labels=0', 'labels=off'], ['labels=1', 'labels=all'],
+    ['lab=0', 'labels=off'], ['lab=1', 'labels=primary'], ['lab=2', 'labels=secondary'], ['lab=3', 'labels=all'],
+    ['lab=1.0', 'labels=primary'], ['lab=01', 'labels=primary'], ['lab=2.6', 'labels=all'], ['lab=4', ''], ['lab=x', ''], ['lab=', ''],
+    ['src=sim&traj=replay', 'traj=replay'], ['traj=replay&src=sim', 'traj=replay'], ['src=PROJ&code=VFRAME', 'code=VFRAME'],
+    ['lab=3&labels=primary', 'labels=primary'], ['labels=primary&lab=3', 'labels=primary'], ['lab=2&labels=all', 'labels=all'],
+    ['space=tiled&space=room', 'space=room'], ['labels=all&labels=0', 'labels=all'],
+    ['labels=0&lab=3', 'labels=off'], ['lab=2&labels=1', 'labels=secondary'], ['lab=2&lab=1', 'labels=secondary'], ['lab=9&lab=1', 'labels=primary'],
+    ['labels=primary&labels=all', 'labels=primary&labels=all'], ['src=sim&src=PROJ', 'traj=sim&code=PROJ'],
+    ['mode=attract&scene=9&space=room&labels=primary', 'mode=attract&scene=9&space=room&labels=primary'], ['view=cm&labq=low', 'view=cm&labq=low']];
+  for (const [q, want] of CASES) if (cu(q) !== want) bad.push(`canonUrl ${q}: ${cu(q)}, not ${want}`);
+  for (const a of UK.URL_ALIASES.filter(a => a[4] === 'url'))
+    if (!CASES.some(([q]) => new RegExp(`(^|&)${a[0]}=${a[1] === null ? '' : a[1] + '(&|$)'}`).test(q))) bad.push(`canonUrl: no case for ${oldStr(a)}`);
+  for (const [k, v, , cv] of UK.URL_ALIASES.filter(a => a[4] === 'loader')) if (k === 'mode' && !(LISTS[cv] && LISTS[cv].alias === v)) bad.push(`mode=${v}: not reel ${cv}'s ALIAS`);
+  if (UK.URL_ALIASES.some(a => !['url', 'loader'].includes(a[4]))) bad.push('an old key read by neither canonUrl nor the loader');
+  // Planted faults, each of which the check must find.
+  const plants = [
+    ['a key missing from the table', check(MD.replace(/^\| `hz` .*\n/m, ''), README, SRC, LINKJS)],
+    ['an old key missing from the table', check(MD.replace(/^\| `space=tiled` .*\n/m, ''), README, SRC, LINKJS)],
+    ['a key read that the table lacks', check(MD, README, { ...SRC, 'web/src/x.js': 'const z = UP.get("zoom");' }, LINKJS)],
+    ['a single-quoted getAll the table lacks', check(MD, README, { ...SRC, 'web/src/x.js': "const z = UP.getAll('zoom');" }, LINKJS)],
+    ['a read through another variable', check(MD, README, { ...SRC, 'web/src/config.js': SRC['web/src/config.js'] + '\nconst sp = new URLSearchParams(location.search), z = sp.get("zoom");' }, LINKJS)],
+    ['a new reader of location.search', check(MD, README, { ...SRC, 'web/src/x.js': 'const z = /[?&]debug\\b/.test(location.search);' }, LINKJS)],
+    ['the LINK button writing an old key', check(MD, README, SRC, LINKJS.replace('add("traj", "sim")', 'add("src", "sim")'))],
+    ['a README table', check(MD, README.replace('## Link parameters\n', '## Link parameters\n\n| `mode` | `live` | x |\n'), SRC, LINKJS)]];
+  const missed = plants.filter(([, b]) => !b.length).map(([w]) => w);
+  for (const w of missed) bad.push(`planted ${w}: not found`);
+  console.log(`url keys: ${UK.URL_KEYS.length} keys, ${UK.URL_SWITCHES.length} switches, ${UK.URL_ALIASES.length} old keys and values against docs/modes.md ` +
+    `and ${files.length} sources; canonUrl ${CASES.length} cases; ${plants.length} planted faults  ${bad.length ? 'WRONG: ' + bad.join('; ') : 'the same, each fault found'}`);
+  if (bad.length) ok = false;
+}
 // The playlist reels (#18, packed as reels in #26 slice 7e; data/reels/*/run.scn): every shot's situation exists in the
 // scenario reel it names (REEL=), which its manifest lists in `uses`, and its g.e.t. at start and end lies inside that
 // situation's scenario (from its first to its last TIMELINE row) and draws there (the kernel takes it as given: hdr(1)
