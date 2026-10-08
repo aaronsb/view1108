@@ -21,6 +21,7 @@ export interface LabState {
   epoch: number;          // the scenario's range zero, s from Apollo 11's (the kernel's hdr(16))
   zero: number;           // the scenario's range zero, UTC ms (its reel's page.json)
   frameNo: number;        // kernel frames drawn since boot; the vector screen is stale when this moves
+  mounted: string;        // the mounted reel's id in the site reel index (ReelInfo.id): the playlist while one plays, else the situation's scenario reel
   /** web/src/sound.js sndCtx, sndOut, sndOn, and soundBed (the page's ambience bed on or off; the room's sound
    *  replaces it while the room runs), and whineNode (the deflection whine at the 1558 and the film recorder,
    *  web/src/whine.js). */
@@ -33,6 +34,17 @@ export interface LabEvent {
   type: "beamFrame" | "tape" | "key" | "print";
   at: number;             // performance.now() time it happens
   lines?: number;
+}
+
+/** One reel of the site reel index (web/src/kernel.js REEL_LIB, the packaged reels, #26 slice 7), as the page hands it
+ *  to the lab (LabHooks.reels): its manifest's id, title and kind; a scenario reel's mission (its manifest's mission
+ *  name) and range zero (UTC ms, from its page.json), from which the tape rack letters its shelves (#19). */
+export interface ReelInfo {
+  id: string;
+  title: string;
+  kind: "scenario" | "playlist";
+  mission: string;
+  zero: number | null;
 }
 
 /** Hooks the page hands to VIEW_LAB.start. */
@@ -50,8 +62,13 @@ export interface LabHooks {
   leave?(opens: Opens): void;
   /** The drive (a "control" station) was used: STOP or START the mounted reel's playback clock. */
   drive?(): void;
+  /** The site reel index, in load order: one reel on the tape rack per entry (#19). Read once, when the room is built. */
+  reels?: ReelInfo[];
+  /** A reel pulled at the tape rack was used on a tape unit: mount reel `id` through the page's loadReel, as the Tabbed
+   *  reel list does (no reload). */
+  mount?(id: string): void;
   /** The page's one Esc stack (web/src/esc.js): push `key` with what Esc does while it is on top, or (null) take it
-   *  off. The lab pushes its close-up and a pulled binder. */
+   *  off. The lab pushes its close-up and a pulled binder or reel ("pulled"; a reel's stays while it is carried). */
   esc?(key: string, pop: (() => void) | null): void;
 }
 
@@ -93,6 +110,12 @@ export interface Equipment {
   pull?(): boolean;
   /** It is out and opens: E or Enter at the close-up opens it. */
   pulled?(): boolean;
+  /** It is out and stays out after the close-up, carried to where it is used (a reel pulled at the tape rack, until a
+   *  tape unit mounts it or it is put back). */
+  carried?(): boolean;
+  /** Whether using it does anything now (a tape unit other than the drive: only while a reel is carried); absent,
+   *  always. While false it is not picked. */
+  usable?(): boolean;
   /** The close-up's line when it depends on the piece's state (a shelf: what is pulled out); else the station's. */
   hint?(): string;
   /** Its state, added to its hover label (the drive: its reel, running or stopped). */
@@ -112,6 +135,8 @@ export interface BuildContext {
   vectorScreen: THREE.Texture;
   /** Anisotropy the renderer supports, for screen textures seen at an angle. */
   maxAnisotropy: number;
+  /** The site reel index (LabHooks.reels): the tape rack's reels. */
+  reels?: readonly ReelInfo[];
 }
 
 export type EquipmentBuilder = (ctx: BuildContext) => Equipment;

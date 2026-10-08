@@ -14,10 +14,13 @@
 // its arrival pose (a console's anchors.view, its screen and keyboard as its operator sees them; else the handover
 // pose below) and stays in the room, live, with a line on how to go on; a click on the machine (at the bookcase, on a
 // binder: the first pulls it out, the second opens its document), E or Enter opens it; a click on anything else, Esc,
-// the Room button or a walking key steps back.
+// the Room button or a walking key steps back. The tape rack is a shelf station (stations.ts): its close-up opens
+// nothing; a reel pulled there stays out when the camera leaves, carried, and a click (or E) on any tape unit mounts
+// it (hooks.mount, the page's loadReel) and puts it back on the rack (#19).
 //
 // Esc is the page's one stack (web/src/esc.js, through hooks.esc): the lab pushes its close-up ("closeup": step back)
-// and a binder pulled out there ("pulled": put it back); the page's bottom entry walks back to the overview (home()).
+// and a binder or reel pulled out there ("pulled": put it back; a carried reel's stays after the close-up); the page's
+// bottom entry walks back to the overview (home()).
 // An Esc the pointer lock took is swallowed (escLock()).
 //
 // Handover: opening a terminal that opens a tab eases (OPEN_S) to where its screen covers, on the lab canvas, the
@@ -34,8 +37,8 @@ import { ROOM } from "./room/shell";
 import { PLATE_FONT } from "./equipment/kit";
 import { replayUTC } from "./equipment/console4009";
 import { Walk, type Terminal } from "./walk";
-import { stationNamed, stationOpening } from "./stations";
-import type { CameraPose, LabEvent, LabHooks, Opens, Placed, Quality, Room } from "./types";
+import { isShelf, stationNamed, stationOpening } from "./stations";
+import type { CameraPose, LabEvent, LabHooks, Opens, Placed, Quality, ReelInfo, Room } from "./types";
 
 /** A flight's time, s, by the distance flown (m): 1 s up to 2.5 m, then slower per metre, at most 1.8 s (an 11 m
  *  flight across the room takes 1.7 s). */
@@ -44,6 +47,7 @@ const DUST_PER_M3 = 4;              // the dust motes' density
 const OPEN_S = 0.5;                 // the ease from a console's arrival pose to its handover pose, s
 const ARC_M = 0.12;                 // the flight's rise at its middle, metres per 2 m flown (at most one unit)
 const CLICK_PX = 5;
+const MOUNT_MS = 400;               // after a mount, a tape unit's own use (the drive's STOP/START) waits this long
 const LOOK_DEG = 0.12;              // turn per mouse count while the pointer is locked, deg
 const ESC_MS = 250;                 // an Esc this soon after the lock went is the one that released it
 const WHEEL_M = 0.0018;             // metres stepped per wheel pixel
@@ -97,7 +101,9 @@ export class Lab {
   private pinchD = 0;
   private hover: Placed | null = null;
   private pointer: { x: number; y: number } | null = null;
-  private lifted = new Map<THREE.Mesh, [THREE.Material, THREE.Material]>();
+  private lifted = new Map<THREE.Mesh, [THREE.Material | THREE.Material[], THREE.Material | THREE.Material[]]>();
+  /** When a carried reel was last mounted (performance.now()), for MOUNT_MS. */
+  private mountT = -Infinity;
   private labelEl: HTMLDivElement;
   private crossEl: HTMLDivElement;
   private lineEl: HTMLDivElement;
@@ -136,7 +142,7 @@ export class Lab {
     this.vectorTex = new THREE.CanvasTexture(hooks.screens.vector);
     this.vectorTex.colorSpace = THREE.SRGBColorSpace;
     this.vectorTex.anisotropy = aniso;
-    this.room = buildRoom({ vectorScreen: this.vectorTex, maxAnisotropy: aniso });
+    this.room = buildRoom({ vectorScreen: this.vectorTex, maxAnisotropy: aniso, reels: hooks.reels ?? [] });
     this.scene.add(this.room.object);
     markScreens(this.room.object);
     this.room.object.updateMatrixWorld(true);
@@ -173,6 +179,14 @@ export class Lab {
     const sw = this.room.placed.find(p => p.name === "switch");
     if (sw) sw.equipment.use = () => this.lights(!this.lighting.on);
     for (const p of this.room.placed) if (stationNamed(p.name)?.does === "control") p.equipment.use = () => this.hooks.drive?.();
+    // Every tape unit mounts a reel carried from the rack; without one, the drive is still STOP/START and the others
+    // do nothing (and are not picked).
+    for (const p of this.room.placed) if (p.equipment.anchors.tapeUnit !== undefined) {
+      const own = p.equipment.use;
+      // A double click mounts with its first click; its second must not then stop the clock (MOUNT_MS).
+      p.equipment.use = () => { const r = this.carried(); if (r) this.mount(r); else if (performance.now() - this.mountT > MOUNT_MS) own?.(); };
+      p.equipment.usable = () => !!own || !!this.carried();
+    }
     this.dust?.light(this.lighting.lit, this.room.glows ?? []);
 
     this.labelEl = document.createElement("div");
@@ -259,7 +273,7 @@ export class Lab {
     const p = this.room.placed.find(q => q.name === name);
     if (!p) return false;
     const opens = p.equipment.opens;
-    const prev = this.laid, lay = opens && this.hooks.screenRect ? opens : null;
+    const prev = this.laid, lay = opens && this.hooks.screenRect && !isShelf(opens) ? opens : null;
     const rect = lay ? this.hooks.screenRect!(lay) : null;
     const s = (!open && this.anchorShot(name, "view")) || (rect && this.matchShot(name, rect)) || this.anchorShot(name);
     // Leave the last layout unless this flight laid out the same one again.
@@ -270,6 +284,7 @@ export class Lab {
     this.unlock();
     this.walk.disarm(name); this.walk.clearKeys();
     for (const q of this.room.placed) q.equipment.select?.(q === p);
+    if (this.carried()) this.pulledOut();   // a reel flown to comes out, and one carried stays out: Esc puts it back
     this.fly(s, 0, false, () => {
       this.mode = "hold";
       if (!opens) return;
@@ -294,6 +309,7 @@ export class Lab {
   private open(binder?: string): void {
     const a = this.at;
     if (!a || this.mode !== "hold") return;
+    if (isShelf(a.opens)) { this.back(); return; }   // a shelf opens nothing: E or Enter steps back, carrying what is out
     binder ??= this.room.placed.find(q => q.equipment.pulled?.())?.name;   // E or Enter: what is pulled out, if anything
     const laid = this.laid;   // still the lab's to undo until the page takes it over at the end of the handover
     const go = () => { this.laid = null; this.hooks.arrive(a.opens, binder ?? a.name); };
@@ -314,19 +330,35 @@ export class Lab {
     if (leave && l) this.hooks.leave?.(l);
   }
 
-  /** Arrived at a close-up (or left it: null), on the Esc stack as "closeup"; leaving takes "pulled" off too. */
+  /** Arrived at a close-up (or left it: null), on the Esc stack as "closeup"; leaving takes "pulled" off too, unless a
+   *  reel is carried. */
   private setAt(a: { name: string; opens: Opens } | null): void {
     this.at = a;
     if (a) this.hooks.esc?.("closeup", () => { this.back(); });
-    else { this.hooks.esc?.("closeup", null); this.hooks.esc?.("pulled", null); }
+    else { this.hooks.esc?.("closeup", null); if (!this.carried()) this.hooks.esc?.("pulled", null); }
     this.lockUI();
   }
 
-  /** At a close-up something was pulled out (a binder): on the Esc stack as "pulled", Esc puts it back. */
+  /** The reel pulled at the tape rack and carried from it, if any. */
+  private carried(): Placed | undefined {
+    return this.room.placed.find(p => p.equipment.carried?.());
+  }
+
+  /** A carried reel used on a tape unit: the page mounts it (loadReel), and it goes back on the rack. */
+  private mount(reel: Placed): void {
+    this.mountT = performance.now();
+    reel.equipment.putBack?.();
+    this.hooks.esc?.("pulled", null);
+    this.hooks.mount?.(reel.name.replace(/^reel:/, ""));
+    this.clearHover(); this.lockUI();
+  }
+
+  /** At a close-up something was pulled out (a binder, a reel): on the Esc stack as "pulled", Esc puts it back. */
   private pulledOut(): void {
     this.hooks.esc?.("pulled", () => {
       for (const p of this.room.placed) if (p.equipment.putBack?.()) break;
-      this.hooks.esc?.("pulled", null); this.lockUI();
+      if (this.carried()) this.pulledOut(); else this.hooks.esc?.("pulled", null);   // a binder went back; the reel next
+      this.lockUI();
     });
     this.lockUI();
   }
@@ -367,7 +399,9 @@ export class Lab {
     // In Beam the clock follows the trace, not the drive (until Beam honours LabState.playing): no drive state.
     const beam = s.mode === "beam", parts = [s.reel || "-", beam ? "beam trace" : s.playing ? "running" : "stopped"];
     if (!this.engaged) parts.push(fine && !this.lockFailed ? "click to look" : "drag to look", "WASD to walk", "click a terminal");
-    if (!beam) parts.push(`drive: ${s.playing ? "stop" : "start"}`);
+    const r = this.carried();
+    if (r) parts.push(`reel out: ${this.reelTitle(r)} · a tape unit mounts it`);
+    else if (!beam) parts.push(`drive: ${s.playing ? "stop" : "start"}`);
     const t = parts.join(" · ");
     if (el.textContent !== t) el.textContent = t;
     el.style.display = "block";
@@ -443,10 +477,10 @@ export class Lab {
 
   get info() {
     const w = this.walk, s = this.hooks.state();
-    return { locked: this.locked, at: this.at?.name ?? null, walkup: this.walk.auto, line: this.lineEl.style.display === "none" ? null : this.lineEl.textContent, hover: this.hover?.name ?? null, lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
+    return { locked: this.locked, at: this.at?.name ?? null, carried: this.carried()?.name ?? null, walkup: this.walk.auto, line: this.lineEl.style.display === "none" ? null : this.lineEl.textContent, hover: this.hover?.name ?? null, lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
       walk: { x: w.pos.x, z: w.pos.y, yaw: w.yaw / D2R, pitch: w.pitch / D2R, near: w.near?.name ?? null },
       // what the lab reads of the page's loaded state, and the UTC its clocks show (console4009.ts replayUTC)
-      loaded: { mode: s.mode, situation: s.situation, scenario: s.scenario, mission: s.mission, get: s.get, tab: s.tab, reel: s.reel, playing: s.playing }, clock: new Date(replayUTC(s)).toISOString() };
+      loaded: { mode: s.mode, situation: s.situation, scenario: s.scenario, mission: s.mission, get: s.get, tab: s.tab, reel: s.reel, mounted: s.mounted, playing: s.playing }, clock: new Date(replayUTC(s)).toISOString() };
   }
 
   dispose(): void {
@@ -461,7 +495,7 @@ export class Lab {
     document.removeEventListener("mousemove", this.onLook);
     for (const p of this.room.placed) p.equipment.dispose?.();
     this.room.dispose?.();
-    for (const [, [, lift]] of this.lifted) lift.dispose();
+    for (const [, [base, lift]] of this.lifted) for (const x of [lift].flat()) if (![base].flat().includes(x)) x.dispose();
     this.dust?.dispose();
     this.post?.dispose();
     this.lighting.dispose();
@@ -804,7 +838,7 @@ export class Lab {
       while (o && o.userData.placed === undefined) o = o.parent;
       if (!o) continue;   // the shell
       const p = this.room.placed.find(q => q.name === o!.userData.placed);
-      return p && (p.equipment.opens || p.equipment.use || p.equipment.inert) ? p : null;
+      return p && (p.equipment.opens || p.equipment.use || p.equipment.inert) && p.equipment.usable?.() !== false ? p : null;
     }
     return null;
   }
@@ -834,9 +868,16 @@ export class Lab {
     return true;
   }
 
-  /** A placed piece's name for hover and the walk's line: its label, and its state where it has one (the drive). */
+  /** A placed piece's name for hover and the walk's line: its label, and its state where it has one (the drive), or
+   *  for a tape unit while a reel is carried, what using it does. */
   private nameOf(p: Placed): string {
-    return [this.room.labels?.[p.name], p.equipment.status?.()].filter(Boolean).join(" · ");
+    const r = p.equipment.anchors.tapeUnit !== undefined && this.carried();
+    return [this.room.labels?.[p.name], r ? `click to mount ${this.reelTitle(r)}` : p.equipment.status?.()].filter(Boolean).join(" · ");
+  }
+
+  /** A reel piece's title (taperack.ts ReelPiece). */
+  private reelTitle(p: Placed): string {
+    return (p.equipment as { reel?: ReelInfo }).reel?.title ?? p.name;
   }
 
   private clearHover(): void {
@@ -847,20 +888,33 @@ export class Lab {
 
   /** Hover highlight: a slight emissive lift on the equipment's lit surfaces (clones, so shared materials stay). */
   private lift(p: Placed, on: boolean): void {
+    const up = (base: THREE.Material): THREE.Material | null => {
+      if (!(base as THREE.MeshStandardMaterial).isMeshStandardMaterial) return null;
+      const u = base.clone() as THREE.MeshStandardMaterial;
+      u.emissive = (base as THREE.MeshStandardMaterial).emissive.clone().add(new THREE.Color(0x1c2a20));
+      return u;
+    };
     p.equipment.object.traverse(o => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
       let pair = this.lifted.get(m);
       if (!pair) {
-        const base = m.material as THREE.Material;
-        if (Array.isArray(m.material) || !(base as THREE.MeshStandardMaterial).isMeshStandardMaterial) return;
-        const up = base.clone() as THREE.MeshStandardMaterial;
-        up.emissive = (base as THREE.MeshStandardMaterial).emissive.clone().add(new THREE.Color(0x1c2a20));
-        pair = [base, up]; this.lifted.set(m, pair);
+        const base = m.material;
+        if (Array.isArray(base)) {   // a mesh with groups (a reel's case): each lit material lifted, the rest kept
+          const ups = base.map(b => up(b));
+          if (ups.every(u => !u)) return;
+          pair = [base, ups.map((u, i) => u ?? base[i])];
+        } else {
+          const u = up(base);
+          if (!u) return;
+          pair = [base, u];
+        }
+        this.lifted.set(m, pair);
       }
       m.material = on ? pair[1] : pair[0];
     });
   }
+
 
   private resize(): void {
     const w = this.host.clientWidth, h = this.host.clientHeight;

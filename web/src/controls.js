@@ -3,6 +3,7 @@
 // ---- UI ----
 function syncUI() {
   document.querySelectorAll("#scenes button").forEach(b => b.classList.toggle("on", +b.dataset.scene === LS.situation));
+  document.querySelectorAll("#reels button").forEach(b => b.classList.toggle("on", b.dataset.reel === reelMounted()));
   document.getElementById("bplay").textContent = LS.playing ? "Pause" : "Play";
   const reel = document.getElementById("reel"); reel.hidden = !auto(); reel.textContent = reelLabel();   // the mounted playlist reel's TITLE (player.js)
   document.querySelector("#ppause small").textContent = LS.playing ? "PAUSE" : "PLAY";

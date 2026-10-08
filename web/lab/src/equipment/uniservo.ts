@@ -204,7 +204,8 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
   return {
     object,
     // The drive's label is its screen anchor: what the walk's zone faces (E uses it).
-    anchors: { camera: poseFrom(new THREE.Vector3(0, 1.3, 0.37), [0.25, 0.1, 1], 1.5, 40), motion, ...(label ? { screen: { mesh: label.card, uvRect: [0, 0, 1, 1] as [number, number, number, number] } } : {}) },
+    // `tapeUnit`: its number; any tape unit mounts a reel carried from the tape rack (lab.ts).
+    anchors: { camera: poseFrom(new THREE.Vector3(0, 1.3, 0.37), [0.25, 0.1, 1], 1.5, 40), motion, tapeUnit: num, ...(label ? { screen: { mesh: label.card, uvRect: [0, 0, 1, 1] as [number, number, number, number] } } : {}) },
     ...(label ? { status: () => `${mounted.reel} · ${mounted.beam ? "Beam paces the clock" : mounted.playing ? "running · click to stop" : "stopped · click to start"}` } : {}),
     update(dt, s: LabState) {
       if (label) {

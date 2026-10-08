@@ -16,6 +16,7 @@ import { build as desk } from "./desk";
 import { build as chair } from "./chair";
 import { build as filmrecorder } from "./filmrecorder";
 import { build as bookcase } from "./bookcase";
+import { build as taperack } from "./taperack";
 
 /** Options a room may pass: a tape unit's numbers (head plate `number`, top strip `index`), a CPU cabinet's lamp panel,
  *  a chair's height. */
@@ -23,7 +24,7 @@ export interface EquipmentOptions { number?: number; index?: number; lampPanel?:
 export type EquipmentFactory = (ctx: BuildContext, opts?: EquipmentOptions) => Equipment;
 
 export const EQUIPMENT: Record<string, EquipmentFactory> = {
-  vector, glass, uniservo, cpu, powercab, console4009, controller1557, printer, cardreader, reeltable, desk, chair, filmrecorder, bookcase,
+  vector, glass, uniservo, cpu, powercab, console4009, controller1557, printer, cardreader, reeltable, desk, chair, filmrecorder, bookcase, taperack,
   // phase A's names, until the room uses the ones above
   "vector-terminal": vector, "glass-terminal": glass,
 };
@@ -43,4 +44,5 @@ export const FOOTPRINT: Record<string, [number, number, number]> = {
   chair: [0.6, 0.88, 0.6],
   filmrecorder: [2.24, 1.88, 0.94],
   bookcase: [1.0, 1.1, 0.36],
+  taperack: [2.8, 1.85, 0.45],
 };
