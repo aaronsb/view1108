@@ -23,8 +23,8 @@
 #                              rows, burn cues, situations, the scenarios' epoch, site and pad), each
 #                              double as its bit pattern in hex, so a changed value shows as data and
 #                              not only through a render.  The page's SPAN tables are in page/.
-#   render/*.txt               build/viewsvg's SVG on stdout and hdr(1..24) on stderr (VIEW_HDR) for
-#                              every case in CASES, its reel's decks loaded the same way (VIEW_REEL)
+#   render/*.txt               build/viewsvg's SVG on stdout, then hdr(1..24) on stderr (VIEW_HDR), the two
+#                              captured apart and joined in that order (#122), for every case in CASES, its reel's decks loaded the same way (VIEW_REEL)
 #   render/nb-<reel>-<name>.txt  each scenario notebook figure (#29): the case of that name in the
 #                              figures block of reel <reel>'s notebook.md, rendered once by
 #                              tools/notebook.py into build/figures/<reel>/<name>.svg and .hdr, the
@@ -346,7 +346,9 @@ capture() {
     # shellcheck disable=SC2086
     env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP \
       -u VIEW_DECK -u VIEW_DKSUM VIEW_HDR=1 VIEW_REEL=$reel $envs \
-      build/viewsvg $args > "$out/render/$name.txt" 2>&1
+      build/viewsvg $args > "$out/render/$name.svg.tmp" 2> "$out/render/$name.hdr.tmp"
+    cat "$out/render/$name.svg.tmp" "$out/render/$name.hdr.tmp" > "$out/render/$name.txt"
+    rm -f "$out/render/$name.svg.tmp" "$out/render/$name.hdr.tmp"
     n=$((n + 1))
   done <<< "$CASES"
   # The notebook figures, as tools/notebook.py rendered them (the one render tools/pack.py packs).
@@ -360,7 +362,7 @@ capture() {
   # capture: the case's own covers the frame.  What this adds: the figure the reel package carries
   # (build/reels/<reel>/notebook/figures/<name>.svg, as the last build packed it) must be that case drawn now, byte
   # for byte, so a package built before the frame changed fails here; and the .hdr notebook.py rendered above must be
-  # the case's too (the case's capture holds the two streams interleaved, so the case is redrawn with them apart).
+  # the case's too (the case is redrawn with the streams apart).
   local ng=0 gc genv gargs
   while read -r reel name gc; do
     f=build/figures/$reel/$name

@@ -65,8 +65,9 @@ def case_png(svg_text, path):
 
 
 def split_render(text):
-    """A render capture (stdout and stderr in one file, so either may come first): the SVG from the first <svg through the
-    first </svg> and its newline; the rest is the hdr text."""
+    """A render capture, as tools/golden.sh writes it (#122): the SVG (stdout) first, then the hdr words (stderr). The
+    SVG runs from <svg through the first </svg> and its newline; the rest is the hdr text. Defensive: text before the
+    <svg (a capture from before #122 with the hdr first) is hdr text too."""
     i = text.find("<svg")
     k = text.find("</svg>", i) if i >= 0 else -1
     if k < 0:
@@ -236,12 +237,22 @@ def selfcheck():
         print("imgdiff selfcheck: no build/golden/render captures (make golden); skipped")
         return 0
     tmp = ROOT / "build/.imgdiff-selfcheck.png"
-    bad = [c.name for c in caps if not case_png(split_render(c.read_text())[0], tmp)]
+    bad, few = [], []
+    for c in caps:
+        svg, hdr = split_render(c.read_text())
+        if not case_png(svg, tmp):
+            bad.append(c.name)
+        elif len(hdr_words(hdr)) < 20:
+            few.append(c.name)
     tmp.unlink(missing_ok=True)
+    if few:
+        print(f"imgdiff selfcheck: FAIL: {len(few)} capture(s) show fewer than 20 hdr words after the SVG (a baseline from before #122? "
+              f"re-capture with make golden): {', '.join(few[:8])}", file=sys.stderr)
+        return 1
     if bad:
         print(f"imgdiff selfcheck: FAIL: {len(bad)} capture(s) do not render: {', '.join(bad[:8])}", file=sys.stderr)
         return 1
-    print(f"imgdiff selfcheck: {len(caps)} golden renders split and render")
+    print(f"imgdiff selfcheck: {len(caps)} golden renders split, render and carry their hdr words")
     return 0
 
 
