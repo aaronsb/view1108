@@ -30,6 +30,7 @@ From #27. This is the one declared equipment→purpose table that #20 asks for (
 | Line printer | kernel listing | listing |
 | Bookcase | reference library; the mission notebooks (#29), each paired with its reel | library (its list also holds the mission notebooks) |
 | Console / reel-table clock | Houston time and GET of the mounted reel | status line |
+| 1108 operator console (#68) | watch the EXEC run the mounted reel; key in from the operator's notebook (a `shelf` close-up: nothing opens on the page; the file browser of #74 will) | none: the room's only (#68, the operator's station form of 2026-10-07; rule 7 does not apply, as it changes nothing) |
 
 **Tabbed is a full peer of the room**, for usability and on phones (#27). Both presentations are generated from this one table and call the same `loadReel`, so neither has a capability the other lacks (rule 7). Tabbed stays the default where WebGL is unavailable or the screen is narrow, as today: the room runs only when the lab is supported and a wide-screen media query matches (`web/src/room.js:10`, `:142`), and a link naming a view opens Tabbed for that visit (`room.js:15-16`).
 
