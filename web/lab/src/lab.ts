@@ -193,7 +193,7 @@ export class Lab {
     host.append(this.labelEl, prefsEl, this.crossEl, this.lineEl, this.atEl);
     this.picking = new Picking({
       renderer: this.renderer, camera: this.camera, host, labelEl: this.labelEl, room: this.room, carry: this.carry,
-      active: () => this.mode === "free" || !!this.at, at: () => !!this.at,
+      active: () => this.mode === "free" || !!this.at, at: () => !!this.at, atName: () => this.at?.name ?? null,
     });
     this.applyQuality();
 

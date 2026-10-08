@@ -87,7 +87,7 @@ export function operatorNotebook(exec: Exec8, aniso: number, mine: { dispose(): 
     object.position.set(0, 0.0068, -PAGE.d / 2 + PAGE.head + (i + 0.5) * PAGE.note);
     mine.push(tex, mat, geo);
     draws.push(() => { const g = (tex.image as HTMLCanvasElement).getContext("2d")!; draw(g, sw, sh); tex.needsUpdate = true; });
-    notes.push({ keyin: k.id, object, anchors: {}, opens: undefined, press: () => { exec.keyin(k.id); } });
+    notes.push({ keyin: k.id, object, anchors: {}, opens: undefined, pressAt: "console", press: () => { exec.keyin(k.id); } });   // queued while the operator types
   });
   const redraw = () => {
     const g = (pageTex.image as HTMLCanvasElement).getContext("2d")!; drawPage(g, W, H); pageTex.needsUpdate = true;

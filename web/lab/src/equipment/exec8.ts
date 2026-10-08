@@ -87,7 +87,14 @@ interface Run {
   phase: "opening" | "reel" | "profile" | "go" | "done";
   waitN: number;         // the type-and-read's number while waiting for GO
   service: number;       // s until the next SERVICE while waiting for the reel
+  /** Its RN is on the screen: only then does its end print @FIN. */
+  shown: boolean;
 }
+/** A timed action or a typed line, and the run it belongs to: dropped once that run is not the console's or has ended. */
+interface Act { at: number; f: () => void; run?: Run }
+interface Typed { text: string; i: number; next: number; done: () => void; run?: Run }
+/** Notebook keyins clicked while the operator is typing wait their turn, this many at most (ours). */
+const KEYIN_QUEUE = 4;
 
 const pad = (n: number, w = 2) => String(Math.max(0, Math.floor(n))).padStart(w, "0");
 const fmtGet = (g: number) => `${pad(g / 3600, 3)}:${pad(g / 60 % 60)}:${pad(g % 60)}`;
@@ -115,16 +122,18 @@ export class Exec8 {
   input = "";
   /** Characters typed so far, for the key clicks (roomsound.ts). */
   keys = 0;
-  /** Bumped whenever something visible changes. */
+  /** Bumped whenever a line rolls off onto the paper: console4009.ts redraws the sheet on it. */
+  paperRev = 0;
+  /** Bumped whenever something on the screen changes: console4009.ts redraws the CRT on it. */
   rev = 0;
   run: Run | null = null;
   private status: [string, string] = ["", ""];
   private openShown = false;   // the summary's OPENBCH: a run open
-  private usage = { exec: 3, batch: 0, demand: 0, idle: 97, avb: 0, avd: 0, n: 0 };
-  private q: { at: number; f: () => void }[] = [];
+  private usage = { exec: 3, batch: 0, demand: 0, idle: 97, avb: 0, avd: 0, n: 0, sumB: 0 };
+  private q: Act[] = [];      // in time order
   private t = 0;
-  private qt = 0;            // the time the queue's last action is due
-  private typing: { text: string; i: number; next: number; done: () => void }[] = [];
+  private qt = 0;            // the time the EXEC's last queued action is due
+  private typing: Typed[] = [];
   private statusT = 0;
   private seen: ExecState | null = null;
   private recorder = false;
@@ -148,8 +157,8 @@ export class Exec8 {
     const r = this.reels.filter(x => x.kind === "scenario").pop();
     if (!r) return;
     this.seen = { mounted: r.id, situation: 1, reel: "", get: 0, playing: false, tab: "", mode: "free" };
-    this.open(r, "show"); this.flush();
-    const run = this.run!;
+    const run = this.newRun(r);
+    this.open(run, "show"); this.flush();
     this.line(`${run.waitN} GO`); this.fin(run);
     this.run = null; this.seen = null; this.keys = 0;
   }
@@ -164,11 +173,12 @@ export class Exec8 {
   step(dt: number, s: ExecState): void {
     this.t += dt;
     this.observe(s);
-    while (this.q.length && this.q[0].at <= this.t) this.q.shift()!.f();
+    while (this.q.length && this.q[0].at <= this.t) { const a = this.q.shift()!; if (this.live(a)) a.f(); }
+    this.dropStaleTyping();
     const k = this.typing[0];
     if (k && this.t >= k.next) {
       if (k.i < k.text.length) { this.input = clip(this.input + k.text[k.i++]); this.keys++; k.next = this.t + TYPE_S * (0.7 + 0.6 * this.r()); this.rev++; }
-      else { this.typing.shift(); this.input = ""; this.keys++; this.rev++; k.done(); }   // the carriage return
+      else { this.typed(); k.done(); }   // the carriage return
     }
     if ((this.statusT += dt) >= STATUS_S) { this.statusT = 0; this.figures(!this.still); }
     const run = this.run;
@@ -178,10 +188,29 @@ export class Exec8 {
   /** Run every timed action and finish the typing now (the console as it stands when the room is first built). */
   flush(): void {
     for (let n = 0; n < 500 && (this.q.length || this.typing.length); n++) {
-      if (this.q.length && (!this.typing.length || this.q[0].at <= this.t)) { const a = this.q.shift()!; this.t = Math.max(this.t, a.at); a.f(); continue; }
-      const k = this.typing.shift()!; this.keys += k.text.length - k.i; this.input = ""; k.done();
+      this.dropStaleTyping();
+      if (this.q.length && (!this.typing.length || this.q[0].at <= this.t)) { const a = this.q.shift()!; this.t = Math.max(this.t, a.at); if (this.live(a)) a.f(); continue; }
+      const k = this.typing[0];
+      if (!k) continue;
+      this.keys += k.text.length - k.i; this.typed(); k.done();
     }
     this.qt = this.t; this.rev++;
+  }
+
+  /** An action or typed line still belongs to the console's run (or to none). */
+  private live(a: { run?: Run }): boolean { return !a.run || (a.run === this.run && a.run.phase !== "done"); }
+
+  /** The line being typed, or waiting to be, for a run that is gone: dropped, the keyboard line cleared. */
+  private dropStaleTyping(): void {
+    const n = this.typing.length;
+    this.typing = this.typing.filter(k => this.live(k));
+    if (this.typing.length !== n && this.input) { this.input = ""; this.rev++; }
+  }
+
+  /** The carriage return: the keyboard line clears and the next line to type starts a moment later. */
+  private typed(): void {
+    this.typing.shift(); this.input = ""; this.keys++; this.rev++;
+    if (this.typing[0]) this.typing[0].next = Math.max(this.typing[0].next, this.t + 0.3);
   }
 
   /** Page events (LabEvent): the engine ran, the listing printed, a frame went to the recorder. */
@@ -195,13 +224,17 @@ export class Exec8 {
     }
   }
 
-  /** A note clicked in the operator's notebook: type its keyin, then answer it (nothing the page holds changes). */
+  /** A note clicked in the operator's notebook: type its keyin, then answer it (nothing the page holds changes). The
+   *  keyboard is the operator's, so the keyin is typed now, not behind the EXEC's own traffic; clicked while a line is
+   *  being typed, it waits its turn. False for an unknown note or a full queue. */
   keyin(id: string): boolean {
     const k = KEYINS.find(x => x.id === id);
-    if (!k || this.typing.length) return false;
-    const runid = this.run && this.run.phase !== "done" ? this.run.id : this.runFor(this.seen?.mounted ?? "")?.id ?? "VIEW11";
-    const text = k.key(runid);
-    this.type(text, () => { this.line(text); this.after(0.5, () => this.answer(k.id, runid)); });
+    if (!k || this.typing.length > KEYIN_QUEUE) return false;
+    // The run id is read when its turn comes, so a keyin queued behind a run's opening names that run.
+    const runid = () => this.run && this.run.phase !== "done" ? this.run.id : this.runFor(this.seen?.mounted ?? "")?.id ?? "VIEW11";
+    const item: Typed = { text: "", i: 0, next: this.t + 0.3, done: () => { this.line(item.text); const r = runid(); this.soon(0.5, () => this.answer(k.id, r)); } };
+    item.text = k.key(runid());
+    this.typing.push(item);
     return true;
   }
 
@@ -216,7 +249,7 @@ export class Exec8 {
     const rec = s.tab === "print" || s.mode === "beam";
     if (!was) {   // the room is built: the run for what is mounted, as it stands
       const r = this.reelInfo(s.mounted);
-      if (r?.kind === "scenario") { this.open(r, "show"); this.flush(); }
+      if (r?.kind === "scenario") { this.open(this.newRun(r), "show"); this.flush(); }
       this.recorder = rec;
       return;
     }
@@ -241,61 +274,73 @@ export class Exec8 {
     const run = this.run, r = this.reelInfo(s.mounted);
     if (run && run.phase === "reel" && r && run.reel === r.id) { this.toXqt(run); return; }
     if (run && run.phase !== "done") this.fin(run);
-    if (r?.kind === "scenario") this.after(0.8, () => this.open(r, "type"));
+    if (r?.kind !== "scenario") return;
+    // The new run is the console's at once, so a second mount before its RN is typed ends it, and nothing of the
+    // last run's (its statements, a GO being typed) can land after it.
+    const next = this.newRun(r);
+    this.after(0.8, () => this.open(next, "type"), next);
   }
 
   // ---- a run ----
 
-  /** The run for the mounted scenario reel, else for the first scenario reel of the index. */
-  private runFor(mounted: string): Run | null {
-    const m = this.reelInfo(mounted), r = m?.kind === "scenario" ? m : this.reels.find(x => x.kind === "scenario");
-    return r ? { id: runIdFor(r.mission), reel: r.id, reelNo: reelNumber(r.id, r.mission), title: r.title, phase: "opening", waitN: 0, service: SERVICE_S } : null;
+  private newRun(r: ReelInfo): Run {
+    const run: Run = { id: runIdFor(r.mission), reel: r.id, reelNo: reelNumber(r.id, r.mission), title: r.title, phase: "opening", waitN: 0, service: SERVICE_S, shown: false };
+    this.run = run;
+    return run;
   }
 
-  /** Open the run for scenario reel `r`: RN from the RUN STREAMS tape, then the EXEC reads the stream and asks for its
-   *  tapes. `how`: the operator types the RN now ("type"), it stands keyed already ("show": the console as the room
-   *  finds it), or the notebook's RN note keyed it ("keyed"). */
-  private open(r: ReelInfo, how: "type" | "show" | "keyed"): void {
-    const run = this.runFor(r.id)!, rn = `RN ${RUNSTREAM_CU} ${run.id}`;
-    this.run = run;
+  /** The run for the mounted scenario reel, else for the first scenario reel of the index (its id and reel). */
+  private runFor(mounted: string): { id: string; reel: ReelInfo } | null {
+    const m = this.reelInfo(mounted), r = m?.kind === "scenario" ? m : this.reels.find(x => x.kind === "scenario");
+    return r ? { id: runIdFor(r.mission), reel: r } : null;
+  }
+
+  /** Open `run`: RN from the RUN STREAMS tape, then the EXEC reads the stream and asks for its tapes. `how`: the
+   *  operator types the RN now ("type"), it stands keyed already ("show": the console as the room finds it), or the
+   *  notebook's RN note keyed it ("keyed"). Every step belongs to the run, and is dropped if the run ends first. */
+  private open(run: Run, how: "type" | "show" | "keyed"): void {
+    const rn = `RN ${RUNSTREAM_CU} ${run.id}`;
     const go = () => {
-      this.after(0.7, () => this.line(`${run.id} @RUN ${run.id},69197,APOLLO`));
-      this.after(0.8, () => this.line(`${run.id} @ASG,T ${REEL_FILE.name},T,${run.reelNo}`));
-      this.after(0.5, () => this.line(`LOAD ${run.reelNo} ${REEL_CU} ${REEL_FILE.name} ${run.id}`));
-      this.after(0.8, () => this.line(`${run.id} @ASG,T PLTTAP,T,SCRTCH`));
-      this.after(0.5, () => this.line(`LOAD SCRTCH ${PLOT_CU} PLTTAP ${run.id}`));
-      this.after(0.4, () => { if (this.seen?.mounted === run.reel) this.toXqt(run); else { run.phase = "reel"; run.service = SERVICE_S; } });
+      run.shown = true;
+      this.after(0.7, () => this.line(`${run.id} @RUN ${run.id},69197,APOLLO`), run);
+      this.after(0.8, () => this.line(`${run.id} @ASG,T ${REEL_FILE.name},T,${run.reelNo}`), run);
+      this.after(0.5, () => this.line(`LOAD ${run.reelNo} ${REEL_CU} ${REEL_FILE.name} ${run.id}`), run);
+      this.after(0.8, () => this.line(`${run.id} @ASG,T PLTTAP,T,SCRTCH`), run);
+      this.after(0.5, () => this.line(`LOAD SCRTCH ${PLOT_CU} PLTTAP ${run.id}`), run);
+      this.after(0.4, () => { if (this.seen?.mounted === run.reel) this.toXqt(run); else { run.phase = "reel"; run.service = SERVICE_S; } }, run);
     };
-    if (how === "type") this.type(rn, () => { this.line(rn); go(); });
+    if (how === "type") this.type(rn, () => { this.line(rn); go(); }, run);
     else { if (how === "show") this.line(rn); go(); }
   }
 
   /** The reel is up: the program is loaded and waits for its profile (ours, conjecture), unless the clock already runs. */
   private toXqt(run: Run): void {
     run.phase = "opening";
-    this.after(0.9, () => this.line(`${run.id} @XQT VIEW`));
-    this.after(0.8, () => this.say(run, `${run.title} - ${this.reelInfo(run.reel)?.mission || ""}`.replace(/ - $/, "")));
+    this.after(0.9, () => this.line(`${run.id} @XQT VIEW`), run);
+    this.after(0.8, () => this.say(run, `${run.title} - ${this.reelInfo(run.reel)?.mission || ""}`.replace(/ - $/, "")), run);
     this.after(0.7, () => {
-      if (this.run !== run) return;
       run.phase = "profile"; run.waitN = 0;
       this.line(`${run.waitN} ${run.id}* AWAITING PROFILE - WAIT`);
       if (this.seen?.playing) this.goAhead(run);
-    });
+    }, run);
   }
 
-  /** The operator answers the run's wait with GO (p. 5-12), and the program runs the situation picked. */
+  /** The operator answers the run's wait with GO (p. 5-12), and the program runs the situation picked; never for a run
+   *  that has ended or is no longer the console's. */
   private goAhead(run: Run): void {
+    if (run !== this.run || run.phase !== "profile") return;
     run.phase = "go";
     const reply = `${run.waitN} GO`;
     this.type(reply, () => {
       this.line(reply);
-      this.after(0.6, () => { if (this.run === run && this.seen) this.say(run, this.sit(this.seen)); });
-    });
+      this.after(0.6, () => { if (this.seen) this.say(run, this.sit(this.seen)); }, run);
+    }, run);
   }
 
+  /** The run ends: @FIN once its RN has been seen (a run ended before its RN was typed leaves no trace). */
   private fin(run: Run): void {
     run.phase = "done";
-    this.line(`${run.id} @FIN`);
+    if (run.shown) this.line(`${run.id} @FIN`);
   }
 
   private sit(s: ExecState): string {
@@ -311,16 +356,17 @@ export class Exec8 {
       case "cstype": this.line(run ? `${run.id}   ${{ go: "ACTIVE", reel: "WAITING ON " + REEL_CU, profile: `WAITING ON MESSAGE ${run.waitN}`, opening: "OPENING", done: "" }[run.phase]}` : "NO ACTIVE RUNS"); break;
       case "backlog": this.line("NO RUNS IN BACKLOG"); break;
       case "ii": this.line(run ? `${run.id} II IGNORED - NO INTERRUPT ROUTINE` : `${runid} NOT ACTIVE`); break;
-      case "x":
-        if (run) { run.phase = "done"; this.q = []; this.line(`${run.id} - ABORT`); }
+      case "x":   // the run ends now: what it had queued, and a GO being typed for it, are dropped
+        if (run) { run.phase = "done"; this.q = this.q.filter(a => this.live(a)); this.qt = this.t; this.dropStaleTyping(); this.line(`${run.id} - ABORT`); }
         else this.line(`${runid} NOT ACTIVE`);
         break;
       case "dn": this.units.add(PLOT_CU); this.line(`${PLOT_CU} DN`); break;
       case "up": this.units.delete(PLOT_CU); this.line(`${PLOT_CU} UP`); break;
       case "rn": {
-        if (run) { this.line(`${run.id} DUPLICATED. NEW ID IS ${run.id.slice(0, 5)}A`); break; }   // p. 11-5's form
+        // p. 11-5's form; the new id's letter, and that no second run follows, are ours
+        if (run) { this.line(`${run.id} DUPLICATED. NEW ID IS ${run.id.slice(0, 5)}A`); break; }
         const r = this.reels.find(x => x.kind === "scenario" && runIdFor(x.mission) === runid) ?? this.reelInfo(this.seen?.mounted ?? "");
-        if (r && r.kind === "scenario") this.open(r, "keyed");
+        if (r && r.kind === "scenario") this.open(this.newRun(r), "keyed");
         else this.line("KEY ER");
         break;
       }
@@ -336,7 +382,8 @@ export class Exec8 {
     const j = (n: number) => drift ? n + Math.floor((this.r() - 0.5) * 8) : n;
     u.exec = Math.max(1, j(go ? 6 : 3)); u.batch = go && this.seen?.playing ? Math.max(20, j(64)) : open ? Math.max(0, j(4)) : 0;
     u.demand = 0; u.idle = Math.max(0, 100 - u.exec - u.batch - u.demand);
-    u.n++; u.avb = Math.round(u.avb + (u.batch - u.avb) / Math.min(u.n, 50)); u.avd = 0;
+    // AVEBCH: "THE PERCENTAGE OF THE ELAPSED TIME SINCE BOOTING" (p. 11-6), here since the room was built (ours)
+    u.n++; u.sumB += u.batch; u.avb = Math.round(u.sumB / u.n); u.avd = 0;
     const p = (n: number) => pad(n) + "%";
     this.status = [`LAST PERIOD USAGE; EXEC ${p(u.exec)}, BATCH ${p(u.batch)}, DEMAND ${p(u.demand)}, IDLE ${p(u.idle)},`,
       `RT 00%, OPENBCH ${pad(open ? 1 : 0)}, UNOPRUN 00, AVEBCH ${p(u.avb)}, AVEDEM ${p(u.avd)}`];
@@ -351,19 +398,28 @@ export class Exec8 {
   private line(text: string): void {
     if ((!!this.run && this.run.phase !== "done") !== this.openShown) this.figures(false);
     this.msgs.push(clip(text));
-    while (this.msgs.length > MSG_ROWS) { this.paper.push(this.msgs.shift()!); if (this.paper.length > PAPER_MAX) this.paper.shift(); }
+    while (this.msgs.length > MSG_ROWS) { this.paper.push(this.msgs.shift()!); this.paperRev++; if (this.paper.length > PAPER_MAX) this.paper.shift(); }
     this.rev++;
   }
 
-  /** An action `d` s after the last one queued (or now). */
-  private after(d: number, f: () => void): void {
+  /** The EXEC's next action, `d` s after the last one it queued (or now), for `run` if it belongs to one. */
+  private after(d: number, f: () => void, run?: Run): void {
     this.qt = Math.max(this.qt, this.t) + d;
-    this.q.push({ at: this.qt, f });
+    this.at({ at: this.qt, f, run });
   }
 
-  /** The operator types `text` on the keyboard line, then the carriage return runs `done`. */
-  private type(text: string, done: () => void): void {
-    this.typing.push({ text, i: 0, next: Math.max(this.t, this.qt) + 0.3, done });
+  /** An answer to the operator, `d` s from now, not behind the EXEC's queue. */
+  private soon(d: number, f: () => void): void { this.at({ at: this.t + d, f }); }
+
+  private at(a: Act): void {
+    let i = this.q.length;
+    while (i > 0 && this.q[i - 1].at > a.at) i--;
+    this.q.splice(i, 0, a);
+  }
+
+  /** The operator types `text` for `run` once the EXEC's queue has played out, then the carriage return runs `done`. */
+  private type(text: string, done: () => void, run?: Run): void {
+    this.typing.push({ text, i: 0, next: Math.max(this.t, this.qt) + 0.3, done, run });
   }
 
   private reelInfo(id: string): ReelInfo | undefined { return this.reels.find(r => r.id === id); }

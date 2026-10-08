@@ -271,13 +271,15 @@ export function build(ctx: BuildContext): Equipment {
   let crtKey = "", fontRev = 0;
   // The faces load after the room is built: redraw once they are in (the canvas falls back silently before).
   if (typeof document !== "undefined" && document.fonts) void Promise.all([document.fonts.load(`28px ${CRT_FONT}`), document.fonts.load(`bold 20px ${HAND}`), document.fonts.load(`12px ${HAND}`)])
-    .then(() => { fontRev++; book.redraw(); paperKey = ""; }, () => {});
+    .then(() => { fontRev++; book.redraw(); }, () => {});
+  // Redrawn only when the loop's screen changed (Exec8.rev), the cursor blinked or the faces arrived.
   const drawCrt = () => {
     // The cursor after the keyboard line blinks (steady under ?labmotion=0, ours); the rest is the loop's screen.
     const blink = ctx.still || Math.floor(performance.now() / 530) % 2 === 0;
-    const lines = exec.screen(), k = `${fontRev}|${blink}|${lines.join("\n")}`;
+    const k = `${fontRev}|${blink}|${exec.rev}`;
     if (k === crtKey) return;
     crtKey = k;
+    const lines = exec.screen();
     tg.shadowBlur = 0; tg.fillStyle = "#06100a"; tg.fillRect(0, 0, CW, CH);
     // A cell 64 x 16 across the 10 x 5 in face (UP-7604 Table 2-1), the face filled to its edges less a margin (ours).
     const mx = 18, my = 10, cw = (CW - 2 * mx) / COLS, lh = (CH - 2 * my) / lines.length;
@@ -297,19 +299,20 @@ export function build(ctx: BuildContext): Equipment {
   };
 
   // ---- the PAGEWRITER's paper: what rolled off the CRT, up out of the platen and leaning back; the newest line at the
-  // platen. 80 characters a line (UP-7604 sec. 2.1) across most of the sheet; the pitch, the line spacing and the
-  // sheet's width are ours. ----
+  // platen. "Its maximum line length is 80 characters ... Horizontal spacing of characters is ten to the inch.
+  // Vertical spacing is six lines per inch" (UP-7604 sec. 2.3.2, p. 2-5): an 80-column line is 8 in, centred on the
+  // sheet; the sheet's size and the ink are ours. ----
   const PWW = 1024, PWH = 784, PW_M = 0.26 / PWH;   // the sheet is 0.34 x 0.26 m; metres a pixel
   const paperTex = canvasTex(PWW, PWH, () => {}, ctx.maxAnisotropy);
   mine.push(paperTex);
   const pgx = (paperTex.image as HTMLCanvasElement).getContext("2d")!;
   let paperKey = "";
   const drawPaper = () => {
-    const k = `${exec.paper.length}|${exec.paper[exec.paper.length - 1] ?? ""}`;
+    const k = `${fontRev}|${exec.paperRev}`;
     if (k === paperKey) return;
     paperKey = k;
-    // 80 columns across 0.9 of the sheet; the newest line 0.035 m above the sheet's foot, clear of the platen's bar.
-    const cw = PWW * 0.9 / 80, lh = cw / 0.6 * 1.15, foot = PWH - 0.035 / PW_M, rows = Math.floor(foot / lh), x0 = PWW * 0.05;
+    // 10 to the inch and 6 lines to the inch; the newest line 0.035 m above the sheet's foot, clear of the platen's bar.
+    const IN = 0.0254 / PW_M, cw = IN / 10, lh = IN / 6, foot = PWH - 0.035 / PW_M, rows = Math.floor(foot / lh), x0 = (PWW - 80 * cw) / 2;
     pgx.fillStyle = "#f2eee2"; pgx.fillRect(0, 0, PWW, PWH);
     pgx.font = `bold ${cw / 0.6}px ${HAND}`; pgx.textBaseline = "alphabetic"; pgx.textAlign = "left";
     const r = rng(7604), lines = exec.paper.slice(-rows);

@@ -115,9 +115,11 @@ export interface Equipment {
   /** Something on a shelf at a close-up (equipment/pullable.ts): a click pulls it out (and puts the last one back);
    *  true when it was already out and opens, so the lab opens it under its placed name. */
   pull?(): boolean;
-  /** Something used in place at its station's close-up, and only there (a note in the operator's notebook at the 1108
-   *  console: a click keys it in, #68). Walking, it is part of its station: a click on it flies there. */
+  /** Something used in place at its station's close-up (`pressAt`), and only there (a note in the operator's notebook at
+   *  the 1108 console: a click keys it in, #68). Elsewhere it is part of its station: walking, a click on it flies there. */
   press?(): void;
+  /** The placed name of the station at whose close-up `press` works. */
+  pressAt?: string;
   /** It is out and opens: E or Enter at the close-up opens it. */
   pulled?(): boolean;
   /** It is out and stays out after the close-up, carried to where it is used (a reel pulled at the tape rack, until a

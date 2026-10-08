@@ -3,7 +3,8 @@
 // LOAD message for the reel and the plot tape, the wait for a profile answered GO when the clock starts), a playlist
 // mounted (the run's @FIN, the idle EXEC), a notebook keyin typed and answered, a run started by RN waiting for its reel
 // (SERVICE every two minutes until it is mounted), every line 64 characters or fewer, and what rolls off reaching the
-// PAGEWRITER. Node, no three.js.
+// PAGEWRITER; and the runs kept apart (PR #101 review): a remount 0.3, 1.2 and 4 s after a mount, the demo taken over
+// while GO is typed, X while a run opens, and a keyin queued behind another. Node, no three.js.
 import type { ReelInfo } from "../types";
 import { COLS, Exec8, KEYINS, MSG_ROWS, ROWS, reelNumber, runIdFor, type ExecState } from "./exec8";
 
@@ -48,32 +49,92 @@ ok(/^V11\d{3}$/.test(r11) && r11 === reelNumber("apollo11-asflown", "APOLLO 11")
   fits(x, "seeded");
 }
 
-// LOAD ... AND EXEC: Apollo 8 mounted while the demo plays (the clock stopped, as a fresh mount leaves it), then the
-// clock started: the operator answers GO and the run goes on; a situation picked; the demo again ends the run.
+/** What the console has shown since the shift's last run (the history, Apollo 8 in this index) ended. */
+const HIST_END = "VIEW08 @FIN";
+const livePart = (x: Exec8) => { const t = text(x), i = t.indexOf(HIST_END); return i < 0 ? t : t.slice(i + HIST_END.length + 1); };
+const liveLines = (x: Exec8) => livePart(x).split("\n").filter(Boolean);
+/** Every run's @FIN after its own RN, and every run whose RN was shown ended or still the console's. */
+function runsSane(x: Exec8, what: string) {
+  const L = liveLines(x);
+  for (const id of ["VIEW11", "VIEW08"]) {
+    const rn = L.indexOf(`RN 06/00 ${id}`), fin = L.indexOf(`${id} @FIN`);
+    if (fin >= 0) ok(rn >= 0 && rn < fin, `${what}: ${id} @FIN after its RN (RN ${rn}, @FIN ${fin})`);
+    if (rn >= 0 && fin < 0) ok(x.run?.id === id && x.run.phase !== "done", `${what}: ${id} opened and neither ended nor the console's run`);
+  }
+}
+/** No line of run `id` after line `from` of the live part. */
+const nothingOf = (x: Exec8, id: string, from: number) => liveLines(x).slice(from + 1).filter(l => l.includes(id) || /^\d GO$/.test(l));
+
+// LOAD ... AND EXEC: Apollo 11 mounted while the demo plays (the clock stopped, as a fresh mount leaves it), then the
+// clock started: the operator answers GO and the run goes on; a situation picked; the demo again ends the run. Checked
+// on what came after the shift's history run, which shows the same kinds of lines.
 {
   const x = new Exec8(REELS, true);
   run(x, 2, page());
-  const a8 = page({ mounted: "apollo8-asflown", mode: "free", playing: false, reel: "EARTHRISE", get: 272919.7 });
-  run(x, 1.5, a8);
-  ok(x.input.length > 0 && "RN 06/00 VIEW08".startsWith(x.input), `mount: the operator types RN ("${x.input}")`);
+  const a11 = page({ mounted: "apollo11-asflown", mode: "free", playing: false, reel: "EARTHRISE", get: 368044 });
+  run(x, 1.5, a11);
+  ok(x.input.length > 0 && "RN 06/00 VIEW11".startsWith(x.input), `mount: the operator types RN ("${x.input}")`);
   ok(x.keys > 0, "mount: key clicks counted");
-  run(x, 12, a8);
-  const r8 = reelNumber("apollo8-asflown", "APOLLO 8");
-  let t = text(x);
-  for (const want of ["RN 06/00 VIEW08", `LOAD ${r8} 06/03 VIEWTP VIEW08`, "VIEW08 @XQT VIEW", "VIEW08* APOLLO 8 AS FLOWN - APOLLO 8", "0 VIEW08* AWAITING PROFILE - WAIT"])
-    ok(t.includes(want), `mount: "${want}"`);
-  ok(t.indexOf("RN 06/00") < t.indexOf("@ASG,T VIEWTP") && t.indexOf("@ASG,T VIEWTP") < t.indexOf(`LOAD ${r8}`) && t.indexOf(`LOAD ${r8}`) < t.indexOf("@XQT"), "mount: RN, @ASG, LOAD, @XQT in order");
+  run(x, 12, a11);
+  ok(liveLines(x).join("|") === ["RN 06/00 VIEW11", "VIEW11 @RUN VIEW11,69197,APOLLO", `VIEW11 @ASG,T VIEWTP,T,${r11}`, `LOAD ${r11} 06/03 VIEWTP VIEW11`,
+    "VIEW11 @ASG,T PLTTAP,T,SCRTCH", "LOAD SCRTCH 06/05 PLTTAP VIEW11", "VIEW11 @XQT VIEW", "VIEW11* APOLLO 11 AS FLOWN - APOLLO 11", "0 VIEW11* AWAITING PROFILE - WAIT"].join("|"),
+    `mount: the run's lines in order after the history ("${liveLines(x).join("|")}")`);
   ok(x.run?.phase === "profile", "mount: waiting for GO while the clock is stopped");
-  run(x, 4, { ...a8, playing: true });
-  t = text(x);
-  ok(t.includes("\n0 GO\n") && t.includes("VIEW08* SIT 01 EARTHRISE GET 075:48:39"), "start: GO, then the situation");
-  run(x, 1, { ...a8, playing: true, situation: 2, reel: "LUNAR ORBIT", get: 300000 });
-  ok(text(x).includes("VIEW08* SIT 02 LUNAR ORBIT GET 083:20:00"), "a situation picked");
+  run(x, 4, { ...a11, playing: true });
+  ok(liveLines(x).slice(-2).join("|") === "0 GO|VIEW11* SIT 01 EARTHRISE GET 102:14:04", "start: GO, then the situation");
+  run(x, 1, { ...a11, playing: true, situation: 2, reel: "LUNAR ORBIT", get: 300000 });
+  ok(liveLines(x).slice(-1)[0] === "VIEW11* SIT 02 LUNAR ORBIT GET 083:20:00", "a situation picked");
   x.event({ type: "tape", at: 0 });
-  ok(text(x).endsWith("VIEW08* ENGINE RUN - STATE TAPE WRITTEN"), "engine run");
+  ok(text(x).endsWith("VIEW11* ENGINE RUN - STATE TAPE WRITTEN"), "engine run");
   run(x, 2, page({ mounted: "tour", mode: "tour" }));
-  ok(text(x).endsWith("VIEW08 @FIN") && x.run?.phase === "done", "a playlist mounted: @FIN");
+  ok(text(x).endsWith("VIEW11 @FIN") && x.run?.phase === "done", "a playlist mounted: @FIN");
+  runsSane(x, "mount");
   fits(x, "mount");
+}
+
+// A second mount soon after the first (0.3 s: before the first run's RN is typed; 1.2 s: while it is typed): the first
+// run ends cleanly or leaves no trace, nothing of it lands after the second run's RN, and the second runs to its wait.
+for (const gap of [0.3, 1.2, 4]) {
+  const x = new Exec8(REELS, true);
+  run(x, 1, page());
+  run(x, gap, page({ mounted: "apollo11-asflown", mode: "free", playing: false, reel: "EARTHRISE" }));
+  run(x, 15, page({ mounted: "apollo8-asflown", mode: "free", playing: false, reel: "EARTHRISE" }));
+  const what = `remount after ${gap} s`, L = liveLines(x), rn8 = L.indexOf("RN 06/00 VIEW08");
+  runsSane(x, what);
+  ok(rn8 >= 0 && nothingOf(x, "VIEW11", rn8).length === 0, `${what}: nothing of VIEW11 after RN VIEW08 (${nothingOf(x, "VIEW11", rn8).join("|")})`);
+  ok(L.filter(l => l === "RN 06/00 VIEW08").length === 1 && x.run?.id === "VIEW08" && x.run.phase === "profile", `${what}: one VIEW08 run, waiting (${x.run?.id} ${x.run?.phase})`);
+}
+
+// The demo taken over again while the operator is typing GO: the run's @FIN, and no GO after it.
+{
+  const x = new Exec8(REELS, true);
+  run(x, 1, page());
+  const a11 = page({ mounted: "apollo11-asflown", mode: "free", playing: false, reel: "EARTHRISE" });
+  run(x, 12, a11);
+  ok(x.run?.phase === "profile", "demo during GO: waiting first");
+  run(x, 0.42, { ...a11, playing: true });
+  ok(x.input.length > 0 && "0 GO".startsWith(x.input), `demo during GO: GO being typed ("${x.input}")`);
+  run(x, 5, page());
+  const L = liveLines(x), fin = L.indexOf("VIEW11 @FIN");
+  ok(fin >= 0 && nothingOf(x, "VIEW11", fin).length === 0 && x.input === "", `demo during GO: @FIN, nothing after it (${L.slice(fin).join("|")})`);
+  runsSane(x, "demo during GO");
+}
+
+// X keyed while the run is opening, the clock running: typed at once, not behind the EXEC's statements; the abort
+// ends the run, and nothing of it (no @XQT, no wait, no GO) follows.
+{
+  const x = new Exec8(REELS, true);
+  run(x, 1, page());
+  const a11 = page({ mounted: "apollo11-asflown", mode: "free", playing: true, reel: "EARTHRISE" });
+  run(x, 3.2, a11);
+  ok(x.run?.phase === "opening" && liveLines(x).includes("RN 06/00 VIEW11") && !liveLines(x).includes("VIEW11 @XQT VIEW"), "X while opening: opening");
+  ok(x.keyin("x"), "X while opening: keyed");
+  run(x, 15, a11);
+  const L = liveLines(x), ab = L.indexOf("VIEW11 - ABORT");
+  const xi = L.indexOf("X VIEW11");   // the EXEC may print a line already due while the operator types (0.5 s)
+  ok(xi >= 0 && ab > xi && ab - xi <= 2, `X while opening: X VIEW11, then VIEW11 - ABORT at once (${L.join("|")})`);
+  ok(nothingOf(x, "VIEW11", ab).length === 0 && !L.includes("VIEW11 @XQT VIEW"), `X while opening: nothing of the run after the abort (${L.slice(ab).join("|")})`);
+  ok(x.run?.phase === "done", "X while opening: the run ended");
 }
 
 // A notebook keyin: typed a character at a time, then answered; X aborts the console's run only.
@@ -82,11 +143,13 @@ ok(/^V11\d{3}$/.test(r11) && r11 === reelNumber("apollo11-asflown", "APOLLO 11")
   const p = page({ mounted: "apollo11-asflown", mode: "free", playing: true, reel: "EARTHRISE" });
   x.step(0.05, p);
   ok(x.keyin("ss"), "keyin: accepted");
-  ok(!x.keyin("cstype"), "keyin: one at a time");
   run(x, 0.36, p);
   ok(x.input.length > 0 && "SS".startsWith(x.input), `keyin: on the keyboard line ("${x.input}")`);
   run(x, 2, p);
   ok(x.msgs.slice(-3)[0] === "SS" && x.msgs.slice(-2).join("\n") === x.screen().slice(0, 2).join("\n"), "SS: the status report");
+  ok(x.keyin("backlog") && x.keyin("cstype"), "keyin: a second while the first is typed, queued");
+  run(x, 5, p);
+  ok(x.msgs.slice(-4).join("|") === "CS LIST BACKLOG|NO RUNS IN BACKLOG|CS TYPE|VIEW11   ACTIVE", `keyin: both typed and answered in turn (${x.msgs.slice(-4).join("|")})`);
   x.keyin("x"); run(x, 3, p);
   ok(x.msgs.slice(-2).join("|") === "X VIEW11|VIEW11 - ABORT" && x.run?.phase === "done", "X: VIEW11 - ABORT");
   x.keyin("cstype"); run(x, 3, p);
@@ -124,4 +187,4 @@ ok(/^V11\d{3}$/.test(r11) && r11 === reelNumber("apollo11-asflown", "APOLLO 11")
 }
 
 if (fails) throw new Error(`exec8: ${fails} failure(s)`);
-console.log("exec8: PASS (idle, the room built on a mounted reel, LOAD ... AND EXEC to GO and @FIN, the notebook's keyins, RN waiting on SERVICE, roll-off to the PAGEWRITER)");
+console.log("exec8: PASS (idle, the room built on a mounted reel, LOAD ... AND EXEC to GO and @FIN, remounts at 0.3/1.2/4 s, the demo taken over during GO, X while opening, the notebook's keyins queued, RN waiting on SERVICE, roll-off to the PAGEWRITER)");

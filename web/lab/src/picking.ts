@@ -11,6 +11,8 @@ export interface PickView {
   active(): boolean;
   /** At a close-up. */
   at(): boolean;
+  /** The station whose close-up it is, if any. */
+  atName(): string | null;
 }
 
 export class Picking {
@@ -26,9 +28,10 @@ export class Picking {
     this.ray.setFromCamera(new THREE.Vector2((x - r.left) / r.width * 2 - 1, -((y - r.top) / r.height) * 2 + 1), this.v.camera);
     const named = (o: THREE.Object3D) => o.userData.placed === undefined ? undefined : this.v.room.placed.find(q => q.name === o.userData.placed);
     for (const h of this.ray.intersectObject(this.v.room.object, true)) {
-      // The nearest placed piece above what was hit; a piece pressed only at a close-up stands for its station elsewhere.
+      // The nearest placed piece above what was hit; a piece pressed only at its station's close-up stands for that
+      // station anywhere else.
       let o: THREE.Object3D | null = h.object, p = named(o);
-      while (o && (!p || (p.equipment.press && !this.v.at()))) { o = o.parent; p = o ? named(o) : undefined; }
+      while (o && (!p || (p.equipment.press && this.v.atName() !== p.equipment.pressAt))) { o = o.parent; p = o ? named(o) : undefined; }
       if (!o || !p) continue;   // the shell
       return (p.equipment.opens || p.equipment.use || p.equipment.inert || p.equipment.press) && p.equipment.usable?.() !== false ? p : null;
     }
