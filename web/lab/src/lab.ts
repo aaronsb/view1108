@@ -243,7 +243,12 @@ export class Lab {
   setTarget(name: string | null, open = false): boolean {
     this.picking.clearHover();
     if (open && this.at?.name === name) { this.open(); return true; }
-    if (name === null) { this.drop(true); this.fly(this.home0, 0, true); return true; }
+    if (name === null) {   // as back(): what is out on a shelf goes back (a carried reel stays out)
+      this.drop(true);
+      for (const q of this.room.placed) q.equipment.select?.(false);
+      this.fly(this.home0, 0, true);
+      return true;
+    }
     const p = this.room.placed.find(q => q.name === name);
     if (!p) return false;
     const opens = p.equipment.opens;

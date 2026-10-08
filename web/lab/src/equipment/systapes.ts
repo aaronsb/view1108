@@ -34,7 +34,7 @@ export const SYSTEM_TAPES: readonly SystemTape[] = [
   { id: "runstreams", label: "RUN STREAMS", lines: ["RUN", "STREAMS"], tint: 0x3f5a3a, flange: 0x4f8a52, unit: 60 },
   { id: "kernel", label: "VIEW KERNEL", lines: ["VIEW", "KERNEL"], tint: 0x2b2d30, flange: 0xd8d0b4, unit: 61 },
   { id: "ephemeris", label: "EPHEMERIS", lines: ["EPHEMERIS"], tint: 0xb8963a, flange: 0xd9b440, unit: 62 },
-  { id: "models", label: "MODELS", lines: ["MODELS"], tint: 0x5b6f86, flange: 0x6d8fb8, unit: 64 },
+  { id: "models", label: "MODELS", lines: ["MODELS"], tint: 0x5b6f86, flange: 0x3a3f44, unit: 64 },
   { id: "plot", label: "PLOT TAPE", lines: ["PLOT", "TAPE"], tint: 0xd8d0b4, flange: 0xc8642a, unit: 65 },
   { id: "media1", label: "MEDIA 1", lines: ["MEDIA 1"], tint: 0x6b4a78, flange: 0x9a78b0, unit: 66 },
   { id: "media2", label: "MEDIA 2", lines: ["MEDIA 2"], tint: 0x2f6b6b, flange: 0x4fa0a0, unit: null },

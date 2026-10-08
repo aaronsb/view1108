@@ -79,7 +79,7 @@ function hubLabel(mine: { dispose(): void }[]) {
   const tex = canvasTex(S, S, () => {});
   const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85, transparent: true });
   const disc = new THREE.Mesh(new THREE.CircleGeometry(HUB_LABEL_R, 32), mat);
-  disc.position.z = 0.0088; disc.visible = false;
+  disc.position.z = 0.0088; disc.visible = false; disc.userData.noShadow = true;
   mine.push(disc.geometry, mat, tex);
   const measure = document.createElement("canvas").getContext("2d")!;
   const set = (text: string, tint: number) => {
@@ -230,7 +230,7 @@ export function build(ctx: BuildContext, opts: UniservoOptions = {}): Equipment 
   if (label) object.add(label.card, label.run, label.stop);
   // A system tape's unit: a paper label like the drive's, without lamps, while it carries the tape.
   const paper = sys ? reelLabel(mine, false) : null;
-  if (paper) { paper.card.visible = false; object.add(paper.card); }
+  if (paper) { paper.card.visible = false; paper.card.userData.noShadow = true; object.add(paper.card); }
   const kindOf = (id: string) => ctx.reels?.find(q => q.id === id)?.kind;
   let dressed = false, mountedId: string | null = null;
   /** The drive's last reading of the page: whether its clock runs, and the reel's name. */

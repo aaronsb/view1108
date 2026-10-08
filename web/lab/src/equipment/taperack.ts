@@ -82,11 +82,13 @@ function rimLabel(arc: number, at: number, draw: (g: CanvasRenderingContext2D, w
 
 /** A labelled case: its hand-lettered front label (`lines`) and its typed title; the object's origin is on the deck
  *  under the case's centre. */
-function labelledCase(title: string, lines: readonly string[], seed: number, tint: number, mine: { dispose(): void }[]): THREE.Group {
+function labelledCase(title: string, lines: readonly string[], seed: number, tint: number, mine: { dispose(): void }[], prop = false): THREE.Group {
   const object = new THREE.Group();
+  // A darker face reads as a case. A system tape (`prop`) is cheaper, three draw calls fewer: its rim's material all
+  // round, and no typed title (`title` unused).
   const rim = plastic(tint, 0.5), face = plastic(new THREE.Color(tint).multiplyScalar(0.8).getHex(), 0.55);
-  const body = new THREE.Mesh(caseGeo(), [rim, face, face]); body.position.y = R + 0.001;
-  const typed = rimLabel(TYPED_ARC, TYPED_AT, (g, w, h) => {
+  const body = new THREE.Mesh(caseGeo(), prop ? rim : [rim, face, face]); body.position.y = R + 0.001;
+  const typed = prop ? null : rimLabel(TYPED_ARC, TYPED_AT, (g, w, h) => {
     g.fillStyle = "#f1ecdc"; g.fillRect(0, 0, w, h);
     g.fillStyle = "#18181a"; g.textAlign = "center"; g.textBaseline = "middle";
     let px = h * 0.5;
@@ -105,16 +107,17 @@ function labelledCase(title: string, lines: readonly string[], seed: number, tin
       marker(g, l, (w - markerWidth(l, px)) / 2, h * (i + 0.5) / n + 1, px, r);
     });
   }, mine, 0.9);
-  object.add(body, typed, front);
+  object.add(body, front);
+  if (typed) object.add(typed);
   return object;
 }
 const caseCamera = () => ({ camera: { position: new THREE.Vector3(0, R + 0.2, 0.85), target: new THREE.Vector3(0, R, 0), fov: 34 } });
 /** A reel of the index on the rack. */
 const reelPiece = (reel: ReelInfo, tint: number, mine: { dispose(): void }[]): ReelPiece =>
   ({ object: labelledCase(reel.title, frontLines(reel), reel.id.length * 977 + reel.title.length, tint, mine), reel, anchors: caseCamera() });
-/** A system tape on the rack: its own case colour, its name typed after SYSTEM. */
+/** A system tape on the rack: its own case colour and its hand-lettered name. */
 const sysTapePiece = (tape: SystemTape, mine: { dispose(): void }[]): SysTapePiece =>
-  ({ object: labelledCase(`SYSTEM · ${tape.label}`, tape.lines, tape.id.length * 613 + tape.label.length, tape.tint, mine), tape, anchors: caseCamera() });
+  ({ object: labelledCase(`SYSTEM · ${tape.label}`, tape.lines, tape.id.length * 613 + tape.label.length, tape.tint, mine, true), tape, anchors: caseCamera() });
 
 /** The bay and level number plates, A-1 to C-5: white on black in the nameplate face, one atlas, one mesh. */
 function numberPlates(mine: { dispose(): void }[]): THREE.Mesh {
@@ -227,6 +230,7 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
     const item = shelf.add(p.object, { offset: PULL, opens: true });
     items.set(p.reel.id, item);
     Object.assign(p, shelf.member(item), {
+      hint: () => hint(),
       select: (on: boolean) => { if (on) shelf.set(item); },
       carried: () => shelf.isOut(item),
       putBack: () => { const was = shelf.isOut(item); shelf.back(item); return was; },
@@ -235,9 +239,13 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
   }
   // A system tape comes out as a reel does and a second click asks for its modal (it is not a simulation scenario:
   // PUT TAPE BACK only); it is not carried, so stepping back puts it back, as a binder (#87, ours).
+  const sysItems: Pullable[] = [];
+  /** The close-up's line: a system tape's own while one is out, else the shelf's. */
+  const hint = () => sysItems.some(i => shelf.isOut(i)) ? "System tape · click again · Esc to put it back" : shelf.hint();
   for (const p of systapes) {
     const item = shelf.add(p.object, { offset: PULL, opens: true });
-    Object.assign(p, shelf.member(item), { putBack: () => { const was = shelf.isOut(item); shelf.back(item); return was; } });
+    sysItems.push(item);
+    Object.assign(p, shelf.member(item), { hint, putBack: () => { const was = shelf.isOut(item); shelf.back(item); return was; } });
   }
   const target = new THREE.Vector3(0, 1.27, 0.12);
   return {
@@ -250,7 +258,7 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
       shelf,
       items,
     },
-    hint: () => shelf.hint(),
+    hint,
     putBack: () => shelf.putBack(),
     update: (dt, s: LabState) => { shelf.update(dt); mounted = s.mounted; },
     dispose() { mine.forEach(d => d.dispose()); },

@@ -20,8 +20,9 @@
 // larger than the real track pitch, so it reads); the red lamps flicker with that activity, brighter and busier after
 // the engine runs (`tape`) or a reel is mounted.
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { BuildContext, Equipment, LabEvent, LabState } from "../types";
-import { PAL, Parts, at, canvasTex, grid, lampMat, lensGeo, nameplate, paint, poseFrom, rng, satinMetal, smoked, tileGeo } from "./kit";
+import { PAL, Parts, at, canvasTex, grid, lampMat, lensGeo, nameplate, paint, poseFrom, rng, satinMetal, smoked } from "./kit";
 
 export const W = 3.5, H = 1.6, D = 0.9;
 const PLINTH = 0.16, FZ = D / 2;                          // the plinth's height; the front face
@@ -53,10 +54,12 @@ export function build(ctx: BuildContext): Equipment {
   const object = new THREE.Group(), mine: { dispose(): void }[] = [], still = !!ctx.still;
   const r = rng(880);
   const P = new Parts();
+  // Few materials, so the unit costs few draw calls: one per material of its baked parts.
   const blue = paint(BLUE, 0.7), cream = paint(CREAM, 0.6), dark = paint(PAL.dark, 0.9), charcoal = paint(PAL.charcoal, 0.8);
+  const frame = satinMetal(FRAME), liner = paint(LINER, 0.7);
   // The plinth, set back a little, with its louvres.
   P.box(W - 0.04, PLINTH, D - 0.06, dark, 0, PLINTH / 2, -0.01);
-  for (let k = 0; k < 6; k++) P.box(W - 0.08, 0.008, 0.012, paint(0x15171a, 0.9), 0, 0.025 + k * 0.022, FZ - 0.035);
+  for (let k = 0; k < 6; k++) P.box(W - 0.08, 0.008, 0.012, charcoal, 0, 0.025 + k * 0.022, FZ - 0.035);
   // The body: two grey-blue end cabinets and the cream centre, dark seams between them.
   const bodyH = H - PLINTH, by = PLINTH + bodyH / 2;
   P.box(LEFT, bodyH, D, blue, -W / 2 + LEFT / 2, by, 0);
@@ -68,16 +71,15 @@ export function build(ctx: BuildContext): Equipment {
   for (const s of [-1, 1]) P.box(sw, wh, D, cream, XC + s * (WIN.w / 2 + sw / 2), wy, 0);
   P.box(WIN.w, wh, D - CAV, cream, XC, wy, -CAV / 2);
   // The cavity's lining, dark (the photographs show the drums against a dark interior).
-  const lining = paint(0x22262d, 0.9);
+  const lining = dark;
   P.box(WIN.w, 0.01, CAV, lining, XC, WIN.y0 + 0.005, FZ - CAV / 2).box(WIN.w, 0.01, CAV, lining, XC, WIN.y1 - 0.005, FZ - CAV / 2);
   for (const s of [-1, 1]) P.box(0.01, wh, CAV, lining, XC + s * (WIN.w / 2 - 0.005), wy, FZ - CAV / 2);
   for (const x of [XL, XR]) P.box(0.012, bodyH, 0.01, charcoal, x, by, FZ + 0.002);
-  P.box(0.01, bodyH - 0.06, 0.006, paint(0x8a9da3, 0.8), W / 2 - RIGHT + 0.06, by, FZ + 0.002);   // the right door's edge
+  P.box(0.01, bodyH - 0.06, 0.006, charcoal, W / 2 - RIGHT + 0.06, by, FZ + 0.002);   // the right door's edge
   // The right cabinet's dark header, carrying the lamps and the buttons.
   P.box(RIGHT - 0.08, 0.1, 0.012, charcoal, W / 2 - RIGHT / 2, H - 0.1, FZ + 0.003);
   // The window: the grey frame, the yellow liner, a dark cavity behind, the drums' bearings at its ends.
   const fy = (WIN.y0 + WIN.y1) / 2, fh = WIN.y1 - WIN.y0, gy = (GLASS.y0 + GLASS.y1) / 2, gh = GLASS.y1 - GLASS.y0;
-  const frame = satinMetal(FRAME), liner = paint(LINER, 0.7);
   P.box(WIN.w, 0.03, 0.03, frame, XC, WIN.y1 - 0.015, FZ + 0.012).box(WIN.w, 0.03, 0.03, frame, XC, WIN.y0 + 0.015, FZ + 0.012);
   for (const s of [-1, 1]) P.box(0.03, fh, 0.03, frame, XC + s * (WIN.w / 2 - 0.015), fy, FZ + 0.012);
   const lw = (WIN.w - 0.06 - GLASS.w) / 2;
@@ -85,22 +87,25 @@ export function build(ctx: BuildContext): Equipment {
   P.box(GLASS.w, WIN.y1 - 0.03 - GLASS.y1, 0.012, liner, XC, (GLASS.y1 + WIN.y1 - 0.03) / 2, FZ + 0.004);
   P.box(GLASS.w, GLASS.y0 - WIN.y0 - 0.03, 0.012, liner, XC, (GLASS.y0 + WIN.y0 + 0.03) / 2, FZ + 0.004);
   P.box(WIN.w, wh, 0.01, lining, XC, wy, FZ - CAV + 0.005);   // the cavity's back
-  for (const s of [-1, 1]) for (const y of DRUM.y) P.box(0.05, 0.12, 0.12, paint(0xd8cf9a, 0.6), XC + s * (DRUM.len / 2 + 0.025), y, DRUM.z);   // bearing housings
+  for (const s of [-1, 1]) for (const y of DRUM.y) P.box(0.05, 0.12, 0.12, liner, XC + s * (DRUM.len / 2 + 0.025), y, DRUM.z);   // bearing housings
   P.bake(object).forEach(m => mine.push(m.geometry));
 
-  // The drums, each a streaked cylinder along x, turning about its axis.
+  // The drums, streaked cylinders along x, as one mesh: they turn by their texture sliding round them (one draw call).
   const tex = drumTex(); tex.wrapS = THREE.RepeatWrapping;
   const drumMat = new THREE.MeshStandardMaterial({ map: tex, metalness: 0.75, roughness: 0.22 });
-  const drumGeo = new THREE.CylinderGeometry(DRUM.r, DRUM.r, DRUM.len, 40).rotateZ(Math.PI / 2);
-  const drums = DRUM.y.map((y, i) => { const m = new THREE.Mesh(drumGeo, drumMat); m.position.set(XC, y, DRUM.z); m.rotation.x = i * 1.3; object.add(m); return m; });
+  const parts = DRUM.y.map((y, i) => new THREE.CylinderGeometry(DRUM.r, DRUM.r, DRUM.len, 40).rotateZ(Math.PI / 2).rotateX(i * 1.3).translate(XC, y, DRUM.z));
+  const drumGeo = mergeGeometries(parts)!;
+  parts.forEach(g => g.dispose());
+  const drums = new THREE.Mesh(drumGeo, drumMat); drums.userData.noShadow = true; object.add(drums);
   mine.push(tex, drumMat, drumGeo);
 
   // The head carriage: a bar along the drums with the heads in a row, on a positioning mechanism that slides it.
   const carriage = new THREE.Group();
   const C = new Parts();
-  C.box(DRUM.len - 0.1, 0.028, 0.03, satinMetal(0xb9bec4), 0, 0, 0).box(DRUM.len - 0.1, 0.012, 0.05, paint(0x2b2e33, 0.6), 0, -0.02, -0.01);
-  for (let k = 0; k < 32; k++) C.box(0.012, 0.02, 0.016, paint(0x15171a, 0.5), -(DRUM.len - 0.16) / 2 + k * (DRUM.len - 0.16) / 31, 0.004, 0.022);
-  C.bake(carriage).forEach(m => mine.push(m.geometry));
+  // The 64 heads (UP-4046 p. 8-8), in a row along the bar; the bar and its rail in two materials.
+  C.box(DRUM.len - 0.1, 0.028, 0.03, frame, 0, 0, 0).box(DRUM.len - 0.1, 0.012, 0.05, charcoal, 0, -0.02, -0.01);
+  for (let k = 0; k < 64; k++) C.box(0.008, 0.02, 0.016, charcoal, -(DRUM.len - 0.16) / 2 + k * (DRUM.len - 0.16) / 63, 0.004, 0.022);
+  C.bake(carriage).forEach(m => { m.userData.noShadow = true; mine.push(m.geometry); });
   carriage.position.set(XC, HEAD_Y, DRUM.z + 0.07);
   object.add(carriage);
 
@@ -109,15 +114,14 @@ export function build(ctx: BuildContext): Equipment {
   glass.position.set(XC, gy, FZ + 0.006); glass.renderOrder = 1; object.add(glass);
   mine.push(glass.geometry);
 
-  // The red lamps on the right header, and two small buttons (green, white) at its right end.
-  const lamps = grid(lensGeo(), lampMat(), LAMPS, 1, c => at(XR + 0.09 + c * 0.04, H - 0.1, FZ + 0.009, 0, 0, 0, 0.026), () => LAMP_OFF);
-  const buttons = grid(tileGeo(), lampMat(), 2, 1, c => at(W / 2 - 0.16 + c * 0.04, H - 0.1, FZ + 0.009, 0, 0, 0, 0.024), c => c ? 0xd8d8cc : 0x3fa060);
-  object.add(lamps, buttons); mine.push(lamps, buttons);
-  // The plate at the left cabinet's top (ours: its words).
+  // The red lamps on the right header, and two small buttons (green, white) at its right end: one instanced mesh.
+  const lamps = grid(lensGeo(), lampMat(), LAMPS + 2, 1, c => c < LAMPS ? at(XR + 0.09 + c * 0.04, H - 0.1, FZ + 0.009, 0, 0, 0, 0.026) : at(W / 2 - 0.16 + (c - LAMPS) * 0.04, H - 0.1, FZ + 0.009, 0, 0, 0, 0.024),
+    c => c < LAMPS ? LAMP_OFF : c === LAMPS ? 0x3fa060 : 0xd8d8cc);
+  object.add(lamps); mine.push(lamps);
+  for (const m of [glass, lamps]) m.userData.noShadow = true;
+  // The plate at the left cabinet's top (ours: its word).
   const plate = nameplate("UNIVAC", { height: 0.03, fg: "#2a2a2a", bg: "#e6e0c8" }, mine);
   plate.position.set(-W / 2 + 0.16, H - 0.12, FZ + 0.002); object.add(plate);
-  const sub = nameplate("FASTRAND II", { height: 0.018, fg: "#e6e0c8", bg: "#2a2a2a" }, mine);
-  sub.position.set(-W / 2 + 0.16, H - 0.148, FZ + 0.002); object.add(sub);
 
   // State: activity (0 idle .. 1 busy), the lamps, the carriage's seek.
   let act = 0.15, mounted: string | null = null, seekIn = 2 + r() * 6, from = 0, to = 0, seekT = 1;
@@ -128,7 +132,9 @@ export function build(ctx: BuildContext): Equipment {
     lamps.instanceColor!.needsUpdate = true;
   };
   setLamps();
-  const STEP = 0.012, TRAVEL = 0.05;   // a track step and the whole travel as shown, m (ours: the real ones are smaller)
+  // A seek's step and the whole travel, m, ours: the heads cover 192 tracks (UP-4046 p. 8-8); at an assumed 106 tracks
+  // an inch (our guess, not sourced) that is about 46 mm, close to the 50 mm drawn; the steps are drawn coarser.
+  const STEP = 0.012, TRAVEL = 0.05;
 
   return {
     object,
@@ -138,7 +144,7 @@ export function build(ctx: BuildContext): Equipment {
       if (mounted !== s.mounted) { if (mounted !== null) act = 1; mounted = s.mounted; }   // a reel mounted: a run loads
       if (still) return;
       act += (0.15 - act) * (1 - Math.exp(-dt / 4));
-      for (const d of drums) d.rotation.x -= SPIN * dt;
+      tex.offset.x = (tex.offset.x + SPIN / (Math.PI * 2) * dt) % 1;   // u runs round the drums
       // A seek: the carriage slides to another track position in about 57 ms (shown over 0.15 s).
       if ((seekIn -= dt) < 0) {
         seekIn = act > 0.5 ? 0.3 + r() * 0.9 : 4 + r() * 11;
