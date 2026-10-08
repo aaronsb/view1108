@@ -71,8 +71,8 @@ cv.addEventListener("pointermove", e => {
   const dx = e.clientX - p[0], dy = e.clientY - p[1]; p[0] = e.clientX; p[1] = e.clientY;
   if (ptrs.size === 1) {
     if (orbiting()) {   // Moon view or EXTERNAL: yaw/pitch are longitude/latitude (azimuth/elevation) around the target, so dragging spins it under the pointer
-      const Hh_ = new Float64Array(buf(), K.hdr.value, 16), R = Hh_[12] > 0 && Hh_[14] > 0 ? Hh_[12] / Hh_[14] * plotPx() / 2 : 0.85 * (LS.fov0 / LS.fov) * plotPx() / 2;   // disc radius in px: hdr(13) over the box half-width hdr(15)
-      const d = 180 / Math.PI / R;   // degrees of longitude per px at the disc centre
+      const Hh_ = new Float64Array(buf(), K.hdr.value, 16), R = Math.min(plotPx() / 2, Hh_[12] > 0 && Hh_[14] > 0 ? Hh_[12] / Hh_[14] * plotPx() / 2 : 0.85 * (LS.fov0 / LS.fov) * plotPx() / 2);   // disc radius in px: hdr(13) over the box half-width hdr(15), at most the plot half-width
+      const d = 180 / Math.PI / R;   // degrees of longitude per px at the disc centre; a disc wider than the plot (External in orbit) turns about 115 deg per plot width, not a crawl
       const y = LS.yaw - dx * d; track({ yaw: ((y + 180) % 360 + 360) % 360 - 180, pitch: Math.max(-90, Math.min(90, LS.pitch + dy * d)) });
     } else { const Hh_ = new Float64Array(buf(), K.hdr.value, 16), d = 2 * (Hh_[14] > 0 ? Hh_[14] : LS.fov / 2) / plotPx(); track({ yaw: LS.yaw - dx * d, pitch: Math.max(-90, Math.min(90, LS.pitch + dy * d)) }); }
   }

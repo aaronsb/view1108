@@ -124,7 +124,8 @@ export class Lab {
     this.scene.add(this.room.object);
     markScreens(this.room.object);
     this.room.object.updateMatrixWorld(true);
-    if (this.room.air) { this.dust = new Dust({ box: this.room.air, count: Math.round(DUST_PER_M3 * this.room.air.getSize(new THREE.Vector3()).toArray().reduce((a, b) => a * b, 1)), size: 0.006, opacity: 0.22 }); this.scene.add(this.dust.object); }
+    // ?labdust=0 leaves the motes out: they drift by the frame's real dt, so no two screenshots match (tools/shoot.mjs)
+    if (this.room.air && new URLSearchParams(location.search).get("labdust") !== "0") { this.dust = new Dust({ box: this.room.air, count: Math.round(DUST_PER_M3 * this.room.air.getSize(new THREE.Vector3()).toArray().reduce((a, b) => a * b, 1)), size: 0.006, opacity: 0.22 }); this.scene.add(this.dust.object); }
     this.home0 = shotOf(this.room.overview);
     this.sound = new RoomSound(this.room, this.camera, hooks.state, () => this.shown);
     const terminals: Terminal[] = this.room.placed.filter(p => (p.equipment.opens || p.equipment.use || p.name === "switch" || stationNamed(p.name)) && p.equipment.anchors.screen).map(p => {
