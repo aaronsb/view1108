@@ -204,6 +204,9 @@ function roomArrive(opens, name = "", from = name) {
 function roomApply() {
   const want = roomAvail && WIDE.matches && roomWant === "room";
   if (want && !roomIn) {
+    // Overlays Tabbed left open (the library or the listing, which the tab bar's Room does not close; a modal) are not
+    // the room's: they would stay over it, with no station to go back to (#90).
+    roomLibraryClose(); roomListingClose(); askClose();
     const esc = (k, pop) => pop ? escPush(k, pop) : escDrop(k);
     if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive, screenRect: roomScreenRect, leave: roomLeave, drive: drivePlay, esc, reels: reelIndex(), mount: reelMount, ask: roomAsk })) { roomAvail = false; roomSync(); return; }
     roomIn = true; escBase("room", () => { if (roomShown) LAB.home(); }); roomShowLab(null);
