@@ -3,6 +3,7 @@
 import { Lab } from "./lab";
 import type { LabEvent, LabHooks } from "./types";
 import { STATIONS } from "./stations";
+import { RADIUS as BODY_RADIUS } from "./walk";
 
 let lab: Lab | null = null;
 
@@ -48,6 +49,8 @@ const VIEW_LAB = {
   plan(px?: number) { return lab?.plan(px) ?? null; },
   /** Footprints of the pieces on the floor and the door: for tests. */
   layout() { return lab?.layout ?? null; },
+  /** The step-back pose of each terminal's close-up, floor metres, and the body radius the walk keeps from a footprint: for tests. */
+  stepBacks() { return lab ? { radius: BODY_RADIUS, poses: lab.stepBacks } : null; },
   /** The light switch: set the troffers on or off (omitted: leave them), and say which. */
   lights(on?: boolean): boolean { return lab ? lab.lights(on) : false; },
   /** Stand at (x, z), looking yaw degrees left of north, pitch up: for tests. */

@@ -11,7 +11,7 @@
 //   across a walkway to the 4009, so the overview sees its window and, past its south end, the whole run; the low
 //   power distribution cabinet on the south wall.
 // - Operator consoles, the middle: the 4009 facing the tapes, its chair between; east of it the 1558 graphic
-//   console turned toward the viewer, its stool at its left, with its 1557 controller behind it, and the desk with
+//   console turned toward the viewer, its stool at its left, with its 1557 controller between it and the 4009, and the desk with
 //   the UNISCOPE 100.
 // - Output, the east wall and the south-east: the microfilm recorder, downstream of the computer as the film was,
 //   then the printer; the card reader on the south wall.
@@ -125,8 +125,10 @@ export function build(ctx: BuildContext): Room {
   // turned toward the keyboard (ours).
   const stool = vector.object.localToWorld(new THREE.Vector3(-0.62, 0, 0.92)), keys = vector.object.localToWorld(new THREE.Vector3(0, 0, 0.5));
   place("chair", [stool.x, 0, stool.z], Math.atan2(keys.x - stool.x, keys.z - stool.z), undefined, { tall: true });
-  // The 1557 that drives the 1558, behind it, its front to the 1558's back.
-  place("controller1557", [2.2, 0, -2.75], S);
+  // The 1557 that drives the 1558, east of the operator console and north-west of the 1558 (#117; ours: its place), off
+  // the tape rack's step-back path (the rack's close-up steps back to (2.0, -2.65), which it used to stand on); the
+  // layout check (shots: room-step-back-poses) keeps every close-up's step-back clear of the footprints.
+  place("controller1557", [1.45, 0, -2.0], S);
   place("filmrecorder", [wW - 0.47, 0, 1.5], W, "filmrecorder");
   place("printer", [wW - FOOTPRINT.printer[2] / 2 - 0.03, 0, 3.6], W, "printer");
   place("cardreader", [2.8, 0, nW - 0.37], N);

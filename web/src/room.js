@@ -7,7 +7,7 @@
 // STOP/START (drivePlay, player.js), used in place. The tape rack holds the site reel index (reels.js reelIndex, handed
 // over as hooks.reels): a reel pulled there and used on a tape unit is mounted through reelMount, Tabbed's reel list's
 // loadReel (#19). A second click on a pulled reel, or on a pulled mission notebook on the bookcase, asks a modal
-// (ask.js, roomAsk; the operator, 2026-10-07): LOAD NEW SIMULATION SCENARIO? mounts the reel through reelMount, LOAD
+// (ask.js, roomAsk; the operator, 2026-10-07): LOAD NEW SIMULATION SCENARIO? mounts the reel through reelMount and flies to the vector terminal's close-up (#117), LOAD
 // SIMULATION AND REVIEW NOTEBOOK? mounts it and opens the notebook, or only opens it (#29). The notebook viewer's "Load
 // this reel" comes back to the room with that reel out and carried (roomCarry). The Room button, or Esc (the one stack,
 // esc.js), flies back out.
@@ -105,7 +105,7 @@ function roomToRack(then = () => {}, close = false, tries = 0) {
 function roomAsk(kind, id, title) {
   const back = () => LAB.answer("back");
   if (kind === "reel") askOpen("LOAD NEW SIMULATION SCENARIO?", [
-    { label: `LOAD ${title} AND EXEC`, primary: true, run: () => LAB.answer("load") },
+    { label: `LOAD ${title} AND EXEC`, primary: true, run: () => { LAB.answer("load"); LAB.setTarget("vector"); } },   // #117: mounted, then to the graphical terminal that draws the run
     { label: "PUT TAPE BACK", run: back }], back);
   else if (kind === "system") askOpen(`${title} · SYSTEM TAPE — NOT A SIMULATION SCENARIO`, [   // #87: a prop on the rack
     { label: "PUT TAPE BACK", primary: true, run: back }], back);
