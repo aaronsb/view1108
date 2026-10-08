@@ -44,7 +44,8 @@ function featTick() {
 // The caption line says why on every frame, from the target and that frame's hdr(23) (tgtNote), so a link to the
 // external view of the docked LM says it too. Only the switch is tied to a pick: a vehicle picked from the window or
 // the CM station that the first kernel frame computed after the pick reports as 2, 3 or 5 is shown from outside
-// instead (EXTERNAL, which flies round the point it shares), its field closed to 40 deg if wider (the external
+// instead (EXTERNAL, which flies round the point it shares; before the separation the kernel draws the launch stack
+// there, S-IVB, IU and closed SLA, and flies round the S-IVB or the LM's place in the SLA, #70 option B), its field closed to 40 deg if wider (the external
 // spans' field for a vehicle, Following), so the vehicle 40-60 m off is not lost in a window's wide field. The
 // view, field and target the switch left are kept (tgtOut): the next target pick, or Window, goes back to them
 // first, so the switch is not one way.

@@ -410,6 +410,15 @@ export const SHOTS = [
     steps: [...LINKED(41299), { frames: 3 }],
     expect: [[TL("viewMode"), 2], [TL("mounted"), "apollo11-asflown"], [TL("scene"), 8]] },
 
+  // External on the CSM at Earth orbit insertion (#70 option B): the launch stack behind it, the S-IVB, IU and closed
+  // SLA, so the kernel's world (hdr(21)) holds the CSM, the docked LM and the placed S-IVB, and the target is the CSM's own
+  // point (hdr(23) 1).
+  { name: "ext-eoi-stack", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=3&view=external&target=csm&lab=1&get=709.33",
+    steps: [...LINKED(709.33), { frames: 3 }],
+    expect: [[TL("viewMode"), 1], [TL("targetId"), 4], [TL("scene"), 3],
+      [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[20]`, 7],
+      [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[22]`, 1]] },
+
   // #85, a book opened in the room and back (← Room, then Esc), by each route: (a) a reference binder, the UNISCOPE
   // 100 manual; (b) a mission notebook through its modal's READ NOTEBOOK ONLY; (c) through LOAD … AND OPEN NOTEBOOK
   // (Apollo 8 mounted, so the Apollo 11 reel mounts as a fresh run); (d) a reel pulled at the rack, its notebook pulled

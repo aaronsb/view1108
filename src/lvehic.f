@@ -168,6 +168,10 @@ C     lines leave (vmask.f CBCUT).
       IF (IC .GT. 0) GO TO 110
       IF (MDX2(K) .LT. MDX1(K)) RETURN
       DO 100 J = MDX1(K), MDX2(K)
+C       The CSM's high-gain antenna, stowed in the closed SLA before
+C       the separation (CSMBLD), not drawn while the stack is placed.
+        IF (K .EQ. KCSM .AND. MDON(KSTK) .EQ. 1 .AND. J .GE. LHGA1
+     &      .AND. J .LE. LHGA2) GO TO 100
         DO 85 L = 0, 1
           DO 82 I = 1, 3
             V(I) = (LXL(I + 3 * L, J) - MDBO(I,K)) * 1.0D-3
