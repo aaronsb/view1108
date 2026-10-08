@@ -19,6 +19,23 @@ C     X-Z plane, and the LPD scale's plot constant LPDK; both fitted
 C     to the film's LPD marks (llpd.f).
       PARAMETER (LPDDN=30.2D0, LPDK=49.8D0)
 C     RESTOMOD END
+C     The launch vehicle's stages as the Apollo 11 press kit gives them
+C     (models.f SIVBMD, LVSTK; the S-IVB's state point, SIVPL, S7SIV,
+C     TGTPOS): S-IVB height SIVBH ft and IU height SIUH ft ("THIRD
+C     STAGE (S-IVB) ... HEIGHT 58.3 FEET", "INSTRUMENT UNIT ... HEIGHT
+C     3 FEET", printed p. 109); both SLVD in across (the S-IVB "21 feet
+C     8 inches in diameter", the IU a cylinder "21 feet 8 inches in
+C     diameter", printed p. 113; the SLA "260 inches diameter at the
+C     base", printed p. 88); the SLA "a truncated cone 28 feet long"
+C     (SLAH ft) tapering to "154 inches at the forward end at the
+C     service module mating line" (SLATD in; printed p. 88).  The same
+C     page-109 table gives the S-IC (33 ft across, 138 ft) and S-II (33
+C     ft, 81.5 ft), not modelled.
+      DOUBLE PRECISION SIVBH, SIUH, SLVD, SLAH, SLATD
+C     RESTOMOD BEGIN: real-valued PARAMETERs (as above)
+      PARAMETER (SIVBH=58.3D0, SIUH=3.0D0, SLVD=260.0D0)
+      PARAMETER (SLAH=28.0D0, SLATD=154.0D0)
+C     RESTOMOD END
 C     RESTOMOD BEGIN: 60000x5 DP buffer is 600K words, core 262,144
 C     (docs/univac-1108.md); VIEW would stream vectors to plot tape.
 C     Also the parenthesised PARAMETER list (FORTRAN 77, 1978).
@@ -27,7 +44,7 @@ C     Also the parenthesised PARAMETER list (FORTRAN 77, 1978).
       PARAMETER (MAXT=300, MAXTC=6000)
 C     RESTOMOD END
       INTEGER MSOL, MVX, MFC, MED, MXL, MMOD, KLMD, KLMS, KSIV, KCSM
-      INTEGER KCMC, KCMI, KLMI, KLMA, KCMO
+      INTEGER KCMC, KCMI, KLMI, KLMA, KCMO, KSTK
 C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
 C     (1978); FORTRAN V wrote PARAMETER I = 2 (UP-4046 Rev 3, sec.
 C     10.4.1).  And 120 solids (the LM's RCS clusters are 20 a model,
@@ -40,10 +57,12 @@ C     RESTOMOD END
 C     Model numbers (MLIB): LM gear down, LM gear stowed with docking
 C     aids, S-IVB with IU and SLA ring, CSM, CM cabin (window), CM
 C     interior, LM interior (in_flags bit 4), LM ascent stage alone
-C     (after lunar lift-off), CM alone (after CM/SM separation).
+C     (after lunar lift-off), CM alone (after CM/SM separation), the
+C     launch stack behind the CSM before separation: S-IVB, IU and
+C     the closed SLA (LVSTK).
 C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)
       PARAMETER (KLMD=1, KLMS=2, KSIV=3, KCSM=4, KCMC=5, KCMI=6,
-     &           KLMI=7, KLMA=8, KCMO=9)
+     &           KLMI=7, KLMA=8, KCMO=9, KSTK=10)
 C
 C     Tables loaded by BLOCK DATA VIEWBD (viewdata.f)
 C     RESTOMOD BEGIN: post-1969 data: Natural Earth coast (2009),

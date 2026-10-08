@@ -795,8 +795,8 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION GET, CG(3), R(3), V(3), LP(3), BO(3), D, VNRM
       DOUBLE PRECISION EVGET
-      INTEGER IOK, I, J, KLMPL
-      IF (MDON(KSIV) .EQ. 1) RETURN
+      INTEGER IOK, I, J, KLMPL, KSIVPL
+      IF (KSIVPL() .NE. 0) RETURN
       CALL VSTATE(GET, 3, 1, R, V, IOK)
       IF (IOK .NE. 1) RETURN
       DO 10 I = 1, 3
@@ -808,7 +808,7 @@ C     RESTOMOD END
       CALL S7ATT
       ISRCU = J
 C     The state's point: the stage's centre (S7SIV).
-      CALL SETV(BO, -0.5D0 * (58.3D0 + 3.0D0) * 0.3048D0, 0.0D0,
+      CALL SETV(BO, -0.5D0 * (SIVBH + SIUH) * 0.3048D0, 0.0D0,
      &          0.0D0)
       CALL MPLACE(KSIV, S7AT, LP, BO)
       IF (GET .GE. EVGET(KEEJC) .OR. KLMPL() .NE. 0) RETURN
@@ -819,6 +819,47 @@ C     The LM's tunnel top 1.5 + 4.51 m above the IU's top (S7POSE).
    20 CONTINUE
       CALL SETV(BO, 4.51D0, 0.0D0, 0.0D0)
       CALL MPLACE(KLMS, S7AT, LP, BO)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     LVPL: the launch stack (KSTK: S-IVB, IU and the closed SLA, the
+C     LM hidden in it) behind the placed CSM before the separation
+C     (the scenario's SEP event), in the CSM's attitude, the SLA's top
+C     at the SM's aft end ("the forward end at the service module
+C     mating line", Apollo 11 press kit, printed p. 88; SMAFT).  Not
+C     where the situation places an S-IVB or an LM of its own (the
+C     docking, the docked stack), nor without a SEP event (ours).
+C     Rough: the S-II and S-IC below it during the ascent, and the
+C     launch escape tower above, are not modelled.  The CSM must be
+C     placed (KCSM, CSMCAM); after CM/SM separation there is no stack.
+C-----------------------------------------------------------------------
+      SUBROUTINE LVPL(GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, V(3), W(3), P(3), BO(3), AT(3,3), TS
+      DOUBLE PRECISION EVGET, SMAFT
+      INTEGER I, J, KSIVPL, KLMPL
+      IF (MDON(KCSM) .EQ. 0 .OR. KSIVPL() .NE. 0) RETURN
+      IF (KLMPL() .NE. 0) RETURN
+      TS = EVGET(KESEP)
+      IF (TS .LT. 0.0D0 .OR. GET .GE. TS) RETURN
+C     The SM's aft end on the CSM's axis, camera relative, km.
+      DO 10 I = 1, 3
+        V(I) = -MDBO(I,KCSM) * 1.0D-3
+        DO 5 J = 1, 3
+          AT(I,J) = MDAT(I,J,KCSM)
+    5   CONTINUE
+   10 CONTINUE
+      V(1) = V(1) + SMAFT() * 1.0D-3
+      CALL MXV(AT, V, W)
+      DO 20 I = 1, 3
+        P(I) = MDP(I,KCSM) + W(I)
+   20 CONTINUE
+      CALL SETV(BO, SLAH * 0.3048D0, 0.0D0, 0.0D0)
+      CALL MPLACE(KSTK, AT, P, BO)
       RETURN
       END
 C
@@ -990,7 +1031,7 @@ C     RESTOMOD END
       DOUBLE PRECISION RNG, P(3), D
       INTEGER I
       D = (RNG * 0.3048D0 + 2.0D0 + 1.5D0 + 4.51D0
-     &  + 0.5D0 * (58.3D0 + 3.0D0) * 0.3048D0) * 1.0D-3
+     &  + 0.5D0 * (SIVBH + SIUH) * 0.3048D0) * 1.0D-3
       DO 10 I = 1, 3
         P(I) = -D * S7AT(I,1) + 0.72D-3 * S7AT(I,2)
    10 CONTINUE

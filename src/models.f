@@ -103,6 +103,11 @@ C     Their hidden lines, for the design eyes (vmask.f CBCUT; ours).
       KCOK(2) = 0
       CALL CBCUT(KCMI, OFF)
       CALL CBCUT(KLMI, OFF)
+C     The launch stack behind the CSM before separation: S-IVB, IU
+C     and the closed SLA, the LM hidden inside (not built).
+      CALL MODBEG(KSTK)
+      CALL LVSTK
+      CALL MODEND(KSTK)
       RETURN
       END
 C
@@ -133,7 +138,9 @@ C     RESTOMOD END
       END
 C
 C     KLMPL: the LM model placed this frame (KLMD, KLMS or KLMA), else
-C     0.  KCSPL: the same for the CSM (KCSM, or the CM alone, KCMO).
+C     0.  KCSPL: the same for the CSM (KCSM, or the CM alone, KCMO);
+C     KSIVPL the S-IVB (KSIV, or the launch stack before separation,
+C     KSTK; both in SIVBMD's body frame).
       INTEGER FUNCTION KLMPL()
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -154,6 +161,17 @@ C     RESTOMOD END
       KCSPL = 0
       IF (MDON(KCSM) .EQ. 1) KCSPL = KCSM
       IF (MDON(KCMO) .EQ. 1) KCSPL = KCMO
+      RETURN
+      END
+C
+      INTEGER FUNCTION KSIVPL()
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      KSIVPL = 0
+      IF (MDON(KSIV) .EQ. 1) KSIVPL = KSIV
+      IF (MDON(KSTK) .EQ. 1) KSIVPL = KSTK
       RETURN
       END
 C
@@ -586,7 +604,8 @@ C-----------------------------------------------------------------------
 C     SIVBMD: S-IVB with the instrument unit on top, body axes X
 C     forward along the stage, origin at the centre of the top of the
 C     IU.  One prism of 24 sides: both 21.7 ft across, 58.3 ft and
-C     3 ft high (Apollo 11 press kit, printed p. 109).
+C     3 ft high (Apollo 11 press kit, printed p. 109; SIVBH, SIUH and
+C     SLVD in viewcom.inc).
 C     The SLA's fixed lower ring, left on the IU when the four upper
 C     panels were jettisoned at separation (AS-506 launch vehicle
 C     flight evaluation report, MPR-SAT-FE-69-9, p. xxiii; Apollo 11
@@ -607,19 +626,19 @@ C     RESTOMOD END
       DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P24(2,24)
       DOUBLE PRECISION RIU, XSL, RSL, Q, C, S, C2, S2
       INTEGER K
-      RIU = 0.5D0 * 260.0D0 * 0.0254D0
+      RIU = 0.5D0 * SLVD * 0.0254D0
       DO 50 K = 1, 24
         P24(1,K) = RIU * DCOS(DBLE(K) * PI / 12.0D0)
         P24(2,K) = RIU * DSIN(DBLE(K) * PI / 12.0D0)
    50 CONTINUE
-      Q = (58.3D0 + 3.0D0) * 0.3048D0
+      Q = (SIVBH + SIUH) * 0.3048D0
       CALL SETV(O, -Q, 0.0D0, 0.0D0)
       CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
       CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
       CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
       CALL MKPRS(24, P24, O, A1, A2, AN, Q)
       XSL = 7.0D0 * 0.3048D0
-      RSL = 0.5D0 * (260.0D0 - 106.0D0 * 7.0D0 / 28.0D0) * 0.0254D0
+      RSL = 0.5D0 * (SLVD - (SLVD - SLATD) * 7.0D0 / SLAH) * 0.0254D0
       DO 60 K = 0, 23
         C = DCOS(DBLE(K) * PI / 12.0D0)
         S = DSIN(DBLE(K) * PI / 12.0D0)
@@ -629,6 +648,72 @@ C     RESTOMOD END
         IF (MOD(K, 6) .EQ. 0) CALL XLINE(0.99D0 * RIU * C, 0.01D0,
      &    0.99D0 * RIU * S, RSL * C, XSL, RSL * S, 0)
    60 CONTINUE
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     LVSTK: the launch vehicle's stack above the S-II, as the CSM rode
+C     it from launch to the separation (SEP): the S-IVB, the IU and the
+C     closed SLA, which housed the LM ("a housing for the lunar module",
+C     press kit, printed p. 86).  SIVBMD's body frame: X forward along
+C     the vehicle, origin at the centre of the top of the IU, metres.
+C     Plain primitives from the published overall sizes (viewcom.inc;
+C     press kit, printed pp. 88, 109, 113), each its own solid along X
+C     (LVCYL), so a stack builder can add the stages below, the S-II
+C     and S-IC, as further pieces:
+C       S-IVB and IU, one cylinder SIVBH + SIUH ft long, SLVD in
+C         across, X from -(SIVBH + SIUH) ft to 0;
+C       SLA, a frustum SLAH ft long from SLVD in across at X 0 to
+C         SLATD in, the SM's own 154 in (12 ft 10 in, press kit printed
+C         p. 88), at its top, where it meets the SM's aft end (SMAFT).
+C     Rough by design (the operator's call, #70): no panel joints, LM
+C     supports or antennas; the LM inside is hidden, so not built.
+C     Smooth solids (LSMO), as the CSM's: only outlines and rims show.
+C-----------------------------------------------------------------------
+      SUBROUTINE LVSTK
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,24), FT, RB
+      INTEGER K
+      FT = 0.3048D0
+      CALL LVCYL(-(SIVBH + SIUH) * FT, (SIVBH + SIUH) * FT, SLVD)
+      RB = 0.5D0 * SLVD * 0.0254D0
+      DO 10 K = 1, 24
+        P(1,K) = RB * DCOS(DBLE(K) * PI / 12.0D0)
+        P(2,K) = RB * DSIN(DBLE(K) * PI / 12.0D0)
+   10 CONTINUE
+      CALL SETV(O, 0.0D0, 0.0D0, 0.0D0)
+      CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
+      CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
+      CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
+      CALL MKFRU(24, P, O, A1, A2, AN, SLAH * FT, SLATD / SLVD)
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
+      RETURN
+      END
+C
+C     LVCYL: one stage of the stack, a smooth 24-sided prism on the X
+C     axis from X0 for H (m), D inches across.
+      SUBROUTINE LVCYL(X0, H, D)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION X0, H, D, O(3), A1(3), A2(3), AN(3), P(2,24)
+      DOUBLE PRECISION R
+      INTEGER K
+      R = 0.5D0 * D * 0.0254D0
+      DO 10 K = 1, 24
+        P(1,K) = R * DCOS(DBLE(K) * PI / 12.0D0)
+        P(2,K) = R * DSIN(DBLE(K) * PI / 12.0D0)
+   10 CONTINUE
+      CALL SETV(O, X0, 0.0D0, 0.0D0)
+      CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
+      CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
+      CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
+      CALL MKPRS(24, P, O, A1, A2, AN, H)
+      IF (LBOK .EQ. 1) LSMO(NSOL) = 1
       RETURN
       END
 C
@@ -1255,6 +1340,16 @@ C     above Xc 0, the bottom of the aft heat shield (AOH Fig. 1-2, p.
 C     1-5), with X = 0.0254 (Xc - 18) as CMINT.
       DOUBLE PRECISION FUNCTION CMTOP()
       CMTOP = 0.0254D0 * (127.0D0 - 18.0D0)
+      RETURN
+      END
+C
+C     SMAFT: X (m) of the SM's aft end in CSMBLD's frame, below its
+C     fairing and the SM (CSMBLD), where the SLA's top met it before
+C     the separation (press kit, printed p. 88; LVPL).
+      DOUBLE PRECISION FUNCTION SMAFT()
+      DOUBLE PRECISION FT
+      FT = 0.3048D0
+      SMAFT = -(22.0D0 / 12.0D0 * FT) - (12.0D0 + 11.0D0 / 12.0D0) * FT
       RETURN
       END
 C

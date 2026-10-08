@@ -198,6 +198,9 @@ s3-eoi-ext-lm     | VIEW_VIEW=1 VIEW_TARGET=5    | apollo11-asflown | 3 709.33
 s3-eoi-ext-sivb   | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 709.33
 s3-eoi-tgt-lm     | VIEW_TARGET=5                | apollo11-asflown | 3 709.33
 s3-docked-ext-lm  | VIEW_VIEW=1 VIEW_TARGET=5    | apollo11-asflown | 3 14400
+s3-tli-ext-sivb   | VIEW_VIEW=1 VIEW_TARGET=6 VIEW_LABLV=2 | apollo11-asflown | 3 10000
+s3-presep-ext-csm | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 11824
+s3-postsep-ext-csm | VIEW_VIEW=1 VIEW_TARGET=4   | apollo11-asflown | 3 11825
 EOF
 )
 
