@@ -7,7 +7,9 @@
 // cabinets and the terminals, with the output wall behind the viewer's right:
 // - Tape area, the north wall's west part: the UNISERVO row, and the reel table in front of its west end.
 // - Machine floor, the west: the 1108's five cabinets along the west wall (the lamp-panel cabinet at the centre),
-//   facing east across open floor; the low power distribution cabinet on the south wall.
+//   facing east across open floor; the FASTRAND II drum unit (#89) standing free on that floor in front of the run's
+//   north end, its window toward the south walkway and the overview; the low power distribution cabinet on the south
+//   wall.
 // - Operator consoles, the middle: the 4009 facing the tapes, its chair between; east of it the 1558 graphic
 //   console turned toward the viewer, its stool at its left, with its 1557 controller behind it, and the desk with
 //   the UNISCOPE 100.
@@ -30,7 +32,7 @@ import { STATIONS, stationNamed } from "../stations";
 import { DOOR, DRIVES, ROOM, buildShell } from "./shell";
 import { batch } from "./batch";
 import type { Binder, NotebookBinder, Prop } from "../equipment/bookcase";
-import type { ReelPiece } from "../equipment/taperack";
+import type { ReelPiece, SysTapePiece } from "../equipment/taperack";
 import type { Pullable, Shelf } from "../equipment/pullable";
 
 /** A builder with the options some modules take (a tape drive's number, the CPU cabinet with the lamp panel). */
@@ -60,6 +62,11 @@ export const LIBRARY = {
   rack: { x: 2.0, w: FOOTPRINT.taperack[0], d: FOOTPRINT.taperack[2] },
   bookcase: { x: 4.1, w: FOOTPRINT.bookcase[0], d: FOOTPRINT.bookcase[2] },
 };
+
+/** The FASTRAND II (#89; ours: its place): on the machine floor, east of the cabinet run's north end and south of the
+ *  4009, its window facing south, toward the walkway from the door and the overview. Its centre's x and z, and the
+ *  clear walk it keeps on every side from every other footprint, m (the operator's 1.2 m, #89). */
+export const FASTRAND = { x: -2.7, z: 1.05, clear: 1.2 };
 
 export function build(ctx: BuildContext): Room {
   const object = new THREE.Group(), placed: Placed[] = [], footprints: Footprint[] = [];
@@ -97,6 +104,7 @@ export function build(ctx: BuildContext): Room {
   const seatAt = op.object.localToWorld(seat?.position.clone() ?? new THREE.Vector3(0, 0, 0.86));
   place("chair", [seatAt.x, 0, seatAt.z], N + (seat?.yaw ?? Math.PI));
   place("reeltable", [-4.8, 0, -2.5], 0.08);
+  place("fastrand", [FASTRAND.x, 0, FASTRAND.z], S, "fastrand");
   place("chair", [-4.05, 0, -1.85], -2.4);
 
   const desk = place("desk", [4.0, 0, -1.25], -0.19, "desk");
@@ -135,8 +143,25 @@ export function build(ctx: BuildContext): Room {
       } else if (f.x + ex > x0 && f.x - ex < x1 && f.z + ez > z0 && f.z - ez < z1) throw new Error(`room: ${f.name} stands in the tape rack's zone`);
     }
   }
+  // The FASTRAND II stands clear of everything by its walk (#89): a layout error otherwise.
+  {
+    const ext = (f: Footprint) => [Math.abs(f.hw * Math.cos(f.turn)) + Math.abs(f.hd * Math.sin(f.turn)), Math.abs(f.hw * Math.sin(f.turn)) + Math.abs(f.hd * Math.cos(f.turn))];
+    const fr = footprints.find(f => f.name === "fastrand");
+    if (fr) {
+      const [fx, fz] = ext(fr);
+      for (const f of footprints) if (f !== fr) {
+        const [ex, ez] = ext(f), gx = Math.abs(f.x - fr.x) - ex - fx, gz = Math.abs(f.z - fr.z) - ez - fz;
+        if (Math.max(gx, gz) < FASTRAND.clear - 1e-3) throw new Error(`room: ${f.name} stands within ${FASTRAND.clear} m of the FASTRAND II`);
+      }
+      if (fr.x - fx - -wW < FASTRAND.clear || wW - fr.x - fx < FASTRAND.clear || fr.z - fz - -nW < FASTRAND.clear || nW - fr.z - fz < FASTRAND.clear)
+        throw new Error("room: the FASTRAND II stands too near a wall");
+    }
+  }
   const reels = rack.anchors.reels as ReelPiece[];
   for (const p of reels) { p.object.userData.placed = `reel:${p.reel.id}`; p.opens = rack.opens; placed.push({ name: p.object.userData.placed, equipment: p }); }
+  // The system tapes on the rack (#87): props that pull out and ask the page for their modal, as a reel does.
+  const systapes = rack.anchors.systapes as SysTapePiece[];
+  for (const p of systapes) { p.object.userData.placed = `systape:${p.tape.id}`; p.opens = rack.opens; placed.push({ name: p.object.userData.placed, equipment: p }); }
   // Each reel's mission notebook on the bookcase (#29; the operator's revision after PR #69), opening the library as a
   // bookcase binder does, and paired with its reel across the two units: the rack's shelf and the bookcase's are linked,
   // so one thing is out across both and its partner stands half out (pullable.ts).
@@ -202,6 +227,8 @@ export function build(ctx: BuildContext): Room {
     labels: { ...Object.fromEntries(STATIONS.map(st => [st.name, st.label])), switch: "Lights", power: "Power distribution — click to open/close the doors", "power:selector": "Voltmeter selector — click to turn", door: "Exit — github.com/aaronsb/view1108",
       ...Object.fromEntries(Array.from({ length: DRIVES.n }, (_, i) => [`uniservo-${60 + i}`, `UNISERVO VIII-C — tape unit ${60 + i}`]).filter((_, i) => i !== 3)),
       ...Object.fromEntries(reels.map(p => [`reel:${p.reel.id}`, `${p.reel.title} — ${p.reel.kind} reel`])),
+      ...Object.fromEntries(systapes.map(p => [`systape:${p.tape.id}`, `${p.tape.label} — system tape`])),
+      fastrand: "UNIVAC FASTRAND II — drum mass storage",
       ...Object.fromEntries(notebooks.map(b => [`binder:nb-${b.reel.id}`, b.reel.notebook ?? b.reel.title])),
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
       ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },

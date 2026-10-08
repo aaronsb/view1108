@@ -2,16 +2,19 @@
 // three.js), so racklayout.test.ts can check it against any index; taperack.ts builds the rack from it.
 //
 // The index is grouped (ours): one group per mission, earliest range zero first, its scenario reels in index order, then
-// one group for the playlists. Each group's reels fill the rack's cells in order: a cell is one bay of one level, the
-// middle bay first, then the west (A) and the east (C) bays, level by level from the top. Each reel takes a slot: its
-// case and a gap (its notebook stands on the bookcase, #19 revision after PR #69). A group starts on a fresh level while the levels
-// left can still give every group left a level of its own, else in a fresh bay; a group too big for its first bay
-// spills into the next cells. A reel with no cell left is not shelved (`unplaced`; the rack warns).
+// one group for the playlists, then, when the rack is given them, one for the system tapes (systapes.ts, #87: props,
+// not reels of the index; they stand in `tapes`, not `slots`). Each group's reels fill the rack's cells in order: a cell
+// is one bay of one level, the middle bay first, then the west (A) and the east (C) bays, level by level from the top.
+// Each reel takes a slot: its case and a gap (its notebook stands on the bookcase, #19 revision after PR #69). A group
+// starts on a fresh level while the levels left can still give every group left a level of its own, else in a fresh
+// bay; a group too big for its first bay spills into the next cells. A reel with no cell left is not shelved
+// (`unplaced`, `unplacedTapes`; the rack warns).
 //
 // The anonymous reels around them (`filler`, the operator's look of 2026-10-07): a level that holds any of the index's
-// reels holds only those; every other level is filled about half to two-thirds, in runs of cases
+// reels or system tapes holds only those; every other level is filled about half to two-thirds, in runs of cases
 // with irregular gaps between them.
 import type { ReelInfo } from "../types";
+import type { SystemTape } from "./systapes";
 
 export const W = 2.8, H = 1.85, D = 0.45;
 export const POST = 0.03, BAYS = 3, PITCH = (W - POST) / BAYS;   // angle posts, and their spacing centre to centre
@@ -30,17 +33,22 @@ export const PER_BAY = Math.floor((BAY_W - END0 - END1 + GAP) / SLOT);
 const BAY_ORDER = [1, 0, 2];
 const MON = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-/** One group: the words on its tape strip and its reels. */
-export interface Group { label: string; reels: ReelInfo[] }
+/** One group: the words on its tape strip and its reels (the system tapes' group: its tapes). */
+export interface Group { label: string; reels: ReelInfo[]; tapes?: readonly SystemTape[] }
 /** A reel's place: its level (0 the top) and bay (0 A, 1 B, 2 C), and the case's west edge, m in the rack's frame. */
 export interface Slot { reel: ReelInfo; level: number; bay: number; x: number }
+/** A system tape's place, as a reel's. */
+export interface TapeSlot { tape: SystemTape; level: number; bay: number; x: number }
 /** A group's tape strip, on the front channel of the cell where its first reel stands. */
 export interface Strip { label: string; level: number; bay: number }
 export interface RackLayout {
   groups: Group[];
   slots: Slot[];
+  tapes: TapeSlot[];
   strips: Strip[];
   unplaced: ReelInfo[];
+  /** System tapes with no room left (not shelved). */
+  unplacedTapes: SystemTape[];
 }
 
 /** One anonymous reel: its level and the centre of its case across the rack, m. */
@@ -60,7 +68,7 @@ function shares(total: number, parts: number, min: number, r: () => number): num
  *  between FILL's bounds, in runs of cases (two or more) with gaps of irregular width between them, drawn from `r` (a
  *  seeded random in [0, 1)). */
 export function filler(plan: RackLayout, r: () => number): Filler[] {
-  const out: Filler[] = [], used = new Set(plan.slots.map(s => s.level)), step = T + GAP;
+  const out: Filler[] = [], used = new Set([...plan.slots, ...plan.tapes].map(s => s.level)), step = T + GAP;
   const n = Math.floor((BAY_W - END0 - END1 + GAP) / step);
   LEVELS.forEach((_, level) => {
     if (used.has(level)) return;
@@ -79,8 +87,8 @@ export function filler(plan: RackLayout, r: () => number): Filler[] {
   return out;
 }
 
-/** The index grouped: each mission's scenario reels, missions by range zero, then the playlists. */
-export function groups(reels: readonly ReelInfo[]): Group[] {
+/** The index grouped: each mission's scenario reels, missions by range zero, then the playlists, then the system tapes. */
+export function groups(reels: readonly ReelInfo[], system: readonly SystemTape[] = []): Group[] {
   const missions = new Map<string, ReelInfo[]>();
   for (const r of reels) if (r.kind === "scenario") {
     const k = r.mission || r.title;
@@ -93,26 +101,28 @@ export function groups(reels: readonly ReelInfo[]): Group[] {
   });
   const lists = reels.filter(r => r.kind === "playlist");
   if (lists.length) out.push({ label: `${lists.map(r => r.title).join(" / ")} REELS`, reels: lists });
+  if (system.length) out.push({ label: "SYSTEM TAPES", reels: [], tapes: system });
   return out;
 }
 
-export function rackLayout(reels: readonly ReelInfo[]): RackLayout {
-  const gs = groups(reels), cells = LEVELS.length * BAY_ORDER.length;
-  const slots: Slot[] = [], strips: Strip[] = [], unplaced: ReelInfo[] = [];
+export function rackLayout(reels: readonly ReelInfo[], system: readonly SystemTape[] = []): RackLayout {
+  const gs = groups(reels, system), cells = LEVELS.length * BAY_ORDER.length;
+  const slots: Slot[] = [], tapes: TapeSlot[] = [], strips: Strip[] = [], unplaced: ReelInfo[] = [], unplacedTapes: SystemTape[] = [];
   const cell = (c: number) => ({ level: Math.floor(c / BAY_ORDER.length), bay: BAY_ORDER[c % BAY_ORDER.length] });
   let c = 0, k = 0;   // the next cell, and the slots taken in it
   gs.forEach((g, gi) => {
     if (k > 0) { c++; k = 0; }
     const fresh = Math.ceil(c / BAY_ORDER.length);
     if (LEVELS.length - fresh >= gs.length - gi) c = fresh * BAY_ORDER.length;
-    g.reels.forEach((reel, ri) => {
+    const members: ({ reel: ReelInfo } | { tape: SystemTape })[] = [...g.reels.map(reel => ({ reel })), ...(g.tapes ?? []).map(tape => ({ tape }))];
+    members.forEach((m, i) => {
       if (k >= PER_BAY) { c++; k = 0; }
-      if (c >= cells) { unplaced.push(reel); return; }
+      if (c >= cells) { if ("reel" in m) unplaced.push(m.reel); else unplacedTapes.push(m.tape); return; }
       const { level, bay } = cell(c), x = bayX0(bay) + END0 + k * SLOT;
-      if (ri === 0) strips.push({ label: g.label, level, bay });
-      slots.push({ reel, level, bay, x });
+      if (i === 0) strips.push({ label: g.label, level, bay });
+      if ("reel" in m) slots.push({ reel: m.reel, level, bay, x }); else tapes.push({ tape: m.tape, level, bay, x });
       k++;
     });
   });
-  return { groups: gs, slots, strips, unplaced };
+  return { groups: gs, slots, tapes, strips, unplaced, unplacedTapes };
 }

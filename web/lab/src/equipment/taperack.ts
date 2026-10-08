@@ -20,6 +20,10 @@
 // toward the operator's manuals (kit.ts tapeStrip; the operator's signage form, 2026-10-07: tape on the shelves, no wall
 // signs). The labels and their wording are ours.
 //
+// Below the playlists, a level of system tapes (#87; systapes.ts, all ours): props, not reels of the index, each case its
+// own colour with its name hand-lettered on the rim, under a SYSTEM TAPES strip. One pulls out like a reel, and a second
+// click asks the page for its modal, which only says it is a system tape and puts it back (LabHooks.ask "system").
+//
 // Pulling (pullable.ts): a click at the close-up brings a reel 13 cm out of its row, and a click on another swaps
 // them. A second click on the pulled reel asks the page for the reel modal, LOAD NEW SIMULATION SCENARIO? (LabHooks.ask;
 // the operator, 2026-10-07: the primary way to swap reels; LOAD ... AND EXEC mounts it, PUT TAPE BACK puts it back).
@@ -31,6 +35,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { BuildContext, Equipment, LabState, ReelInfo } from "../types";
 import { Parts, canvasTex, fontTex, marker, markerWidth, nameplate, paint, plastic, plateText, rng, satinMetal, sharedGeo, tapeStrip } from "./kit";
 import { Shelf, type Pullable } from "./pullable";
+import { SYSTEM_TAPES, type SystemTape } from "./systapes";
 
 import { BAYS, D, H, LEVELS, POST, T, W, bayX0, bayX1, BAY_W, filler, postX, rackLayout } from "./racklayout";
 
@@ -44,6 +49,8 @@ const TYPED = '"Courier Prime", "Courier New", Courier, monospace';
 
 /** A reel on the rack: its piece, and the reel of the index it stands for. */
 export interface ReelPiece extends Equipment { reel: ReelInfo }
+/** A system tape on the rack (#87): a prop, its piece and the tape it stands for. */
+export interface SysTapePiece extends Equipment { tape: SystemTape }
 /** A reel case on edge, its axis across the shelf (x): the rim faces the viewer; groups 0 rim, 1 and 2 the faces.
  *  `seg` sides: 28 for the index's reels, 16 for the anonymous ones (instanced, many). */
 const caseGeo = (seg = 28) => sharedGeo(`rackCase${seg}`, () => new THREE.CylinderGeometry(R, R, T, seg).rotateZ(Math.PI / 2));
@@ -73,9 +80,9 @@ function rimLabel(arc: number, at: number, draw: (g: CanvasRenderingContext2D, w
   return m;
 }
 
-/** A grouped reel's case, its hand-lettered front label and its typed title; the piece's origin is on the deck under
- *  the case's centre. */
-function reelPiece(reel: ReelInfo, tint: number, mine: { dispose(): void }[]): ReelPiece {
+/** A labelled case: its hand-lettered front label (`lines`) and its typed title; the object's origin is on the deck
+ *  under the case's centre. */
+function labelledCase(title: string, lines: readonly string[], seed: number, tint: number, mine: { dispose(): void }[]): THREE.Group {
   const object = new THREE.Group();
   const rim = plastic(tint, 0.5), face = plastic(new THREE.Color(tint).multiplyScalar(0.8).getHex(), 0.55);
   const body = new THREE.Mesh(caseGeo(), [rim, face, face]); body.position.y = R + 0.001;
@@ -84,11 +91,11 @@ function reelPiece(reel: ReelInfo, tint: number, mine: { dispose(): void }[]): R
     g.fillStyle = "#18181a"; g.textAlign = "center"; g.textBaseline = "middle";
     let px = h * 0.5;
     g.font = `bold ${px}px ${TYPED}`;
-    px *= Math.min(1, w * 0.92 / g.measureText(reel.title).width);
-    g.font = `bold ${px}px ${TYPED}`; g.fillText(reel.title, w / 2, h / 2 + 1);
+    px *= Math.min(1, w * 0.92 / g.measureText(title).width);
+    g.font = `bold ${px}px ${TYPED}`; g.fillText(title, w / 2, h / 2 + 1);
   }, mine);
   // The front label: white paper with a faint grain, each line in marker, shrunk to fit the label's length.
-  const r = rng(reel.id.length * 977 + reel.title.length), lines = frontLines(reel);
+  const r = rng(seed);
   const front = rimLabel(FRONT_ARC, FRONT_AT, (g, w, h) => {
     g.fillStyle = "#f4f1e6"; g.fillRect(0, 0, w, h);
     for (let k = 0; k < 6; k++) { g.fillStyle = `rgba(110,100,70,${0.03 + r() * 0.04})`; g.fillRect(r() * w, 0, 2 + r() * 6, h); }
@@ -99,8 +106,15 @@ function reelPiece(reel: ReelInfo, tint: number, mine: { dispose(): void }[]): R
     });
   }, mine, 0.9);
   object.add(body, typed, front);
-  return { object, reel, anchors: { camera: { position: new THREE.Vector3(0, R + 0.2, 0.85), target: new THREE.Vector3(0, R, 0), fov: 34 } } };
+  return object;
 }
+const caseCamera = () => ({ camera: { position: new THREE.Vector3(0, R + 0.2, 0.85), target: new THREE.Vector3(0, R, 0), fov: 34 } });
+/** A reel of the index on the rack. */
+const reelPiece = (reel: ReelInfo, tint: number, mine: { dispose(): void }[]): ReelPiece =>
+  ({ object: labelledCase(reel.title, frontLines(reel), reel.id.length * 977 + reel.title.length, tint, mine), reel, anchors: caseCamera() });
+/** A system tape on the rack: its own case colour, its name typed after SYSTEM. */
+const sysTapePiece = (tape: SystemTape, mine: { dispose(): void }[]): SysTapePiece =>
+  ({ object: labelledCase(`SYSTEM · ${tape.label}`, tape.lines, tape.id.length * 613 + tape.label.length, tape.tint, mine), tape, anchors: caseCamera() });
 
 /** The bay and level number plates, A-1 to C-5: white on black in the nameplate face, one atlas, one mesh. */
 function numberPlates(mine: { dispose(): void }[]): THREE.Mesh {
@@ -125,7 +139,7 @@ function numberPlates(mine: { dispose(): void }[]): THREE.Mesh {
   return new THREE.Mesh(geo, mat);
 }
 
-export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPiece[]; shelf: Shelf; items: Map<string, Pullable> } } {
+export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPiece[]; systapes: SysTapePiece[]; shelf: Shelf; items: Map<string, Pullable> } } {
   const object = new THREE.Group(), mine: { dispose(): void }[] = [];
   const steel = paint(0x8a8d86, 0.9), wire = satinMetal(0x9da1a4);
   const P = new Parts(), Q = new Parts();
@@ -156,12 +170,18 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
   object.add(deck); mine.push(rodGeo, deck);
 
   // The reels where the plan puts them (racklayout.ts); the anonymous reels on the levels with none of them (filler).
-  const r = rng(1919), plan = rackLayout(ctx.reels ?? []), reels: ReelPiece[] = [];
+  const r = rng(1919), plan = rackLayout(ctx.reels ?? [], SYSTEM_TAPES), reels: ReelPiece[] = [], systapes: SysTapePiece[] = [];
   if (plan.unplaced.length) console.warn(`tape rack: no room for ${plan.unplaced.length} reel(s): ${plan.unplaced.map(u => u.id).join(", ")}`);
+  if (plan.unplacedTapes.length) console.warn(`tape rack: no room for ${plan.unplacedTapes.length} system tape(s)`);
   for (const { reel, level: l, x } of plan.slots) {
     const p = reelPiece(reel, reel.kind === "playlist" ? 0x8a2b22 : 0x2f4a6b, mine);
     p.object.position.set(x + T / 2, LEVELS[l], REEL_Z);
     object.add(p.object); reels.push(p);
+  }
+  for (const { tape, level: l, x } of plan.tapes) {
+    const p = sysTapePiece(tape, mine);
+    p.object.position.set(x + T / 2, LEVELS[l], REEL_Z);
+    object.add(p.object); systapes.push(p);
   }
   const anon = filler(plan, r).map(f => ({ x: f.x, y: LEVELS[f.level], yaw: (r() - 0.5) * 0.05, tint: TINTS[Math.floor(r() * TINTS.length)], label: r() > 0.45 }));
   const cases = new THREE.InstancedMesh(caseGeo(16), [plastic(0xffffff, 0.5), plastic(0xcccccc, 0.55), plastic(0xcccccc, 0.55)], anon.length);
@@ -213,6 +233,12 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
       status: () => mounted === p.reel.id ? "mounted" : "",
     });
   }
+  // A system tape comes out as a reel does and a second click asks for its modal (it is not a simulation scenario:
+  // PUT TAPE BACK only); it is not carried, so stepping back puts it back, as a binder (#87, ours).
+  for (const p of systapes) {
+    const item = shelf.add(p.object, { offset: PULL, opens: true });
+    Object.assign(p, shelf.member(item), { putBack: () => { const was = shelf.isOut(item); shelf.back(item); return was; } });
+  }
   const target = new THREE.Vector3(0, 1.27, 0.12);
   return {
     object,
@@ -220,6 +246,7 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
       screen: { mesh: plate, uvRect: [0, 0, 1, 1] },
       camera: { position: new THREE.Vector3(0, 1.42, 0.12 + 1.65), target, fov: 40 },
       reels,
+      systapes,
       shelf,
       items,
     },

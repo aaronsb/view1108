@@ -99,14 +99,16 @@ function roomToRack(then = () => {}, close = false, tries = 0) {
   then();
   if (close) roomToRack();
 }
-// The lab asks about what was pulled (hooks.ask): the reel modal or the notebook modal; the answer goes back to the lab
-// (VIEW_LAB.answer), which puts it back, mounts its reel (reelMount: a fresh run, the clock stopped) or opens the
-// notebook. Esc is the put-back.
+// The lab asks about what was pulled (hooks.ask): the reel modal, the notebook modal or a system tape's (#87: it only
+// goes back); the answer goes back to the lab (VIEW_LAB.answer), which puts it back, mounts its reel (reelMount: a
+// fresh run, the clock stopped) or opens the notebook. Esc is the put-back.
 function roomAsk(kind, id, title) {
   const back = () => LAB.answer("back");
   if (kind === "reel") askOpen("LOAD NEW SIMULATION SCENARIO?", [
     { label: `LOAD ${title} AND EXEC`, primary: true, run: () => LAB.answer("load") },
     { label: "PUT TAPE BACK", run: back }], back);
+  else if (kind === "system") askOpen(`${title} · SYSTEM TAPE — NOT A SIMULATION SCENARIO`, [   // #87: a prop on the rack
+    { label: "PUT TAPE BACK", primary: true, run: back }], back);
   else askOpen("LOAD SIMULATION AND REVIEW NOTEBOOK?", [
     { label: `LOAD ${title} AND OPEN NOTEBOOK`, primary: true, run: () => LAB.answer("loadread") },
     { label: "READ NOTEBOOK ONLY", run: () => LAB.answer("read") },

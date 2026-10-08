@@ -13,7 +13,8 @@
 // package. Each shot gets a fresh browser context (its own storage: no remembered prefs, room choice or quality from
 // another shot), a fixed viewport at device scale 1, and the page URL with ?debug (the VIEW_* test hooks) and the
 // determinism switches: jitter=0, dust=0, fps=0 (no film weave, dust or 16 fps presentation), hz=steady (the 1558
-// scope held still, not redrawn as a decaying beam pass) and labdust=0 (no dust motes in the room) unless the shot sets
+// scope held still, not redrawn as a decaying beam pass), labdust=0 (no dust motes in the room) and labmotion=0 (the
+// room's machines held still: the tape units' reels, the FASTRAND II, the CPU lamp panel) unless the shot sets
 // `effects: true`, and always labq=low (the room's quality tier pinned). Chromium runs with TZ=UTC and the page's wall
 // clock frozen at WALL.
 // Chromium picks its own GPU path (SwiftShader where there is no GPU; forcing SwiftShader made a canvas-heavy shot take
@@ -75,7 +76,7 @@ for (const s of SHOTS) {
   names.add(s.name);
 }
 const chosen = SHOTS.filter(s => !pats || pats.some(p => p.test(s.name)));
-const DET = effects => effects ? "debug&labq=low" : "debug&labq=low&jitter=0&dust=0&fps=0&hz=steady&labdust=0";
+const DET = effects => effects ? "debug&labq=low" : "debug&labq=low&jitter=0&dust=0&fps=0&hz=steady&labdust=0&labmotion=0";
 const query = s => DET(s.effects) +(s.url ? "&" + s.url.replace(/^[?&]/, "") : "");
 if (list) { for (const s of SHOTS) console.log(`${s.name.padEnd(28)} ${PAGE}?${query(s)}`); process.exit(0); }
 if (!chosen.length) { console.error(`shoot: no shot matches ${only}`); process.exit(2); }

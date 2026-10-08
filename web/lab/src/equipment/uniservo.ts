@@ -13,8 +13,17 @@
 // RUN and a STOP lamp beside it say whether its playback clock runs (LabState.playing). Using it (a click, E) is the
 // page's STOP/START (lab.ts gives it its `use`). While it runs its reels read in bursts; stopped, they hold still. In
 // Beam, which paces its own clock, it shows no state: both lamps dark, the reels still.
+//
+// Dressing (#87, ours): the file reel (the left one) carries a hub label naming its tape and a flange in that tape's
+// colour. The drive's names the mounted reel (blue for a scenario reel, red for a playlist, as their cases on the rack).
+// While a scenario reel is mounted, the other six units carry the site's system tapes (systapes.ts), each with a paper
+// label across its window like the drive's, and run their own bursts of reads (start, run, stop, now and then a rewind)
+// at times of their own, staggered unit by unit, so the row never moves in unison; a `tape` event sets them going one
+// after another. Otherwise (the demo, the tour) they stand undressed, as before. `BuildContext.still` (`?labmotion=0`)
+// holds every reel where it was built, for repeatable screenshots.
 import * as THREE from "three";
 import type { BuildContext, Equipment, LabEvent, LabState } from "../types";
+import { tapeOnUnit } from "./systapes";
 import { PAL, Parts, at, canvasTex, grid, lampMat, lensGeo, paint, plateFontReady, plateText, rng, satinMetal, sharedGeo, smoked, chrome, plastic, poseFrom } from "./kit";
 
 export interface UniservoOptions { number?: number; index?: number; drive?: boolean }
@@ -52,13 +61,44 @@ const backGeo = () => sharedGeo("reelBack", () => {
 const packGeo = () => sharedGeo("reelPack", () => new THREE.CylinderGeometry(1, 1, 0.0127, 32).rotateX(Math.PI / 2));
 
 interface Reel { group: THREE.Group; pack: THREE.Mesh }
-function reel(): Reel {
+function reel(front: THREE.Material = reelFront()): Reel {
   const group = new THREE.Group();
   group.add(new THREE.Mesh(backGeo(), satinMetal()));
   const pack = new THREE.Mesh(packGeo(), plastic(PAL.tape, 0.5));
-  const front = new THREE.Mesh(discGeo(), reelFront()); front.position.z = 0.0075;
-  group.add(pack, front);
+  const face = new THREE.Mesh(discGeo(), front); face.position.z = 0.0075;
+  group.add(pack, face);
   return { group, pack };
+}
+
+/** A file reel's hub label (#87, ours): a paper disc over the hub with the tape's name across it and a band of its
+ *  colour, turning with the reel, so a running reel shows. Drawn again when the name or colour changes. */
+const HUB_LABEL_R = 0.062;
+function hubLabel(mine: { dispose(): void }[]) {
+  const S = 256;
+  let drawn = "";
+  const tex = canvasTex(S, S, () => {});
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85, transparent: true });
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(HUB_LABEL_R, 32), mat);
+  disc.position.z = 0.0088; disc.visible = false;
+  mine.push(disc.geometry, mat, tex);
+  const measure = document.createElement("canvas").getContext("2d")!;
+  const set = (text: string, tint: number) => {
+    disc.visible = !!text;
+    const key = `${text}|${tint}`;
+    if (!text || key === drawn) return;
+    drawn = key;
+    const g = (tex.image as HTMLCanvasElement).getContext("2d")!, c = S / 2;
+    g.clearRect(0, 0, S, S);
+    g.fillStyle = "#efe9d8"; g.beginPath(); g.arc(c, c, c - 1, 0, Math.PI * 2); g.fill();
+    g.fillStyle = `#${tint.toString(16).padStart(6, "0")}`; g.fillRect(0, c - 0.62 * c, S, 0.2 * c);
+    g.fillStyle = "#1c1c1c"; g.beginPath(); g.arc(c, c, 0.27 * c, 0, Math.PI * 2); g.fill();   // the hub's bore
+    g.fillStyle = "#161616";
+    let px = 40;
+    while (px > 12 && plateText(measure, text, 0, 0, px, 0.06) > S * 0.86) px -= 2;
+    plateText(g, text, c, c + 0.58 * c, px, 0.06, "center");
+    tex.needsUpdate = true;
+  };
+  return { disc, set };
 }
 
 /** Number plates, in the nameplate face: black digits on white (the head plate's label) or white on black (the top
@@ -97,7 +137,7 @@ const OFF = 0x2a2a26, LAMP_ON = [0x6cf08a, 0xf4f1e6, 0xff6a3c, 0xffb040, 0xf4f1e
  *  reel's name in the nameplate face, the lamps' captions at its right end, under two lenses that light. */
 const LABEL = { w: 0.4, h: 0.085, y: 1.18, z: 0.3855 };
 const RUN_ON = 0x6cf08a, STOP_ON = 0xffa030;
-function reelLabel(mine: { dispose(): void }[]) {
+function reelLabel(mine: { dispose(): void }[], lamps = true) {
   const W = 512, H = Math.round(W * LABEL.h / LABEL.w);
   let title = "", drawn = "";
   const draw = (g: CanvasRenderingContext2D) => {
@@ -109,6 +149,7 @@ function reelLabel(mine: { dispose(): void }[]) {
     let px = 44;
     while (px > 14 && plateText(measure, t, 0, 0, px, 0.06) > room) px -= 2;
     plateText(g, t, 14, H * 0.62, px, 0.06);
+    if (!lamps) return;
     g.fillStyle = "#2a2a26";
     plateText(g, "RUN", W * 0.80, H * 0.82, 13, 0.14, "center", 0);
     plateText(g, "STOP", W * 0.92, H * 0.82, 13, 0.14, "center", 0);
@@ -141,8 +182,12 @@ function reelLabel(mine: { dispose(): void }[]) {
 
 interface Move { v: number; t: number }
 
-export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment {
-  const num = opts.number ?? 60, idx = opts.index ?? num - 59;
+/** The file reel's flange tint for the mounted reel's kind on the drive (the rack's case colours, lightened). */
+const MOUNTED_FLANGE = { scenario: 0x5d82b0, playlist: 0xb0453a } as const;
+
+export function build(ctx: BuildContext, opts: UniservoOptions = {}): Equipment {
+  const num = opts.number ?? 60, idx = opts.index ?? num - 59, still = !!ctx.still;
+  const sys = opts.drive ? undefined : tapeOnUnit(num);
   const r = rng(num * 977 + 13);
   const object = new THREE.Group(), mine: { dispose(): void }[] = [];
   const P = new Parts(), grey = paint(PAL.cabinet), dark = paint(PAL.charcoal, 0.9);
@@ -174,11 +219,20 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
   const lamps = grid(lensGeo(), lampMat(), LAMP_ON.length, 1, c => at(-0.08 + c * 0.05, 1.71, 0.356, 0, 0, 0, 0.014), () => OFF);
   object.add(lamps); mine.push(lamps);
 
-  const reels = [reel(), reel()];
+  // The file reel's flange: its own material, so its colour can follow the tape it carries.
+  const flange = reelFront().clone(); mine.push(flange);
+  const reels = [reel(flange), reel()];
+  const hub = hubLabel(mine);
+  reels[0].group.add(hub.disc);
   reels.forEach((q, i) => { q.group.position.set(i ? 0.17 : -0.17, 1.37, 0.366); q.group.rotation.z = r() * 6; object.add(q.group); });
 
   const label = opts.drive ? reelLabel(mine) : null;
   if (label) object.add(label.card, label.run, label.stop);
+  // A system tape's unit: a paper label like the drive's, without lamps, while it carries the tape.
+  const paper = sys ? reelLabel(mine, false) : null;
+  if (paper) { paper.card.visible = false; object.add(paper.card); }
+  const kindOf = (id: string) => ctx.reels?.find(q => q.id === id)?.kind;
+  let dressed = false, mountedId: string | null = null;
   /** The drive's last reading of the page: whether its clock runs, and the reel's name. */
   const mounted = { playing: true, reel: "", beam: false, read: false };
 
@@ -205,9 +259,25 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
     object,
     // The drive's label is its screen anchor: what the walk's zone faces (E uses it).
     // `tapeUnit`: its number; any tape unit mounts a reel carried from the tape rack (lab.ts).
-    anchors: { camera: poseFrom(new THREE.Vector3(0, 1.3, 0.37), [0.25, 0.1, 1], 1.5, 40), motion, tapeUnit: num, ...(label ? { screen: { mesh: label.card, uvRect: [0, 0, 1, 1] as [number, number, number, number] } } : {}) },
+    // `tapeLabel`: what its paper label names now ("" none), for tests (VIEW_LAB.info().tapes).
+    anchors: { camera: poseFrom(new THREE.Vector3(0, 1.3, 0.37), [0.25, 0.1, 1], 1.5, 40), motion, tapeUnit: num,
+      tapeLabel: () => label ? mounted.reel : dressed ? sys!.label : "", ...(label ? { screen: { mesh: label.card, uvRect: [0, 0, 1, 1] as [number, number, number, number] } } : {}) },
     ...(label ? { status: () => `${mounted.reel} · ${mounted.beam ? "Beam paces the clock" : mounted.playing ? "running · click to stop" : "stopped · click to start"}` } : {}),
     update(dt, s: LabState) {
+      if (s.mounted !== mountedId) {
+        mountedId = s.mounted;
+        const kind = kindOf(s.mounted), on = !!sys && kind === "scenario";
+        if (label) { flange.color.set(kind ? MOUNTED_FLANGE[kind] : 0xb8c0c6); }
+        else {
+          if (on && !dressed) { idle = 0.6 + idx * 0.9 + r() * 1.2; queue.length = 0; }   // the row starts unit by unit
+          dressed = on;
+          flange.color.set(on ? sys!.flange : 0xb8c0c6);
+          hub.set(on ? sys!.label : "", sys?.flange ?? 0);
+          if (paper) { paper.card.visible = on; if (on) paper.set(sys!.label); }
+        }
+      }
+      if (label) hub.set(s.reel, kindOf(s.mounted) === "playlist" ? 0x8a2b22 : 0x2f4a6b);
+      dt = still ? 0 : dt;   // ?labmotion=0: the labels above follow the page, the reels hold still
       if (label) {
         // In Beam the drive does not drive the clock (Beam paces itself): both lamps dark, the reels still.
         const beam = s.mode === "beam";
@@ -218,6 +288,9 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
         }
         // Running: bursts of reads, a second or few apart. Stopped: still.
         if (s.playing && !beam && !queue.length && (idle -= dt) < 0) { idle = 1.5 + r() * 3; run(); }
+      } else if (dressed) {
+        // Carrying a system tape: bursts of reads at this unit's own times.
+        if (!queue.length && (idle -= dt) < 0) { idle = 2.5 + r() * 9; run(); }
       } else if (!queue.length && (idle -= dt) < 0) {
         idle = 8 + r() * 25;   // an occasional short shuttle
         const d = r() < 0.5 ? 1 : -1;
@@ -244,7 +317,8 @@ export function build(_ctx: BuildContext, opts: UniservoOptions = {}): Equipment
     event(e: LabEvent) {
       if (e.type !== "tape" || (label && (!mounted.playing || mounted.beam))) return;
       runs++;
-      if ((num + runs) % 3 !== 0) { queue.length = 0; run(); }   // about two in three units take part
+      // About two in three units take part, each after a pause of its own, so they start one after another.
+      if ((num + runs) % 3 !== 0) { queue.length = 0; queue.push({ v: 0, t: 0.1 + ((idx * 0.37 + runs * 0.29) % 1) * 2.4 }); run(); }
     },
     dispose() { mine.forEach(d => d.dispose()); },
   };

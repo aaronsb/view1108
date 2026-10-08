@@ -15,11 +15,12 @@ const VISIBLE_ROWS = `[...document.querySelectorAll("#libmd .runsheet tbody tr")
 const ROOM_UP = { wait: `VIEW_LAB.running && ${LAB} && document.body.classList.contains("room")` };
 const ROOM_STILL = { wait: `${LAB}.mode !== "flight" && !document.getElementById("labhost").classList.contains("fading") && ${LAB}.lit >= 0.999` };
 
-// A click on a placed piece of the room (VIEW_LAB.project: its screen, else its origin, client px; a binder's origin is
+// A click on a placed piece of the room (VIEW_LAB.project: its screen, else its origin, client px; a reel case is
+// clicked at its middle, 0.13 m up from its origin on the deck; a binder's origin is
 // at its foot, so 0.16 m up its spine), as the pointer
 // events the room's input reads; the capture is the browser's for a real pointer only, so it is a no-op here.
 const ROOM_CLICK = name => ({ js: `(() => {
-  const c = document.querySelector("#labhost canvas"), p = VIEW_LAB.project(${JSON.stringify(name)}, ${name.startsWith("binder:") ? 0.16 : 0});
+  const c = document.querySelector("#labhost canvas"), p = VIEW_LAB.project(${JSON.stringify(name)}, ${name.startsWith("binder:") ? 0.16 : /^(reel|systape):/.test(name) ? 0.13 : 0});
   c.setPointerCapture = () => {};
   const o = { clientX: p.x, clientY: p.y, button: 0, pointerId: 1, pointerType: "mouse", bubbles: true };
   c.dispatchEvent(new PointerEvent("pointerdown", o)); c.dispatchEvent(new PointerEvent("pointerup", o));
@@ -73,6 +74,44 @@ export const SHOTS = [
   { name: "room-rack-wall", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.setTarget("rack")` }, { wait: `${LAB}.mode === "flight"`, timeout: 2000 }, ROOM_STILL, { frames: 3 }],
     expect: [[`${LAB}.at`, "rack"], [`${LAB}.mode`, "hold"], [`${LAB}.quality`, "low"]] },
+
+  // #87: the rack's system tapes, a level of props below the playlists, each pulled like a reel; their labels.
+  { name: "room-rack-system", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(2.0, -3.25, 0, -35)` }, { frames: 3 }],
+    expect: [[`${LAB}.systapes`, ["EXEC 8 SYSTEM (COPY)", "RUN STREAMS", "VIEW KERNEL", "EPHEMERIS", "MODELS", "PLOT TAPE", "MEDIA 1", "MEDIA 2"]],
+      [`["exec8", "runstreams", "kernel", "ephemeris", "models", "plot", "media1", "media2"].every(id => (p => p && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight)(VIEW_LAB.project("systape:" + id)))`, true]] },
+  // #87: a pulled system tape asks the page for its modal, which only puts it back; nothing is mounted.
+  { name: "room-system-tape-modal", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK("systape:ephemeris"), { wait: `${LAB}.out["systape:ephemeris"] === 1` },
+      { frames: 12 }, ROOM_CLICK("systape:ephemeris"), { wait: `!document.getElementById("ask").hidden` }, { frames: 3 }],
+    expect: [[`document.getElementById("asktitle").textContent`, "EPHEMERIS · SYSTEM TAPE — NOT A SIMULATION SCENARIO"],
+      [`[...document.querySelectorAll("#askbtns button")].map(b => b.textContent)`, ["PUT TAPE BACK"]], [`${LAB}.asking`, "systape:ephemeris"], [TL("mounted"), "apollo11-asflown"]] },
+  // #87: while the demo plays the six other tape units stand undressed; the drive names the demo.
+  { name: "room-drive-row-demo", url: "space=room&mode=attract",
+    steps: [ROOM_UP, ROOM_STILL, { frames: 3 }],
+    expect: [[`${LAB}.tapes`, ["", "", "", "DEMO", "", "", ""]], [TL("mounted"), "demo"]] },
+  // #87: the drive row after Apollo 8 is mounted from its reel modal: the drive names it, the six other units carry the
+  // system tapes with their labels; a system tape pulled and put back after changes nothing mounted. Motion held
+  // (?labmotion=0).
+  { name: "room-drive-row", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL,
+      ROOM_CLICK("reel:apollo8-asflown"), { wait: `${LAB}.out["reel:apollo8-asflown"] === 1` }, { frames: 12 }, ROOM_CLICK("reel:apollo8-asflown"),
+      { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button.primary" }, { wait: `${TL("mounted")} === "apollo8-asflown"` }, { frames: 3 },
+      { expect: [`${LAB}.tapes.filter((t, i) => i !== 3)`, ["RUN STREAMS", "VIEW KERNEL", "EPHEMERIS", "MODELS", "PLOT TAPE", "MEDIA 1"]] },
+      ROOM_CLICK("systape:media2"), { wait: `${LAB}.out["systape:media2"] === 1` }, { frames: 12 }, ROOM_CLICK("systape:media2"), { wait: `!document.getElementById("ask").hidden` },
+      { click: "#askbtns button.primary" }, { wait: `document.getElementById("ask").hidden && !${LAB}.out["systape:media2"]` },
+      { js: `VIEW_LAB.setTarget(null)` }, { wait: `${LAB}.at === null && ${LAB}.mode === "free"`, timeout: 20000 }, ROOM_STILL, { js: `VIEW_LAB.stand(-3.45, -0.1, 0, 4)` }, { frames: 3 }],
+    expect: [[TL("mounted"), "apollo8-asflown"], [`${LAB}.tapes.length`, 7], [`${LAB}.tapes[3]`, /\S/],
+      [`${LAB}.tapes.filter((t, i) => i !== 3)`, ["RUN STREAMS", "VIEW KERNEL", "EPHEMERIS", "MODELS", "PLOT TAPE", "MEDIA 1"]], [`${LAB}.asking`, null]] },
+  // #89: the FASTRAND II close up, from the walkway south of it, and the machine floor from the south-east: the drum
+  // unit before the cabinet run. Motion held (?labmotion=0).
+  { name: "room-fastrand", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(-2.7, 4.3, 0, -10)` }, { frames: 3 }],
+    expect: [[`VIEW_LAB.layout().footprints.some(f => f.name === "fastrand" && Math.abs(f.hw - 1.75) < 0.03 && Math.abs(f.hd - 0.45) < 0.03)`, true],
+      [`(p => p && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight)(VIEW_LAB.project("fastrand", 1))`, true]] },
+  { name: "room-machine-floor", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(1.6, 3.9, 57, -6)` }, { frames: 3 }],
+    expect: [[`(p => p && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight)(VIEW_LAB.project("fastrand", 1))`, true]] },
 
   // Tabbed's reel list (#73): [ RETURN TO REELS ] opens it, the mounted reel marked; Apollo 8's button mounts its
   // scenario reel as a fresh run (Free-look, its first situation at its default g.e.t., the clock stopped). The
