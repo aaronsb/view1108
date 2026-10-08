@@ -3,7 +3,7 @@
 const STILL = /[?&]still=earthrise\b/.test(location.search);   // frozen Earthrise, chrome hidden, for screenshots
 const BARE = STILL || /[?&]bare\b/.test(location.search);       // chrome hidden (combine with ?film= for screenshots)
 const DEBUG = /[?&]debug\b/.test(location.search);
-const UP = new URLSearchParams(location.search);   // shareable view parameters (documented in the README)
+const UP = canonUrl(new URLSearchParams(location.search));   // the link's keys, old ones made canonical (urlkeys.js; docs/modes.md)
 const NAMES = (typeof VIEW_NAMES !== "undefined") ? VIEW_NAMES : (window.MOCK_NAMES || { NAV: [], CRATER: [] });
 // Situations (scenes), each scenario reel's spans and timeline, and the playlist reels: the reels' page.json (#26
 // slices 7d, 7e; reelpkg.js reelPages), set once at boot (kernel.js) before anything reads them; the page holds no

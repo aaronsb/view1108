@@ -11,6 +11,9 @@ const TL = k => `VIEW_TL.state().${k}`;
 // clock ran from the link until now), then hold it at s for a picture that repeats.
 const LINKED = s => [HOLD(), { expect: [`(d => d >= 0 && d < 300)(VIEW_TL.state().get - ${s})`] }, HOLD(s)];
 const LAB = "VIEW_LAB.info()";
+// The LINK button's URL (link.js linkURL), and no old key in it (docs/modes.md, Link parameters: the old keys, #22).
+const LINK = "VIEW_FUSION.state().link";
+const NO_OLD = /^(?!.*[?&](?:src|lab|scene)=)(?!.*[?&]labels=[01](&|$))(?!.*space=tiled)(?!.*mode=(?:attract|tour))/;
 // The notebook's binder (#29 slice g): Apollo 11's notebook opened from the library, and its paging plate's label.
 const NB_OPEN = [{ js: `document.getElementById("blib").click()` },
   { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` }, { frames: 2 }];
@@ -78,13 +81,13 @@ const bookShots = (route, scn, from, doc, extra = []) => ["room", "esc"].map(how
 // The terminal the walk stands nearest.
 const NEAREST = `(w => VIEW_LAB.layout().terminals.map(t => [t.name, Math.hypot(t.x - w.x, t.z - w.z)]).sort((a, b) => a[1] - b[1])[0][0])(${LAB}.walk)`;
 
-export const SHOTS = [
+const SHOT_LIST = [
   // The headless boot gate: the page starts (Attract), with no console error and #err empty.
   { name: "boot", url: "",
     expect: [[TL("mode"), "attract"], ["!!VIEW_KERNEL.view_frame"]] },
 
   // Simulate (Live) on Apollo 11 in mid-mission: lunar orbit, the clock held.
-  { name: "tabbed-simulate-apollo11", url: "mode=live&tab=simulate&space=tiled&get=80:00:00",
+  { name: "tabbed-simulate-apollo11", url: "mode=live&tab=simulate&space=tabbed&get=80:00:00",
     steps: [...LINKED(288000), { frames: 3 }],
     expect: [[TL("mode"), "live"],["VIEW_FUSION.state().tab", "simulate"], [TL("mounted"), "apollo11-asflown"]] },
 
@@ -116,7 +119,7 @@ export const SHOTS = [
       { js: `VIEW_LAB.setTarget(null)` }, { wait: `${LAB}.at === null && ${LAB}.mode === "free"`, timeout: 20000 }, ROOM_STILL, { frames: 3 }],
     expect: [[`Object.keys(${LAB}.out)`, []], [`VIEW_ESC()`, ["room"]], [TL("mounted"), "apollo11-asflown"]] },
   // #87: while the demo plays the six other tape units stand undressed; the drive names the demo.
-  { name: "room-drive-row-demo", url: "space=room&mode=attract",
+  { name: "room-drive-row-demo", url: "space=room&reel=demo",
     steps: [ROOM_UP, ROOM_STILL, { frames: 3 }],
     expect: [[`${LAB}.tapes`, ["", "", "", "DEMO", "", "", ""]], [TL("mounted"), "demo"]] },
   // #87: the drive row after Apollo 8 is mounted from its reel modal: the drive names it, the six other units carry the
@@ -138,6 +141,44 @@ export const SHOTS = [
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(-1.6, 1.4, 36, -8)` }, { frames: 3 }],
     expect: [[`VIEW_LAB.layout().footprints.some(f => f.name === "fastrand" && Math.abs(f.hw - 1.75) < 0.03 && Math.abs(f.hd - 0.45) < 0.03)`, true],
       [`(p => p && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight)(VIEW_LAB.project("fastrand", 1))`, true]] },
+  // #68: the 1108 console's close-up, the operator's view of its screen and notebook, the console as text (VIEW_LAB
+  // info().exec). The demo playing: the idle EXEC, the status summary on the top two lines (the SS report's form) and
+  // the shift's last run (ours: the index's last scenario reel) ended.
+  { name: "room-console-idle", url: "space=room&reel=demo",
+    steps: [ROOM_UP, ROOM_STILL, ...AT_ST("console"), ROOM_STILL, { frames: 3 }],
+    expect: [[TL("mounted"), "demo"], [`${LAB}.at`, "console"], [`${LAB}.exec.run`, null],
+      [`${LAB}.exec.screen[0]`, /^LAST PERIOD USAGE; EXEC \d\d%, BATCH \d\d%, DEMAND \d\d%, IDLE \d\d%,$/],
+      [`${LAB}.exec.screen[1]`, /^RT 00%, OPENBCH 00, UNOPRUN 00, AVEBCH \d\d%, AVEDEM \d\d%$/],
+      [`${LAB}.exec.screen.join("|")`, /\|RN 06\/00 VIEW08\|.*\|LOAD V08\d{3} 06\/03 VIEWTP VIEW08\|.*\|VIEW08 @FIN\|/],
+      [`${LAB}.exec.screen.length === 16 && ${LAB}.exec.screen.every(l => l.length <= 64)`, true]] },
+  // #68: LOAD APOLLO 11 AS FLOWN AND EXEC from the rack's reel modal while the demo plays, then the console: the operator
+  // keys RN from the RUN STREAMS tape, the EXEC asks for the reel on the drive (LOAD, UP-4144 Rev. 1 p. 12-10) and the
+  // plot tape, the program is loaded and waits for its profile (ours), the clock stopped as a fresh mount leaves it.
+  { name: "room-console-mounted", url: "space=room&reel=demo",
+    steps: [ROOM_UP, ROOM_STILL, ...AT_ST("rack"), ROOM_STILL,
+      ROOM_CLICK("reel:apollo11-asflown"), { wait: `${LAB}.out["reel:apollo11-asflown"] === 1` }, { frames: 12 }, ROOM_CLICK("reel:apollo11-asflown"),
+      { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button.primary" }, { wait: `${TL("mounted")} === "apollo11-asflown"` },
+      // The console's clock is the room's frame time (each step at most 0.1 s), slow in a software renderer.
+      ...AT_ST("console"), ROOM_STILL, { wait: `${LAB}.exec.run === "VIEW11 profile" && !${LAB}.exec.busy`, timeout: 60000 }, { frames: 3 }],
+    timeout: 150000,
+    expect: [[TL("mounted"), "apollo11-asflown"], [TL("playing"), false], [`${LAB}.at`, "console"],
+      [`${LAB}.exec.screen.join("|")`, /\|VIEW08 @FIN\|RN 06\/00 VIEW11\|VIEW11 @RUN VIEW11,69197,APOLLO\|VIEW11 @ASG,T VIEWTP,T,(V11\d{3})\|LOAD \1 06\/03 VIEWTP VIEW11\|VIEW11 @ASG,T PLTTAP,T,SCRTCH\|LOAD SCRTCH 06\/05 PLTTAP VIEW11\|VIEW11 @XQT VIEW\|VIEW11\* APOLLO 11 AS FLOWN - APOLLO 11\|0 VIEW11\* AWAITING PROFILE - WAIT\|$/],
+      [`${LAB}.exec.paper.length > 0`, true]] },
+  // #68: a note in the operator's notebook clicked at the console's close-up: SS typed on the keyboard line, a character
+  // at a time, then answered with the status report; then CS TYPE, answered with the run (the link's clock ran when the
+  // room was built, so the run had its GO; the hold after it is the run's CLOCK HELD).
+  { name: "room-console-keyin", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("console"), ROOM_STILL, { wait: `!${LAB}.exec.busy`, timeout: 30000 },
+      ROOM_CLICK("note:ss"), { wait: `${LAB}.exec.busy` }, { wait: `!${LAB}.exec.busy && ${LAB}.exec.screen[14].startsWith("RT 00%")`, timeout: 30000 },
+      { expect: [`${LAB}.exec.screen.slice(12, 15)`, /^SS,LAST PERIOD USAGE; .*,RT 00%, OPENBCH 01/] },
+      ROOM_CLICK("note:cstype"), { wait: `!${LAB}.exec.busy && ${LAB}.exec.screen[14].startsWith("VIEW11 ")`, timeout: 30000 }, { frames: 3 }],
+    expect: [[`${LAB}.at`, "console"], [`${LAB}.exec.screen.slice(13, 15)`, ["CS TYPE", "VIEW11   ACTIVE"]], [`${LAB}.exec.run`, "VIEW11 go"],
+      [TL("mounted"), "apollo11-asflown"]],
+    timeout: 150000 },
+  // #68: the console's PAGEWRITER, the lines rolled off the CRT printed on its paper, the newest at the platen.
+  { name: "room-console-pagewriter", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(0.15, -2.35, 180, -28)` }, { frames: 3 }],
+    expect: [[`${LAB}.exec.paper[0]`, "RN 06/00 VIEW08"], [`${LAB}.exec.paper.length >= 5`, true]] },
   { name: "room-machine-floor", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(1.2, 3.2, 50, -6)` }, { frames: 3 }],
     expect: [[`(p => p && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight)(VIEW_LAB.project("fastrand", 1))`, true]] },
@@ -145,7 +186,7 @@ export const SHOTS = [
   // Tabbed's reel list (#73): [ RETURN TO REELS ] opens it, the mounted reel marked; Apollo 8's button mounts its
   // scenario reel as a fresh run (Free-look, its first situation at its default g.e.t., the clock stopped). The
   // picture is the list.
-  { name: "tabbed-reel-mount", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1",
+  { name: "tabbed-reel-mount", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1",
     steps: [HOLD(), { click: "#breels" }, { frames: 3 },
       { expect: [`!document.getElementById("ask").hidden && document.getElementById("ask").classList.contains("list")`] },
       { expect: [`[...document.querySelectorAll("#askbtns button[data-reel]")].map(b => b.dataset.reel).join()`, "apollo11-asflown,apollo8-asflown,demo,tour"] },
@@ -157,7 +198,7 @@ export const SHOTS = [
 
   // The sim panel (#73): no SCENE group, one [ RETURN TO REELS ] button, and the reel's situations as marked entries of
   // the event list, each with its quick-view key (Apollo 11's quickviews.txt: 1-8 its situations, 9 an event).
-  { name: "tabbed-panel", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=3&get=1:30:00",
+  { name: "tabbed-panel", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=3&get=1:30:00",
     steps: [...LINKED(5400), { frames: 3 }],
     expect: [[`!!document.querySelector('[data-shade="scene"], #scenes, #reels')`, false], [`document.getElementById("breels").textContent`, "Return to reels"],
       [`[...document.querySelectorAll("#tllist .tlrow.tlsit")].map(r => r.querySelector(".tlq").textContent + r.dataset.id).sort().join()`,
@@ -166,21 +207,21 @@ export const SHOTS = [
 
   // A situation entry applies its view: External on the Earth first, then EARTHRISE picked from the list: its scene,
   // its own view and target, its field.
-  { name: "tabbed-situation-entry", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=3",
+  { name: "tabbed-situation-entry", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=3",
     steps: [HOLD(), { js: `document.querySelectorAll("#viewgrp button")[1].click(); document.querySelectorAll("#targrp button")[1].click()` },
       { expect: [TL("viewMode"), 1] }, { expect: [TL("targetId"), 1] },
       { js: `document.querySelector('#tllist .tlrow[data-id="EARTHRISE"]').click()` }, HOLD(), { frames: 3 }],
     expect: [[TL("scene"), 1], [TL("viewMode"), 0], [TL("targetId"), 0], [TL("fov"), 8], [TL("mode"), "free"]] },
 
   // A plain event moves the time only: from Earth limb (situation 3), Translunar injection (SP-4029, 10,213.03 s).
-  { name: "tabbed-event-entry", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=3",
+  { name: "tabbed-event-entry", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=3",
     steps: [HOLD(), { js: `document.querySelectorAll("#tlkinds button")[1].click()` },
       { js: `document.querySelector('#tllist .tlrow[data-id="translunar-injection"]').click()` }, { frames: 3 }],
     expect: [[TL("scene"), 3], [TL("get"), 10213.03], [TL("fov"), 70], [TL("viewMode"), 0], [TL("playing"), false]] },
 
   // Keys 1-9 follow the loaded reel's quick views: on Apollo 11, 4 is LM RENDEZVOUS and 9 Translunar injection; on
   // Apollo 8 (no quickviews.txt: its one situation on key 1), 2 is a gap and does nothing.
-  { name: "tabbed-quickviews", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=3",
+  { name: "tabbed-quickviews", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=3",
     steps: [HOLD(), { key: "4" }, HOLD(), { expect: [TL("scene"), 4] }, { expect: [TL("fov"), 12] },
       { key: "9" }, { expect: [TL("get"), 10213.03] },
       { click: "#breels" }, { js: `document.querySelector('#askbtns button[data-reel="apollo8-asflown"]').click()` },
@@ -190,7 +231,7 @@ export const SHOTS = [
   // The run sheet at the front of the Apollo 11 notebook (#29 slice f): the reel's generated listing, situations marked.
   // Collapsed, as it opens (the operator, 2026-10-08): the situations, the Noteworthy milestones and the quick-view
   // events, and the typed line that shows every entry.
-  { name: "tabbed-run-sheet", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+  { name: "tabbed-run-sheet", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { js: `document.getElementById("blib").click()` },
       { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` }, { frames: 3 }],
     expect: [[`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"],
@@ -199,7 +240,7 @@ export const SHOTS = [
       [`document.querySelector("#libmd .runsheet h2").textContent`, "RUN SHEET - APOLLO 11 AS FLOWN"]] },
 
   // Expanded in place: every entry, the line now offering the short sheet; a second press collapses it again.
-  { name: "tabbed-run-sheet-all", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+  { name: "tabbed-run-sheet-all", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { js: `document.getElementById("blib").click()` },
       { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` },
       { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { expect: [VISIBLE_ROWS, 255] },
@@ -209,7 +250,7 @@ export const SHOTS = [
 
   // A run-sheet entry mounts the reel as a fresh run and goes there: from Apollo 8 with the clock running, Apollo 11's
   // Translunar injection (the time, the clock stopped), then its LM DESCENT (the situation's view).
-  { name: "tabbed-run-sheet-go", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+  { name: "tabbed-run-sheet-go", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [{ js: `VIEW_TL.state().playing || document.getElementById("bplay").click()` }, { js: `document.getElementById("blib").click()` },
       { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` },
       { js: `document.querySelector('#libmd .runsheet button[data-id="translunar-injection"]').click()` },
@@ -221,7 +262,7 @@ export const SHOTS = [
 
   // The notebook's reading view (#29 slice g): LIGHT by default, typed pages in an open three-ring binder on a desk.
   // On a phone-sized window one page, the run sheet first, with no sideways scroll of the page itself.
-  { name: "notebook-light-page", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1", viewport: [400, 860],
+  { name: "notebook-light-page", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1", viewport: [400, 860],
     steps: [HOLD(), ...NB_OPEN],
     expect: [[`document.getElementById("libmd").className`, "light"], [NB_COLS, "1"], [NB_PAGE, /^PAGE 1 OF \d+$/],
       [`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"], [VISIBLE_ROWS, 21],
@@ -229,7 +270,7 @@ export const SHOTS = [
 
   // On a narrow screen LIST hides the viewer; a resize while it is hidden, then the same notebook again: counted anew
   // (review of PR #94: the hidden binder measured 0 wide and the count went to -Infinity).
-  { name: "notebook-light-relist", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1", viewport: [400, 860],
+  { name: "notebook-light-relist", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1", viewport: [400, 860],
     steps: [HOLD(), ...NB_OPEN, { click: "#bliblist" }, { vp: [390, 700] }, { frames: 2 },
       { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` }, { frames: 2 },
       { expect: [NB_PAGE, /^PAGE 1 OF \d+$/] }, { key: "PageDown" }, { frames: 2 }],
@@ -237,19 +278,19 @@ export const SHOTS = [
 
   // A small phone (360x640): the run sheet's table fits its page, collapsed and with every entry shown; every row's
   // fragments within the column (review of PR #94: rows were 262 px in a 216 px column).
-  { name: "notebook-light-phone", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1", viewport: [360, 640],
+  { name: "notebook-light-phone", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1", viewport: [360, 640],
     steps: [HOLD(), ...NB_OPEN, { expect: [RS_FITS] }, { js: `document.querySelector("#libmd .runsheet button.rsall").click()` },
       { frames: 2 }, { expect: [RS_FITS] }, { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { frames: 2 }],
     expect: [[RS_FITS], [NB_PAGE, /^PAGE 1 OF \d+$/], [NO_HSCROLL]] },
 
   // On a wide window a two-page spread: the run sheet on the left page, the notebook's first page on the right.
-  { name: "notebook-light-spread", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+  { name: "notebook-light-spread", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB_OPEN],
     expect: [[`document.getElementById("libmd").className`, "light"], [NB_COLS, "2"], [NB_PAGE, /^PAGES 1-2 OF \d+$/],
       [`document.querySelector("#libmd .nbprev").disabled`, true], [NO_HSCROLL]] },
 
   // Paged forward by jumps (PgDn twice, Left, Right): the spread of pages 5 and 6, the scroll two whole views.
-  { name: "notebook-light-paged", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+  { name: "notebook-light-paged", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB_OPEN, { key: "PageDown" }, { expect: [NB_PAGE, /^PAGES 3-4 OF /] },
       { key: "PageDown" }, { key: "ArrowLeft" }, { expect: [NB_PAGE, /^PAGES 3-4 OF /] }, { key: "ArrowRight" }, { frames: 2 }],
     expect: [[NB_PAGE, /^PAGES 5-6 OF \d+$/], [`document.querySelector("#libmd .nbprev").disabled`, false],
@@ -258,7 +299,7 @@ export const SHOTS = [
 
   // End: Apollo 8's notebook at its last spread, the figure cases, on a whole view; its pages are odd here, so the
   // spread ends on a blank page (.nbend.blank), which is not counted. Home goes back to the first spread.
-  { name: "notebook-light-end", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+  { name: "notebook-light-end", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, { js: `document.getElementById("blib").click()` },
       { js: `document.querySelector('#liblist .librow[data-id="nb-apollo8-asflown"]').click()` }, { frames: 2 },
       { key: "End" }, { expect: [NB_PAGE, /^PAGE \d+ OF \d+$/] }, { key: "Home" }, { expect: [NB_PAGE, /^PAGES 1-2 OF /] },
@@ -269,7 +310,7 @@ export const SHOTS = [
       [`(r => r.left > 0 && r.right < innerWidth)(document.querySelector("#libmd section.nbcases h2").getBoundingClientRect())`]] },
 
   // DARK, the viewer as it was, by the toggle: remembered (prefs.notebook), so the notebook opens dark again.
-  { name: "notebook-dark", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+  { name: "notebook-dark", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), ...NB_OPEN, { click: "#blibtheme" }, { expect: [`document.getElementById("libmd").className`, "dark"] },
       { key: "Escape" }, { expect: [`document.getElementById("libr").classList.contains("open")`, false] }, ...NB_OPEN],
     expect: [[`document.getElementById("libmd").className`, "dark"], [`document.getElementById("blibtheme").textContent`, "Light"],
@@ -278,18 +319,18 @@ export const SHOTS = [
 
   // Findings and attachments (#29 slice g; the look is ours): a finding, a typed slip pasted beside the text (Apollo 8,
   // TN D-6853 p. 3).
-  { name: "notebook-finding", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+  { name: "notebook-finding", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB8_OPEN, ...NB_TO("#libmd aside.nbfinding")],
     expect: [[NB_SHOWN("#libmd aside.nbfinding")], [`document.querySelector("#libmd aside.nbfinding .nbslip").textContent`, "FINDING  2026-10-08"],
       [`document.querySelector("#libmd aside.nbfinding .nbcite").textContent`, "Source: TN D-6853, printed p. 3"]] },
   // A plate, printed on the page and numbered: Apollo 8's LOI figure, a glossy photo finish.
-  { name: "notebook-attach-plate", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+  { name: "notebook-attach-plate", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB8_OPEN, ...NB_TO("#libmd figure.nb-plate")],
     expect: [[NB_SHOWN("#libmd figure.nb-plate")], [`document.querySelector("#libmd figure.nb-plate").className`, "nbattach nb-plate nb-photo"],
       [`document.querySelector("#libmd figure.nb-plate figcaption strong").textContent`, "PLATE 1."]] },
   // Taped in and clipped on: the golden render of the Earthrise as a film-recorder print taped at its corners, and the
   // photograph AS08-14-2383 (a media member, JPEG) as a glossy print under a paper clip beside it.
-  { name: "notebook-attach-tape-clip", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+  { name: "notebook-attach-tape-clip", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB8_OPEN, ...NB_TO("#libmd figure.nb-tape")],
     expect: [[NB_SHOWN("#libmd figure.nb-tape")], [NB_SHOWN("#libmd figure.nb-clip")],
       [`document.querySelector("#libmd figure.nb-tape").className`, "nbattach nb-tape nb-film"], [`document.querySelectorAll("#libmd figure.nb-tape .nbtape").length`, 4],
@@ -297,34 +338,34 @@ export const SHOTS = [
       [`(i => i.naturalWidth + "x" + i.naturalHeight + " " + i.src.slice(0, 23))(document.querySelector("#libmd figure.nb-clip img.nbmedia"))`, "800x800 data:image/jpeg;base64,"]] },
   // An insert, a sheet of its own tipped in: a figure of MSC IN 69-FM-197 (a media member, PNG) with the copy finish, in
   // Apollo 11's notebook; on the facing page the descent section's first figure.
-  { name: "notebook-attach-insert", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1",
+  { name: "notebook-attach-insert", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1",
     steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB_OPEN, ...NB_TO("#libmd figure.nb-insert")],
     expect: [[NB_SHOWN("#libmd figure.nb-insert")], [`document.querySelector("#libmd figure.nb-insert").className`, "nbattach nb-insert nb-copy"],
       [`(i => i.naturalWidth + " " + i.src.slice(0, 22))(document.querySelector("#libmd figure.nb-insert img.nbmedia"))`, "1100 data:image/png;base64,"],
       [`(f => Math.abs(f.getBoundingClientRect().height - (f.parentElement.clientHeight - parseFloat(getComputedStyle(f.parentElement).paddingTop) - parseFloat(getComputedStyle(f.parentElement).paddingBottom))) < 2)(document.querySelector("#libmd figure.nb-insert"))`]] },
   // The late-descent render as a plate with the film finish (Apollo 11).
-  { name: "notebook-attach-plate-film", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1",
+  { name: "notebook-attach-plate-film", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1",
     steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB_OPEN, ...NB_TO("#libmd figure.nb-film")],
     expect: [[NB_SHOWN("#libmd figure.nb-film")], [`document.querySelector("#libmd figure.nb-film").className`, "nbattach nb-plate nb-film"],
       [`document.querySelector("#libmd figure.nb-film figcaption strong").textContent`, "PLATE 1."]] },
   // On a phone (390x844, one page) the attachments take the column: the clipped photograph and the taped render each the
   // column's width (most of it), every attachment within it; and Apollo 11's insert, whole on its page.
-  { name: "notebook-attach-phone", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1", viewport: [390, 844],
+  { name: "notebook-attach-phone", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1", viewport: [390, 844],
     steps: [HOLD(), ...NB8_OPEN, ...NB_TO("#libmd figure.nb-clip")],
     expect: [[NB_COLS, "1"], [NB_SHOWN("#libmd figure.nb-clip")], [NB_ATTACH_FITS], [NO_HSCROLL],
       [`(i => (pg => i.getBoundingClientRect().width >= 0.7 * (pg.clientWidth - parseFloat(getComputedStyle(pg).paddingLeft) - parseFloat(getComputedStyle(pg).paddingRight)))(document.querySelector("#libmd .nbpages")))(document.querySelector("#libmd figure.nb-clip img.nbmedia"))`]] },
-  { name: "notebook-attach-phone-insert", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1", viewport: [390, 844],
+  { name: "notebook-attach-phone-insert", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1", viewport: [390, 844],
     steps: [HOLD(), ...NB_OPEN, ...NB_TO("#libmd figure.nb-insert")],
     expect: [[NB_COLS, "1"], [NB_SHOWN("#libmd figure.nb-insert")], [NB_ATTACH_FITS], [NO_HSCROLL]] },
   // DARK shows attachments plainly: the photograph and its credit, no clip, tape or finish.
-  { name: "notebook-dark-attach", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1&notebook=dark",
+  { name: "notebook-dark-attach", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1&notebook=dark",
     steps: [HOLD(), ...NB8_OPEN, { js: `document.querySelector("#libmd figure.nb-clip").scrollIntoView({ block: "center" })` },
       { wait: `[...document.querySelectorAll("#libmd img")].every(i => i.complete && i.naturalWidth > 0)` }, { frames: 2 }],
     expect: [[`document.getElementById("libmd").className`, "dark"], [`getComputedStyle(document.querySelector("#libmd .nbclip")).display`, "none"],
       [`document.querySelector("#libmd figure.nb-clip .nbcredit").textContent.startsWith("Credit: NASA. Source: ")`, true]] },
 
   // ?notebook=dark holds DARK for the visit without touching the remembered choice.
-  { name: "notebook-dark-url", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1&notebook=dark",
+  { name: "notebook-dark-url", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1&notebook=dark",
     steps: [HOLD(), ...NB_OPEN],
     expect: [[`document.getElementById("libmd").className`, "dark"], [`localStorage.getItem("view1108.prefs")`, null]] },
 
@@ -348,25 +389,65 @@ export const SHOTS = [
     expect: [[`document.body.classList.contains("room")`, true], [TL("mounted"), "apollo8-asflown"],
       [`${LAB}.at`, null], [`${LAB}.mode`, "free"], [`VIEW_ESC()`, ["room"]]] },
 
-  // The scene= link of #22 still opens what it did: scene=9 is Apollo 8's Earthrise.
-  { name: "link-scene-alias", url: "mode=free&space=tiled&scene=9",
+  // #22, the link's keys (docs/modes.md, Link parameters). Each old key or value still lands where it did, and the
+  // LINK button (VIEW_FUSION.state().link) writes it back in the canonical key: scene=9 is Apollo 8's Earthrise;
+  // space=tiled the plain page (Tabbed); src=sim the engine's trajectory (traj), src=<unit> a code location (code);
+  // lab=N a label level and labels=0|1 off or all (labels by name); mode=attract and mode=tour their playlist reels.
+  { name: "link-scene-alias", url: "mode=free&space=tabbed&scene=9",
     steps: [HOLD(), { frames: 2 }],
-    expect: [[TL("mounted"), "apollo8-asflown"], [TL("scene"), 9]] },
+    expect: [[TL("mounted"), "apollo8-asflown"], [TL("scene"), 9], [LINK, /scn=apollo8-asflown&sit=APOLLO%208%20EARTHRISE/], [LINK, NO_OLD]] },
+  { name: "link-alias-space-tiled", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1",
+    steps: [HOLD(), { frames: 2 }],
+    expect: [[`document.body.classList.contains("room")`, false], ["!!window.VIEW_LAB && VIEW_LAB.running", false],
+      [`document.getElementById("btiled").classList.contains("on")`, true], [`document.getElementById("btiled").textContent`, "Tabbed"],
+      [LINK, /&space=tabbed(&|$)/], [LINK, NO_OLD]] },
+  { name: "link-alias-src-sim", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=3&get=1:30:00&src=sim&svu=0",
+    steps: [...LINKED(5400), { frames: 2 }],
+    expect: [[`document.getElementById("ssrc-sim").classList.contains("on")`, true], [LINK, /&traj=sim&svu=0(&|$)/], [LINK, NO_OLD]] },
+  { name: "link-alias-src-code", url: "tab=source&space=tabbed&src=PROJ",
+    steps: [{ wait: `document.body.dataset.tab === "source"` }, { frames: 2 }],
+    expect: [[`document.body.dataset.tab`, "source"], [LINK, /^[^?]*\?reel=demo&tab=source&.*code=PROJ(&|$)/], [LINK, NO_OLD]] },
+  { name: "link-alias-lab", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1&lab=1",
+    steps: [HOLD(), { frames: 2 }],
+    expect: [[`document.getElementById("blab").textContent`, /primary/i], [LINK, /&labels=primary(&|$)/], [LINK, NO_OLD]] },
+  { name: "link-alias-labels-0", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1&labels=0",
+    steps: [HOLD(), { frames: 2 }],
+    expect: [[`document.getElementById("blab").classList.contains("on")`, false], [LINK, /&labels=off(&|$)/], [LINK, NO_OLD]] },
+  { name: "link-alias-labels-1", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1&labels=1",
+    steps: [HOLD(), { frames: 2 }],
+    expect: [[`document.getElementById("blab").textContent`, /all/i], [LINK, /^(?!.*labels=)/]] },
+  { name: "link-alias-mode-attract", url: "mode=attract&space=tabbed",
+    steps: [{ frames: 2 }],
+    expect: [[TL("mode"), "attract"], [TL("mounted"), "demo"], [LINK, /^[^?]*\?reel=demo(&|$)/], [LINK, NO_OLD]] },
+  { name: "link-alias-mode-tour", url: "mode=tour&space=tabbed",
+    steps: [{ frames: 2 }],
+    expect: [[TL("mode"), "tour"], [TL("mounted"), "tour"], [LINK, /^[^?]*\?reel=tour(&|$)/], [LINK, NO_OLD]] },
+  // The canonical keys #22 adds: mission (its first scenario reel), and a reel with a tab (the reel, not the tab's mode).
+  // In the Room the LINK button writes space=room, so a link copied there reopens the Room.
+  { name: "link-room-space", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, HOLD(), ROOM_STILL],
+    expect: [[`document.body.classList.contains("room")`, true], [LINK, /&space=room(&|$)/]] },
+  { name: "link-mission", url: "mode=free&space=tabbed&mission=apollo8",
+    steps: [HOLD(), { frames: 2 }],
+    expect: [[TL("mounted"), "apollo8-asflown"], [TL("scene"), 9], [LINK, /scn=apollo8-asflown/]] },
+  { name: "link-reel-tab", url: "reel=tour&tab=simulate&space=tabbed",
+    steps: [{ frames: 2 }],
+    expect: [[TL("mode"), "tour"], [TL("mounted"), "tour"], [`document.body.dataset.tab`, "simulate"], [LINK, /^[^?]*\?reel=tour&tab=simulate(&|$)/]] },
 
   // Fusion: the Earthrise photograph AS08-14-2383 over its fitted view.
-  { name: "fusion-as08-14-2383", url: "tab=fusion&photo=AS08-14-2383&space=tiled",
+  { name: "fusion-as08-14-2383", url: "tab=fusion&photo=AS08-14-2383&space=tabbed",
     steps: [HOLD(), { frames: 3 }],
     expect: [["VIEW_FUSION.state().tab", "fusion"], [TL("mounted"), "apollo8-asflown"], ["VIEW_FUSION.state().link", /photo=AS08-14-2383/]] },
 
   // The CM station of the docked stack (Apollo 11 situation 8), cabin and walls on.
-  { name: "cabin-cm", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=8&view=cm&cabin=1&walls=1&get=11:28:19",
+  { name: "cabin-cm", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=8&view=cm&cabin=1&walls=1&get=11:28:19",
     steps: [...LINKED(41299), { frames: 3 }],
     expect: [[TL("viewMode"), 2], [TL("mounted"), "apollo11-asflown"], [TL("scene"), 8]] },
 
   // External on the CSM at Earth orbit insertion (#70 option B): the launch stack behind it, the S-IVB, IU and closed
   // SLA, so the kernel's world (hdr(21)) holds the CSM, the docked LM and the placed S-IVB, and the target is the CSM's own
   // point (hdr(23) 1).
-  { name: "ext-eoi-stack", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=3&view=external&target=csm&lab=1&get=709.33",
+  { name: "ext-eoi-stack", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=3&view=external&target=csm&labels=primary&get=709.33",
     steps: [...LINKED(709.33), { frames: 3 }],
     expect: [[TL("viewMode"), 1], [TL("targetId"), 4], [TL("scene"), 3],
       [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[20]`, 7],
@@ -413,6 +494,12 @@ export const SHOTS = [
   printShot("print-svg-apollo8-earthrise", "scn=apollo8-asflown&sit=1&get=75:48:39", 272919, "apollo8-asflown-s1-apollo-8-earthrise-75-48-39"),
 ];
 
+// Every shot but the old-key ones (link-alias-*, link-scene-alias) is written in canonical keys (docs/modes.md, Link
+// parameters; #22), and the link the LINK button writes at its end holds no old key either.
+const OLD_KEY_SHOT = n => n.startsWith("link-alias-") || n === "link-scene-alias";
+for (const s of SHOT_LIST) if (!OLD_KEY_SHOT(s.name) && !NO_OLD.test("?" + s.url)) throw new Error(`shots.mjs: ${s.name}: an old link key in ${s.url}`);
+export const SHOTS = SHOT_LIST.map(s => OLD_KEY_SHOT(s.name) ? s : { ...s, expect: [...(s.expect || []), [LINK, NO_OLD]] });
+
 // A print shot: the Print tab open at a situation and g.e.t., the clock held there, and the three print buttons
 // pressed with each download link's click caught (its file name and the SVG at its blob URL, read before the page
 // revokes it). Each print is summed up as { name, bg: the #film rect's fill (null: none), ink: every stroke and fill
@@ -430,7 +517,7 @@ function printShot(name, link, get, stem) {
       ink.delete(null); ink.delete("none");
       return { name: g.name, bg: r ? r.getAttribute("fill") : null, ink: [...ink].sort(), ok: !d.querySelector("parsererror") && d.querySelectorAll("path").length > 2 }; });
   })()`;
-  return { name, url: `mode=free&space=tiled&tab=print&${link}`,
+  return { name, url: `mode=free&space=tabbed&tab=print&${link}`,
     steps: [...LINKED(get), { frames: 3 }, { js: PRINTS }],
     expect: [[TL("get"), get], [`["bneg", "bpos", "bposc"].map(id => document.getElementById(id).innerText).join("/")`, "NEGATIVE/POSITIVE/CLEAR"],
       [`window.__prints`, [

@@ -2,7 +2,7 @@
 
 The 3D room around the workbench (Room in the tab bar; see `docs/modes.md`). A modern addition: TypeScript and
 three.js, bundled by esbuild into `build/lab.js`, a single IIFE that `tools/assemble.py` inlines into the page. The
-kernel and the page modules in `web/src/` do not depend on it; a page built without it is the Tiled page.
+kernel and the page modules in `web/src/` do not depend on it; a page built without it is the Tabbed page.
 
 ## Build
 
@@ -25,14 +25,14 @@ licence comment at the end (`--legal-comments=eof`); `THIRD_PARTY.md` lists it.
 
 ## How the page drives it
 
-`web/src/room.js` owns Room and Tiled. Loading the bundle only defines `window.VIEW_LAB`; nothing runs until Room
+`web/src/room.js` owns Room and Tabbed. Loading the bundle only defines `window.VIEW_LAB`; nothing runs until Room
 is chosen.
 
 | `VIEW_LAB.` | |
 |---|---|
 | `supported()` | a cheap guess that WebGL exists, without creating a context |
 | `start(host, hooks)` | build the renderer and the room into `host`; `false` when WebGL fails |
-| `stop()` | dispose of everything, the WebGL context included (Tiled) |
+| `stop()` | dispose of everything, the WebGL context included (Tabbed) |
 | `show(from?, rect?, holdMs?)` | render the room; with a placed name the camera starts at that terminal (with `rect`, at the handover pose for it), holds `holdMs`, and flies out |
 | `hide()` | stop rendering (the page is shown) |
 | `setTarget(name, open?)` | fly to a placed equipment (`null`: the overview); a terminal ends at its arrival pose and holds there until a click, `E` or Enter eases to its handover pose and calls `hooks.arrive` (with `open`, straight to the handover pose and on arrival) |
@@ -197,8 +197,9 @@ chair has `anchors.camera`, a close-up pose.
 
 **Gallery** (development only, not in the page): `npm --prefix web/lab run gallery` bundles `src/gallery.ts` into
 `build/lab-gallery.js`. Serve the repository root over HTTP and open `web/lab/gallery.html`. It shows every piece in
-two rows under three-point lighting, with a stand-in plot. The flags are `?view=<name>` (that piece's close-up; add
-`&q` for a three-quarter view), `&play` (a running page clock) and `&tape` (a `tape` event at load).
+two rows under three-point lighting, with a stand-in plot. The flags are `?piece=<name>` (that piece's close-up; `?view=`, its old name, still works; add
+`&q` for a three-quarter view, or `&cam=px,py,pz,tx,ty,tz,fov` for a camera at p looking at t in the piece's own frame),
+`&play` (a running page clock), `&tape` (a `tape` event at load) and `&noshadow` (no shadow maps).
 `window.__gallery.budget` gives one frame's draw calls and triangles, without shadows.
 
 **The room** is `src/room/room.ts`, exporting `build(ctx: BuildContext): Room` with `object`, `placed` (`{ name, equipment }` for each piece it placed, `equipment.object.userData.placed` set to the name for picking), `footprints` (each floor-standing piece's own bounding box seen from above, placed and turned: what the plan's checks and walking use), `door`, `overview` (the zoomed-out `CameraPose`), `labels` (hover text by name), `air` (the dust's box), `update` and `dispose`. The page addresses the station table's names: `"vector"` (the 1558, which opens the workbench), `"glass"` (the UNISCOPE 100, which opens Source), `"filmrecorder"` (which opens Print), `"printer"` (the listing), `"library"` (the bookcase, which opens the library; its binders are `"binder:<id>"`), `"rack"` (the tape rack, a shelf; its reels are `"reel:<id>"`, and the other tape units `"uniservo-<number>"`, which mount a carried reel) and `"drive"` (the middle tape unit, STOP/START; the lab gives it its `use`, `hooks.drive`). Their hover labels come from the same table. `src/room/shell.ts` builds the 13.2 m × 10.2 m × 2.75 m shell: one textured plane for the raised floor's 0.6 m tiles (`surfaces.ts`), an acoustic-tile ceiling, two instanced meshes for the 42 troffers, walls, a door in the south wall with an EXIT sign over it, and a wall clock. `room.ts` places by registry name, with options where a module takes them (`uniservo` `{ number, index, drive }`, `cpu` `{ lampPanel }`), and casts and receives shadows on everything it places (but casts none from a mesh a module marks `userData.noShadow`: small parts inside a machine, such as the FASTRAND II's drums and the tape units' labels). Nothing stands in the door's swing, its aisle runs clear 2 m into the room, and every machine's front has at least 0.9 m clear (the UNISCOPE's desk, beside the 1558, only on its chair side). The equipment stands in #21's zones (tape area, machine floor, operator consoles, output, library) with at least 1.2 m between them; `room.ts`'s header comment gives the map, and `LIBRARY` there the library zone on the north wall, which the tape rack fills (#19; the room refuses anything else on it or its 1.2 m of standing room); `FASTRAND` the FASTRAND II's place on the machine floor, which the room keeps 1.2 m clear (#89). A name the registry lacks becomes a grey stand-in box of its `FOOTPRINT`, so the room composes before every module exists.

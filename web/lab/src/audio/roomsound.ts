@@ -50,6 +50,7 @@ interface Graph {
   srcs: Src[]; tapes: Tape[]; rows: { src: Src; hum: GainNode; buzz: GainNode }[]; fastrand: Src;
   rec: Recorder | null; nodes: AudioScheduledSourceNode[]; lit: boolean; nextSeek: number; whine: Whine | null; printerIn: AudioNode | null;
   panel: { src: Src; state: { open: boolean; sel: number }; open: boolean; sel: number } | null;
+  keys: { src: Src; n: number; count: () => number } | null;
 }
 
 export class RoomSound {
@@ -243,7 +244,12 @@ export class RoomSound {
     const pr = this.room.placed.find(p => /^printer(-|$)/.test(p.name));
     const printerIn = pr ? source(pr.name + "-print", this.at(pr.equipment, 1.1), 1.0, 1).input : null;
 
-    this.g = { ctx, dest, master, wet, analyser, srcs, tapes, rows, fastrand, rec, nodes, lit, nextSeek: ctx.currentTime + 3, whine: wh, printerIn, panel };
+    // The 1108 console's keyboard (#68): a click per character the operator types (a keyin from the notebook, a reply),
+    // at the keyboard; the same click as the page's keys (web/src/sound.js soundKey), ours.
+    const con = this.room.placed.find(p => p.name === "console")?.equipment, kb = con?.anchors.keyboard as THREE.Vector3 | undefined;
+    const keys = con && kb ? { src: source("console-keys", (con.object.updateMatrixWorld(), con.object.localToWorld(kb.clone())), 1.0, 1), n: (con.anchors.keys as () => number)(), count: con.anchors.keys as () => number } : null;
+
+    this.g = { ctx, dest, master, wet, analyser, srcs, tapes, rows, fastrand, rec, nodes, lit, nextSeek: ctx.currentTime + 3, whine: wh, printerIn, panel, keys };
   }
 
   /** One step: the listener, the duck, the tape units, the lights and the FASTRAND's idle seeks. */
@@ -305,6 +311,13 @@ export class RoomSound {
       if (!d.open) this.shot(() => knock(ctx, d.src.input, t + 0.85, 140, 70, 0.06, 0.2));
     }
     if (d && d.state.sel !== d.sel) { d.sel = d.state.sel; this.shot(() => click(ctx, d.src.input, t, 3200, 4, 0.012, 0.15, this.r())); }
+
+    const k = g.keys;   // the console's typing: one short high burst a character, at most two a step
+    if (k) {
+      const n = k.count();
+      for (let i = 0; i < Math.min(2, n - k.n); i++) this.shot(() => click(ctx, k.src.input, t + i * 0.03, 3200 + this.r() * 600, 1.5, 0.014, 0.12, this.r()));
+      k.n = n;
+    }
 
     const rec = g.rec;
     if (rec) {
