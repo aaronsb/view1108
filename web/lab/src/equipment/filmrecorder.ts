@@ -17,7 +17,7 @@
 // counter steps on. The other lamps hold steady.
 import * as THREE from "three";
 import type { BuildContext, Equipment, LabEvent } from "../types";
-import { PAL, Parts, at, canvasTex, chrome, glowMat, grid, lampMat, lensGeo, own, paint, plastic, rng, roundRect, satinMetal, smoked, tileGeo } from "./kit";
+import { PAL, Parts, at, chrome, fontTex, glowMat, grid, lampMat, lensGeo, own, paint, plastic, rng, roundRect, satinMetal, smoked, tileGeo } from "./kit";
 
 const IN = 0.0254;
 const SEC = 22 * IN, W = 4 * SEC, H = 74 * IN, D = 37 * IN, ZF = D / 2;   // 0.559 section, 2.24 x 1.88 x 0.94 m
@@ -31,7 +31,7 @@ const OFF = 0x2a2a26;
 function drawCounter(g: CanvasRenderingContext2D, w: number, h: number, n: number) {
   g.fillStyle = "#151515"; g.fillRect(0, 0, w, h);
   const s = String(n % 100000).padStart(5, "0"), cw = w / 5;
-  g.font = `bold ${Math.round(h * 0.72)}px Helvetica, Arial, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = `bold ${Math.round(h * 0.72)}px "VIEW Sans", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
   for (let i = 0; i < 5; i++) {
     g.fillStyle = "#2a2a2a"; g.fillRect(i * cw + 3, 2, cw - 6, h - 4);
     g.fillStyle = "#f2efe6"; g.fillText(s[i], (i + 0.5) * cw, h / 2 + 2);
@@ -99,11 +99,11 @@ export function build(ctx: BuildContext): Equipment {
   const glass = new THREE.Mesh(new THREE.PlaneGeometry(WIN.w, WIN.h), smoked(0.3)); mine.push(glass.geometry);
   glass.position.set(cx, WIN.y, ZF + 0.008); object.add(glass);
 
-  const badgeTex = canvasTex(384, 80, (g, w, h) => {
+  const badgeTex = fontTex(384, 80, (g, w, h) => {
     g.fillStyle = "#b9bcbe"; g.fillRect(0, 0, w, h);
     g.fillStyle = "#1a1a1a"; g.textAlign = "center"; g.textBaseline = "middle";
-    g.font = "bold 40px Helvetica, Arial, sans-serif"; g.fillText("S-C 4020", w / 2, h * 0.42);
-    g.font = "bold 15px Helvetica, Arial, sans-serif"; g.fillText("STROMBERG-CARLSON", w / 2, h * 0.82);
+    g.font = 'bold 40px "VIEW Sans", sans-serif'; g.fillText("S-C 4020", w / 2, h * 0.42);
+    g.font = 'bold 15px "VIEW Sans", sans-serif'; g.fillText("STROMBERG-CARLSON", w / 2, h * 0.82);
   }); mine.push(badgeTex);
   const badge = own(new THREE.Mesh(new THREE.PlaneGeometry(0.235, 0.047), new THREE.MeshStandardMaterial({ map: badgeTex, roughness: 0.4, metalness: 0.3 })), mine);
   badge.position.set(XS[1], 1.45, ZF + 0.021); object.add(badge);
@@ -116,7 +116,7 @@ export function build(ctx: BuildContext): Equipment {
 
   // The counter.
   let frames = 0;
-  const ctex = canvasTex(320, 64, (g, w, h) => drawCounter(g, w, h, 0), ctx.maxAnisotropy); mine.push(ctex);
+  const ctex = fontTex(320, 64, (g, w, h) => drawCounter(g, w, h, 0), ctx.maxAnisotropy); mine.push(ctex);
   const cg = (ctex.image as HTMLCanvasElement).getContext("2d")!;
   const counter = own(new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.026), new THREE.MeshBasicMaterial({ map: ctex, color: 0xb0b0b0, toneMapped: false })), mine);
   counter.position.set(PX, 1.31, ZF + 0.037); object.add(counter);

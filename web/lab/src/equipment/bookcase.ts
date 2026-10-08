@@ -17,6 +17,7 @@
 // stands half out (#19's half-pull, ours).
 import * as THREE from "three";
 import type { BuildContext, Equipment, ReelInfo } from "../types";
+import { HAND } from "./opnotebook";
 import { Parts, canvasTex, fontTex, marker, markerWidth, nameplate, paint, plastic, plateText, rng, tapeStrip } from "./kit";
 import { Shelf, type Pullable } from "./pullable";
 import LIBRARY from "../../../library/library.json";
@@ -127,7 +128,7 @@ function fitText(g: CanvasRenderingContext2D, s: string, x: number, y: number, p
   const k = Math.min(1, max / Math.max(1, g.measureText(s).width));
   g.font = `${px * k}px ${face}`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(s, x, y);
 }
-const SERIF = 'Georgia, "Times New Roman", serif', SANS = 'Helvetica, Arial, sans-serif';
+const SERIF = '"VIEW Serif", serif', SANS = '"VIEW Sans", sans-serif';
 
 /** The Houston telephone directory for 1969, 6.5 cm thick, 11 x 9 in; its wording, colours and bell are ours. */
 const directory = (aniso: number) => book("directory", "Telephone directory, 1969", 0.065, 0.28, 0.225, plastic(0xe9e1c6, 0.85), (g, w, h) => {
@@ -165,7 +166,6 @@ const paperback = (id: string, label: string, t: number, bg: number, fg: string,
   }, aniso);
 
 /** The index card, 6 x 4 in, ruled, in blue ballpoint: the user's list, from their notes (docs/lab.md). */
-const HAND = '"Comic Neue", "Segoe Print", "Bradley Hand", "Chalkboard", cursive';
 const EATS = ["Places to eat \u2014", "The Singing Wheel (Webster)", "U-Joint \u2014 Fort Terry's", "     Universal Joint (BBQ)", "The Flintlock (steaks)", "Monterrey House (Mexican)"];
 const CARD_W = 0.152, CARD_H = 0.102;
 function card(aniso: number): Prop {

@@ -48,7 +48,7 @@ const REEL_Z = D / 2 - 0.03 - R;                         // the cases' centres: 
 const PULL = new THREE.Vector3(0, 0.012, 0.13);
 // Case colours (ours): the slate and grey of tape-seal belts, a few in red, green, mustard and buff.
 const TINTS = [0x2f4a6b, 0x5b6f86, 0x5b6f86, 0x7d8287, 0x7d8287, 0x2b2d30, 0x8a2b22, 0x3f5a3a, 0xb8963a, 0xd8d0b4];
-const TYPED = '"Courier Prime", "Courier New", Courier, monospace';
+const TYPED = '"Courier Prime VIEW", monospace';
 
 /** A reel on the rack: its piece, and the reel of the index it stands for. */
 export interface ReelPiece extends Equipment { reel: ReelInfo }

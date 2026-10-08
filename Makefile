@@ -76,6 +76,7 @@ lint-body:
 	node --check tools/shoot.mjs
 	node --check tools/shots.mjs
 	python3 tools/imgdiff.py selfcheck
+	python3 tools/lint_fonts.py
 	bash -n tools/golden-diff.sh
 	bash -n tools/shots-check
 

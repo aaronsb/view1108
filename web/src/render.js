@@ -36,6 +36,9 @@ function resize() {
   // a capture (a headless screenshot, or a frame held by the 16 fps film rate).
   if (drawn) draw(performance.now());
 }
+// The caption faces are inlined (page.css) and load on first use; the canvas falls back to the generic family until
+// they are in, so redraw once when they arrive.
+Promise.all(['16px "Courier Prime VIEW"', '16px "VIEW Sans Condensed"'].map(f => document.fonts.load(f))).then(() => { if (drawn) draw(performance.now()); }, () => {});
 let drawn = false, drawNo = 0;   // a kernel frame has been drawn since boot; frames drawn (the room's screen follows it)
 // Framed plots sit inside a margin for lettering; unframed shots (as in the film) fill the width.
 let framed = true;
@@ -113,7 +116,7 @@ function draw(now) {
   ctx.font = `${fs * 1.25}px ${getComputedStyle(document.body).getPropertyValue("--hd")}`;
   ctx.textAlign = "center";
   ctx.fillText("Field of view = " + (F < 10 ? F.toFixed(1) : Math.round(F)) + "°", cx, b.y - fs * 2.3);
-  ctx.font = `${fs * 0.95}px "Courier Prime","Courier New",monospace`;
+  ctx.font = `${fs * 0.95}px "Courier Prime VIEW",monospace`;
   const rb = H[5] === 1 ? "R_E" : "R_M";
   ctx.fillText(`${rb} = ${Math.round(H[2])} n. mi.   h = ${Math.round(H[3])} stat. mi.   V_I = ${Math.round(H[4])} fps`, cx, b.y - fs * 0.8);
 
@@ -183,7 +186,7 @@ function draw(now) {
   const showCap = framed || !filmReel() || autoCap;   // the film has no text on its unframed shots; added shots say what they are
   if (showCap) {
   ctx.textAlign = "center"; ctx.fillStyle = "#eee";
-  ctx.textBaseline = "top"; ctx.font = `${fs * 1.1}px "Courier Prime","Courier New",monospace`;
+  ctx.textBaseline = "top"; ctx.font = `${fs * 1.1}px "Courier Prime VIEW",monospace`;
   ctx.fillText("g.e.t. = " + getStr(H[0]), cx, b.y + b.s + fs * (framed ? 4.0 : 0.5));
   ctx.fillStyle = "#aaa"; ctx.font = `${fs}px ${getComputedStyle(document.body).getPropertyValue("--hd")}`;
   ctx.fillText(captionText(H), cx, b.y + b.s + fs * (framed ? 5.7 : 2.0));

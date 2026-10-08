@@ -25,7 +25,7 @@ const FZ = 0.14, FY0 = 0.072, TILT = 8 * Math.PI / 180, FH = (0.33 - FY0) / Math
 const fx = (px: number) => -FW / 2 + (px - 290) / 1265 * FW;
 const fy = (py: number) => FH * (790 - py) / 705;
 
-const SCRIPT = 'italic 400 64px "Snell Roundhand", "Brush Script MT", "URW Chancery L", "Apple Chancery", cursive';
+const SCRIPT = 'italic 400 64px "VIEW Serif", serif';
 
 /** Up to 16 lines for the screen: where the Source tab is, else VFRAME from the embedded listing. */
 function sourceText(): string[] {
@@ -124,13 +124,13 @@ export function build(ctx: BuildContext): Equipment {
     g.beginPath();
     for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, rr = k % 2 ? s * 0.32 : s; g.lineTo(sx + Math.sin(a) * rr, sy - Math.cos(a) * rr); }
     g.closePath(); g.fill();
-    g.font = 'italic 700 22px "Helvetica Neue", Helvetica, Arial, sans-serif'; g.textBaseline = "middle"; g.textAlign = "left";
+    g.font = 'italic 700 22px "VIEW Sans", sans-serif'; g.textBaseline = "middle"; g.textAlign = "left";
     g.save(); g.translate(sx + 12, Y(0.0085)); g.scale(0.92, 1); g.fillText("SPERRY RAND", 0, 0); g.restore();
     // The window.
     g.fillStyle = "#0b0c0d"; g.fillRect(X(fx(780)), Y(fy(740)), X(fx(930)) - X(fx(780)), Y(fy(775)) - Y(fy(740)));
     g.fillStyle = "rgba(170,180,185,0.35)"; g.fillRect(X(fx(785)), Y(fy(740)) + 3, X(fx(925)) - X(fx(785)), 2);
     // Button legends.
-    g.fillStyle = "#3c3e40"; g.font = '600 15px "Helvetica Neue", Helvetica, Arial, sans-serif'; g.textAlign = "center";
+    g.fillStyle = "#3c3e40"; g.font = '600 15px "VIEW Sans", sans-serif'; g.textAlign = "center";
     ["WAIT", "INTENSITY", "POWER"].forEach((t, i) => g.fillText(t, X(bxs[i]), Y(fy(688))));
   }, ctx.maxAnisotropy);
   const stripMat = new THREE.MeshStandardMaterial({ map: strip, metalness: 0.45, roughness: 0.38, alphaTest: 0.5 });
@@ -148,7 +148,7 @@ export function build(ctx: BuildContext): Equipment {
   const ptex = canvasTex(256, Math.round(256 * ph / pw), drawPanel, ctx.maxAnisotropy);
   const panel = own(new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), new THREE.MeshStandardMaterial({ map: ptex, roughness: 0.55 })), mine); mine.push(ptex);
   panel.position.set((px0 + px1) / 2, (py0 + py1) / 2, -0.0045); face.add(panel);
-  // No script face is bundled: a system one if present, else the browser's cursive; drawn again once it has loaded.
+  // The panel's lettering is an oblique of the bundled serif (ours; the real script face is not bundled); drawn again once it has loaded.
   document.fonts?.load?.(SCRIPT, "Uniscope").then(() => {
     const c = ptex.image as HTMLCanvasElement; drawPanel(c.getContext("2d")!, c.width, c.height); ptex.needsUpdate = true;
   }, () => {});
@@ -163,7 +163,7 @@ export function build(ctx: BuildContext): Equipment {
   let lines: string[] = [], key = "";
   const tex = canvasTex(1024, 512, () => {}, ctx.maxAnisotropy); mine.push(tex);
   const cv = tex.image as HTMLCanvasElement, g = cv.getContext("2d")!;
-  const FONT = '28px "IBM 3270", "Courier New", monospace';
+  const FONT = '28px "IBM 3270", monospace';
   const draw = () => {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.fillStyle = "#06100a"; g.fillRect(0, 0, cv.width, cv.height);

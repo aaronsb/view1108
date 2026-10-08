@@ -254,7 +254,7 @@ export function build(ctx: BuildContext): Equipment {
     if (txt === clockKey) return;
     clockKey = txt;
     cg.fillStyle = "#050302"; cg.fillRect(0, 0, 256, 64);
-    cg.font = "bold 46px 'Courier New', monospace"; cg.textAlign = "center"; cg.textBaseline = "middle";
+    cg.font = "bold 46px 'Courier Prime VIEW', monospace"; cg.textAlign = "center"; cg.textBaseline = "middle";
     cg.shadowColor = "rgba(255,110,30,0.9)"; cg.shadowBlur = 10; cg.fillStyle = "#ffa060";
     cg.fillText(txt, 128, 34);
     clockTex.needsUpdate = true;
