@@ -4,8 +4,9 @@ LF_BIN ?= $(HOME)/lf/bin
 PORT   ?= 8108
 PIDFILE = build/serve.pid
 LOGFILE = build/serve.log
-# Scene numbers, from build/scenes.json (tools/gen_data.py, the SITUATION cards); read when a recipe runs.
-SCENES  = $(shell python3 -c 'import json; print(*json.load(open("build/scenes.json"))["scenes"])')
+# Each scenario reel's situations as <reel id>:<situation id>, from build/scenes.json (tools/gen_data.py, the
+# SITUATION cards; each reel numbers its own, #26 slice 7e); read when a recipe runs.
+SCENES  = $(shell python3 -c 'import json; print(*("%s:%s" % (r["id"], s) for r in json.load(open("build/scenes.json"))["reels"] for s in r["scenes"]))')
 # Kernel elements: every fixed-form file in src/ but the generated BLOCK DATA (the catalogs, the
 # card reader's vocabulary).
 KSRC    = $(filter-out src/viewdata.f src/vdvoc.f,$(wildcard src/*.f))
@@ -50,11 +51,11 @@ lint: ## Check kernel dialect, compile warnings, and script syntax
 	python3 -m py_compile tools/*.py
 	node --check tools/selftest.mjs
 
-check: native ## Render every scene natively to build/check/scene<N>.png for eyeballing
+check: native ## Render every situation natively to build/check/<reel>-s<N>.png for eyeballing
 	mkdir -p build/check
 	@test -n "$(SCENES)" || { echo 'check: no scenes in build/scenes.json' >&2; exit 1; }
-	for s in $(SCENES); do build/viewsvg $$s > build/check/scene$$s.svg && \
-	  rsvg-convert -b black build/check/scene$$s.svg -o build/check/scene$$s.png; done
+	for rs in $(SCENES); do r=$${rs%:*}; s=$${rs#*:}; VIEW_REEL=$$r build/viewsvg $$s > build/check/$$r-s$$s.svg && \
+	  rsvg-convert -b black build/check/$$r-s$$s.svg -o build/check/$$r-s$$s.png; done
 	@ls build/check/*.png
 
 golden: ## Capture the golden master (generated tables, native renders) into build/golden

@@ -1,5 +1,5 @@
 // Fusion: a crew photograph over the vector frame at its moment. The photographs and their timing are
-// data/photos.tsv (tools/photo_pack.py embeds the ones with a scene); the photo is drawn on the visible canvas after
+// data/photos.tsv (tools/photo_pack.py embeds the ones with a situation); the photo is drawn on the visible canvas after
 // the film effects, clipped to the plot box and placed in plot degrees, so it follows the plot through any resize.
 "use strict";
 let PHOTOS = [];
@@ -34,6 +34,10 @@ const lensMm = p => /unverified/i.test(p.lens_mm) ? NaN : parseFloat(p.lens_mm);
 const lensFov = p => lensMm(p) > 0 ? 2 * Math.atan(GATE_MM / 2 / lensMm(p)) * 180 / Math.PI : null;
 const hasBracket = p => p.get === "" && p.get_lo !== "" && p.get_hi !== "";
 const photoGet = p => p.get !== "" ? +p.get : hasBracket(p) ? (+p.get_lo + +p.get_hi) / 2 : +p.get_lo;
+// The photograph's situation as a scene, or null: its row's sit (a SITUATION card's ID) in the first scenario reel, in
+// load order, of the photograph's mission (its mission column, 8 or 11, as the MISSION card names it: APOLLO 8). Each
+// reel numbers its own situations (#26 slice 7e); ours.
+const photoScene = p => p.sit === "" ? null : (SITS.find(s => s.mission === "APOLLO " + p.mission && s.id === +p.sit) || {}).scene || null;
 const plotHalf = () => { const h = new Float64Array(buf(), K.hdr.value, 16)[14]; return h > 0 ? h : LS.fov / 2; };   // hdr(15)
 
 // After the loader has put a photograph's view (loader.js loadPhoto: its scene in the window view, its g.e.t. held, the
@@ -50,7 +54,7 @@ function fusionShow(i, cam0, atGet) {
 
 // Drawn after present(): over the film, under nothing.
 function fusionDraw() {
-  if (tab !== "fusion" || !fCur || +fCur.scene !== LS.situation || !fPinned || !fImg || !fImg.complete || !fImg.naturalWidth) return;
+  if (tab !== "fusion" || !fCur || photoScene(fCur) !== LS.situation || !fPinned || !fImg || !fImg.complete || !fImg.naturalWidth) return;
   const a = fAlign(), half = plotHalf(), b = box(), k = b.s / (2 * half);
   const wPlot = (lensMm(fCur) > 0 ? GATE_MM / lensMm(fCur) * 180 / Math.PI : 2 * half) * a.scale / 100;
   const s = wPlot * k / Math.max(fImg.naturalWidth, fImg.naturalHeight), w = fImg.naturalWidth * s, h = fImg.naturalHeight * s;
@@ -70,7 +74,7 @@ function fusionList() {
     const r = document.createElement("button"); r.type = "button"; r.className = "fprow";
     const t = p.get !== "" ? getStr(+p.get) : p.get_lo !== "" ? (p.get_hi !== "" ? getStr(+p.get_lo) + "–" : "after ") + getStr(+(p.get_hi || p.get_lo)) : "?";
     r.innerHTML = "<span></span><span></span>"; r.children[0].textContent = p.frame; r.children[1].textContent = t;
-    r.disabled = !p.img;
+    r.disabled = !p.img || !photoScene(p);
     r.title = p.img ? p.window_or_vehicle : "Not shown yet, no matching scene: " + p.needs;
     r.classList.toggle("on", p === fCur);
     r.onclick = () => loadReel(P({ photo: p.frame }));
@@ -110,7 +114,7 @@ $("freset").onclick = () => { if (!fCur) return; delete fz.align[fCur.frame]; fz
 $("fcopy").onclick = () => {
   if (!fCur) return;
   const a = fAlign(), r3 = v => +v.toFixed(3);
-  const txt = JSON.stringify({ frame: fCur.frame, scene: LS.situation, get: r3(LS.get), turn: fFit(fCur).turn, cam: [r3(LS.yaw - fCam0[0]), r3(LS.pitch - fCam0[1]), r3(LS.roll - fCam0[2])], fov: r3(LS.fov), x: r3(a.x), y: r3(a.y), rot: r3(a.rot), scale: r3(a.scale) });
+  const txt = JSON.stringify({ frame: fCur.frame, scn: LS.scn, sit: sitOf(LS.situation).id, get: r3(LS.get), turn: fFit(fCur).turn, cam: [r3(LS.yaw - fCam0[0]), r3(LS.pitch - fCam0[1]), r3(LS.roll - fCam0[2])], fov: r3(LS.fov), x: r3(a.x), y: r3(a.y), rot: r3(a.rot), scale: r3(a.scale) });
   const lb = $("linkbox"), fallback = () => { lb.style.display = "block"; lb.value = txt; lb.focus(); lb.select(); flash("COPY THE ALIGNMENT BELOW"); };
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => flash("ALIGNMENT COPIED"), fallback); else fallback();
 };
