@@ -63,10 +63,13 @@ C       A TABLE leg is read from its rows each time (TABRV).
         IF (LGTYP(K) .EQ. KTABL) GO TO 90
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         IF (LGTYP(K) .EQ. KCIRC) THEN
-C         Circle through the state's position, along its heading.
+C         Circle through the state's position, along its heading
+C         made square to the radius (the card's flight-path angle
+C         dropped, #105; ours).
           CALL STATEV(LGP(1,K), LGGC(K), R, V)
           CALL VUNIT(R)
           CALL VUNIT(V)
+          CALL VORTH(R, V)
           DO 10 I = 1, 3
             LGEL(I,K) = R(I)
             LGEL(I+3,K) = V(I)
