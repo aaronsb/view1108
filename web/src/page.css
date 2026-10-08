@@ -211,6 +211,14 @@ button.librow.on .libm { color:var(--fg); }
 #libmd.dark th { color:var(--dim); font-weight:400; }
 #libmd.dark section.nbcases { margin-top:28px; font-size:13px; color:var(--dim); }
 #libmd.dark section.nbcases h2 { font-size:15px; }
+/* Findings and attachments (#29 slice g; notebook.js nbSlip) in DARK: plain, the slip a dashed box, the print an image
+   with its caption and credit; no clip, tape or finish. */
+#libmd.dark aside.nbfinding { border:1px dashed var(--line); padding:8px 12px 2px; margin:0 auto 14px; }
+#libmd.dark aside.nbfinding .nbslip { font:13px var(--term); letter-spacing:.08em; color:var(--dim); margin-bottom:6px; white-space:pre; }
+#libmd.dark aside.nbfinding .nbcite, #libmd.dark .nbcredit { font-size:13px; color:var(--dim); }
+#libmd.dark .nbcredit { display:block; margin-top:2px; }
+#libmd.dark img.nbmedia { display:block; width:100%; max-width:640px; height:auto; margin:0 auto; border:1px solid var(--line); }
+#libmd.dark .nbtape, #libmd.dark .nbclip { display:none; }
 /* The run sheet at the front of a mission notebook (library.js, #29 slice f; the look is ours): the reel's generated
    event listing, situations marked, each entry a button that loads the reel fresh and goes there. In DARK it is a typed
    sheet on three-hole paper laid on the black; in LIGHT (below) it is the binder's first typed page. */
@@ -363,6 +371,80 @@ button.librow.on .libm { color:var(--fg); }
 #libmd.light img.nbfig { display:block; box-sizing:border-box; max-width:100%; max-height:calc(var(--ph) * .56); width:auto; height:auto; margin:0 auto;
   background:#000; border:5px solid #fff; box-shadow:0 0 0 1px #c9c5b8, 0 2px 4px rgba(0,0,0,.28); }
 #libmd.light figcaption { font-size:.9em; margin-top:.6em; }
+/* Findings and attachments (#29 slice g; notebook.js nbSlip; the look is ours). A finding is a typed slip of yellow
+   paper pasted onto the page, a little askew, a band of paste along its top. */
+#libmd.light aside.nbfinding { position:relative; margin:.5em .2em 1.3em .6em; padding:.75em .9em .5em; break-inside:avoid; font-size:.92em;
+  background:linear-gradient(rgba(150,120,40,.10), transparent 1.1em), linear-gradient(#fbf3c8, #f7edbb);
+  box-shadow:0 1px 1px rgba(60,45,10,.35), 0 3px 7px rgba(60,45,10,.16); transform:rotate(-.7deg); }
+#libmd.light aside.nbfinding p { margin:0 0 .6em; }
+#libmd.light aside.nbfinding .nbslip { font-weight:700; letter-spacing:.1em; white-space:pre; text-decoration:underline; text-underline-offset:.2em; }
+#libmd.light aside.nbfinding .nbcite { font-size:.92em; }
+/* An attachment: the print (div.nbprint) and its caption. Its finish is the print: photo a glossy print in a white
+   border, film a frame off the film recorder (black, the perforations along its edges, grain), copy a photocopy
+   (grey, hard contrast, toner specks). Its style is how it is held: plate printed on the page and numbered, clip a
+   paper clip at its top, tape four pieces at its corners, insert a sheet of its own tipped in, punched for the rings. */
+#libmd.light figure.nbattach { margin:.7em 0 1.4em; break-inside:avoid; text-align:center; }
+#libmd.light figure.nbattach figcaption { text-align:left; }
+#libmd.light .nbcredit { display:block; margin-top:.3em; font-size:.88em; }
+#libmd.light .nbprint { position:relative; display:inline-block; max-width:100%; box-sizing:border-box; line-height:0; vertical-align:top; }
+#libmd.light .nbprint img.nbfig, #libmd.light .nbprint img.nbmedia { display:block; box-sizing:border-box; max-width:100%; max-height:calc(var(--ph) * .48); width:auto; height:auto; margin:0; border:0; box-shadow:none; }
+#libmd.light .nbprint::after { content:""; position:absolute; inset:0; pointer-events:none; }
+#libmd.light .nb-photo .nbprint { padding:7px; background:#fff; box-shadow:0 0 0 1px #d6d2c4, 0 2px 3px rgba(0,0,0,.22), 0 6px 12px rgba(0,0,0,.12); }
+#libmd.light .nb-photo .nbprint::after { inset:7px; background:linear-gradient(118deg, rgba(255,255,255,.30), rgba(255,255,255,.06) 32%, transparent 46%, transparent 70%, rgba(255,255,255,.12)); }
+#libmd.light .nb-film .nbprint { padding:9px 19px; background:
+    repeating-linear-gradient(transparent 0 4px, #e9e6da 4px 9px, transparent 9px 13px) 5px 0 / 8px 100% no-repeat,
+    repeating-linear-gradient(transparent 0 4px, #e9e6da 4px 9px, transparent 9px 13px) calc(100% - 5px) 0 / 8px 100% no-repeat, #0b0b0b;
+  box-shadow:0 0 0 5px #fbfbf6, 0 0 0 6px #cfcbbd, 0 2px 4px 6px rgba(0,0,0,.18); margin:6px; }
+#libmd.light .nb-film .nbprint::after { inset:9px 19px; opacity:.32; mix-blend-mode:screen;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.3' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.6 -.75'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23g)'/%3E%3C/svg%3E"); }
+#libmd.light .nb-copy .nbprint { padding:9px; background:#efeee8; box-shadow:0 0 0 1px #c9c7bd, 0 2px 3px rgba(0,0,0,.18); }
+#libmd.light .nb-copy .nbprint img { filter:grayscale(1) contrast(1.55) brightness(1.06); }
+#libmd.light .nb-copy .nbprint::after { opacity:.8; mix-blend-mode:multiply;
+  background:linear-gradient(90deg, rgba(0,0,0,.08), transparent 6%, transparent 94%, rgba(0,0,0,.1)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='1' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 22 0 0 0 -16.6'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23s)'/%3E%3C/svg%3E"); }
+/* plate: printed on the page, no shadow, a fine rule round it, PLATE N. in its caption. */
+#libmd.light .nb-plate .nbprint { box-shadow:0 0 0 1px #8f8b7e; margin:0; }
+#libmd.light .nb-plate.nb-photo .nbprint { padding:0; }
+#libmd.light .nb-plate.nb-photo .nbprint::after { inset:0; }
+#libmd.light figure.nb-plate figcaption strong { display:block; text-align:center; margin-bottom:.3em; letter-spacing:.08em; }
+/* clip and tape hold a print to the page among the text: each takes half the column, so two in a row sit side by side
+   (a photograph clipped beside a render), its caption under it in smaller type; on a phone, the column's width. */
+#libmd.light figure.nb-clip, #libmd.light figure.nb-tape { display:inline-block; box-sizing:border-box; width:48%; vertical-align:top; font-size:.86em; }
+#libmd.light figure.nb-clip + figure.nb-clip, #libmd.light figure.nb-clip + figure.nb-tape,
+#libmd.light figure.nb-tape + figure.nb-clip, #libmd.light figure.nb-tape + figure.nb-tape { margin-left:4%; }
+#libmd.light .nb-clip .nbprint img.nbfig, #libmd.light .nb-clip .nbprint img.nbmedia,
+#libmd.light .nb-tape .nbprint img.nbfig, #libmd.light .nb-tape .nbprint img.nbmedia { max-height:calc(var(--ph) * .3); }
+@container (max-width:460px) {
+  #libmd.light figure.nb-clip, #libmd.light figure.nb-tape { display:block; width:auto; margin-left:0 !important; }
+  #libmd.light .nb-clip .nbprint img.nbfig, #libmd.light .nb-clip .nbprint img.nbmedia,
+  #libmd.light .nb-tape .nbprint img.nbfig, #libmd.light .nb-tape .nbprint img.nbmedia { max-height:calc(var(--ph) * .46); }
+}
+/* clip: the print askew under a paper clip at its top. */
+#libmd.light .nb-clip .nbprint { transform:rotate(-1.8deg); margin-top:14px; }
+#libmd.light .nbclip { position:absolute; z-index:3; top:-17px; left:16%; width:15px; height:54px; border:2.5px solid #9da2a8; border-radius:9px;
+  box-shadow:1px 1.5px 1px rgba(0,0,0,.3), inset 0 0 0 .5px rgba(255,255,255,.6); }
+#libmd.light .nbclip::before { content:""; position:absolute; left:2.5px; top:6px; width:5px; height:37px; border:2.5px solid #b6bac0; border-radius:6px; }
+/* tape: four pieces of clear tape across the corners, gone a little yellow. */
+#libmd.light .nb-tape .nbprint { transform:rotate(.9deg); margin:10px 0 12px; }
+#libmd.light .nbtape { position:absolute; z-index:3; width:52px; height:17px; background:rgba(243,236,205,.7);
+  box-shadow:0 0 0 .5px rgba(150,140,110,.35), 0 1px 1px rgba(0,0,0,.08); }
+#libmd.light .nbtape.tl { top:-6px; left:-18px; transform:rotate(-38deg); }
+#libmd.light .nbtape.tr { top:-6px; right:-18px; transform:rotate(38deg); }
+#libmd.light .nbtape.bl { bottom:-6px; left:-18px; transform:rotate(38deg); }
+#libmd.light .nbtape.br { bottom:-6px; right:-18px; transform:rotate(-38deg); }
+/* insert: a sheet of its own, the column's whole height, a little greyer and offset, three holes punched down its
+   left edge where the page's are. */
+#libmd.light figure.nb-insert { break-before:column; break-after:column; box-sizing:border-box; height:calc(var(--ph) - 2 * var(--mt) - 4px);
+  margin:0; padding:1.2em 1em 1em calc(var(--hx) + 2.2em); display:flex; flex-direction:column; justify-content:center; gap:.4em;
+  background:
+    radial-gradient(circle at var(--hx) 11.36%, var(--hstops)), radial-gradient(circle at var(--hx) 50%, var(--hstops)),
+    radial-gradient(circle at var(--hx) 88.64%, var(--hstops)), linear-gradient(#f5f4ee, #ecebe3);
+  box-shadow:0 0 0 1px #d2d0c5, 2px 3px 6px rgba(0,0,0,.2); transform:translate(3px, 2px); }
+#libmd.light .nb-insert .nbprint { align-self:center; }
+#libmd.light .nb-insert .nbprint img.nbfig, #libmd.light .nb-insert .nbprint img.nbmedia { max-height:calc(var(--ph) * .62); }
+@container (max-width:460px) {
+  #libmd.light figure.nb-insert { padding:1em .5em .8em calc(var(--hx) + 1em); font-size:.9em; }
+}
 #libmd.light table { border-collapse:collapse; width:100%; font-size:.9em; }
 #libmd.light th, #libmd.light td { border:0; border-bottom:1px solid #9b978a; padding:1px 4px; text-align:left; vertical-align:top; color:var(--ink); }
 #libmd.light th { font-weight:700; border-bottom-color:var(--ink); }

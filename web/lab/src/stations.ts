@@ -38,7 +38,7 @@ export const STATIONS = [
   { name: "glass", kind: "glass", does: "tab", opens: "source", tabs: ["source"],
     label: "UNISCOPE 100 — source", at: "Click the screen to open", tabbed: "Source tab" },
   { name: "filmrecorder", kind: "filmrecorder", does: "tab", opens: "print", tabs: ["print"],
-    label: "Microfilm recorder (S-C 4020, hypothetical) — print", at: "Click the viewing port to open", tabbed: "Print tab" },
+    label: "Microfilm recorder (S-C 4020, hypothetical) — print, negative and positive", at: "Click the viewing port to open", tabbed: "Print tab" },
   { name: "printer", kind: "printer", does: "overlay", opens: "listing", tabs: [],
     label: "Line printer — listing", at: "Click the paper to open", tabbed: "the listing (Source's Listing button)" },
   { name: "library", kind: "bookcase", does: "overlay", opens: "library", tabs: [],

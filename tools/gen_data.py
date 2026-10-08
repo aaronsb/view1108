@@ -185,7 +185,7 @@ EVENT_PARAMS = {"TDATT": "KETDA", "SEP": "KESEP", "APPR": "KEAPR", "DOCK": "KEDO
 # page (build/names.js); see CLAUDE.md, "Scenario timeline".
 TL_KINDS = {"LAUNCH": 1, "BURN": 2, "STAGING": 3, "ORBIT": 4, "SEP": 5, "SURFACE": 6, "TV": 7,
             "CREW": 8, "PHOTO": 9, "ENTRY": 10, "MARK": 11}
-NLGP = 17   # leg parameters, see scenarios()
+NLGP = 17   # leg parameters (the kernel's LGP), written to viewdims.inc
 # The burn cue (src/lburn.f; ours, a modern addition): the BURNCUE card's VEH= and ENG= words.
 # The kernel's card reader loads the cues (src/vdeck.f DKCUES); this script checks the cards.
 # Vehicles: 1 CSM, 2 LM, 3 S-IVB.  Engines: 1 SPS, 2 DPS (descent), 3 APS (ascent), 4 the S-IVB's
@@ -293,22 +293,12 @@ def get_s(v):
 
 
 def table_legs(name, tab):
-    """A LEG TYPE=TABLE and its ROW cards as one leg per pair of rows in g.e.t. order (type
-    TABLE, the kernel's KTABL): LGP 3-9 the first row's T LAT LON ALT V FPA HDG, 10-12 the second's
-    T LAT LON, 13-15 its V FPA HDG, 17 its ALT; LGN bit 1 (value 1) the first row's velocity
-    Earth-fixed (VEL=EF), bit 2 (value 2) the second's; FROM and TO the two rows' times."""
+    """A LEG TYPE=TABLE and its ROW cards as one leg per pair of rows in g.e.t. order, as the
+    kernel's card reader makes them (type TABLE, KTABL): each leg's span the two rows' times."""
     rows = tab["rows"]
     assert len(rows) >= 2, f"{name}: a TABLE leg needs two ROW cards or more"
-    assert all(a["t"] < b["t"] for a, b in zip(rows, rows[1:])), f"{name}: TABLE rows out of order"
-    out = []
-    for a, b in zip(rows, rows[1:]):
-        fa, fb = a["f"], b["f"]
-        p = [a["t"], b["t"], a["t"], *fa, b["t"], fb[0], fb[1], fb[3], fb[4], fb[5], 0.0, fb[2]]
-        assert len(p) == NLGP
-        out.append({"m": tab["m"], "type": LEG_TYPES["TABLE"], "p": p, "gc": tab["gc"],
-                    "veh": tab["veh"], "n": a["ef"] + 2 * b["ef"],
-                    "src": f"TABLE: {tab['src']} Rows: {a['src']}; {b['src']}"})
-    return out
+    assert all(a < b for a, b in zip(rows, rows[1:])), f"{name}: TABLE rows out of order"
+    return [{"m": tab["m"], "span": (a, b)} for a, b in zip(rows, rows[1:])]
 
 
 # The mission's cards: data/missions/<id>/mission.scn holds these and nothing else.
@@ -339,10 +329,10 @@ def cards(path):
 
 
 def mission(path):
-    """A mission card deck (data/missions/<id>/mission.scn): name, epoch (JD of range zero),
-    landing site, launch pad, and each card's source, shared by the mission's scenarios."""
-    m = {"name": None, "jd": None, "site": (0.0, 0.0, 0.0), "sitename": "",
-         "pad": ("", 0.0, 0.0, 0), "src": []}
+    """A mission card deck (data/missions/<id>/mission.scn): name, epoch (JD of range zero) and
+    landing site name, shared by the mission's scenarios.  The SITE and PAD cards' numbers are
+    read only to check them: the kernel's card reader keeps them (src/vdkscn.f)."""
+    m = {"name": None, "jd": None, "sitename": ""}
     where = path.relative_to(D)
     for kind, kv in cards(path):
         if kind == "*END":
@@ -354,16 +344,14 @@ def mission(path):
         if kind == "MISSION":
             m["name"] = kv["NAME"]
         elif kind == "EPOCH":
-            m["jd"] = card_num(kv["JD"]); m["src"].append("EPOCH: " + kv.get("SRC", ""))
+            m["jd"] = card_num(kv["JD"])
         elif kind == "SITE":
-            m["site"] = (card_num(kv["LAT"]), card_num(kv["LON"]), card_num(kv["AZ"]))
+            for k in ("LAT", "LON", "AZ"):
+                card_num(kv[k])
             m["sitename"] = kv.get("NAME", "")
-            m["src"].append("SITE: " + kv.get("SRC", ""))
         elif kind == "PAD":
             assert len(kv["NAME"]) <= 7, "PAD NAME: at most 7 characters"
-            m["pad"] = (kv["NAME"], card_num(kv["LAT"]), card_num(kv["LON"]),
-                        LATTYPES[kv.get("LATTYPE", "GD")])
-            m["src"].append("PAD: " + kv.get("SRC", ""))
+            card_num(kv["LAT"]), card_num(kv["LON"]), LATTYPES[kv.get("LATTYPE", "GD")]
     assert m["name"] and m["jd"] is not None, f"{path.relative_to(D)}: needs MISSION and EPOCH"
     return m
 
@@ -372,8 +360,9 @@ def scenarios():
     """Parse data/missions/*/: each mission's mission.scn and its scenario .scn files, missions
     and files in name order, each scenario file a reel.  Returns scenarios (dicts with n, their
     place in that order, which the other tables carry as "m"; id, the SCENARIO card's ID, 1 in
-    every reel; reel, mission, name, jd, site, pad, sources; the mission's cards are copied into
-    each of its scenarios), legs and events, each carrying its scenario's n and source string."""
+    every reel; reel, mission, name, jd, sitename; the mission's cards are copied into each of
+    its scenarios), legs (each its span, FROM and TO) and events, each carrying its scenario's n.
+    A card's other fields are read only to check them: the kernel's card reader keeps them."""
     mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": [], "tl": [], "cue": [],
                                        "sit": [], "span": []}
     for mdir in sorted(p for p in (D / "missions").iterdir() if p.is_dir()):
@@ -400,8 +389,7 @@ def scenarios():
                     cur = {"n": len(mis) + 1, "id": 1, "mission": mdir.name, "mname": ms["name"],
                            "reel": f"{mdir.name}-{path.stem}",
                            "name": ms["name"] + " " + kv["NAME"], "jd": ms["jd"],
-                           "site": ms["site"], "sitename": ms["sitename"], "pad": ms["pad"],
-                           "src": list(ms["src"])}
+                           "sitename": ms["sitename"]}
                     mis.append(cur)
                 else:
                     assert cur is not None, f"{name}: {kind} card before the SCENARIO card"
@@ -414,55 +402,55 @@ def scenarios():
 
 def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
     """One card of scenario cur into legs, evs and sim.  Returns the open LEG TYPE=TABLE (its
-    ROW cards follow it), or None."""
+    ROW cards follow it), or None.  Every field the kernel's card reader takes is read here, so a
+    number, g.e.t. or code it would refuse is refused; what no output of this script needs is
+    read and dropped (the reader keeps it, src/vdkscn.f)."""
     if kind == "ROW":
         assert tab is not None, f"{name}: ROW card outside a LEG TYPE=TABLE"
         assert kv.get("VEL", "SF") in ROW_VELS, f"{name}: ROW VEL= SF or EF"
-        tab["rows"].append({"t": get_s(kv["T"]),
-                            "f": [card_num(kv[k]) for k in ("LAT", "LON", "ALT", "V", "FPA", "HDG")],
-                            "ef": ROW_VELS[kv.get("VEL", "SF")],
-                            "src": kv.get("SRC", "")})
+        tab["rows"].append(get_s(kv["T"]))
+        for k in ("LAT", "LON", "ALT", "V", "FPA", "HDG"):
+            card_num(kv[k])
     elif kind == "LEG" and kv["TYPE"] == "TABLE":
-        return {"m": cur["n"], "gc": LATTYPES[kv.get("LATTYPE", "GD")],
-                "veh": LEG_VEH[kv.get("VEH", "CSM")], "src": kv.get("SRC", ""), "rows": []}
+        LATTYPES[kv.get("LATTYPE", "GD")], LEG_VEH[kv.get("VEH", "CSM")]
+        return {"m": cur["n"], "rows": []}
     elif kind == "LEG":
         t = kv["TYPE"]
-        p = [get_s(kv["FROM"]), get_s(kv["TO"]), get_s(kv["T"]),
-             card_num(kv.get("LAT", 0)), card_num(kv.get("LON", 0)), card_num(kv.get("ALT", 0)),
-             card_num(kv.get("V", 0)), card_num(kv.get("FPA", 0)), card_num(kv.get("HDG", 0)),
-             get_s(kv.get("TB", "0")), card_num(kv.get("LATB", 0)), card_num(kv.get("LONB", 0))]
+        span = (get_s(kv["FROM"]), get_s(kv["TO"]))
+        get_s(kv["T"])
+        for k in ("LAT", "LON", "ALT", "V", "FPA", "HDG"):
+            card_num(kv.get(k, 0))
+        get_s(kv.get("TB", "0"))
         # LCONIC: DV= (ft/s) and its direction P= R= N= at T (mid-burn) on the
         # vehicle's previous leg, or (no DV=) a state T= LAT= LON= ALT= V= FPA=.
         lc = t == "LCONIC"
-        p += [card_num(kv.get("DV", 0)), card_num(kv.get("P", 0)), card_num(kv.get("R", 0)),
-              card_num(kv.get("N", 0)) if lc else 0.0,
-              card_num(kv.get("ALTB", kv.get("ALT", 0)))]
+        for k in ("LATB", "LONB", "DV", "P", "R") + (("N",) if lc else ()):
+            card_num(kv.get(k, 0))
+        card_num(kv.get("ALTB", kv.get("ALT", 0)))
         if lc and "DV" not in kv:
             for k in ("LAT", "LON", "ALT", "V", "FPA"):
                 assert k in kv, f"{name}: LCONIC state needs {k}="
-        legs.append({"m": cur["n"], "type": LEG_TYPES[t], "p": p,
-                     "gc": LATTYPES[kv.get("LATTYPE", "GD")],
-                     "veh": LEG_VEH[kv.get("VEH", "CSM")],
-                     "n": 0 if lc else int(kv.get("N", 0)),
-                     "src": f"{t}: " + kv.get("SRC", "")})
+        LEG_TYPES[t], LATTYPES[kv.get("LATTYPE", "GD")], LEG_VEH[kv.get("VEH", "CSM")]
+        if not lc:
+            int(kv.get("N", 0))                   # any other leg's N= is a whole number
+        legs.append({"m": cur["n"], "span": span})
     elif kind in ("START", "REF"):
-        p = [get_s(kv["T"]), get_s(kv.get("END", "0")), get_s(kv["T"]),
-             card_num(kv["LAT"]), card_num(kv["LON"]), card_num(kv["ALT"]),
-             card_num(kv["V"]), card_num(kv["FPA"]), card_num(kv.get("HDG", 0)), 0.0, 0.0, 0.0]
-        p += [0.0] * (NLGP - len(p))
-        sim["start" if kind == "START" else "ref"].append(
-            {"m": cur["n"], "p": p, "gc": LATTYPES[kv.get("LATTYPE", "GD")],
-             "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
-             "src": kind + ": " + kv.get("SRC", "")})
+        get_s(kv["T"]), get_s(kv.get("END", "0"))
+        for k in ("LAT", "LON", "ALT", "V", "FPA"):
+            card_num(kv[k])
+        card_num(kv.get("HDG", 0))
+        LATTYPES[kv.get("LATTYPE", "GD")], {"EARTH": 1, "MOON": 2}[kv["BODY"]]
+        sim["start" if kind == "START" else "ref"].append({"m": cur["n"]})
     elif kind == "BURN":
-        sim["burn"].append({"m": cur["n"], "t": get_s(kv["T"]), "dv": card_num(kv["DV"]),
-                            "dir": (card_num(kv["P"]), card_num(kv["R"]), card_num(kv["N"])),
-                            "body": {"EARTH": 1, "MOON": 2}[kv["BODY"]],
-                            "src": "BURN: " + kv.get("SRC", "")})
+        get_s(kv["T"])
+        for k in ("DV", "P", "R", "N"):
+            card_num(kv[k])
+        {"EARTH": 1, "MOON": 2}[kv["BODY"]]
+        sim["burn"].append({"m": cur["n"]})
     elif kind == "TIMELINE":
         assert kv["KIND"] in TL_KINDS, f"{name}: TIMELINE KIND {kv['KIND']}"
         sim["tl"].append({"m": cur["n"], "t": get_s(kv["T"]), "kind": kv["KIND"],
-                          "name": kv["NAME"], "src": kv.get("SRC", "")})
+                          "name": kv["NAME"]})
     elif kind == "BURNCUE":
         assert kv["VEH"] in BURN_VEH and kv["ENG"] in BURN_ENG, f"{name}: BURNCUE VEH= or ENG="
         sim["cue"].append({"m": cur["n"], "ign": kv["IGN"], "cut": kv["CUT"]})
@@ -471,8 +459,7 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
     elif kind == "SPAN":
         sim["span"].append({"m": cur["n"], "deck": str(name), "kv": kv})
     elif kind == "EVENT":
-        evs.append({"m": cur["n"], "kind": EVENT_KINDS[kv["KIND"]], "t": get_s(kv["T"]),
-                    "src": kv["KIND"] + ": " + kv.get("SRC", "")})
+        evs.append({"m": cur["n"], "kind": EVENT_KINDS[kv["KIND"]], "t": get_s(kv["T"])})
     else:
         raise AssertionError(f"{name}: {kind} card not valid in a scenario")
     return tab
@@ -731,7 +718,7 @@ def page_scenarios(mis, legs, evs, spans, sits):
     out = {}
     for m in mis:
         evt = event_times(evs, m["n"])
-        ml = [lg["p"] for lg in legs if lg["m"] == m["n"]]
+        ml = [lg["span"] for lg in legs if lg["m"] == m["n"]]
         t0, t1 = min(q[0] for q in ml), max(q[1] for q in ml)
         tr = {"follow": [], "live": [], "jump": [], "pin": []}
         for k, c in enumerate(x for x in spans if x["m"] == m["n"]):
@@ -812,7 +799,7 @@ def page_reels(mis, legs, evs, sits, raw):
     reel_m = {m["reel"]: m["n"] for m in mis}
     span = {}
     for m in mis:
-        ml = [lg["p"] for lg in legs if lg["m"] == m["n"]]
+        ml = [lg["span"] for lg in legs if lg["m"] == m["n"]]
         span[m["n"]] = (min(q[0] for q in ml), max(q[1] for q in ml))
     out = {}
     rdir = D / "reels"
