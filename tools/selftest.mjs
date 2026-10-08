@@ -727,8 +727,9 @@ for rid, n in nb.notebooks():
   // The event listing and quick views (#29 slice f, #73; tools/pack.py, reelpkg.js reelListingWrong): each scenario
   // reel's listing holds its situations and timeline rows once each, in g.e.t. order; Apollo 11's quick views are its
   // data/missions/apollo11/asflown/quickviews.txt (key 9 an event) and Apollo 8's, which has no such file, its first
-  // situation on key 1. Planted faults, the first reel's page.json edited: a quick view naming an id the listing does
-  // not hold, a key outside 1-9, a situation dropped, an event renamed, a kind the page does not know yet (#75's
+  // situation on key 1; a repeated name's id carries its g.e.t. Planted faults, the first reel's page.json edited: a
+  // quick view naming an id the listing does not hold, a key outside 1-9, a situation dropped, an event renamed, a
+  // situation's field changed, a kind the page does not know yet (#75's
   // photo), no listing; each refused by the reader. The packer refuses a quickviews.txt naming an unknown id or a key
   // twice, and tools/notebook.py a golden=<case> from another reel or not in CASES.
   {
@@ -742,6 +743,9 @@ for rid, n in nb.notebooks():
     if (qv !== '{"1":"EARTHRISE","2":"EARTH APPROACH","3":"EARTH LIMB","4":"LM RENDEZVOUS","5":"LM DESCENT","6":"MOON VIEW","7":"TRANSPOSITION AND DOCKING","8":"DOCKED STACK","9":"translunar-injection"}')
       lw.push(`apollo11-asflown quick views ${qv}`);
     if (qv8 !== '{"1":"APOLLO 8 EARTHRISE"}') lw.push(`apollo8-asflown quick views ${qv8}`);
+    // A repeated name's id carries its row's g.e.t. (stable whatever is added elsewhere): a literal from SP-4029's row.
+    if (!A11.page.listing.some(e => e.id === 'midcourse-correction-ignition@26:44:58.64' && e.get === 96298.64))
+      lw.push('apollo11-asflown: no midcourse-correction-ignition@26:44:58.64 at 96298.64 s');
     const pg = A11.page, va = VR.find(r => r.id === A11.manifest.id);
     const sitDrop = pg.listing.filter(e => e.id !== 'EARTHRISE'), evRen = pg.listing.map(e => e.id === 'translunar-injection' ? { ...e, name: 'TLI' } : e);
     const PAGE_BAD = {
@@ -749,6 +753,7 @@ for rid, n in nb.notebooks():
       'a quick view key 0': [{ ...pg, quickviews: { 0: 'EARTHRISE' } }, /quickviews key "0" is not 1 to 9$/],
       'a situation missing from the listing': [{ ...pg, listing: sitDrop, quickviews: {} }, /the listing holds 7 of the reel's 8 situations$/],
       'an event renamed': [{ ...pg, listing: evRen }, /\(translunar-injection\) is not the timeline's row \d+$/],
+      'a situation with another field': [{ ...pg, listing: pg.listing.map(e => e.id === 'EARTHRISE' ? { ...e, fov: 60 } : e) }, /situation EARTHRISE's name, view, target or field is not its card's$/],
       'a kind not known yet': [{ ...pg, listing: pg.listing.map((e, i) => i ? e : { ...e, kind: 'photo' }) }, /listing entry 1 is of kind photo, not situation or event$/],
       'no listing': [{ ...pg, listing: undefined }, /page\.json has no listing$/] };
     for (const [what, [p, re]] of Object.entries(PAGE_BAD)) {

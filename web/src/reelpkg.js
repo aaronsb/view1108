@@ -109,7 +109,8 @@ function reelFigureRefs(md) {
 // which tools/pack.py generates from the reel's own situations and TIMELINE rows (its header gives the format). Why
 // they may not be the reel's, or null. The listing must hold each situation of page.json once (kind "situation", id
 // its NAME, sit its id) and each timeline row once, in the timeline's order (kind "event"), every entry with a unique
-// id, a name and a g.e.t., in g.e.t. order; a situation entry carries its default view, target and field. #75 adds
+// id, a name and a g.e.t., in g.e.t. order; a situation entry carries its title and default view, target and field,
+// each as its page.json row has it. #75 adds
 // the kind "photo". quickviews maps keys "1" to "9" to ids the listing holds.
 const REEL_LIST_KINDS = ["situation", "event"];
 function reelListingWrong(pg) {
@@ -129,8 +130,8 @@ function reelListingWrong(pg) {
     if (e.kind === "situation") {
       const s = sits.find(x => x.name === e.id);
       if (!s || s.id !== e.sit || seenSit.has(e.id)) return `${at}: situation ${e.id} is not one of the reel's, once`;
-      if (typeof e.view !== "string" || typeof e.target !== "string" || !(e.fov === null || typeof e.fov === "number"))
-        return `${at}: situation ${e.id} has no default view, target and field`;
+      if (e.name !== s.title || e.view !== s.view || e.target !== s.target || e.fov !== s.fov)
+        return `${at}: situation ${e.id}'s name, view, target or field is not its card's`;
       seenSit.add(e.id);
     } else {
       const t = evs[ev++];

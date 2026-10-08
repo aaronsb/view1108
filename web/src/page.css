@@ -218,6 +218,8 @@ button.librow.on .libm { color:var(--fg); }
 #libmd .runsheet tr.rssit td { font-weight:700; }
 #libmd .runsheet button { all:unset; cursor:pointer; color:#1b1b18; text-decoration:underline dotted; }
 #libmd .runsheet button::before, #libmd .runsheet button::after { content:none; }
+#libmd .runsheet:not(.full) tr.rsmore { display:none; }
+#libmd .runsheet p.rsline { margin:10px 0 0; font-size:12px; letter-spacing:.08em; }
 #libmd .runsheet button:hover, #libmd .runsheet button:focus-visible { background:#1b1b18; color:#ecebe2; text-decoration:none; }
 #libmd section.nbcases { margin-top:28px; font-size:13px; color:var(--dim); }
 #libmd section.nbcases h2 { font-size:15px; }

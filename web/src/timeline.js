@@ -108,14 +108,14 @@ function tlChips() {
 }
 // The list: every situation, marked, and the events the filter keeps, in g.e.t. order (the listing's).
 function tlList() {
-  const box = $("tllist"); box.textContent = ""; tlCur = -2;
+  const box = $("tllist"); box.textContent = ""; tlCur = "";
   const on = airtOn();
   $("hintscenes").textContent = Object.keys(tlQuick()).join(" ") || "none";
   tlListing().forEach((e, i) => {
     const sit = e.kind === "situation", ev = [e.get, e.tl, e.name];
     if (!sit && (tlFilter === "note" ? !tlNoteworthy(ev) : tlFilter !== "all" && e.tl !== tlFilter)) return;
     const r = document.createElement("div"), key = tlKeyOf(e.id);
-    r.className = sit ? "tlrow tlsit" : "tlrow"; r.dataset.i = i; r.dataset.id = e.id; r.title = tlTitle(e) + (key ? ` (key ${key})` : "");
+    r.className = sit ? "tlrow tlsit" : "tlrow"; r.dataset.i = i; r.dataset.id = e.id; if (sit) r.dataset.scene = e.scene; r.title = tlTitle(e) + (key ? ` (key ${key})` : "");
     for (const [cls, t] of [["tlg", tlGetStr(e.get)], ["tlk", sit ? "SITUATION" : e.tl], ["tln", e.name]]) {
       const s = document.createElement("span"); s.className = cls; s.textContent = t; r.appendChild(s);
     }
@@ -140,8 +140,10 @@ function tlMarks() {
     box.appendChild(m);
   });
 }
-// The nearest event at or before the current time is highlighted in the list.
-let tlCur = -2, tlKey = "", tlScene = 0;
+// The row lit is the last at or before the current time that is an event, or a situation only while it is the one
+// loaded (a situation's row names a view, not a moment). Rows run in g.e.t. order with a situation before an event at
+// the same g.e.t., so the event wins a tie.
+let tlCur = "", tlKey = "", tlScene = 0;
 function tlTick() {
   const key = [tlScenario(), tlFilter, LS.mode === "live", Math.round(LS.get0)].join(" ");
   if (key !== tlKey) {
@@ -156,9 +158,12 @@ function tlTick() {
   if (LS.situation !== tlScene) { tlScene = LS.situation; if (!auto()) airtSync(); }
   const ev = tlListing(); let c = -1;
   for (let i = 0; i < ev.length && ev[i].get <= LS.get; i++) c = i;
-  if (c === tlCur) return; tlCur = c;
+  if (`${c} ${LS.situation}` === tlCur) return; tlCur = `${c} ${LS.situation}`;
   let best = null;
-  for (const r of $("tllist").children) { r.classList.remove("cur"); if (+r.dataset.i <= c) best = r; }
+  for (const r of $("tllist").children) {
+    r.classList.remove("cur");
+    if (+r.dataset.i <= c && (!r.dataset.scene || +r.dataset.scene === LS.situation)) best = r;
+  }
   if (!best) return;
   best.classList.add("cur");   // scrolled into view within the list only, never moving the dock
   const box = $("tllist"), top = best.offsetTop;   // the list is the offset parent (page.css)

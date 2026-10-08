@@ -11,6 +11,7 @@ const TL = k => `VIEW_TL.state().${k}`;
 // clock ran from the link until now), then hold it at s for a picture that repeats.
 const LINKED = s => [HOLD(), { expect: [`(d => d >= 0 && d < 300)(VIEW_TL.state().get - ${s})`] }, HOLD(s)];
 const LAB = "VIEW_LAB.info()";
+const VISIBLE_ROWS = `[...document.querySelectorAll("#libmd .runsheet tbody tr")].filter(r => r.offsetParent !== null).length`;   // the run sheet's rows shown
 const ROOM_UP = { wait: `VIEW_LAB.running && ${LAB} && document.body.classList.contains("room")` };
 const ROOM_STILL = { wait: `${LAB}.mode !== "flight" && !document.getElementById("labhost").classList.contains("fading") && ${LAB}.lit >= 0.999` };
 
@@ -80,12 +81,24 @@ export const SHOTS = [
     expect: [[TL("mounted"), "apollo8-asflown"], [TL("scene"), 9], [TL("get"), 272919.7]] },
 
   // The run sheet at the front of the Apollo 11 notebook (#29 slice f): the reel's generated listing, situations marked.
+  // Collapsed, as it opens (the operator, 2026-10-08): the situations, the Noteworthy milestones and the quick-view
+  // events, and the typed line that shows every entry.
   { name: "tabbed-run-sheet", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { js: `document.getElementById("blib").click()` },
       { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` }, { frames: 3 }],
     expect: [[`document.getElementById("libmd").firstElementChild.className`, "runsheet"],
       [`document.querySelectorAll("#libmd .runsheet tbody tr").length`, 255], [`document.querySelectorAll("#libmd .runsheet tr.rssit").length`, 8],
+      [VISIBLE_ROWS, 21], [`document.querySelector("#libmd .runsheet button.rsall").textContent`, "SHOW ALL 255 ENTRIES"],
       [`document.querySelector("#libmd .runsheet h2").textContent`, "RUN SHEET - APOLLO 11 AS FLOWN"]] },
+
+  // Expanded in place: every entry, the line now offering the short sheet; a second press collapses it again.
+  { name: "tabbed-run-sheet-all", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), { js: `document.getElementById("blib").click()` },
+      { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` },
+      { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { expect: [VISIBLE_ROWS, 255] },
+      { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { expect: [VISIBLE_ROWS, 21] },
+      { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { frames: 3 }],
+    expect: [[VISIBLE_ROWS, 255], [`document.querySelector("#libmd .runsheet button.rsall").textContent`, "SHOW ONLY THE 21 SITUATIONS AND MILESTONES"]] },
 
   // A run-sheet entry mounts the reel as a fresh run and goes there: from Apollo 8 with the clock running, Apollo 11's
   // Translunar injection (the time, the clock stopped), then its LM DESCENT (the situation's view).
