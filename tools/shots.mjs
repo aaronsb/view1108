@@ -45,11 +45,14 @@ const bookShots = (route, scn, from, doc, extra = []) => ["room", "esc"].map(how
   name: `room-book-${route}-${how}`, url: ROOM_URL(scn),
   steps: [ROOM_UP, HOLD(), ROOM_STILL, ...BOOK_OPEN[route].flat(), LIB_UP,
     { expect: [`VIEW_ESC().at(-1)`, "library"] }, { expect: [`document.querySelector("#liblist .librow.on")?.dataset.id`, doc] },
+    ...(doc.startsWith("nb-") ? [{ expect: [`!!document.querySelector("#libmd .runsheet")`, true] }] : []),   // back from its run sheet
     how === "room" ? { click: "#blibroom" } : { key: "Escape" },
     { wait: `document.body.classList.contains("room")`, timeout: 5000 }, ROOM_STILL, { frames: 10 }, ROOM_STILL, { frames: 3 }],
   expect: [[`${LAB}.at`, from], [`${LAB}.mode`, "hold"], [`document.body.classList.contains("room")`, true],
     [`document.getElementById("libr").classList.contains("open")`, false], [`document.getElementById("blibroom").hidden`, true],
     [`VIEW_ESC()`, ["room", "closeup"]], [`Object.keys(${LAB}.out)`, []], ...extra] }));
+// The terminal the walk stands nearest.
+const NEAREST = `(w => VIEW_LAB.layout().terminals.map(t => [t.name, Math.hypot(t.x - w.x, t.z - w.z)]).sort((a, b) => a[1] - b[1])[0][0])(${LAB}.walk)`;
 
 export const SHOTS = [
   // The headless boot gate: the page starts (Attract), with no console error and #err empty.
@@ -190,4 +193,16 @@ export const SHOTS = [
   ...bookShots("read", "apollo11-asflown", "library", "nb-apollo11-asflown"),
   ...bookShots("loadread", "apollo8-asflown", "library", "nb-apollo11-asflown", [[TL("mounted"), "apollo11-asflown"]]),
   ...bookShots("rack", "apollo11-asflown", "rack", "nb-apollo11-asflown"),
+  // A run-sheet entry picked in that notebook (Apollo 8 mounted): the viewer closes onto the workbench's page with the
+  // Apollo 11 reel mounted fresh, and the library is off the Esc stack. Esc is then the page's own (systems-model.md
+  // section 6, terminal): back to the room in front of the vector terminal, walking, not to the bookcase.
+  { name: "room-book-runsheet-pick-esc", url: ROOM_URL("apollo8-asflown"),
+    steps: [ROOM_UP, HOLD(), ROOM_STILL, ...BOOK_OPEN.read.flat(), LIB_UP, { expect: [`!!document.querySelector("#libmd .runsheet")`, true] },
+      { click: "#libmd .runsheet tr.rssit button" },
+      { wait: `!document.getElementById("libr").classList.contains("open") && !document.body.classList.contains("room")`, timeout: 5000 },
+      { expect: [`VIEW_ESC()`, ["room", "terminal"]] }, { expect: [TL("mounted"), "apollo11-asflown"] }, { expect: ["VIEW_FUSION.state().tab", "review"] },
+      { key: "Escape" },
+      { wait: `document.body.classList.contains("room")`, timeout: 5000 }, ROOM_STILL, { frames: 10 }, ROOM_STILL, { frames: 3 }],
+    expect: [[`${LAB}.at`, null], [`${LAB}.mode`, "free"], [NEAREST, "vector"], [`VIEW_ESC()`, ["room"]],
+      [`document.getElementById("libr").classList.contains("open")`, false], [TL("mounted"), "apollo11-asflown"]] },
 ];
