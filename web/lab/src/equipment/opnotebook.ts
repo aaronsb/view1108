@@ -10,7 +10,7 @@
 // pencil.
 import * as THREE from "three";
 import type { Equipment } from "../types";
-import { at, canvasTex, paint, rng } from "./kit";
+import { at, fontTex, paint, rng } from "./kit";
 import { KEYINS, type Exec8 } from "./exec8";
 
 export const HAND = '"Courier Prime VIEW", monospace';
@@ -51,7 +51,7 @@ export function operatorNotebook(exec: Exec8, aniso: number, mine: { dispose(): 
     pencil(g, "OPERATOR KEYINS", 0.027 * PX, 0.021 * PX, 0.0105 * PX, r);
     pencil(g, "UP-4144 CH 11", 0.118 * PX, 0.022 * PX, 0.0058 * PX, r, "normal");
   };
-  const pageTex = canvasTex(W, H, drawPage, aniso);
+  const pageTex = fontTex(W, H, drawPage, aniso);
   const pageMat = new THREE.MeshStandardMaterial({ map: pageTex, roughness: 0.92 });
   const pageGeo = new THREE.PlaneGeometry(PAGE.w, PAGE.d).rotateX(-Math.PI / 2);
   const page = new THREE.Mesh(pageGeo, pageMat); page.position.y = 0.0064;   // clear of the pad's top (0.006)
@@ -79,7 +79,7 @@ export function operatorNotebook(exec: Exec8, aniso: number, mine: { dispose(): 
       pencil(g, k.form, 0.026 * PX, h * 0.27, h * 0.46, r);
       pencil(g, "- " + k.note, 0.034 * PX, h * 0.75, h * 0.32, r);
     };
-    const tex = canvasTex(sw, sh, draw, aniso);
+    const tex = fontTex(sw, sh, draw, aniso);
     const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92 });
     const geo = new THREE.PlaneGeometry(PAGE.w, PAGE.note).rotateX(-Math.PI / 2);
     // The piece's origin is the strip's middle (the lab projects it there, VIEW_LAB.project).

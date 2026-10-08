@@ -61,7 +61,7 @@ Speeds 1 and 2 are our estimates, worked out in [univac-1108.md](univac-1108.md)
 
 ## Scenes
 
-The number is the scene's place in the page's order, `scene=N` in a link (kept for old links, #22): Apollo 11's situations 1–8 (`scn=apollo11-asflown`, the same ids there), then Apollo 8's Earthrise (`scn=apollo8-asflown&sit=1`). In the page each is an entry of the event list (Timeline, above).
+The number is the scene's place in the page's order, `scene=N` in a link (kept for old links, #22): Apollo 11's situations 1–8 (`scn=apollo11-asflown`, the same ids there), then Apollo 8's Earthrise (`scn=apollo8-asflown&sit=1`). Apollo 11's LAUNCH PAD (situation 9, ours) has no `scene=N` link: name it with `scn=apollo11-asflown&sit=9`. In the page each is an entry of the event list (Timeline, above).
 
 **Quick views** (#73; ours): keys 1–9 are shortcuts into the loaded reel's event list, and each does exactly what picking its entry does. Each reel maps its own, in `quickviews.txt` in its source folder (`data/missions/<mission>/<scenario file stem>/`, beside its notebook; one line per key, `<key> <entry id>`, the id a situation's NAME or an event's id: its name as a slug, with `@` and its g.e.t. where the name repeats, e.g. `midcourse-correction-ignition@26:44:58.64`; gaps allowed), packed as `page.json`'s `quickviews`; without the file the reel's first nine situations take keys 1–9. Apollo 11 keeps its eight situations on 1–8 and puts Translunar injection on 9; Apollo 8 has its Earthrise on 1. The hint line lists the loaded reel's keys.
 
@@ -234,7 +234,7 @@ Old keys and values, still read for old links and slated for removal (#22): each
 | `lab` | `labels` | `lab`, the label level, sat beside `labq`, the room's quality: a number from 0 to 3, rounded, read as `off`, `primary`, `secondary` or `all` |
 | `labels=0` | `labels=off` | `labels` was on or off before the levels |
 | `labels=1` | `labels=all` | |
-| `scene` | `scn` and `sit` | `1`–`9`, the Nth situation across the reels in load order: Apollo 11's situations 1–8, then Apollo 8's Earthrise (situation 1 of its reel) as 9, since each reel numbers its own (#26 slice 7e). `scn`, `sit` and `mission` win over it. In Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase; `9` opens in Free-look. Example: `?mode=free&scene=7` |
+| `scene` | `scn` and `sit` | `1`–`9`, the Nth situation across the reels in load order: Apollo 11's situations 1–8, then Apollo 8's Earthrise (situation 1 of its reel) as 9, since each reel numbers its own (#26 slice 7e). Frozen: later situations (Apollo 11's LAUNCH PAD) have no `scene` number, only `scn` and `sit`. `scn`, `sit` and `mission` win over it. In Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase; `9` opens in Free-look. Example: `?mode=free&scene=7` |
 | `mode=attract` | `reel=demo` | a playlist reel's ALIAS as a mode (#18) |
 | `mode=tour` | `reel=tour` | |
 

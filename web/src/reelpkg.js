@@ -457,13 +457,18 @@ function reelPages(reels) {
 // The situation a link names, as its scene, or null (loader.js loadLink). scn: a scenario reel's id; sit: a situation
 // id or NAME (any case) in it. Without scn, the first reel in load order holding sit (by id that is Apollo 11's, since
 // every reel numbers from 1; a NAME is unique); without sit, scn's first situation. scene: the old links' scene=N
-// (#22), the Nth situation across the reels in load order, which before #26 slice 7e (one numbering for all
-// situations) was situation N: kept so those links still open what they did. scn and sit win over scene. Ours.
+// (#22), the Nth situation across the reels in load order as of then (OLD_SCENES, frozen), which before #26 slice 7e
+// (one numbering for all situations) was situation N: kept so those links still open what they did. scn and sit win over scene. Ours.
 function sceneOfLink(sits, scn, sit, scene) {
   if (scn !== null || sit !== null) {
     const v = sit === null ? null : String(sit).trim().toUpperCase();
     const s = sits.find(x => (scn === null || x.reel === scn) && (v === null || String(x.id) === v || x.name.toUpperCase() === v));
     return s ? s.scene : null;
   }
-  return scene !== null && sits[scene - 1] ? scene : null;
+  if (scene === null || scene < 1 || scene > OLD_SCENES.length) return null;
+  const [r, i] = OLD_SCENES[scene - 1], o = sits.find(x => x.reel === r && x.id === i);
+  return o ? o.scene : null;
 }
+// The old links' scene=1..9 (#22), frozen: Apollo 11's situations 1-8, then Apollo 8's Earthrise. Situations added
+// after them (Apollo 11's LAUNCH PAD) take later scenes and have no scene=N link; scn= and sit= name them. Ours.
+const OLD_SCENES = [...Array(8)].map((_, k) => ["apollo11-asflown", k + 1]).concat([["apollo8-asflown", 1]]);

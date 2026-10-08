@@ -82,11 +82,11 @@ function drawPanel(g: CanvasRenderingContext2D): void {
       const [x0, y0] = scalePt(m, m.red, ARC + 0.002), [x1, y1] = scalePt(m, m.red, ARC - 0.01);
       g.strokeStyle = "#b3261e"; g.lineWidth = 4; g.beginPath(); g.moveTo(cx(x0), cy(y0)); g.lineTo(cx(x1), cy(y1)); g.stroke();
     }
-    g.fillStyle = "#111"; g.font = `${0.0092 * PX}px Helvetica, Arial, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = "#111"; g.font = `${0.0092 * PX}px "VIEW Sans", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
     for (const v of m.nums) { const [x, y] = scalePt(m, v, ARC - 0.016); g.fillText(String(v), cx(x), cy(y)); }
-    g.font = `${0.0066 * PX}px Helvetica, Arial, sans-serif`;
+    g.font = `${0.0066 * PX}px "VIEW Sans", sans-serif`;
     g.fillText(m.unit, fx, cy(m.y - 0.007));
-    g.font = `${0.004 * PX}px Helvetica, Arial, sans-serif`;
+    g.font = `${0.004 * PX}px "VIEW Sans", sans-serif`;
     g.fillText("SWITCHBOARD INSTRUMENT  ·  ACCURACY 1%", fx, cy(m.y - 0.041));
     g.beginPath(); g.arc(px, py, 0.0038 * PX, 0, 2 * Math.PI); g.fill();
     engraved(g, LEG[k], m.x, m.y - 0.077, 0.0095);
@@ -105,7 +105,7 @@ function drawPanel(g: CanvasRenderingContext2D): void {
   [..."047126"].forEach((d, i) => {
     const x = HOURS.x - 0.04 + i * 0.016;
     g.fillStyle = i === 5 ? "#e8e4da" : "#2a2b2c"; g.fillRect(cx(x - 0.0065), cy(HOURS.y + 0.013), 0.013 * PX, 0.026 * PX);
-    g.fillStyle = i === 5 ? "#111" : "#eeeae0"; g.font = `bold ${0.018 * PX}px Helvetica, Arial, sans-serif`;
+    g.fillStyle = i === 5 ? "#111" : "#eeeae0"; g.font = `bold ${0.018 * PX}px "VIEW Sans", sans-serif`;
     g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(d, cx(x), cy(HOURS.y));
   });
   engraved(g, "ELAPSED HOURS", HOURS.x, HOURS.y - 0.045, 0.0095);
@@ -133,7 +133,7 @@ function drawLegends(g: CanvasRenderingContext2D, w: number, h: number): void {
 /** The breakers' directory strip: the main's rating and each branch's name, typed on a card. */
 function drawDirectory(g: CanvasRenderingContext2D, w: number, h: number): void {
   g.fillStyle = "#e9e3cf"; g.fillRect(0, 0, w, h);
-  g.fillStyle = "#1c1c1a"; g.font = `${0.012 * DPX}px "Courier New", Courier, monospace`; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#1c1c1a"; g.font = `${0.012 * DPX}px "Courier Prime VIEW", monospace`; g.textAlign = "center"; g.textBaseline = "middle";
   const x = (u: number) => (u - DIR.x0) * DPX;
   g.fillText("MAIN 225 A", x(-0.36), h / 2);
   BRANCH.forEach((b, k) => g.fillText(b, x(branchX(k)), h / 2));

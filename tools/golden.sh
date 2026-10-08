@@ -23,8 +23,8 @@
 #                              rows, burn cues, situations, the scenarios' epoch, site and pad), each
 #                              double as its bit pattern in hex, so a changed value shows as data and
 #                              not only through a render.  The page's SPAN tables are in page/.
-#   render/*.txt               build/viewsvg's SVG on stdout and hdr(1..24) on stderr (VIEW_HDR) for
-#                              every case in CASES, its reel's decks loaded the same way (VIEW_REEL)
+#   render/*.txt               build/viewsvg's SVG on stdout, then hdr(1..24) on stderr (VIEW_HDR), the two
+#                              captured apart and joined in that order (#122), for every case in CASES, its reel's decks loaded the same way (VIEW_REEL)
 #   render/nb-<reel>-<name>.txt  each scenario notebook figure (#29): the case of that name in the
 #                              figures block of reel <reel>'s notebook.md, rendered once by
 #                              tools/notebook.py into build/figures/<reel>/<name>.svg and .hdr, the
@@ -73,6 +73,7 @@ s6-default        |                              | apollo11-asflown | 6
 s7-default        |                              | apollo11-asflown | 7
 s8-default        |                              | apollo11-asflown | 8
 s9-default        |                              | apollo8-asflown  | 1
+s9-launch-pad     |                              | apollo11-asflown | 9
 s1-367500         |                              | apollo11-asflown | 1 367500
 s1-369000         |                              | apollo11-asflown | 1 369000
 s2-600000         |                              | apollo11-asflown | 2 600000
@@ -220,6 +221,19 @@ s3-ascent-30-ext  | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 30 -120 
 EOF
 )
 
+# AREA=a,b (make golden-check AREA=...; #119): check only the cases of those areas (tools/areas.tsv: what a name falls
+# under, plus the case's reel, apollo11 or apollo8), a slice for iteration, never the gate.  The tables and page.json
+# are always compared; the notebook figures with the area notebook or their reel; the tape round trip with tape and the
+# lift-off check with pad.  AREA=all or none: every case.  A case with no area is in no slice.
+SLICE=
+if [ "${1:-}" = check ] && [ -n "${AREA:-}" ] && [ "$AREA" != all ]; then
+  SLICE=$AREA
+  CASES=$(python3 tools/affected.py filter golden "$AREA" <<< "$CASES")
+  [ -n "$CASES" ] || { echo "golden: no case has the area $AREA (tools/areas.tsv)" >&2; exit 2; }
+  echo "golden: SLICE AREA=$AREA: $(wc -l <<< "$CASES") cases; a slice is for iteration, run it in full before a PR"
+fi
+slice_has() { [ -z "$SLICE" ] || [[ ",$SLICE," == *",$1,"* ]]; }
+
 # The tape round trip: NAME | VIEW_SIM | scenario reel | situation GET | the source the frame from the
 # read-back tape must report, hdr(17): 3 where the tape is drawn (after the scenario's START and before entry
 # interface), 0 where it is not (s3-tape1's 1:30:00 is before START, s2-ei after entry interface).
@@ -349,7 +363,9 @@ capture() {
     # shellcheck disable=SC2086
     env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP \
       -u VIEW_DECK -u VIEW_DKSUM VIEW_HDR=1 VIEW_REEL=$reel $envs \
-      build/viewsvg $args > "$out/render/$name.txt" 2>&1
+      build/viewsvg $args > "$out/render/$name.svg.tmp" 2> "$out/render/$name.hdr.tmp"
+    cat "$out/render/$name.svg.tmp" "$out/render/$name.hdr.tmp" > "$out/render/$name.txt"
+    rm -f "$out/render/$name.svg.tmp" "$out/render/$name.hdr.tmp"
     n=$((n + 1))
   done <<< "$CASES"
   # The notebook figures, as tools/notebook.py rendered them (the one render tools/pack.py packs).
@@ -358,15 +374,16 @@ capture() {
     f=build/figures/$reel/$name
     cat "$f.svg" "$f.hdr" > "$out/render/nb-$reel-$name.txt"
     nf=$((nf + 1))
-  done < <(python3 tools/notebook.py list)
+  done < <(python3 tools/notebook.py list | { if [ -n "$SLICE" ]; then python3 tools/affected.py filter golden-nb "$SLICE"; else cat; fi; })
   # A figure that is a golden case's render (a notebook's `name | golden=<case>` row; #29 slice f) has no nb-*
   # capture: the case's own covers the frame.  What this adds: the figure the reel package carries
   # (build/reels/<reel>/notebook/figures/<name>.svg, as the last build packed it) must be that case drawn now, byte
   # for byte, so a package built before the frame changed fails here; and the .hdr notebook.py rendered above must be
-  # the case's too (the case's capture holds the two streams interleaved, so the case is redrawn with them apart).
+  # the case's too (the case is redrawn with the streams apart).
   local ng=0 gc genv gargs
   while read -r reel name gc; do
     f=build/figures/$reel/$name
+    grep -qE "^$gc +\\|" <<< "$CASES" || continue   # a slice without this figure's case
     IFS='|' read -r _ genv _ gargs <<< "$(grep -E "^$gc +\|" <<< "$CASES")"
     # shellcheck disable=SC2086
     env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP \
@@ -382,8 +399,8 @@ capture() {
   done < <(python3 tools/notebook.py golden-refs)
   rm -f "$out/ref.svg" "$out/ref.hdr"
   echo "golden: captured 6 tables, $(ls "$out/page" | wc -l) page.json, the run-table dumps ($(cat "$out"/tables-*.txt | wc -l) entries, $(ls "$out"/tables-*.txt | wc -l) reels), $n renders and $nf notebook figures into $out; $ng notebook figures are golden cases' renders"
-  roundtrip
-  padcheck
+  slice_has tape && roundtrip
+  slice_has pad && padcheck
 }
 
 case "${1:-}" in
@@ -394,7 +411,11 @@ case "${1:-}" in
     capture build/golden.new
     echo "golden: baseline from $(paste -sd' ' build/golden/source.txt 2>/dev/null || echo 'an unrecorded tree');" \
          "this check from $(paste -sd' ' build/golden.new/source.txt)"
-    if diff -rq -x source.txt build/golden build/golden.new > build/golden.diff.txt; then
+    # A slice compares only what it captured: the renders and figures it left out are not "only in" the baseline.
+    skip=(); if [ -n "$SLICE" ]; then
+      for f in build/golden/render/*; do [ -e "build/golden.new/render/${f##*/}" ] || skip+=(-x "${f##*/}"); done
+    fi
+    if diff -rq -x source.txt ${skip[@]+"${skip[@]}"} build/golden build/golden.new > build/golden.diff.txt; then
       echo "golden: check PASS: build/golden.new matches build/golden"
     else
       echo "golden: check FAIL: these files differ from the baseline (full diff: diff -r build/golden build/golden.new)" >&2
