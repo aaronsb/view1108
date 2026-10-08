@@ -245,16 +245,16 @@ const SHOT_LIST = [
       { expect: [`document.querySelector("#askbtns button.primary").dataset.reel`, "apollo11-asflown"] },
       { js: `VIEW_TL.seek(1000); VIEW_TL.state().playing || document.getElementById("bplay").click()` },
       { js: `document.querySelector('#askbtns button[data-reel="apollo8-asflown"]').click()` }, { frames: 2 }],
-    expect: [[TL("mounted"), "apollo8-asflown"], [TL("mode"), "free"], [TL("scene"), 9], [TL("get"), 272919.7], [TL("playing"), false],
+    expect: [[TL("mounted"), "apollo8-asflown"], [TL("mode"), "free"], [TL("scene"), 10], [TL("get"), 272919.7], [TL("playing"), false],
       [`document.getElementById("ask").hidden`, true]] },
 
   // The sim panel (#73): no SCENE group, one [ RETURN TO REELS ] button, and the reel's situations as marked entries of
-  // the event list, each with its quick-view key (Apollo 11's quickviews.txt: 1-8 its situations, 9 an event).
+  // the event list, each with its quick-view key (Apollo 11's quickviews.txt: 1-8 its situations, 9 an event; LAUNCH PAD has no key).
   { name: "tabbed-panel", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=3&get=1:30:00",
     steps: [...LINKED(5400), { frames: 3 }],
     expect: [[`!!document.querySelector('[data-shade="scene"], #scenes, #reels')`, false], [`document.getElementById("breels").textContent`, "Return to reels"],
-      [`[...document.querySelectorAll("#tllist .tlrow.tlsit")].map(r => r.querySelector(".tlq").textContent + r.dataset.id).sort().join()`,
-        "1EARTHRISE,2EARTH APPROACH,3EARTH LIMB,4LM RENDEZVOUS,5LM DESCENT,6MOON VIEW,7TRANSPOSITION AND DOCKING,8DOCKED STACK"],
+      [`[...document.querySelectorAll("#tllist .tlrow.tlsit")].map(r => (r.querySelector(".tlq")?.textContent ?? "") + r.dataset.id).sort().join()`,
+        "1EARTHRISE,2EARTH APPROACH,3EARTH LIMB,4LM RENDEZVOUS,5LM DESCENT,6MOON VIEW,7TRANSPOSITION AND DOCKING,8DOCKED STACK,LAUNCH PAD"],
       [`document.getElementById("hintscenes").textContent`, "1 2 3 4 5 6 7 8 9"]] },
 
   // A situation entry applies its view: External on the Earth first, then EARTHRISE picked from the list: its scene,
@@ -264,6 +264,14 @@ const SHOT_LIST = [
       { expect: [TL("viewMode"), 1] }, { expect: [TL("targetId"), 1] },
       { js: `document.querySelector('#tllist .tlrow[data-id="EARTHRISE"]').click()` }, HOLD(), { frames: 3 }],
     expect: [[TL("scene"), 1], [TL("viewMode"), 0], [TL("targetId"), 0], [TL("fov"), 8], [TL("mode"), "free"]] },
+
+  // The LAUNCH PAD situation (ours): picked from the event list it is the External view of the stack on the pad,
+  // the S-IVB the target, ten minutes before range zero, at a 110 deg field (the row's title says so; the page's view
+  // and target stay 0, the situation's own, as for every situation).
+  { name: "tabbed-launch-pad-entry", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1",
+    steps: [HOLD(), { js: `document.querySelector('#tllist .tlrow[data-id="LAUNCH PAD"]').click()` }, HOLD(), { frames: 3 }],
+    expect: [[`document.querySelector('#tllist .tlrow[data-id="LAUNCH PAD"]').title`, /^Apply Launch pad: EXTERNAL view, target SIVB, 110°, at -0:10:00$/],
+      [TL("scene"), 9], [TL("viewMode"), 0], [TL("targetId"), 0], [TL("get"), -600], [TL("fov"), 110], [TL("mode"), "free"]] },
 
   // A plain event moves the time only: from Earth limb (situation 3), Translunar injection (SP-4029, 10,213.03 s).
   { name: "tabbed-event-entry", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=3",
@@ -278,7 +286,7 @@ const SHOT_LIST = [
       { key: "9" }, { expect: [TL("get"), 10213.03] },
       { click: "#breels" }, { js: `document.querySelector('#askbtns button[data-reel="apollo8-asflown"]').click()` },
       HOLD(100), { key: "2" }, { expect: [TL("get"), 100] }, { key: "1" }, HOLD(), { frames: 3 }],
-    expect: [[TL("mounted"), "apollo8-asflown"], [TL("scene"), 9], [TL("get"), 272919.7]] },
+    expect: [[TL("mounted"), "apollo8-asflown"], [TL("scene"), 10], [TL("get"), 272919.7]] },
 
   // The run sheet at the front of the Apollo 11 notebook (#29 slice f): the reel's generated listing, situations marked.
   // Collapsed, as it opens (the operator, 2026-10-08): the situations, the Noteworthy milestones and the quick-view
@@ -287,18 +295,18 @@ const SHOT_LIST = [
     steps: [HOLD(), { js: `document.getElementById("blib").click()` },
       { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` }, { frames: 3 }],
     expect: [[`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"],
-      [`document.querySelectorAll("#libmd .runsheet tbody tr").length`, 260], [`document.querySelectorAll("#libmd .runsheet tr.rssit").length`, 8],
-      [VISIBLE_ROWS, 26], [`document.querySelector("#libmd .runsheet button.rsall").textContent`, "SHOW ALL 260 ENTRIES"],
+      [`document.querySelectorAll("#libmd .runsheet tbody tr").length`, 261], [`document.querySelectorAll("#libmd .runsheet tr.rssit").length`, 9],
+      [VISIBLE_ROWS, 27], [`document.querySelector("#libmd .runsheet button.rsall").textContent`, "SHOW ALL 261 ENTRIES"],
       [`document.querySelector("#libmd .runsheet h2").textContent`, "RUN SHEET - APOLLO 11 AS FLOWN"]] },
 
   // Expanded in place: every entry, the line now offering the short sheet; a second press collapses it again.
   { name: "tabbed-run-sheet-all", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { js: `document.getElementById("blib").click()` },
       { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` },
-      { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { expect: [VISIBLE_ROWS, 260] },
-      { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { expect: [VISIBLE_ROWS, 26] },
+      { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { expect: [VISIBLE_ROWS, 261] },
+      { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { expect: [VISIBLE_ROWS, 27] },
       { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { frames: 3 }],
-    expect: [[VISIBLE_ROWS, 260], [`document.querySelector("#libmd .runsheet button.rsall").textContent`, "SHOW ONLY THE 26 SITUATIONS, PHOTOGRAPHS AND MILESTONES"]] },
+    expect: [[VISIBLE_ROWS, 261], [`document.querySelector("#libmd .runsheet button.rsall").textContent`, "SHOW ONLY THE 27 SITUATIONS, PHOTOGRAPHS AND MILESTONES"]] },
 
   // A run-sheet entry mounts the reel as a fresh run and goes there: from Apollo 8 with the clock running, Apollo 11's
   // Translunar injection (the time, the clock stopped), then its LM DESCENT (the situation's view).
@@ -317,7 +325,7 @@ const SHOT_LIST = [
   { name: "notebook-light-page", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1", viewport: [400, 860],
     steps: [HOLD(), ...NB_OPEN],
     expect: [[`document.getElementById("libmd").className`, "light"], [NB_COLS, "1"], [NB_PAGE, /^PAGE 1 OF \d+$/],
-      [`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"], [VISIBLE_ROWS, 26],
+      [`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"], [VISIBLE_ROWS, 27],
       [`document.getElementById("blibtheme").textContent`, "Dark"], [NO_HSCROLL]] },
 
   // On a narrow screen LIST hides the viewer; a resize while it is hidden, then the same notebook again: counted anew
@@ -448,7 +456,7 @@ const SHOT_LIST = [
   // lab=N a label level and labels=0|1 off or all (labels by name); mode=attract and mode=tour their playlist reels.
   { name: "link-scene-alias", url: "mode=free&space=tabbed&scene=9",
     steps: [HOLD(), { frames: 2 }],
-    expect: [[TL("mounted"), "apollo8-asflown"], [TL("scene"), 9], [LINK, /scn=apollo8-asflown&sit=APOLLO%208%20EARTHRISE/], [LINK, NO_OLD]] },
+    expect: [[TL("mounted"), "apollo8-asflown"], [TL("scene"), 10], [LINK, /scn=apollo8-asflown&sit=APOLLO%208%20EARTHRISE/], [LINK, NO_OLD]] },
   { name: "link-alias-space-tiled", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1",
     steps: [HOLD(), { frames: 2 }],
     expect: [[`document.body.classList.contains("room")`, false], ["!!window.VIEW_LAB && VIEW_LAB.running", false],
@@ -482,7 +490,7 @@ const SHOT_LIST = [
     expect: [[`document.body.classList.contains("room")`, true], [LINK, /&space=room(&|$)/]] },
   { name: "link-mission", url: "mode=free&space=tabbed&mission=apollo8",
     steps: [HOLD(), { frames: 2 }],
-    expect: [[TL("mounted"), "apollo8-asflown"], [TL("scene"), 9], [LINK, /scn=apollo8-asflown/]] },
+    expect: [[TL("mounted"), "apollo8-asflown"], [TL("scene"), 10], [LINK, /scn=apollo8-asflown/]] },
   { name: "link-reel-tab", url: "reel=tour&tab=simulate&space=tabbed",
     steps: [{ frames: 2 }],
     expect: [[TL("mode"), "tour"], [TL("mounted"), "tour"], [`document.body.dataset.tab`, "simulate"], [LINK, /^[^?]*\?reel=tour&tab=simulate(&|$)/]] },
@@ -563,7 +571,7 @@ const SHOT_LIST = [
   // frame made orthonormal).
   { name: "tec-window-a8", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1&get=120:00:00&fov=50",
     steps: [...LINKED(432000), { frames: 3 }],
-    expect: [[TL("viewMode"), 0], [TL("mounted"), "apollo8-asflown"], [TL("scene"), 9],
+    expect: [[TL("viewMode"), 0], [TL("mounted"), "apollo8-asflown"], [TL("scene"), 10],
       [`new Int32Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.nstar.value, 1)[0] > 20`, true],
       [`new Int32Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.nvec.value, 1)[0] > 1000`, true]] },
 
@@ -649,7 +657,8 @@ function printShot(name, link, get, stem) {
     window.__prints = got.map(g => { const d = new DOMParser().parseFromString(g.svg, "image/svg+xml"), r = d.getElementById("film");
       const ink = new Set([...d.querySelectorAll("[stroke],[fill]")].filter(e => e !== r).flatMap(e => [e.getAttribute("stroke"), e.getAttribute("fill")]));
       ink.delete(null); ink.delete("none");
-      return { name: g.name, bg: r ? r.getAttribute("fill") : null, ink: [...ink].sort(), ok: !d.querySelector("parsererror") && d.querySelectorAll("path").length > 2 }; });
+      return { name: g.name, bg: r ? r.getAttribute("fill") : null, ink: [...ink].sort(), ok: !d.querySelector("parsererror") && d.querySelectorAll("path").length > 2
+        && d.querySelectorAll("clipPath").length === d.querySelectorAll("defs clipPath").length }; });   // a loose clip outline paints black in some viewers
   })()`;
   return { name, url: `mode=free&space=tabbed&tab=print&${link}`,
     steps: [...LINKED(get), { frames: 3 }, { js: PRINTS }],

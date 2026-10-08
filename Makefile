@@ -18,10 +18,14 @@ GOLDEN_PASS_SCORE    ?= 99.5
 SHOTS_PASS_SCORE     ?= 99.5
 SHOTS_UNSTABLE_SCORE ?= 90
 
-export LF_BIN FUZZ GOLDEN_PASS_SCORE SHOTS_PASS_SCORE SHOTS_UNSTABLE_SCORE
+# Quiet gates (#119): each gate prints one line and keeps its output in build/logs/<gate>.log; VERBOSE=1 prints it all.
+# AREA=a,b runs a slice of the golden cases or the shots (tools/areas.tsv), for iteration only.
+GATE = ./tools/gate.sh
+
+export VERBOSE AREA LF_BIN FUZZ GOLDEN_PASS_SCORE SHOTS_PASS_SCORE SHOTS_UNSTABLE_SCORE
 
 .DEFAULT_GOAL := help
-.PHONY: help sheet build data native test shots lint check golden golden-check golden-diff shots-baseline shots-check serve stop status clean
+.PHONY: help sheet build page data native test lab-test shots lint lint-body check check-affected golden golden-check golden-diff shots-baseline shots-check serve stop status clean
 
 help: ## Show this list
 	@echo "VIEW-1108 — make <target>   (LF_BIN=$(LF_BIN)  PORT=$(PORT))"
@@ -29,7 +33,10 @@ help: ## Show this list
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  %-8s %s\n", $$1, $$2}'
 
 build: ## Full build: data -> FORTRAN -> wasm -> web/view1108.html, then self-test
-	./tools/build.sh
+	@$(GATE) build ./tools/build.sh
+
+page: ## Rebuild the page without the kernel: the lab bundle (web/lab) and the assembled web/view1108.html
+	@$(GATE) page sh -c 'npm --prefix web/lab run --silent build && python3 tools/assemble.py'
 
 data: ## Regenerate src/viewdata.f and build/names.js from data/
 	python3 tools/gen_data.py
@@ -38,15 +45,21 @@ native: ## Build the native SVG renderer (build/viewsvg) with gfortran
 	./tools/build.sh native
 
 test: ## Run the headless self-test (wasm vs wasm2js fallback, every scene)
-	node tools/selftest.mjs
+	@$(GATE) selftest node tools/selftest.mjs
+
+lab-test: ## web/lab: tsc --noEmit, then npm test
+	@$(GATE) lab sh -c 'npm --prefix web/lab run --silent typecheck && npm --prefix web/lab run --silent test'
 
 shots: ## Scripted screenshots and checks (tools/shots.mjs) -> build/shots/*.png; ONLY=<name|glob>, LIST=1
-	node tools/shoot.mjs $(if $(ONLY),--only '$(ONLY)') $(if $(LIST),--list)
+	@$(if $(LIST),VERBOSE=1 )GATE_LABEL='shots$(if $(AREA), [$(AREA)])' $(GATE) shots node tools/shoot.mjs $(if $(AREA),--area '$(AREA)') $(if $(ONLY),--only '$(ONLY)') $(if $(LIST),--list)
 
 sheet: ## Regenerate docs/media/film-vs-view1108.png (film vs our page; needs chromium + Pillow)
 	python3 tools/film_sheet.py
 
 lint: ## Check kernel dialect, compile warnings, and script syntax
+	@$(GATE) lint $(MAKE) --no-print-directory lint-body
+
+lint-body:
 	python3 tools/lint_dialect.py $(KSRC) src/vdvoc.f src/viewcom.inc src/viewdims.inc src/viewsit.inc \
 	  src/vdvoc.inc src/vdeck.inc
 	gfortran -fsyntax-only -std=legacy -Wall -Wno-unused-dummy-argument -Isrc $(KSRC)
@@ -78,7 +91,7 @@ golden: ## Capture the golden master (generated tables, native renders) into bui
 	./tools/golden.sh capture
 
 golden-check: ## Re-capture and diff against build/golden; fails on any difference
-	./tools/golden.sh check
+	@GATE_LABEL='golden$(if $(AREA), [$(AREA)])' $(GATE) golden ./tools/golden.sh check
 
 golden-diff: ## Re-capture, score each difference from build/golden -> build/golden.diff/report.html; exit 1 on a non-empty verification queue
 	./tools/golden-diff.sh
@@ -88,6 +101,9 @@ shots-baseline: ## Copy build/shots/*.png to build/shots-baseline (the reference
 
 shots-check: ## make shots, then score each PNG against the baseline -> build/shots-diff; ONLY=<name|glob>
 	./tools/shots-check check
+
+check-affected: ## Run only the gates and slices the change can affect (tools/affected.tsv); DRY=1 prints the plan
+	python3 tools/affected.py $(if $(DRY),--dry-run)
 
 serve: ## Start a local web server for web/ in the background (PORT=8108)
 	@mkdir -p build
