@@ -358,9 +358,12 @@ C     FIXED situation), 1 aimed at a point of its own, 2 the vehicle
 C     the camera rides, 3 docked to or carried with another vehicle
 C     (its point is that vehicle's: aimed only from outside), 4 no
 C     point here (no state; the Sun from outside), 5 as 3, the LM in
-C     the SLA before the separation (SEP).
-      INTEGER IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST
-      COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST
+C     the SLA before the separation (SEP).  ISLA 1 if this frame is
+C     the LM station inside the closed SLA before SEP (STATLM, #70
+C     option C): nothing outside is drawn, and the frame says why.
+      INTEGER IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST, ISLA
+      COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST,
+     &               ISLA
 C
 C     /CSCN/ scene number (the situation, row ISCN of the situation
 C     tables), flags of this frame, init done.
