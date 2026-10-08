@@ -108,6 +108,7 @@ input[type=range] { accent-color:var(--fg); width:220px; max-width:60vw; }
 .lbl { color:var(--dim); text-transform:uppercase; }
 /* The event list's situations (#73, ours): marked entries, the quick-view key boxed before the name. */
 .tlrow.tlsit { color:var(--fg); }
+.tlrow.tlsit.cur { color:#000; }
 .tlrow.tlsit .tlk { letter-spacing:.04em; }
 .tlrow.tlsit .tln::before { content:"\25B8 "; }
 .tlq { display:inline-block; min-width:1.2em; margin-right:5px; border:1px solid currentColor; text-align:center; font-weight:400; line-height:1.15; }
@@ -216,6 +217,7 @@ button.librow.on .libm { color:var(--fg); }
 #libmd .runsheet th { font-weight:700; border-bottom:1px solid #1b1b18; }
 #libmd .runsheet tr.rssit td { font-weight:700; }
 #libmd .runsheet button { all:unset; cursor:pointer; color:#1b1b18; text-decoration:underline dotted; }
+#libmd .runsheet button::before, #libmd .runsheet button::after { content:none; }
 #libmd .runsheet button:hover, #libmd .runsheet button:focus-visible { background:#1b1b18; color:#ecebe2; text-decoration:none; }
 #libmd section.nbcases { margin-top:28px; font-size:13px; color:var(--dim); }
 #libmd section.nbcases h2 { font-size:15px; }
