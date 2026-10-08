@@ -31,6 +31,7 @@
 //   steps     run in order after the page has booted (window.VIEW_KERNEL set, or #err lettered):
 //               { js: "expr" }        evaluate in the page (a promise is awaited)
 //               { wait: "expr", timeout? }  poll every 50 ms until the expression is truthy (default 15 s)
+//               { expect: [expr, want?] }  a check here, between steps (as `expect` below)
 //               { frames: n }         n animation frames drawn
 //               { ms: n }             a plain delay (prefer wait or frames)
 //               { key: "Escape" }     a key press (key names as KeyboardEvent.key: Escape, Enter, " ", "a", ...)
@@ -39,7 +40,9 @@
 //   expect    after the steps and two more frames: [expr] (truthy) or [expr, want]: want a RegExp (tested against
 //             String(value)) or a value (compared as JSON)
 //   allow     RegExps of console errors this shot accepts
-// Every shot also checks that the page logged no console error or uncaught exception, and that #err is empty.
+//   timeout   ms for the whole shot (default SHOT_TIMEOUT); a shot that overruns fails and its page is closed
+// Every shot also checks that the WebAssembly kernel runs (not the wasm2js fallback), that the page logged no console
+// error or uncaught exception, and that #err is empty. Chromium gone mid-run ends the run with exit 2.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
@@ -93,16 +96,23 @@ function shutdown() {
       if (running()) { browser.kill("SIGKILL"); await Promise.race([gone, sleep(2000)]); }
     }
     server?.close();
-    fs.rmSync(PROFILE, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    // Chromium's helpers can still be writing for a moment after the browser exits: remove until it stays removed.
+    for (let i = 0; i < 10; i++) {
+      fs.rmSync(PROFILE, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      await sleep(200);
+      if (!fs.existsSync(PROFILE)) return;
+    }
+    throw new Error(`could not remove ${path.relative(R, PROFILE)}`);
   })();
 }
-const finish = code => shutdown().catch(e => console.error(`shoot: cleanup: ${e.message}`)).finally(() => process.exit(code));
-// An exit that skipped finish (a crash): the same, as far as a synchronous handler can.
+const finish = code => shutdown().catch(e => { console.error(`shoot: cleanup: ${e.message}`); code ||= 2; }).finally(() => process.exit(code));
+// An exit that skipped finish: the same, as far as a synchronous handler can.
 process.on("exit", () => {
   if (running()) browser.kill("SIGKILL");
   try { fs.rmSync(PROFILE, { recursive: true, force: true }); } catch { /* best effort */ }
 });
-for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, () => finish(130));
+for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143], ["SIGHUP", 129]]) process.on(sig, () => finish(code));
+for (const ev of ["uncaughtException", "unhandledRejection"]) process.on(ev, e => { console.error(`shoot: ${ev}: ${e?.stack || e}`); finish(2); });
 
 // ---- the static server: web/, read only ----
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
@@ -110,12 +120,15 @@ const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/ja
 function serve() {
   return new Promise((ok, bad) => {
     server = http.createServer((req, res) => {
-      const u = decodeURIComponent(new URL(req.url, "http://x").pathname);
-      if (u === "/favicon.ico") { res.writeHead(204); res.end(); return; }   // the page names no icon
-      const f = path.join(WEB, path.normalize(u));
+      let f;
+      try {
+        const u = decodeURIComponent(new URL(req.url, "http://x").pathname);
+        if (u === "/favicon.ico") { res.writeHead(204); res.end(); return; }   // the page names no icon
+        f = path.join(WEB, path.normalize(u));
+      } catch { res.writeHead(400); res.end(); return; }   // a malformed URL
       if (!f.startsWith(WEB + path.sep) || !fs.existsSync(f) || !fs.statSync(f).isFile()) { res.writeHead(404); res.end(); return; }
       res.writeHead(200, { "content-type": TYPES[path.extname(f)] || "application/octet-stream", "cache-control": "no-store" });
-      fs.createReadStream(f).pipe(res);
+      fs.createReadStream(f).on("error", () => res.destroy()).pipe(res);
     });
     server.on("error", bad);
     server.listen(0, "127.0.0.1", () => ok(server.address().port));
@@ -124,6 +137,7 @@ function serve() {
 
 // ---- Chromium and a DevTools protocol client ----
 async function launch() {
+  fs.rmSync(PROFILE, { recursive: true, force: true });   // a fresh profile, even if a pid was reused
   fs.mkdirSync(PROFILE, { recursive: true });
   const args = ["--headless=new", "--no-sandbox", `--user-data-dir=${PROFILE}`, "--remote-debugging-port=0",
     "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--mute-audio", "--force-device-scale-factor=1",
@@ -158,8 +172,16 @@ class CDP {
       } else for (const f of this.subs) f(m);
     };
     this.open = new Promise((ok, bad) => { this.ws.onopen = ok; this.ws.onerror = () => bad(new Error("DevTools connection failed")); });
+    this.closed = false;
+    // Chromium gone: every call still waiting fails now, and every later one at once.
+    this.ws.onclose = () => {
+      this.closed = true;
+      for (const c of this.calls.values()) c.bad(new Error(`${c.method}: DevTools connection closed (Chromium gone)`));
+      this.calls.clear();
+    };
   }
   send(method, params = {}, sessionId) {
+    if (this.closed) return Promise.reject(new Error(`${method}: DevTools connection closed (Chromium gone)`));
     const id = ++this.id;
     return new Promise((ok, bad) => { this.calls.set(id, { ok, bad, method }); this.ws.send(JSON.stringify({ id, method, params, sessionId })); });
   }
@@ -183,9 +205,12 @@ const FRAMES = n => `new Promise(r => { let k = ${n | 0}; const f = () => (--k <
 const KEYS = { Escape: [27, "Escape"], Enter: [13, "Enter"], Tab: [9, "Tab"], " ": [32, "Space"], ArrowLeft: [37, "ArrowLeft"],
   ArrowUp: [38, "ArrowUp"], ArrowRight: [39, "ArrowRight"], ArrowDown: [40, "ArrowDown"], Backspace: [8, "Backspace"] };
 
-async function runShot(cdp, base, shot) {
+// ctx: { browserContextId, cancelled }, shared with the caller, which disposes of the context when the shot times out.
+async function runShot(cdp, base, shot, ctx) {
   const errors = [], fails = [];
   const { browserContextId } = await cdp.send("Target.createBrowserContext", { disposeOnDetach: true });
+  ctx.browserContextId = browserContextId;
+  if (ctx.cancelled) throw new Error("cancelled");
   const { targetId } = await cdp.send("Target.createTarget", { url: "about:blank", browserContextId });
   const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
   const S = (m, p) => cdp.send(m, p, sessionId);
@@ -212,6 +237,13 @@ async function runShot(cdp, base, shot) {
       await sleep(50);
     }
   };
+  const check = async ([expr, ...want]) => {
+    let v;
+    try { v = await evaluate(expr); } catch (e) { fails.push(e.message); return; }
+    if (!want.length) { if (!v) fails.push(`${expr} is ${JSON.stringify(v)}`); }
+    else if (want[0] instanceof RegExp) { if (!want[0].test(String(v))) fails.push(`${expr} = ${JSON.stringify(v)}, want ${want[0]}`); }
+    else if (JSON.stringify(v) !== JSON.stringify(want[0])) fails.push(`${expr} = ${JSON.stringify(v)}, want ${JSON.stringify(want[0])}`);
+  };
   const [w, h] = shot.viewport || DEFAULT_VIEWPORT;
   try {
     await S("Page.enable"); await S("Runtime.enable"); await S("Log.enable");
@@ -221,11 +253,14 @@ async function runShot(cdp, base, shot) {
     await S("Page.navigate", { url: `${base}/${PAGE}?${query(shot)}` });
     await onload;
     await waitFor(READY, 30000);
+    // The WebAssembly kernel, not the wasm2js fallback (or the mock): a shot judges the page as it ships.
+    await check(["window.VIEW_CPU", "WebAssembly"]);
     // Every web font loaded before anything is judged: a canvas lettered in the fallback face first differs run to run.
     await evaluate(`Promise.all([...document.fonts].map(f => f.load().catch(() => null))).then(() => document.fonts.ready).then(() => true)`);
     await evaluate(FRAMES(2));
     for (const st of shot.steps || []) {
       if (st.js !== undefined) await evaluate(st.js);
+      else if (st.expect !== undefined) await check(st.expect);
       else if (st.wait !== undefined) await waitFor(st.wait, st.timeout);
       else if (st.frames !== undefined) await evaluate(FRAMES(st.frames));
       else if (st.ms !== undefined) await sleep(st.ms);
@@ -245,19 +280,13 @@ async function runShot(cdp, base, shot) {
       } else throw new Error(`unknown step ${JSON.stringify(st)}`);
     }
     await evaluate(FRAMES(2));
-    for (const [expr, ...want] of shot.expect || []) {
-      let v;
-      try { v = await evaluate(expr); } catch (e) { fails.push(e.message); continue; }
-      if (!want.length) { if (!v) fails.push(`${expr} is ${JSON.stringify(v)}`); }
-      else if (want[0] instanceof RegExp) { if (!want[0].test(String(v))) fails.push(`${expr} = ${JSON.stringify(v)}, want ${want[0]}`); }
-      else if (JSON.stringify(v) !== JSON.stringify(want[0])) fails.push(`${expr} = ${JSON.stringify(v)}, want ${JSON.stringify(want[0])}`);
-    }
+    for (const e of shot.expect || []) await check(e);
     const err = await evaluate(`(document.getElementById("err") || {}).textContent || ""`);
     if (err) fails.push(`#err: ${err}`);
   } catch (e) {
     fails.push(e.message);
   } finally {
-    try {
+    if (!ctx.cancelled) try {
       const { data } = await S("Page.captureScreenshot", { format: "png" });
       fs.writeFileSync(path.join(OUT, shot.name + ".png"), Buffer.from(data, "base64"));
     } catch (e) { fails.push("screenshot: " + e.message); }
@@ -277,16 +306,23 @@ try {
   cdp = new CDP(await launch());
   await cdp.open;
   for (const shot of chosen) {
-    const t = Date.now();
-    let fails;
+    if (cdp.closed || !running()) throw new Error(`${CHROMIUM} is no longer running; ${chosen.length - chosen.indexOf(shot)} shot(s) not run`);
+    const t = Date.now(), ctx = { browserContextId: null, cancelled: false }, limit = shot.timeout || SHOT_TIMEOUT;
+    let fails, timer;
     try {
-      fails = await Promise.race([runShot(cdp, `http://127.0.0.1:${port}`, shot),
-        sleep(SHOT_TIMEOUT).then(() => [`shot timed out (${SHOT_TIMEOUT / 1000} s)`])]);
+      fails = await Promise.race([runShot(cdp, `http://127.0.0.1:${port}`, shot, ctx),
+        new Promise(r => { timer = setTimeout(() => r(null), limit); })]);
     } catch (e) { fails = [e.message]; }
+    clearTimeout(timer);
+    if (fails === null) {   // timed out: close the shot's page, so the next shot starts clean
+      ctx.cancelled = true; fails = [`shot timed out (${limit / 1000} s)`];
+      if (ctx.browserContextId) await cdp.send("Target.disposeBrowserContext", { browserContextId: ctx.browserContextId }).catch(() => null);
+    }
     const secs = ((Date.now() - t) / 1000).toFixed(1);
     if (fails.length) { failed++; console.log(`FAIL ${shot.name} (${secs} s)`); for (const f of fails) console.log(`     ${f}`); }
     else console.log(`PASS ${shot.name} (${secs} s)  build/shots/${shot.name}.png`);
   }
+  if (cdp.closed || !running()) throw new Error(`${CHROMIUM} is no longer running`);
   console.log(`shots: ${chosen.length - failed} of ${chosen.length} passed in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
   await finish(failed ? 1 : 0);
 } catch (e) {
