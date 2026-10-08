@@ -91,7 +91,7 @@ const crypto = await import('crypto'), { execFileSync } = await import('child_pr
 const ctxR = vm.createContext({ atob, TextDecoder, Blob, Response, DecompressionStream, Uint8Array, JSON, Error,
   Map, Number, String, parseInt, Math });
 const RP = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/reelpkg.js'), 'utf8') +
-  '\n({ readReel, reelDecks, untar, reelPages, sceneOfLink })', ctxR);
+  '\n({ readReel, reelDecks, untar, reelPages, sceneOfLink, reelSvgUnsafe })', ctxR);
 const reelsJs = fs.readFileSync(path.join(R, 'build/reels.js'), 'utf8');
 const VR = vm.runInNewContext(reelsJs + '\nVIEW_REELS');
 const sha = crypto.createHash('sha256').update(fs.readFileSync(path.join(R, 'build/view.opt.wasm'))).digest('hex');
@@ -532,7 +532,7 @@ if (W.sim_run && fs.existsSync(VSVG)) {
   // figures are tools/notebook.py's list for it, in order.
   const nbList = execFileSync('python3', [path.join(R, 'tools/notebook.py'), 'list'], { cwd: R }).toString()
     .split('\n').filter(Boolean).map(l => l.split(' '));
-  let nfig = 0;
+  let nfig = 0, nSvgBad = 0, nSvgOk = 0;
   for (const r of reels) {
     const id = r.manifest.id;
     const home = r.manifest.kind === 'playlist' ? path.join(R, 'data/reels', id)
@@ -659,25 +659,52 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
       catch (err) { msg = String(err.stderr); }
       if (!py.test(msg)) wrong.push(`tools/notebook.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
     }
-    // A figure that could act when opened as a page (review of PR #69): a script, an event handler, a foreignObject, a
-    // javascript: URL, an href to anything but a fragment. The reader refuses each, and tools/notebook.py svg_unsafe
-    // (render and pack) names each: the two agree.
+    // A figure that could act when opened as a page (reviews of PR #69): the allowlist (reelpkg.js reelSvgUnsafe,
+    // tools/notebook.py svg_unsafe at render and pack) refuses each of these, the bypasses of a blocklist among them;
+    // the reader refuses the package and the Python names it: the two agree.
     const W3 = 'xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"';
     const SVG_BAD = {
-      'a <script>': [`<svg ${W3}><script>alert(document.domain)</script></svg>\n`, /holds a <script>/],
-      'an onload attribute': [`<svg ${W3} onload="alert(1)"><rect/></svg>\n`, /holds an on\.\.\. event attribute/],
-      'a <foreignObject>': [`<svg ${W3}><foreignObject><div>x</div></foreignObject></svg>\n`, /holds a <foreignObject>/],
-      'a javascript: URL': [`<svg ${W3}><a href="javascript:alert(1)"><text>x</text></a></svg>\n`, /holds (a javascript: URL|an href)/],
-      'an xlink:href elsewhere': [`<svg ${W3}><use xlink:href="https://evil.example/x.svg#a"/></svg>\n`, /holds an href to anything but #/],
+      'a <script>': `<svg ${W3}><script>alert(document.domain)</script></svg>\n`,
+      'an onload attribute': `<svg ${W3} onload="alert(1)"><rect/></svg>\n`,
+      'a <foreignObject>': `<svg ${W3}><foreignObject><div>x</div></foreignObject></svg>\n`,
+      'a javascript: URL': `<svg ${W3}><a href="javascript:alert(1)"><text>x</text></a></svg>\n`,
+      'an xlink:href elsewhere': `<svg ${W3}><g xlink:href="https://evil.example/x.svg#a"/></svg>\n`,
+      'an XHTML-namespace <h:script>': `<svg ${W3} xmlns:h="http://www.w3.org/1999/xhtml"><h:script>alert(1)</h:script></svg>\n`,
+      'a prefixed <s:script>': `<s:svg xmlns:s="http://www.w3.org/2000/svg"><s:script>alert(1)</s:script></s:svg>\n`,
+      'an entity-built <script>': `<!DOCTYPE svg [<!ENTITY s "&#60;script>alert(1)&#60;/script>">]><svg ${W3}>&s;</svg>\n`,
+      'a <set> to an encoded javascript:': `<svg ${W3}><a><set attributeName="href" to="&#106;avascript:alert(1)"/><text>x</text></a></svg>\n`,
+      'an <animate> of href': `<svg ${W3}><a><animate attributeName="href" values="&#x6a;avascript:alert(1)"/></a></svg>\n`,
+      'a CSS url()': `<svg ${W3}><g fill="url(https://evil.example/x#p)"/></svg>\n`,
+      'a <style> @import': `<svg ${W3}><style>@import "https://evil.example/x.css";</style></svg>\n`,
+      'a style attribute': `<svg ${W3}><rect style="fill:red"/></svg>\n`,
+      'a processing instruction': `<svg ${W3}><?xml-stylesheet href="https://evil.example/x.css"?></svg>\n`,
+      'a comment': `<svg ${W3}><!-- --></svg>\n`,
+      'a namespace swap': `<svg xmlns="http://www.w3.org/1999/xhtml"><text>x</text></svg>\n`,
+      'an unquoted attribute': `<svg ${W3}><rect x=1 onload=alert(1)/></svg>\n`,
     };
-    for (const [what, [svg, js]] of Object.entries(SVG_BAD)) {
-      await nbRefused(`a figure with ${what}`, 'nb-fig-unsafe', js, svg);
+    for (const [what, svg] of Object.entries(SVG_BAD)) {
+      await nbRefused(`a figure with ${what}`, 'nb-fig-unsafe', /(holds .*, which a figure may not \(the allowlist\)|is not an SVG document)$/, svg);
       const py = execFileSync('python3', ['-c', 'import sys; sys.path.insert(0, "tools"); import notebook; print(notebook.svg_unsafe(sys.argv[1]))', svg], { cwd: R }).toString().trim();
       if (py === 'None') wrong.push(`tools/notebook.py svg_unsafe passes a figure with ${what}`);
     }
-    const okFig = execFileSync('python3', ['-c', 'import sys; sys.path.insert(0, "tools"); import notebook; print(notebook.svg_unsafe(sys.argv[1]))',
-      `<svg ${W3}><defs><g id="a"/></defs><use xlink:href="#a"/></svg>`], { cwd: R }).toString().trim();
-    if (okFig !== 'None') wrong.push(`tools/notebook.py svg_unsafe refuses a fragment link: ${okFig}`);
+    nSvgBad = Object.keys(SVG_BAD).length;
+    // A positive control: what viewsvg writes, with a fragment link, passes both.
+    const okSvg = `<?xml version="1.0"?>\n<svg ${W3} width="8" height="8" viewBox="0 0 8 8"><g stroke="white" xlink:href="#a"><line x1="0" y1="0" x2="1" y2="1" stroke-dasharray="6 5"/></g><g fill="#9cf" font-family="monospace" font-size="11"><text x="1" y="2">1:2 &amp; &#60;</text></g></svg>\n`;
+    const okPy = execFileSync('python3', ['-c', 'import sys; sys.path.insert(0, "tools"); import notebook; print(notebook.svg_unsafe(sys.argv[1]))', okSvg], { cwd: R }).toString().trim();
+    if (okPy !== 'None' || RP.reelSvgUnsafe(okSvg) !== null) wrong.push(`the allowlist refuses viewsvg's own shapes: ${okPy} / ${RP.reelSvgUnsafe(okSvg)}`);
+    // Every figure and every golden render (when build/golden is there) passes both: a kernel that writes a new element
+    // or attribute fails here, loudly, not in a reader's browser.
+    const svgFiles = [...fs.readdirSync(path.join(R, 'build/figures')).flatMap(d => fs.statSync(path.join(R, 'build/figures', d)).isDirectory()
+      ? fs.readdirSync(path.join(R, 'build/figures', d)).filter(f => f.endsWith('.svg')).map(f => path.join('build/figures', d, f)) : []),
+      ...(fs.existsSync(path.join(R, 'build/golden/render')) ? fs.readdirSync(path.join(R, 'build/golden/render')).map(f => path.join('build/golden/render', f)) : [])];
+    for (const f of svgFiles) {
+      const t = fs.readFileSync(path.join(R, f), 'utf8'), k = t.indexOf('</svg>'), why = RP.reelSvgUnsafe(k >= 0 ? t.slice(0, k + 6) : t);
+      if (why) wrong.push(`${f}: the page's allowlist refuses it (${why})`);
+    }
+    try { execFileSync('python3', [path.join(R, 'tools/notebook.py'), 'check-svg', ...svgFiles], { cwd: R, stdio: 'pipe' }); }
+    catch (err) { wrong.push(`tools/notebook.py check-svg refuses: ${String(err.stdout).trim()}`); }
+    nSvgOk = svgFiles.length;
+    if (nSvgOk < nfig) wrong.push(`the allowlist checked ${nSvgOk} files, fewer than the ${nfig} figures`);
     // A stale render is not packed: tools/notebook.py stale finds nothing today and names a changed case (its GET).
     const st = execFileSync('python3', ['-c', `import sys; sys.path.insert(0, "tools"); import notebook as nb
 for rid, n in nb.notebooks():
@@ -698,7 +725,7 @@ for rid, n in nb.notebooks():
   if (pageSha !== sha || reels.some(r => r.manifest.kernel.sha256 !== pageSha))
     wrong.push(`the page's KERNEL_SHA ${pageSha} is not the wasm's ${sha.slice(0, 8)} or a manifest's`);
   console.log(`packages: ${reels.length} reels (${reels.map(r => `${r.manifest.id} ${r.manifest.kind}`).join(', ')}), ${ndecks} decks; ` +
-    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, 18 notebook faults (5 unsafe figures), a stale render` +
+    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, ${13 + nSvgBad} notebook faults (${nSvgBad} unsafe figures), the figure allowlist over ${nSvgOk} figures and golden renders, a stale render` +
     `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/ and build/figures/, packed twice the same, refusals hold'}`);
   if (wrong.length) ok = false;
 }

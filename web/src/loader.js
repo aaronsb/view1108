@@ -25,7 +25,7 @@
 //   mount   a scenario reel mounted (reels.js reelMount: the rack, a drive, the notebook modal, Tabbed's reel list,
 //           Load this reel): a fresh run, as if EXEC loaded the program anew (the operator, 2026-10-07): the reel's
 //           first situation (scene) at its defaults, Free-look, no Live pin, Beam, Following, view or target override,
-//           the speed back to its default and the clock stopped; the tab and the Room/Tabbed choice are kept
+//           and the clock stopped; the tab, the Room/Tabbed choice and the speed setting are kept
 // Without `by` the keys are a viewer's pick: reel or mode (a mode button; the player's handover to the NEXT reel), then scene (a scene button or key: Live pins it if
 // it can, else Free-look; Beam stays), get (a typed time), fov, view, target. mode=live with a scene is a jump button:
 // as a link with those keys.
@@ -155,7 +155,7 @@ function loadPick(p) {
 function loadMount(s) {
   livePin = null; follow = false; capName = "";
   LS.mode = "free"; LS.reel = ""; beamNextStart = 0;
-  LS.view = 0; speedIdx = 3; liveIdx = 0;
+  LS.view = 0; liveIdx = 0;
   mount(s);
   LS.playing = false;
   syncUI();

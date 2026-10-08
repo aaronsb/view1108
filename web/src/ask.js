@@ -4,9 +4,10 @@
 // Open, it is on the Esc stack as "ask" (esc.js), and Esc does its `back` (put the tape or notebook back). Keys: Enter
 // presses the focused button (the primary one has focus when it opens), Tab and Shift+Tab move between the buttons
 // only, and no other key reaches anything behind it (the room's walking keys among them): its listener is a capture
-// listener on the window, added before the room's.
+// listener on the window, added before the room's. Closed, it gives the focus back: to the room's canvas while the
+// room is shown, else to what had it.
 "use strict";
-let askOn = null;   // the open question: { back }
+let askOn = null;   // the open question: { back, prev }, prev what had the focus
 /** Ask `title` with `actions` ([{ label, run, primary }], the primary first gets focus); `back` is what Esc does. */
 function askOpen(title, actions, back) {
   askClose();
@@ -19,14 +20,18 @@ function askOpen(title, actions, back) {
     b.onclick = () => { askClose(); a.run(); };
     btns.appendChild(b);
   }
-  askOn = { back };
+  askOn = { back, prev: document.activeElement };
   $("ask").hidden = false;
   escPush("ask", () => { askClose(); back(); });
   (btns.querySelector("button.primary") || btns.firstChild)?.focus();
 }
 function askClose() {
   if (!askOn) return;
+  const prev = askOn.prev;
   askOn = null; $("ask").hidden = true; escDrop("ask");
+  const to = document.body.classList.contains("room") ? $("labhost").querySelector("canvas") : prev;
+  if (to && to.tagName === "CANVAS" && !to.hasAttribute("tabindex")) to.setAttribute("tabindex", "-1");   // focusable, not tabbed to
+  if (to && to !== document.body && to.focus) to.focus({ preventScroll: true });
 }
 window.addEventListener("keydown", e => {
   if (!askOn || e.key === "Escape") return;   // Escape: esc.js, whose top entry is "ask"

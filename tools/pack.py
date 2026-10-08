@@ -85,7 +85,7 @@ def notebook_members(rid, kind, src, uses, sits):
             sys.exit(f"pack.py: {rid}: {path}: a member name longer than 100 characters (USTAR)")
         bad = notebook.svg_unsafe(fig.read_bytes().decode("utf-8", "replace"))
         if bad:
-            sys.exit(f"pack.py: {rid}: {fig.relative_to(R)} holds {bad}, which a figure may not (tools/notebook.py SVG_UNSAFE)")
+            sys.exit(f"pack.py: {rid}: {fig.relative_to(R)} holds {bad}, which a figure may not (tools/notebook.py svg_unsafe, the allowlist)")
         members.append((path, fig.read_bytes()))
         entries.append({"path": path, "type": "figure"})
     return members, entries

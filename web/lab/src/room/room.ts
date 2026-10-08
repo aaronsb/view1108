@@ -51,8 +51,8 @@ function standIn(kind: string): Equipment {
 
 /** The library zone on the north wall (#19; ours), facing south with `stand` metres of standing room in front: the
  *  tape rack (equipment/taperack.ts, which fills it exactly; build() refuses a layout that puts anything else on it
- *  or its standing room), a few steps east of the drive row, each reel's notebook binder to stand beside it; and east
- *  of it the reference bookcase, the operator's manuals and documents. Centre x, the wall's z, width and depth (out
+ *  or its standing room), a few steps east of the drive row; and east of it the bookcase (equipment/bookcase.ts): the
+ *  reels' mission notebooks on its upper shelves, each paired with its reel, and the operator's manuals and documents. Centre x, the wall's z, width and depth (out
  *  from the wall), metres. */
 export const LIBRARY = {
   z0: -ROOM.d / 2,

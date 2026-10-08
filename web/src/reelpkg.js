@@ -47,11 +47,41 @@ function untar(t) {
 // under notebook/; otherwise the reel is refused. The result then carries notebook: {text, figures: Map(name -> SVG text)} in the manifest's order, else
 // notebook is null. Readers before these types load such a reel and ignore the notebook (no format change; ours).
 const REEL_FIGURE = /^notebook\/figures\/([a-z0-9][a-z0-9-]*)\.svg$/;
-// What a figure may not hold (ours; tools/notebook.py SVG_UNSAFE, the same rule at render and pack): a script, an event
-// handler attribute, a foreignObject, a javascript: URL, or an href or xlink:href to anything but a fragment of itself.
-// The viewer shows figures as <img> from data: URLs; this keeps a figure inert even when a reader opens it as a page.
-const REEL_SVG_UNSAFE = [[/<\s*script/i, "a <script>"], [/[\s/"']on[a-z]+\s*=/i, "an on... event attribute"],
-  [/<\s*foreignObject/i, "a <foreignObject>"], [/javascript\s*:/i, "a javascript: URL"], [/\bhref\s*=\s*(?!["']#)/i, "an href to anything but #..."]];
+// What a figure may hold (ours; reviews of PR #69): an ALLOWLIST, the same as tools/notebook.py svg_unsafe (render and
+// pack): the elements and attributes tools/viewsvg.f90 writes. Refused: a <! anywhere (doctype, entity, comment,
+// CDATA), a <? but a leading XML declaration, an element or attribute not on the list (prefixed names among them), a
+// namespace not SVG's, an href but to #..., url( or javascript:, an entity but the XML five and numeric references,
+// and a tag the scanner cannot read whole. The viewer shows figures as <img> from data: URLs; this keeps a figure
+// inert even when a reader opens it as a page.
+const REEL_SVG_ELEMENTS = new Set(["svg", "g", "line", "circle", "rect", "text"]);
+const REEL_SVG_ATTRS = new Set(["xmlns", "xmlns:xlink", "width", "height", "viewBox", "x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r",
+  "fill", "stroke", "stroke-width", "stroke-linecap", "stroke-dasharray", "font-family", "font-size", "href", "xlink:href"]);
+const REEL_SVG_NS = { "xmlns": "http://www.w3.org/2000/svg", "xmlns:xlink": "http://www.w3.org/1999/xlink" };
+/** Why SVG text `text` may not be a figure, or null. */
+function reelSvgUnsafe(text) {
+  const s = String(text).replace(/^\s*<\?xml[^<>?]*\?>/, ""), TAG = /<([^<>]*)>/g, ATTR = /\s+([^\s=/<>"']+)\s*=\s*(?:"([^"<>]*)"|'([^'<>]*)')/g;
+  if (s.includes("<!")) return "a <! declaration (doctype, entity, comment or CDATA)";
+  if (s.includes("<?")) return "a <? processing instruction";
+  for (const bad of ["javascript:", "url("]) if (s.toLowerCase().includes(bad)) return `'${bad}'`;
+  if (/&(?!(?:amp|lt|gt|quot|apos|#\d{1,7}|#x[0-9a-fA-F]{1,6});)/.test(s)) return "an entity other than the XML ones";
+  const rest = s.replace(TAG, "");
+  if (rest.includes("<") || rest.includes(">")) return "a tag the scanner cannot read whole";
+  for (const m of s.matchAll(TAG)) {
+    const body = m[1], t = /^\s*(\/?)\s*([^\s/<>]+)/.exec(body);
+    if (!t || !REEL_SVG_ELEMENTS.has(t[2])) return `an element not on the list ('${(t ? t[2] : body).slice(0, 40)}')`;
+    const tail = body.slice(t[0].length);
+    if (t[1]) { if (tail.trim()) return "a closing tag with attributes"; continue; }
+    const left = tail.replace(ATTR, "").trim();
+    if (left !== "" && left !== "/") return `a tag the scanner cannot read whole ('${left.slice(0, 40)}')`;
+    for (const a of tail.matchAll(ATTR)) {
+      const name = a[1], val = a[2] ?? a[3];
+      if (!REEL_SVG_ATTRS.has(name)) return `an attribute not on the list ('${name}')`;
+      if (name in REEL_SVG_NS && val !== REEL_SVG_NS[name]) return `a namespace not SVG's ('${val.slice(0, 40)}')`;
+      if ((name === "href" || name === "xlink:href") && !val.startsWith("#")) return "an href to anything but #...";
+    }
+  }
+  return null;
+}
 // The figure names a notebook's text names, in order of first use: its Markdown images outside fenced blocks. The
 // text names no other image: every "![" opens an inline image ![alt](figures/<name>.svg), alt text without "]", and
 // an HTML <img> or a reference definition ("[r]: ...", which reference-style images need) is refused (thrown). The
@@ -123,8 +153,8 @@ async function readReel(b64, sha, id) {
       const m = REEL_FIGURE.exec(e.path), svg = text.get(e.path);
       if (!m) throw no(`${e.path} is a figure, not notebook/figures/<name>.svg`);
       if (!/^\s*(<\?xml[^>]*\?>\s*)?<svg[\s>]/.test(svg) || !/<\/svg>\s*$/.test(svg)) throw no(`${e.path} is not an SVG document`);
-      const bad = REEL_SVG_UNSAFE.find(([rx]) => rx.test(svg));
-      if (bad) throw no(`${e.path} holds ${bad[1]}, which a figure may not`);
+      const bad = reelSvgUnsafe(svg);
+      if (bad) throw no(`${e.path} holds ${bad}, which a figure may not (the allowlist)`);
       figures.set(m[1], svg);
     }
     const md = text.get(books[0].path);
