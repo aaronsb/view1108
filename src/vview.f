@@ -15,7 +15,9 @@ C         points from the scene's camera at the target; free-look
 C         yaw, pitch and roll are offsets from it.  A target with no
 C         point of its own here (the camera's own vehicle, one docked
 C         to it or carried with it, one with no state) leaves the
-C         scene's aim; hdr 23 says which (TGTPOS), for the page.
+C         scene's aim; hdr 23 says which (TGTPOS), for the page.  With
+C         no target, a situation with an off-leg fallback aims at its
+C         off-leg target on the coasts (ECOAST; ours, #65).
 C       Stations (in_view 2, 3): the camera at the CM or LM eye, the
 C         cabin around it (STATCM, STATLM), its interior with in_flags
 C         bit 4 (CMINT, LMINT; the LM descent too, LDCAB).
@@ -53,7 +55,7 @@ C     RESTOMOD END
       INTEGER LOOKD
       DOUBLE PRECISION TG(3), D(3), DIST, DS(3), CG0(3), P(3), VDOT
       DOUBLE PRECISION C
-      INTEGER IT, IST, IOK, I, J, KCSPL
+      INTEGER IT, IST, IOK, I, J, KCSPL, ECOAST
       LOOKD = 0
       ITGST = 0
       IVUSE = IVIEW
@@ -76,7 +78,19 @@ C     Where the scene has no such vehicle, the window view.
 C     The LM station keeps its window's own aim (its overlay is drawn in
 C     the reference frame, OVLPD).
       IF (IVUSE .EQ. 3) RETURN
-      IF (IVUSE .NE. 1 .AND. IT .EQ. 0) RETURN
+C     The window view with no target asked, where the recipe's off-leg
+C     fallback applies on a coast (ECOAST: no LUNAR leg holds the GET
+C     and the CSM's Earth leg there is a CONIC), aims at the situation's
+C     off-leg target (JTGF; Apollo 8's VIEWS card, the Earth) instead of
+C     the forward view above the horizon, whose 8 deg climb showed
+C     little but stars there (#65; ours, since no Apollo 8 view
+C     survives, TN D-6853 printed p. 3).  The field stays the viewer's.
+C     hdr 23 stays 0: no target was asked.
+      IF (IVUSE .NE. 0 .OR. IT .NE. 0 .OR. JFAL .NE. 1) GO TO 3
+      IF (ECOAST(GET) .EQ. 0) GO TO 3
+      CALL TGTPOS(GET, JTGF, PM, CG, TG, DIST, IST)
+      IF (IST .EQ. 1) GO TO 8
+    3 IF (IVUSE .NE. 1 .AND. IT .EQ. 0) RETURN
       IF (IT .NE. 0) CALL TGTPOS(GET, IT, PM, CG, TG, DIST, ITGST)
       IF (IVUSE .EQ. 1) GO TO 5
 C     A window or the CM station aims only at a point of the target's
@@ -169,6 +183,26 @@ C     RESTOMOD END
       INTEGER IT, LUNIN
       IT = JTGT
       IF (JFAL .EQ. 1 .AND. LUNIN(GET) .EQ. 0) IT = JTGF
+      RETURN
+      END
+C
+C     ECOAST: 1 if GET is on a coast about the Earth: no LUNAR leg
+C     holds it (LUNIN) and the CSM's Earth leg holding it (LEGAT) is a
+C     CONIC (the translunar and transearth coasts), not the parking
+C     orbit's CIRC nor the ascent's or the entry's TABLE; else 0.
+      INTEGER FUNCTION ECOAST(GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET
+      INTEGER K, LEGAT, LUNIN
+      ECOAST = 0
+      IF (LUNIN(GET) .NE. 0) RETURN
+      K = LEGAT(GET, 1, 1)
+      IF (K .EQ. 0) RETURN
+      IF (LGTYP(K) .NE. KCONIC) RETURN
+      IF (GET .GE. LGP(1,K) .AND. GET .LE. LGP(2,K)) ECOAST = 1
       RETURN
       END
 C
