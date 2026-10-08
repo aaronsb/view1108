@@ -6,7 +6,9 @@
 // flies the camera to its close-up, and a click there shows that tab or overlay. The drive is the mounted reel's
 // STOP/START (drivePlay, player.js), used in place. The tape rack holds the site reel index (reels.js reelIndex, handed
 // over as hooks.reels): a reel pulled there and used on a tape unit is mounted through reelMount, the Reels group's
-// loadReel (#19). The Room button, or Esc (the one stack, esc.js), flies back out.
+// loadReel (#19); a notebook binder beside a reel there opens the library on its notebook (#29), and the viewer's "Load
+// this reel" comes back to the room with that reel out and carried (roomCarry). The Room button, or Esc (the one stack,
+// esc.js), flies back out.
 "use strict";
 const LAB = typeof VIEW_LAB !== "undefined" ? VIEW_LAB : null;
 const ROOM_KEY = "view1108.space";
@@ -57,10 +59,11 @@ const STATIONS = LAB ? LAB.stations : [];
 const roomStation = opens => STATIONS.find(s => s.opens === opens);
 const ROOM_OPENS = Object.fromEntries(STATIONS.filter(s => s.does !== "control").map(s => [s.name, s.opens]));
 const roomOver = opens => roomStation(opens)?.does === "overlay";
+const roomShelf = opens => roomStation(opens)?.does === "shelf";
 const roomBench = t => STATIONS.find(s => s.tabs.includes(t))?.opens === "workbench";   // a plot tab the workbench shows
 const roomTabOf = opens => roomOver(opens) ? tab : roomStation(opens).opens === "workbench" ? roomCanvasTab : roomStation(opens).tabs[0];
 const roomTermOf = t => (STATIONS.find(s => s.tabs.includes(t)) || roomStation("workbench")).name;
-const roomScreenEl = opens => opens === "source" ? $("srcws") : roomOver(opens) ? null : cv;
+const roomScreenEl = opens => opens === "source" ? $("srcws") : roomOver(opens) || roomShelf(opens) ? null : cv;   // a shelf has no screen
 // The printer's page: the listing (listing.js) on greenbar, open over the page; the room fades over it (page.css).
 // Its rect is the first sheet's column as far as it shows, as tall as the printer's 14 7/8 x 11 in sheet would be.
 let roomListing = false;
@@ -69,16 +72,24 @@ function roomListingOpen() {
   $("blroom").hidden = false;
 }
 function roomListingClose() { roomListing = false; $("blroom").hidden = true; listingClose(); $("list").style.visibility = ""; applyListing(); }
-// The library (library.js) opened from the bookcase: it has no screen to match (roomRect null), so the flight ends at
-// the close-up of the bookcase or binder and the room fades over the overlay.
-let roomLibrary = false;
+// The library (library.js) opened from the bookcase, or on a notebook from the tape rack: it has no screen to match
+// (roomRect null), so the flight ends at the close-up of the bookcase or binder and the room fades over the overlay;
+// back is to where it was opened (roomLibFrom, "library" or "rack").
+let roomLibrary = false, roomLibFrom = "library";
 function roomLibraryClose() { roomLibrary = false; $("blibroom").hidden = true; libraryClose(); }
+// The notebook viewer's "Load this reel" in the room: back to the room in front of the rack, with reel `id` out and
+// carried to a tape unit (its binder half out beside it), on the Esc stack as "pulled" (the lab's carryReel).
+function roomCarry(id) {
+  roomLibraryClose();
+  if (roomShown || roomBusy()) return;
+  roomShowLab("rack");
+  LAB.carry(id);
+}
 // Back to the room from a terminal's page or an overlay, standing in front of terminal `from`, unless a flight or a
 // crossfade is under way.
 function roomBack(from) { if (roomIn && !roomShown && !roomBusy()) roomShowLab(from); }
 function roomRect(opens) {
-  if (opens === "library") return null;
-  if (opens !== "listing") return roomScreenEl(opens).getBoundingClientRect();
+  if (opens !== "listing") return roomScreenEl(opens)?.getBoundingClientRect() ?? null;   // an overlay or a shelf: none
   const p = $("paper").getBoundingClientRect(), g = $("paper").querySelector(".pg").getBoundingClientRect();
   const x0 = Math.max(p.left, g.left), x1 = Math.min(p.right, g.right);
   return new DOMRect(x0, p.top, x1 - x0, (x1 - x0) * 11 / 14.875);
@@ -151,8 +162,9 @@ function roomArrive(opens, name = "") {
     escPush("listing", () => roomIn ? roomBack("printer") : roomListingClose());
   }
   if (opens === "library") {
-    roomLibrary = true; $("blibroom").hidden = false; libraryOpen(name.startsWith("binder:") ? name.slice(7) : undefined);
-    escPush("library", () => roomIn ? roomBack("library") : roomLibraryClose());
+    roomLibrary = true; roomLibFrom = name.startsWith("binder:nb-") ? "rack" : "library";
+    $("blibroom").hidden = false; libraryOpen(name.startsWith("binder:") ? name.slice(7) : undefined);
+    escPush("library", () => roomIn ? roomBack(roomLibFrom) : roomLibraryClose());
   }
   roomFade(false, () => { if (el) roomUnclip(el); if (!roomShown) LAB.hide(); });
   roomSync();
@@ -191,7 +203,7 @@ $("tabs").addEventListener("click", e => {
 // The listing opened from the printer: its ← Room (and Esc, roomArrive) go back to the printer; Close leaves it for the
 // page underneath. The library opened from the bookcase: the same, back to the bookcase.
 $("blroom").onclick = () => roomBack("printer");
-$("blibroom").onclick = () => roomBack("library");
+$("blibroom").onclick = () => roomBack(roomLibFrom);
 // Esc in the room: the browser's own, releasing the pointer lock, is not the stack's.
 if (LAB) escGuard = () => roomShown && LAB.escLock();
 $("blibclose").addEventListener("click", () => { roomLibrary = false; $("blibroom").hidden = true; });

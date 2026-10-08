@@ -4,11 +4,13 @@
 // with its new action. Nothing on the stack touches the loaded state (rule 2). Entries stack in the order things open, so
 // from top to bottom the order is:
 //   printing  a fresh copy printing (printout.js): Esc finishes it at once
-//   library   the reference library (library.js): Esc closes it; opened from the bookcase (room.js), back to the bookcase
+//   library   the reference library (library.js): Esc closes it; opened from the bookcase or a notebook binder on the tape
+//             rack (room.js), back there
 //   listing   the listing overlay (listing.js): Esc closes it; opened from the line printer (room.js), back to the printer
 //   terminal  a terminal's page in the room (room.js): Esc fades back to the room, in front of that terminal
-//   pulled    in the room, a binder pulled out at the bookcase's close-up, or a reel at the tape rack's, which stays
-//             while it is carried to a tape unit (web/lab lab.ts): Esc puts it back
+//   pulled    in the room, a binder pulled out at the bookcase's close-up, or a reel or notebook binder at the tape
+//             rack's (its partner half out), the reel's staying while it is carried to a tape unit (web/lab lab.ts,
+//             carry.ts): Esc puts it back, and its partner
 //   closeup   in the room, a terminal's close-up (lab.ts): Esc steps back to stand in front of it
 //   room      the room itself, at the bottom while it runs (room.js, escBase): Esc walks back to the overview
 // (A terminal's page and its close-up never stand together: the room is hidden while the page shows.)

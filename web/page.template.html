@@ -151,9 +151,10 @@
 <div id="labhost"></div>
 
 <div id="list"><h2><span>VIEW KERNEL - our reconstruction; we know of no surviving source code</span><span class="btns"><button id="bfresh" title="Clear the paper and print the listing again, line by line (any click, Esc or scroll skips to the end)">Print fresh copy</button><button id="bpspeed" title="Print speed: REAL, 1,200 lines a minute (UP-4046 sec. 8.5), or FAST, ten times that">Real</button><button id="bpdf" title="The listing as a PDF of 14 7/8 x 11 in greenbar pages">Download PDF</button><button id="blist">Light</button><button id="blroom" hidden title="Return to the room (Esc)">← Room</button><button id="bclose">Close</button></span></h2><pre id="lst"></pre><div id="paper"></div></div>
-<!-- The reference library (web/src/library.js): the list of web/library/'s documents and the browser's PDF viewer. -->
-<div id="libr" role="dialog" aria-label="Reference library"><h2><span>REFERENCE LIBRARY</span><span class="btns"><a id="libnew" class="libbtn" target="_blank" rel="noopener">Open in new tab</a><a id="libsrc" class="libbtn" target="_blank" rel="noopener">Source</a><button id="blibroom" hidden title="Return to the room (Esc)">← Room</button><button id="blibclose">Close</button></span></h2>
-<div id="libbody"><ul id="liblist"></ul><div id="libview"><div id="libtitle"></div><iframe id="libframe" title="The document"></iframe><p id="libnote" hidden></p></div></div></div>
+<!-- The reference library (web/src/library.js): the list of web/library/'s documents and the reels' scenario notebooks,
+     the browser's PDF viewer for a document and the notebook viewer (web/src/notebook.js) for a notebook. -->
+<div id="libr" role="dialog" aria-label="Reference library"><h2><span>REFERENCE LIBRARY</span><span class="btns"><button id="blibload" hidden title="Mount this notebook's reel">Load this reel</button><button id="bliblist" hidden title="Back to the list">List</button><a id="libnew" class="libbtn" target="_blank" rel="noopener">Open in new tab</a><a id="libsrc" class="libbtn" target="_blank" rel="noopener">Source</a><button id="blibroom" hidden title="Return to the room (Esc)">← Room</button><button id="blibclose">Close</button></span></h2>
+<div id="libbody"><ul id="liblist"></ul><div id="libview"><div id="libtitle"></div><iframe id="libframe" title="The document"></iframe><article id="libmd" hidden aria-label="Scenario notebook"></article><p id="libnote" hidden></p></div></div></div>
 <pre id="fsrc" hidden>__FORTRAN_SRC__</pre>
 <script type="application/json" id="photos">__PHOTOS_JSON__</script>
 <script type="application/json" id="flib">__LIBRARY_JSON__</script>
@@ -185,6 +186,7 @@
 <script src="src/shades.js"></script>
 <script src="src/listing.js"></script>
 <script src="src/printout.js"></script>
+<script src="src/notebook.js"></script>
 <script src="src/library.js"></script>
 <script src="src/reels.js"></script>
 <script src="src/link.js"></script>

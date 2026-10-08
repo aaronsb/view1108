@@ -705,4 +705,80 @@ if (W.sim_run) {
     `${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'the same as fresh'}`);
   if (wrong.length) ok = false;
 }
+// The notebook viewer's renderer (#29 slice d; web/src/notebook.js), run here as the page runs it, with a stand-in
+// document that records what is built and refuses innerHTML: each reel's notebook gives only NB_TAGS elements, an
+// <img> per figure its text names (in reelpkg.js reelFigureRefs's order, src from the viewer's figure URL, never the
+// SVG text) and its figure cases as the closing table, no Markdown left in its text; and a crafted text of script and
+// HTML tags, event handlers and javascript:, data: and relative links and images builds nothing but text, http(s)
+// links and the one real figure.
+{
+  const wrong = [];
+  const NB = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/notebook.js'), 'utf8') +
+    '\n({ nbParse, nbBuild, nbTitle, NB_TAGS })', vm.createContext({ URL, Set, String }));
+  const RF = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/reelpkg.js'), 'utf8') + '\nreelFigureRefs',
+    vm.createContext({ atob, TextDecoder, Blob, Response, DecompressionStream, Uint8Array, JSON, Error, Map, Number, String, parseInt, Math }));
+  const ATTRS = new Set(['href', 'target', 'rel', 'src', 'alt', 'class']);
+  const fakeDoc = () => {
+    const el = tag => {
+      const e = { tag, attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = String(v); }, appendChild(k) { this.kids.push(k); return k; } };
+      Object.defineProperty(e, 'innerHTML', { set() { throw new Error('innerHTML set'); } });
+      return e;
+    };
+    return { createElement: t => { if (!NB.NB_TAGS.has(t)) throw new Error(`element <${t}>`); return el(t); },
+      createTextNode: text => ({ text }), createDocumentFragment: () => el('#frag') };
+  };
+  const walk = (n, f) => { f(n); for (const k of n.kids || []) walk(k, f); };
+  // Build `md` with figures `names`; returns the elements, the text and the problems found.
+  const built = (md, names) => {
+    const els = [], texts = [], bad = [];
+    const root = NB.nbBuild(NB.nbParse(md), fakeDoc(), n => names.includes(n) ? `blob:selftest/${n}` : null);
+    walk(root, n => {
+      if (n.text !== undefined) { texts.push(n.text); return; }
+      els.push(n);
+      for (const [k, v] of Object.entries(n.attrs)) {
+        if (!ATTRS.has(k)) bad.push(`attribute ${k}`);
+        if (k === 'href' && !/^(https?:\/\/|#)/.test(v)) bad.push(`href ${v}`);
+        if (k === 'src' && !/^blob:selftest\/[a-z0-9-]+$/.test(v)) bad.push(`src ${v}`);
+        if (/javascript:|data:/i.test(v) && k !== 'alt') bad.push(`${k} ${v}`);
+      }
+      if (n.tag === 'a' && /^https?:/.test(n.attrs.href) && (n.attrs.target !== '_blank' || !/noopener/.test(n.attrs.rel || ''))) bad.push(`a link without target/rel: ${n.attrs.href}`);
+    });
+    return { els, text: texts.join(''), bad };
+  };
+  let nb = 0, nimg = 0;
+  for (const r of reels.filter(r => r.notebook)) {
+    nb++;
+    const id = r.manifest.id, names = [...r.notebook.figures.keys()], b = built(r.notebook.text, names);
+    const imgs = b.els.filter(e => e.tag === 'img').map(e => e.attrs.src.slice(14));
+    nimg += imgs.length;
+    if (imgs.join() !== RF(r.notebook.text).join()) wrong.push(`${id}: figures ${imgs}, not ${RF(r.notebook.text)}`);
+    if (b.bad.length) wrong.push(`${id}: ${b.bad.join(', ')}`);
+    const last = b.els.filter(e => e.tag === 'section').pop();
+    if (!last || last.kids.filter(k => k.tag === 'table').length !== 1) wrong.push(`${id}: no figure cases table`);
+    if (/!\[|\]\(|\*\*|```|^#|\n#/.test(b.text)) wrong.push(`${id}: Markdown left in the text`);
+    if (!/scenario notebook$/.test(NB.nbTitle(r.notebook.text))) wrong.push(`${id}: title "${NB.nbTitle(r.notebook.text)}"`);
+  }
+  if (!nb) wrong.push('no notebook to render');
+  const EVIL = [
+    '# T <script>alert(1)</script>', '', 'Para <img src=x onerror=alert(1)> and <b onclick="x()">b</b> **<i>s</i>**.', '',
+    '[js](javascript:alert(1)) [JS](JaVaScRiPt:alert(1)) [tab](java\tscript:alert(1)) [data](data:text/html,<script>x</script>)',
+    '[rel](../secret.html) [quote](https://a.example/"onmouseover="x) <javascript:alert(1)> [ok](https://ok.example/p?q=1)', '',
+    '![i](javascript:alert(1)) ![j](figures/../x.svg) ![k](figures/real.svg) ![l](https://x.example/a.svg)', '',
+    '> <svg onload=alert(1)>', '', '- <iframe src=x></iframe>', '', '| a | <script> |', '|---|---|', '| [x](javascript:y) | `<b>` |',
+    '', '```html', '<script>alert(2)</script>', '```', '', '```figures', '# name | args', 'real | 1', '```',
+  ].join('\n');
+  const e = built(EVIL, ['real']);
+  const tags = [...new Set(e.els.map(x => x.tag))].filter(t => t !== '#frag').sort();
+  const links = e.els.filter(x => x.tag === 'a').map(x => x.attrs.href), imgs = e.els.filter(x => x.tag === 'img').map(x => x.attrs.src);
+  if (e.bad.length) wrong.push(`crafted: ${e.bad.join(', ')}`);
+  if (links.join() !== 'https://ok.example/p?q=1') wrong.push(`crafted: links ${links}`);
+  if (imgs.join() !== 'blob:selftest/real') wrong.push(`crafted: images ${imgs}`);
+  if (!['<script>alert(1)</script>', 'onerror=alert(1)', '<svg onload=alert(1)>', '<iframe src=x></iframe>', '<script>alert(2)</script>'].every(t => e.text.includes(t)))
+    wrong.push('crafted: the tags are not kept as text');
+  if (tags.some(t => !NB.NB_TAGS.has(t))) wrong.push(`crafted: elements ${tags}`);
+  console.log(`notebook: ${nb} notebooks rendered, ${nimg} figures as <img> from figure URLs; a crafted text (script, img onerror, ` +
+    `javascript:/data:/relative links and images, raw HTML in a quote, list, table and fence)  ` +
+    `${wrong.length ? 'WRONG: ' + wrong.join('; ') : `inert: elements ${tags.join(' ')}, one https link, one figure`}`);
+  if (wrong.length) ok = false;
+}
 console.log(ok ? 'PASS' : 'FAIL'); process.exit(ok ? 0 : 1);
