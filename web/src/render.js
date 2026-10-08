@@ -41,12 +41,13 @@ let drawn = false, drawNo = 0;   // a kernel frame has been drawn since boot; fr
 let framed = true;
 const box = () => framed ? { x: W * (1 - BOXF) / 2, y: W * HDR, s: W * BOXF } : { x: 0, y: W * 0.02, s: W };
 
-// The caption line under the plot (also lettered by svgout.js).  hdr(9), the CSM to LM range, is lettered only within
+// The caption line under the plot (also lettered by svgout.js), ending with why a vehicle target is not aimed at
+// from the window (views.js tgtNote, #70).  hdr(9), the CSM to LM range, is lettered only within
 // 10 n mi (60,761 ft; ours): the kernel gives it wherever both states are known, the LM often far out of the picture.
 function captionText(H) {
   const sc = frameScene(H), liveTag = LS.mode === "live" ? `LIVE ${LIVE_RATES[liveIdx]}x   ` : reelTag() ? reelTag() + "   " : "";
   const cap = sitCaption(sc);   // Live's phase and the reels' shots (capName), else the span's phase (as Live's), else the situation's
-  return liveTag + (capName || spanCaption(sc, LS.get) || cap || SCENES[sc - 1] || "") + (H[5] && !autoCap && !(cap && (!capName || capName === cap)) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 && H[8] < 60761 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (LS.roll ? `   roll ${LS.roll.toFixed(0)}°` : "");
+  return liveTag + (capName || spanCaption(sc, LS.get) || cap || SCENES[sc - 1] || "") + (H[5] && !autoCap && !(cap && (!capName || capName === cap)) ? (H[5] === 1 ? " - Earth" : " - Moon") : "") + (H[8] > 0 && H[8] < 60761 ? `   range ${Math.round(H[8])} ft` : "") + (H[9] > 0 ? `   alt ${Math.round(H[9])} ft` : "") + (LS.roll ? `   roll ${LS.roll.toFixed(0)}°` : "") + (tgtNote() ? "   " + tgtNote() : "");
 }
 // Text records the page letters, in plot degrees: x, y the lower-left of the first character, h its height. The
 // kernel's tbuf/tchr records; names follow the label level (the kernel picks them by level when it has in_lablv),
