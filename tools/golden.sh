@@ -73,6 +73,7 @@ s6-default        |                              | apollo11-asflown | 6
 s7-default        |                              | apollo11-asflown | 7
 s8-default        |                              | apollo11-asflown | 8
 s9-default        |                              | apollo8-asflown  | 1
+s9-launch-pad     |                              | apollo11-asflown | 9
 s1-367500         |                              | apollo11-asflown | 1 367500
 s1-369000         |                              | apollo11-asflown | 1 369000
 s2-600000         |                              | apollo11-asflown | 2 600000
