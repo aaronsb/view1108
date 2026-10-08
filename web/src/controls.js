@@ -2,8 +2,6 @@
 "use strict";
 // ---- UI ----
 function syncUI() {
-  document.querySelectorAll("#scenes button").forEach(b => b.classList.toggle("on", +b.dataset.scene === LS.situation));
-  document.querySelectorAll("#reels button").forEach(b => b.classList.toggle("on", b.dataset.reel === reelMounted()));
   document.getElementById("bplay").textContent = LS.playing ? "Pause" : "Play";
   const reel = document.getElementById("reel"); reel.hidden = !auto(); reel.textContent = reelLabel();   // the mounted playlist reel's TITLE (player.js)
   document.querySelector("#ppause small").textContent = LS.playing ? "PAUSE" : "PLAY";
@@ -27,19 +25,11 @@ function syncUI() {
   document.getElementById("bfrm").classList.toggle("on", frame);
 }
 const $ = id => document.getElementById(id);
-// The scene buttons, the number keys and the jump buttons, from the page's data once it is set at boot (main.js).
-// The number keys pick scenes 1 to 9, as many as there are situations.
-let KEY_SCENES = 0;
-function sceneButtons() {
-  SCENES.forEach((n, i) => {
-    const b = document.createElement("button"), s = i + 1;
-    b.textContent = s + " " + n; b.dataset.scene = s; b.onclick = () => loadReel(P({ scene: s })); $("scenes").appendChild(b);
-  });
-  KEY_SCENES = Math.min(9, SCENES.length);
-  $("hintscenes").textContent = KEY_SCENES > 1 ? `1-${KEY_SCENES}` : "1";
-  // The jump buttons, one per JUMP span of the Live scenario: its button text and its start time, h:mm:ss. Each loads
-  // Live at the jump, as a link with mode=live, its scene and its time would, and re-points the Apollo in Real Time
-  // window (timeline.js).
+// The jump buttons, from the page's data once it is set at boot (main.js): one per JUMP span of the Live scenario, its
+// button text and its start time, h:mm:ss. Each loads Live at the jump, as a link with mode=live, its scene and its
+// time would, and re-points the Apollo in Real Time window (timeline.js). The situations are entries of the event list
+// (timeline.js; #73 removed the scene buttons), and the number keys are the loaded reel's quick views.
+function jumpButtons() {
   for (const j of JUMPS) {
     const b = document.createElement("button"), g = Math.round(j.get);
     b.textContent = `${j.button} ${Math.floor(g / 3600)}:${pad2(Math.floor(g / 60) % 60)}:${pad2(g % 60)}`;
@@ -127,8 +117,7 @@ window.addEventListener("keydown", e => {
   if (k.length === 1 || k.startsWith("Arrow")) leaveAttract();
   let h = true;
   if (KEY_ACT[k]) ACT[KEY_ACT[k]]();
-  else if (/^[1-9]$/.test(k) && +k <= KEY_SCENES) loadReel(P({ scene: +k }));
-  else h = false;
+  else if (!(/^[1-9]$/.test(k) && tlQuickKey(k))) h = false;   // a quick view (timeline.js)
   if (h) e.preventDefault();
 });
 window.addEventListener("resize", resize);
