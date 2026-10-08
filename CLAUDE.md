@@ -604,7 +604,7 @@ A shot is a few lines: a name, the link parameters, steps through the page's `?d
   expect: [[TL("viewMode"), 2], [TL("scene"), 8]] },
 ```
 
-The format is in `tools/shoot.mjs`'s header. A shot is repeatable on one machine: fixed viewport at device scale 1, a fresh browser context, `labq=low`, no film jitter, dust or 16 fps, the scope held steady and no room dust motes (`?labdust=0`) unless the shot sets `effects: true`, a seeded `Math.random` restarted every frame, the wall clock frozen and TZ=UTC; hold the clock at a g.e.t. (`VIEW_TL.hold`) in a shot that should repeat. Not byte-stable: `boot` (the demo plays) and `room-overview` (the tape units' reels turn by the real frame time). The Chromium profile lives in `build/shots/` and is removed at exit; nothing is written outside `build/`.
+The format is in `tools/shoot.mjs`'s header. A shot is repeatable on one machine: fixed viewport at device scale 1, a fresh browser context, `labq=low`, no film jitter, dust or 16 fps, the scope held steady, no room dust motes (`?labdust=0`) and the room's machines held still (`?labmotion=0`: the tape units' reels, the FASTRAND II, the CPU lamp panel) unless the shot sets `effects: true`, a seeded `Math.random` restarted every frame, the wall clock frozen and TZ=UTC; hold the clock at a g.e.t. (`VIEW_TL.hold`) in a shot that should repeat. Not byte-stable: `boot` and `room-drive-row-demo` (the demo plays). The Chromium profile lives in `build/shots/` and is removed at exit; nothing is written outside `build/`.
 
 ## Sources and history
 
