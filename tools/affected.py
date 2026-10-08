@@ -142,4 +142,5 @@ def main():
     return 1 if bad else 0
 
 
+sys.stdout.reconfigure(line_buffering=True)
 sys.exit(main())
