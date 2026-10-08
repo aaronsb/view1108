@@ -453,6 +453,15 @@ const SHOT_LIST = [
       [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[20]`, 7],
       [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[22]`, 1]] },
 
+  // #65: Apollo 8's window on the transearth coast (120 h), the off-leg camera forward and 8 deg above the Earth's
+  // horizon at the 50 deg field: stars and the Earth below the centre, where the frame was empty (#80, LOCALVERT's
+  // frame made orthonormal).
+  { name: "tec-window-a8", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1&get=120:00:00&fov=50",
+    steps: [...LINKED(432000), { frames: 3 }],
+    expect: [[TL("viewMode"), 0], [TL("mounted"), "apollo8-asflown"], [TL("scene"), 9],
+      [`new Int32Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.nstar.value, 1)[0] > 20`, true],
+      [`new Int32Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.nvec.value, 1)[0] > 1000`, true]] },
+
   // #85, a book opened in the room and back (← Room, then Esc), by each route: (a) a reference binder, the UNISCOPE
   // 100 manual; (b) a mission notebook through its modal's READ NOTEBOOK ONLY; (c) through LOAD … AND OPEN NOTEBOOK
   // (Apollo 8 mounted, so the Apollo 11 reel mounts as a fresh run); (d) a reel pulled at the rack, its notebook pulled
@@ -487,6 +496,26 @@ const SHOT_LIST = [
       { wait: `document.body.classList.contains("room")`, timeout: 5000 }, ROOM_STILL, { frames: 10 }, ROOM_STILL, { frames: 3 }],
     expect: [[`${LAB}.at`, null], [`${LAB}.mode`, "free"], [NEAREST, "vector"], [`VIEW_ESC()`, ["room"]],
       [`document.getElementById("blibroom").hidden`, true]] },
+
+  // #90: the library opened at the bookcase, left open, Tabbed, then Room: the room comes up clean, the library not left
+  // open over it (nor its ← Room button).
+  { name: "room-book-open-tabbed-room", url: ROOM_URL("apollo8-asflown"),
+    steps: [ROOM_UP, HOLD(), ROOM_STILL, ...BOOK_OPEN.binder.flat(), LIB_UP,
+      { js: `document.getElementById("btiled").click()` },   // the open library covers the button: by keyboard in life
+      { wait: `!VIEW_LAB.running && !document.body.classList.contains("room")`, timeout: 5000 },
+      { js: `document.getElementById("bspace").click()` },
+      { wait: `document.body.classList.contains("room")`, timeout: 5000 }, ROOM_STILL, { frames: 10 }, ROOM_STILL, { frames: 3 }],
+    expect: [[`document.getElementById("libr").classList.contains("open")`, false], [`document.getElementById("blibroom").hidden`, true],
+      [`VIEW_ESC()`, ["room"]], [`${LAB}.at`, null]] },
+
+  // The same for the listing, opened in Tabbed: Room comes up without it.
+  { name: "room-listing-open-tabbed-room", url: "space=tabbed&mode=free&scn=apollo8-asflown&sit=1",
+    steps: [{ vp: [1280, 800] }, HOLD(), { js: `document.getElementById("bsrc").click()` },
+      { wait: `document.getElementById("list").classList.contains("open")` },
+      { js: `document.getElementById("bspace").click()` },
+      { wait: `VIEW_LAB.running && document.body.classList.contains("room")`, timeout: 20000 }, ROOM_STILL, { frames: 3 }],
+    expect: [[`document.getElementById("list").classList.contains("open")`, false], [`document.getElementById("blroom").hidden`, true],
+      [`VIEW_ESC()`, ["room"]]] },
 
   // #82, the film recorder's prints: the Print tab's NEGATIVE, POSITIVE and CLEAR buttons, each download caught at
   // its link (printShot, below) and checked: the file name, the background, and every colour drawn.
