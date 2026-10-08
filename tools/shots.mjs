@@ -558,13 +558,21 @@ const SHOT_LIST = [
       [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[20]`, 7],
       [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[22]`, 3]] },
 
-  // #65: Apollo 8's window on the transearth coast (120 h), the off-leg camera forward and 8 deg above the Earth's
-  // horizon at the 50 deg field: stars and the Earth below the centre, where the frame was empty (#80, LOCALVERT's
-  // frame made orthonormal).
+  // #65: Apollo 8's window on the transearth coast (120 h) at the 50 deg field: stars and the Earth, where the frame was
+  // empty (#80, LOCALVERT's frame made orthonormal); with no target the window aims at the Earth on the coasts.
   { name: "tec-window-a8", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1&get=120:00:00&fov=50",
     steps: [...LINKED(432000), { frames: 3 }],
     expect: [[TL("viewMode"), 0], [TL("mounted"), "apollo8-asflown"], [TL("scene"), 9],
       [`new Int32Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.nstar.value, 1)[0] > 20`, true],
+      [`new Int32Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.nvec.value, 1)[0] > 1000`, true]] },
+
+  // #65: the same at the situation's own 12.7 deg field (the Earthrise lens): on the coasts the window with no target
+  // aims at the Earth (vview.f ECOAST), so its disc is at the frame's centre (hdr(11), (12)) and in front (hdr(14)),
+  // and no target was asked (hdr(23) 0).
+  { name: "tec-window-a8-default", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1&get=120:00:00",
+    steps: [...LINKED(432000), { frames: 3 }],
+    expect: [[TL("viewMode"), 0], [TL("mounted"), "apollo8-asflown"], [TL("scene"), 9],
+      [`(h => Math.abs(h[10]) < 1e-6 && Math.abs(h[11]) < 1e-6 && h[13] === 1 && h[22] === 0 && Math.abs(h[1] - 12.72) < 1e-9)(new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24))`, true],
       [`new Int32Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.nvec.value, 1)[0] > 1000`, true]] },
 
   // #85, a book opened in the room and back (← Room, then Esc), by each route: (a) a reference binder, the UNISCOPE

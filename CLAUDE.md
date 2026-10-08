@@ -505,8 +505,12 @@ Each scene is a situation (`docs/systems-model.md`, section 3): a SITUATION card
    0.696, night side toward -107.1°, against 0.35-0.39 R, about 0.70 and -107.6°.
    Away from lunar orbit (no LUNAR leg's span holds the GET: `traj.f` LUNIN) the camera is
    scene 3's instead, forward and 8° above the Earth's horizon on the Earth legs, and the
-   default target is the Earth (`vview.f` TGTDEF); our choice, since no Apollo 8 view
-   survives.
+   default target is the Earth (`vview.f` TGTDEF); on the translunar and transearth coasts (the
+   CSM's CONIC legs, `vview.f` ECOAST) the window view with no target asked aims at the Earth
+   (the VIEWS card's `OFFTARGET=`; hdr(23) stays 0), in the field the viewer has: at the
+   situation's 12.72° the disc is whole until about 143 h (2.2° across at 100 h, 3.1° at 120 h,
+   7.8° at 140 h), and the timeline's spans give the coast 50° (#65). The parking orbit, ascent
+   and entry keep the horizon view. Our choices, since no Apollo 8 view survives.
 
 Vehicle labels and markers (`src/lvlab.f`, `src/learth.f` DPAD), all ours, drawn only at
 `in_lablv` 1 and up. Each placed model gets its name beside it, off its projected X axis by

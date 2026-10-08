@@ -100,6 +100,8 @@ s9-290000         |                              | apollo8-asflown  | 1 290000
 s9-300000         |                              | apollo8-asflown  | 1 300000
 s9-tec-120h       |                              | apollo8-asflown  | 1 432000
 s9-tec-120h-fov50 |                              | apollo8-asflown  | 1 432000 0 0 0 50
+s9-tec-100h       |                              | apollo8-asflown  | 1 360000
+s9-tec-140h       |                              | apollo8-asflown  | 1 504000
 s9-10300          |                              | apollo8-asflown  | 1 10300
 s9-look           |                              | apollo8-asflown  | 1 - 20 -5 10 30
 s9-fov            |                              | apollo8-asflown  | 1 272000 0 0 0 60
