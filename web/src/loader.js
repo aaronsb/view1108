@@ -194,15 +194,24 @@ function loadEvent(g) {
   livePin = null;
   if (LS.mode === "live") LS.get = clampLive(g); else LS.get = LS.get0 = g;
 }
-// A crew photograph (Fusion): its situation in the window view, its g.e.t. held, the fitted pointing, the lens's
-// field, in Free-look; a link's own get, fov, yaw, pitch and roll then apply.
+// A crew photograph (Fusion; #75): a photo event of the mounted tape (config.js PHOTOS, the reels' own), its situation
+// in the window view, its g.e.t. held, the fitted pointing, the lens's field, in Free-look; a link's own get, fov, yaw,
+// pitch and roll then apply. A pick (the Fusion list, a photo entry of the event list or the run sheet, a quick-view
+// key, a notebook's print) stays on the tape: a photograph the mounted reel does not carry is not opened. A link
+// (by=url) names any reel's photograph: when its reel is not the one mounted it is mounted first, a fresh run
+// (loadMount, as the rack mounts it), and the photograph opened on it.
 function loadPhoto(p) {
-  const i = PHOTOS.findIndex(x => x.frame === p.get("photo") && x.img && photoScene(x));
+  const frame = p.get("photo");
+  let i = PHOTOS.findIndex(x => x.frame === frame && x.reel === LS.scn);
+  if (i < 0 && p.get("by") === "url") {
+    i = PHOTOS.findIndex(x => x.frame === frame);
+    if (i >= 0) loadMount(SITS.find(s => s.reel === PHOTOS[i].reel).scene);
+  }
   if (i < 0) return;
   if (auto() || LS.mode === "beam") enterMode("free");
   const ph = PHOTOS[i];
   LS.view = 0; LS.target = 0;
-  pickSituation(photoScene(ph));
+  pickSituation(ph.scene);
   const cam0 = [LS.yaw, LS.pitch, LS.roll], c = fFit(ph).cam;
   LS.yaw += c[0]; LS.pitch += c[1]; LS.roll += c[2];
   LS.get = LS.get0 = photoGet(ph); LS.playing = false;

@@ -44,12 +44,14 @@ function untar(t) {
 // at notebook/notebook.md, and members of type "figure", each notebook/figures/<name>.svg, an SVG document. A figure
 // needs the notebook, every figure the notebook's text names (a Markdown image figures/<name>.svg outside fenced
 // blocks, reelFigureRefs) must be in the reel and every figure in the reel must be named, and no other member is
-// under notebook/ but its photographs (#29 slice g): members of type "media", each notebook/media/<name>.jpg or .png,
-// raster only by its own first bytes, each named by an attach block, every attach's photograph present (reelSlips;
-// its finding and attach blocks are checked too); otherwise the reel is refused. A media member is kept as bytes, every
-// other member as text. The result then carries notebook: {text, figures: Map(name -> SVG text), media: Map(file ->
-// {bytes, type: its MIME type})} in the manifest's order, else notebook is null. Readers before these types load such
-// a reel and ignore the notebook (no format change; ours); a reader before media refuses a reel that carries any.
+// under notebook/ (its finding and attach blocks are checked too, reelSlips); otherwise the reel is refused. The result
+// then carries notebook: {text, figures: Map(name -> SVG text), media} in the manifest's order, else notebook is null.
+// A reel's photographs (#29 slice g, #75) are its own, not the notebook's: members of type "media", each
+// media/<name>.jpg or .png, raster only by its own first bytes, each named by an attach block or a photo event (a
+// scenario reel's page.json `photos`, reelPhotosWrong), every attach's and photo event's photograph present. A media
+// member is kept as bytes, every other member as text; the result carries them as media: Map(file -> {bytes, type: its
+// MIME type}), the same Map as notebook.media. Readers before these types load such a reel and ignore the notebook (no
+// format change; ours); a reader before media refuses a reel that carries any.
 const REEL_FIGURE = /^notebook\/figures\/([a-z0-9][a-z0-9-]*)\.svg$/;
 // What a figure may hold (ours; reviews of PR #69): an ALLOWLIST, the same as tools/notebook.py svg_unsafe (render and
 // pack): the elements and attributes tools/viewsvg.f90 writes. Refused: a <! anywhere (doctype, entity, comment,
@@ -101,12 +103,12 @@ function reelSvgUnsafe(text) {
 // (lowercase keys, each once, none empty) up to a blank line, then its text. A finding needs date (YYYY-MM-DD, a real
 // day) and cite, and text. An attach needs source (media/<name>.jpg or .png, figures/<name>.svg, or golden=<case>),
 // style (plate, clip, tape, insert), finish (photo, film, copy) and a caption (its text); a media source needs credit
-// and cite too. Media members are photographs, raster only: notebook/media/<name>.jpg or .png, type "media", whose own
-// first bytes are JPEG's or PNG's as the name says, at most REEL_MEDIA_MAX bytes. The same rules as tools/notebook.py
-// slip and load.
+// and cite too. Media members are photographs, raster only: media/<name>.jpg or .png, type "media", whose own first
+// bytes are JPEG's or PNG's as the name says, at most REEL_MEDIA_MAX bytes. The same rules as tools/notebook.py slip,
+// reel_media and load.
 const REEL_SLIP_KEYS = { finding: ["date", "cite"], attach: ["source", "style", "finish", "credit", "cite"] };
 const REEL_STYLES = ["plate", "clip", "tape", "insert"], REEL_FINISHES = ["photo", "film", "copy"];
-const REEL_MEDIA = /^notebook\/media\/([a-z0-9][a-z0-9-]*\.(jpg|png))$/, REEL_MEDIA_NAME = /^[a-z0-9][a-z0-9-]*\.(jpg|png)$/;
+const REEL_MEDIA = /^media\/([a-z0-9][a-z0-9-]*\.(jpg|png))$/, REEL_MEDIA_NAME = /^[a-z0-9][a-z0-9-]*\.(jpg|png)$/;
 const REEL_MEDIA_MAGIC = { jpg: [0xff, 0xd8, 0xff], png: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] };
 const REEL_MEDIA_TYPE = { jpg: "image/jpeg", png: "image/png" }, REEL_MEDIA_MAX = 262144;
 /** `s` without leading and trailing spaces and tabs, and nothing else (tools/notebook.py strips the same two, so the
@@ -224,16 +226,53 @@ function reelFigureRefs(md) {
   }
   return out;
 }
+// A scenario reel's photo events (#75; tools/photos.py, which gives the entry's format): page.json's `photos`, the
+// photographs Fusion lays over the plot, each pinned to a situation of the reel and a moment. Why they may not be the
+// reel's, or null: each a frame ([A-Z0-9][A-Z0-9-]*, once), its photograph a media member the reel holds (`media`,
+// file -> {bytes, type}), a situation the reel holds, a g.e.t. or a bracket's start (numbers or null; get_lo not after
+// get_hi), its credit and an https source, its text fields text (get_src, lens_mm, magazine, where, needs, note), and its
+// fit null or {cam: three numbers, x, y, rot: numbers, scale above 0}. A frame on two reels is refused by reelPages
+// (Fusion keys a photograph by its frame). The same rules as tools/photos.py events.
+const REEL_FRAME = /^[A-Z0-9][A-Z0-9-]*$/;
+const reelNum = v => typeof v === "number" && isFinite(v);
+/** A photo event's g.e.t. in the listing: its own, else its bracket's midpoint, else the bracket's start
+ *  (tools/photos.py event_get). */
+const reelPhotoGet = p => p.get !== null ? p.get : p.get_hi !== null ? (p.get_lo + p.get_hi) / 2 : p.get_lo;
+function reelPhotosWrong(pg, media) {
+  const P = pg.photos, sits = pg.situations || [], seen = new Set();
+  if (!Array.isArray(P)) return "page.json has no photos";
+  for (const p of P) {
+    if (!p || typeof p !== "object" || typeof p.frame !== "string" || !REEL_FRAME.test(p.frame)) return `a photo event's frame ${JSON.stringify(p && p.frame)} is not [A-Z0-9][A-Z0-9-]*`;
+    const at = `photo ${p.frame}`;
+    if (seen.has(p.frame)) return `${at} is in page.json twice`;
+    seen.add(p.frame);
+    if (!sits.some(s => s.id === p.sit)) return `${at} names situation ${JSON.stringify(p.sit)}, which the reel does not hold`;
+    const m = typeof p.media === "string" ? REEL_MEDIA.exec(p.media) : null;
+    if (!m || !media.has(m[1])) return `${at} names ${JSON.stringify(p.media)}, which it does not hold`;
+    if (![p.get, p.get_lo, p.get_hi].every(v => v === null || reelNum(v)) || (p.get === null && p.get_lo === null))
+      return `${at} has no g.e.t. or bracket`;
+    if (p.get_lo !== null && p.get_hi !== null && p.get_lo > p.get_hi) return `${at}'s bracket runs backwards`;
+    for (const k of ["get_src", "lens_mm", "magazine", "where", "needs", "note"])
+      if (typeof p[k] !== "string") return `${at}'s ${k} is not text`;
+    if (typeof p.credit !== "string" || !p.credit || typeof p.url !== "string" || !p.url.startsWith("https://")) return `${at} has no credit or https source`;
+    const f = p.fit;
+    if (f !== null && !(f && typeof f === "object" && Array.isArray(f.cam) && f.cam.length === 3 && f.cam.every(reelNum) &&
+        [f.x, f.y, f.rot, f.scale].every(reelNum) && f.scale > 0)) return `${at}'s fit is not null or {cam, x, y, rot, scale}`;
+  }
+  return null;
+}
 // A scenario reel's event listing and quick views (#29 slice f, #73; ours): page.json's `listing` and `quickviews`,
 // which tools/pack.py generates from the reel's own situations and TIMELINE rows (its header gives the format). Why
 // they may not be the reel's, or null. The listing must hold each situation of page.json once (kind "situation", id
 // its NAME, sit its id) and each timeline row once, in the timeline's order (kind "event"), every entry with a unique
 // id, a name and a g.e.t., in g.e.t. order; a situation entry carries its title and default view, target and field,
-// each as its page.json row has it. #75 adds
-// the kind "photo". quickviews maps keys "1" to "9" to ids the listing holds.
-const REEL_LIST_KINDS = ["situation", "event"];
+// each as its page.json row has it; and each photo event once (kind "photo", #75: id and name its
+// frame, sit its situation, get reelPhotoGet). quickviews maps keys "1" to "9" to ids the listing holds.
+const REEL_LIST_KINDS = ["situation", "event", "photo"];
 function reelListingWrong(pg) {
   const L = pg.listing, Q = pg.quickviews, ids = new Set(), sits = pg.situations || [], evs = (pg.timeline || {}).events || [];
+  const shots = Array.isArray(pg.photos) ? pg.photos : [];
+  let ph = 0;
   if (!Array.isArray(L)) return "page.json has no listing";
   let lastGet = -Infinity, ev = 0;
   const seenSit = new Set();
@@ -252,6 +291,10 @@ function reelListingWrong(pg) {
       if (e.name !== s.title || e.view !== s.view || e.target !== s.target || e.fov !== s.fov)
         return `${at}: situation ${e.id}'s name, view, target or field is not its card's`;
       seenSit.add(e.id);
+    } else if (e.kind === "photo") {
+      const p = shots.find(x => x.frame === e.id);
+      ph++;
+      if (!p || e.name !== p.frame || e.sit !== p.sit || e.get !== reelPhotoGet(p)) return `${at} (${e.id}) is not one of the reel's photo events`;
     } else {
       const t = evs[ev++];
       if (!t || t[0] !== e.get || t[1] !== e.tl || t[2] !== e.name) return `${at} (${e.id}) is not the timeline's row ${ev}`;
@@ -259,6 +302,7 @@ function reelListingWrong(pg) {
   }
   if (seenSit.size !== sits.length) return `the listing holds ${seenSit.size} of the reel's ${sits.length} situations`;
   if (ev !== evs.length) return `the listing holds ${ev} of the timeline's ${evs.length} rows`;
+  if (ph !== shots.length) return `the listing holds ${ph} of the reel's ${shots.length} photo events`;
   if (!Q || typeof Q !== "object" || Array.isArray(Q)) return "page.json has no quickviews";
   for (const [key, v] of Object.entries(Q)) {
     if (!/^[1-9]$/.test(key)) return `quickviews key ${JSON.stringify(key)} is not 1 to 9`;
@@ -303,14 +347,28 @@ async function readReel(b64, sha, id) {
   if (pages.length !== 1) throw no(`it lists ${pages.length} page.json, not one`);
   let page;
   try { page = JSON.parse(text.get(pages[0].path)); } catch (e) { throw no(`${pages[0].path}: ${e.message}`); }
-  if (manifest.kind === "scenario") { const why = reelListingWrong(page || {}); if (why) throw no(why); }
   const books = c.filter(e => e.type === "notebook"), figs = c.filter(e => e.type === "figure"), pics = c.filter(e => e.type === "media");
-  for (const e of c) if (String(e.path).startsWith("notebook/") && !["notebook", "figure", "media"].includes(e.type))
-    throw no(`${e.path} is under notebook/ as type ${e.type}, not notebook, figure or media`);
+  // Its photographs: raster only, by their own first bytes; each one an attach or a photo event names, each named one
+  // here (below, after the text's blocks and the photo events are read).
+  const media = new Map();
+  for (const e of pics) {
+    const m = REEL_MEDIA.exec(e.path), b = blobs.get(e.path);
+    if (!m) throw no(`${e.path} is media, not media/<name>.jpg or .png (raster only)`);
+    if (!REEL_MEDIA_MAGIC[m[2]].every((x, i) => b[i] === x)) throw no(`${e.path} is not a ${m[2].toUpperCase()} file (by its first bytes; raster only)`);
+    if (b.length > REEL_MEDIA_MAX) throw no(`${e.path}: ${b.length} bytes, more than ${REEL_MEDIA_MAX}`);
+    media.set(m[1], { bytes: b, type: REEL_MEDIA_TYPE[m[2]] });
+  }
+  const named = new Set();
+  if (manifest.kind === "scenario") {
+    const why = reelPhotosWrong(page || {}, media) || reelListingWrong(page || {});
+    if (why) throw no(why);
+    for (const p of page.photos) named.add(REEL_MEDIA.exec(p.media)[1]);
+  }
+  for (const e of c) if (String(e.path).startsWith("notebook/") && !["notebook", "figure"].includes(e.type))
+    throw no(`${e.path} is under notebook/ as type ${e.type}, not notebook or figure`);
   if (books.length > 1) throw no(`it lists ${books.length} notebooks, not one`);
   if (books.length && books[0].path !== "notebook/notebook.md") throw no(`its notebook is ${books[0].path}, not notebook/notebook.md`);
   if (figs.length && !books.length) throw no(`${figs[0].path} is a figure, and it holds no notebook`);
-  if (pics.length && !books.length) throw no(`${pics[0].path} is media, and it holds no notebook`);
   let notebook = null;
   if (books.length) {
     // The allowlist reads a figure as tools/notebook.py does, its byte order marks kept (dec drops a leading one).
@@ -323,27 +381,19 @@ async function readReel(b64, sha, id) {
       if (bad) throw no(`${e.path} holds ${bad}, which a figure may not (the allowlist)`);
       figures.set(m[1], svg);
     }
-    // Its photographs: raster only, by their own first bytes; each one an attach names, each named one here
-    // (below, after the text's blocks are read).
-    const media = new Map();
-    for (const e of pics) {
-      const m = REEL_MEDIA.exec(e.path), b = blobs.get(e.path);
-      if (!m) throw no(`${e.path} is media, not notebook/media/<name>.jpg or .png (raster only)`);
-      if (!REEL_MEDIA_MAGIC[m[2]].every((x, i) => b[i] === x)) throw no(`${e.path} is not a ${m[2].toUpperCase()} file (by its first bytes; raster only)`);
-      if (b.length > REEL_MEDIA_MAX) throw no(`${e.path}: ${b.length} bytes, more than ${REEL_MEDIA_MAX}`);
-      media.set(m[1], { bytes: b, type: REEL_MEDIA_TYPE[m[2]] });
-    }
     const md = text.get(books[0].path);
     let refs;
     try { refs = reelFigureRefs(md); } catch (e) { throw no(e.message); }
     for (const n of refs) if (!figures.has(n)) throw no(`its notebook names figures/${n}.svg, which it does not hold`);
     for (const n of figures.keys()) if (!refs.includes(n)) throw no(`notebook/figures/${n}.svg is in it, and its notebook does not name it`);
-    const named = new Set(reelSlips(md).filter(([kind, f]) => kind === "attach" && f.source.startsWith("media/")).map(([, f]) => f.source.slice(6)));
-    for (const n of named) if (!media.has(n)) throw no(`an attach names media/${n}, which it does not hold`);
-    for (const n of media.keys()) if (!named.has(n)) throw no(`notebook/media/${n} is in it, and no attach names it`);
+    for (const [kind, f] of reelSlips(md)) if (kind === "attach" && f.source.startsWith("media/")) {
+      if (!media.has(f.source.slice(6))) throw no(`an attach names ${f.source}, which it does not hold`);
+      named.add(f.source.slice(6));
+    }
     notebook = { text: md, figures, media };
   }
-  return { manifest, files: text, page, notebook };
+  for (const n of media.keys()) if (!named.has(n)) throw no(`media/${n} is in it, and no attach or photograph names it`);
+  return { manifest, files: text, page, notebook, media };
 }
 // A reel's run decks, in its manifest's order: [[path, text]], each path "<reel id>/<file>".
 const reelDecks = r => r.manifest.contents.filter(c => c.type === "scn").map(c => [`${r.manifest.id}/${c.path}`, r.files.get(c.path)]);
@@ -360,11 +410,14 @@ const reelDecks = r => r.manifest.contents.filter(c => c.type === "scn").map(c =
 //          its scene added, and quick its quick views, {key: entry id}
 //   tl     by reel id: the timeline, {name, events: [[get, kind, name], ...]}
 //   lists  the playlist reels by id: their page.json (REEL and SHOT cards), each shot with `scene` added
+//   photos every scenario reel's photo events (#75; page.json `photos`, reelPhotosWrong), in load order, each with
+//          `reel`, `scene` (its situation's), `mission` (its reel's MISSION name) and `pic`, its photograph
+//          ({bytes, type}, the reel's media member)
 // A reel without page.json, a span naming a situation its reel does not hold, a playlist using a scenario reel the
 // page does not hold, or a shot naming a reel its playlist does not use or a situation that reel does not hold, is
 // refused with the reel's id.
 function reelPages(reels) {
-  const sits = [], scns = {}, tl = {}, lists = {};
+  const sits = [], scns = {}, tl = {}, lists = {}, photos = [];
   for (const r of reels) {
     const id = r.manifest.id, pg = r.page;
     if (!pg) throw new Error(`REEL ${id}: no page.json`);
@@ -381,9 +434,14 @@ function reelPages(reels) {
       live: live.map(([until, s, name]) => [until, scene(s), name]),
       jump: jump.map(j => ({ ...j, scene: scene(j.scene) })),
       pin: pin.map(scene) },
-      listing: (pg.listing || []).map(e => e.kind === "situation" ? { ...e, scene: scene(e.sit) } : e),
+      listing: (pg.listing || []).map(e => e.kind === "event" ? e : { ...e, scene: scene(e.sit) }),
       quick: pg.quickviews || {} };
     tl[id] = pg.timeline;
+    for (const ph of pg.photos || []) {
+      const twin = photos.find(x => x.frame === ph.frame);
+      if (twin) throw new Error(`REEL ${id}: photo ${ph.frame} is on reel ${twin.reel} too`);
+      photos.push({ ...ph, reel: id, scene: scene(ph.sit), mission: pg.scenario.mission, pic: r.media && r.media.get(ph.media.slice(6)) });
+    }
   }
   for (const r of reels.filter(x => x.manifest.kind === "playlist")) {
     const id = r.manifest.id, uses = r.manifest.uses;
@@ -394,7 +452,7 @@ function reelPages(reels) {
       return { ...sh, scene: s.scene };
     }) };
   }
-  return { sits, scns, tl, lists };
+  return { sits, scns, tl, lists, photos };
 }
 // The situation a link names, as its scene, or null (loader.js loadLink). scn: a scenario reel's id; sit: a situation
 // id or NAME (any case) in it. Without scn, the first reel in load order holding sit (by id that is Apollo 11's, since
