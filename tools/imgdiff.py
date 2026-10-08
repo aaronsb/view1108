@@ -27,18 +27,28 @@ def run(*cmd, **kw):
     return subprocess.run(cmd, capture_output=True, text=True, **kw)
 
 
+def need_tools():
+    for t in ("magick", "compare", "rsvg-convert"):
+        if not shutil.which(t):
+            sys.exit(f"imgdiff: {t} not found on PATH (needs ImageMagick: magick, compare; and rsvg-convert)")
+
+
 def compare(a, b, diff_png):
-    """(changed, total, score) of two PNGs; writes the diff image.  Different sizes: (None, None, 0)."""
-    ia = run("magick", "identify", "-format", "%w %h", str(a)).stdout.split()
-    ib = run("magick", "identify", "-format", "%w %h", str(b)).stdout.split()
-    if ia != ib or len(ia) != 2:
-        return None, None, 0.0
+    """(changed, total, score, why) of two PNGs; writes the diff image.  why is "" or the reason there is no pixel count:
+    "image size changed" or "unreadable image"; the score is then 0."""
+    ra = run("magick", "identify", "-format", "%w %h", str(a))
+    rb = run("magick", "identify", "-format", "%w %h", str(b))
+    ia, ib = ra.stdout.split(), rb.stdout.split()
+    if ra.returncode or rb.returncode or len(ia) != 2 or len(ib) != 2:
+        return None, None, 0.0, "unreadable image (identify failed or corrupt PNG)"
+    if ia != ib:
+        return None, None, 0.0, "image size changed"
     total = int(ia[0]) * int(ia[1])
     r = run("compare", "-metric", "AE", "-fuzz", f"{FUZZ}%", str(a), str(b), str(diff_png))
     if r.returncode > 1:
         sys.exit(f"compare failed: {r.stderr.strip()}")
     changed = int(float(r.stderr.split()[0]))
-    return changed, total, round(100.0 - 100.0 * changed / total, 4)
+    return changed, total, round(100.0 - 100.0 * changed / total, 4), ""
 
 
 def montage(a, b, diff, out):
@@ -55,13 +65,15 @@ def case_png(svg_text, path):
 
 
 def split_render(text):
-    """A render capture: the SVG up to </svg>, then the hdr words."""
-    i = text.find("</svg>")
-    if i < 0:
-        return text, ""
-    j = text.find("\n", i)
+    """A render capture (stdout and stderr in one file, so either may come first): the SVG from the first <svg through the
+    first </svg> and its newline; the rest is the hdr text."""
+    i = text.find("<svg")
+    k = text.find("</svg>", i) if i >= 0 else -1
+    if k < 0:
+        return "", text
+    j = text.find("\n", k)
     j = len(text) if j < 0 else j + 1
-    return text[:j], text[j:]
+    return text[i:j], text[:i] + text[j:]
 
 
 def hdr_words(txt):
@@ -93,10 +105,12 @@ def write_reports(outdir, title, pass_score, cases, extra_head=""):
     """cases: dicts with name, status (verify|autopass), score (or None), note, montage (path under build/ or None)."""
     queue = [c for c in cases if c["status"] == "verify"]
     auto = [c for c in cases if c["status"] == "autopass"]
+    new = [c for c in cases if c["status"] == "new"]
     notice = {"tool": title, "fuzz_pct": FUZZ, "pass_score": pass_score,
               "queue": [{"case": c["name"], "score": c["score"], "montage": c.get("montage"), "note": c["note"]}
                         for c in queue],
-              "autopass": [{"case": c["name"], "score": c["score"]} for c in auto]}
+              "autopass": [{"case": c["name"], "score": c["score"]} for c in auto],
+              "new": [{"case": c["name"], "note": c["note"]} for c in new]}
     (outdir / "notice.json").write_text(json.dumps(notice, indent=1) + "\n")
     md = [f"# {title}", "", f"Score = 100 - changed-pixel percent (fuzz {FUZZ}%). Pass score {pass_score}. "
           f"Verification queue: {len(queue)}; auto-passed: {len(auto)}.", ""]
@@ -105,6 +119,8 @@ def write_reports(outdir, title, pass_score, cases, extra_head=""):
     md += ["## Verification queue", ""]
     md += [f"- {c['name']}: score {sc(c)} - {c['note']}" + (f" ({c['montage']})" if c.get("montage") else "")
            for c in queue] or ["(empty)"]
+    md += ["", "## New (no baseline yet; reported, not failed)", ""]
+    md += [f"- {c['name']}: {c['note']}" for c in new] or ["(none)"]
     md += ["", "## Auto-passed", ""]
     md += [f"- {c['name']}: score {c['score']} - {c['note']}" for c in auto] or ["(none)"]
     (outdir / "report.md").write_text("\n".join(md) + "\n")
@@ -124,14 +140,18 @@ def write_reports(outdir, title, pass_score, cases, extra_head=""):
             h.append("<pre>" + html.escape(c["excerpt"]) + "</pre>")
     if not queue:
         h.append("<p>(empty)</p>")
-    h.append("<h2>Auto-passed</h2><ul>")
+    h.append("<h2>New (no baseline yet; reported, not failed)</h2><ul>")
+    h += [f"<li>{html.escape(c['name'])}: {html.escape(c['note'])}</li>" for c in new]
+    h.append("</ul><h2>Auto-passed</h2><ul>")
     h += [f"<li>{html.escape(c['name'])}: score {c['score']} - {html.escape(c['note'])}</li>" for c in auto]
     h.append("</ul>")
     (outdir / "report.html").write_text("\n".join(h) + "\n")
     return queue, auto
 
 
-def finish(tool, queue, auto, where):
+def finish(tool, queue, auto, where, new=()):
+    for c in new:
+        print(f"NOTICE {tool}: new {c['name']}: {c['note']}")
     for c in auto:
         print(f"{tool}: auto-pass {c['name']} score {c['score']}")
     for c in queue:
@@ -188,51 +208,72 @@ def render_case(f, a, b, out, pass_score):
     na, nb = nvec(sa), nvec(sb)
     tmp = out / ".tmp"
     tmp.mkdir(exist_ok=True)
-    pa, pb, pd = tmp / "a.png", tmp / "b.png", tmp / "d.png"
-    if not (case_png(sa, pa) and case_png(sb, pb)):
-        shutil.rmtree(tmp)
-        return {"name": f, "status": "verify", "score": 0.0, "montage": None,
-                "note": f"nvec {na} -> {nb}; an SVG does not render (the capture is not a valid frame)"}
-    changed, total, score = compare(pa, pb, pd)
-    note = f"nvec {na} -> {nb}" if na != nb else f"nvec {na}"
-    note += f"; {changed} of {total} px changed ({pct(score)}%)" if changed is not None else "; image size changed"
-    if words:
-        note += "; " + "; ".join(words[:12]) + (f"; +{len(words) - 12} more" if len(words) > 12 else "")
-    mont = None
-    if changed is not None and (changed or words):
-        mont = f"golden.diff/{name}.png"
-        montage(pa, pb, pd, out / f"{name}.png")
-    # the hdr words are part of the case: a changed word with the same picture still scores 100 but is reported
-    status = "autopass" if score >= pass_score else "verify"
-    shutil.rmtree(tmp)
-    return {"name": f, "status": status, "score": score, "note": note, "montage": mont}
+    try:
+        pa, pb, pd = tmp / "a.png", tmp / "b.png", tmp / "d.png"
+        if not (case_png(sa, pa) and case_png(sb, pb)):
+            return {"name": f, "status": "verify", "score": 0.0, "montage": None,
+                    "note": f"nvec {na} -> {nb}; an SVG does not render (the capture is not a valid frame)"}
+        changed, total, score, why = compare(pa, pb, pd)
+        note = f"nvec {na} -> {nb}" if na != nb else f"nvec {na}"
+        note += f"; {changed} of {total} px changed ({pct(score)}%)" if changed is not None else f"; {why}"
+        if words:
+            note += "; " + "; ".join(words[:12]) + (f"; +{len(words) - 12} more" if len(words) > 12 else "")
+        mont = None
+        if changed is not None and (changed or words):
+            mont = f"golden.diff/{name}.png"
+            montage(pa, pb, pd, out / f"{name}.png")
+        # The files differ byte for byte, so a changed nvec or hdr word is a real change whatever its pixels say.
+        status = "autopass" if score >= pass_score and na == nb and not words else "verify"
+        return {"name": f, "status": status, "score": score, "note": note, "montage": mont}
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def selfcheck():
+    """Every golden render capture must split into an SVG that renders (the regression for captures with the hdr first)."""
+    caps = sorted((ROOT / "build/golden/render").glob("*.txt"))
+    if not caps:
+        print("imgdiff selfcheck: no build/golden/render captures (make golden); skipped")
+        return 0
+    tmp = ROOT / "build/.imgdiff-selfcheck.png"
+    bad = [c.name for c in caps if not case_png(split_render(c.read_text())[0], tmp)]
+    tmp.unlink(missing_ok=True)
+    if bad:
+        print(f"imgdiff selfcheck: FAIL: {len(bad)} capture(s) do not render: {', '.join(bad[:8])}", file=sys.stderr)
+        return 1
+    print(f"imgdiff selfcheck: {len(caps)} golden renders split and render")
+    return 0
 
 
 def shots(only):
     base_pass = float(os.environ.get("SHOTS_PASS_SCORE", "99.5"))
     unstable_pass = float(os.environ.get("SHOTS_UNSTABLE_SCORE", "90"))
     cur, base = ROOT / "build/shots", ROOT / "build/shots-baseline"
+    if not base.is_dir():
+        sys.exit("shots-check: no build/shots-baseline (make shots, then make shots-baseline)")
     out = ROOT / "build/shots-diff"
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)
     pats = [p for p in (only or "").split(",") if p]
-    cases, missing = [], []
+    want = lambda n: not pats or any(fnmatch.fnmatch(n, g) for g in pats)
+    cases = []
     for p in sorted(cur.glob("*.png")):
         n = p.stem
-        if pats and not any(fnmatch.fnmatch(n, g) for g in pats):
+        if not want(n):
             continue
         bp = base / p.name
         if not bp.exists():
-            missing.append(n)
+            cases.append({"name": n, "status": "new", "score": None, "montage": None,
+                          "note": "no baseline (a shot added since make shots-baseline)"})
             continue
         ps = unstable_pass if n in UNSTABLE else base_pass
         dpng = out / f"_d_{n}.png"
-        changed, total, score = compare(bp, p, dpng)
+        changed, total, score, why = compare(bp, p, dpng)
         if changed == 0:
             dpng.unlink()
             continue
         if changed is None:
-            note, mont = "image size changed", None
+            note, mont = why, None
         else:
             note = f"{changed} of {total} px changed ({pct(score)}%)"
             montage(bp, p, dpng, out / f"{n}.png")
@@ -242,14 +283,19 @@ def shots(only):
             note += f"; not byte-stable, pass score {ps}"
         cases.append({"name": n, "status": "autopass" if score >= ps else "verify", "score": score,
                       "note": note, "montage": mont})
-    for n in missing:
-        print(f"shots-check: no baseline for {n} (make shots-baseline); not compared")
-    queue, auto = write_reports(out, "shots-check", base_pass, cases,
-                                f"{len(missing)} shot(s) without a baseline: {', '.join(missing) or 'none'}.")
-    return finish("shots-check", queue, auto, "build/shots-diff/report.html")
+    for bp in sorted(base.glob("*.png")):
+        if want(bp.stem) and not (cur / bp.name).exists():
+            cases.append({"name": bp.stem, "status": "verify", "score": None, "montage": None,
+                          "note": "a baseline with no shot (the shot was not run or was removed)"})
+    queue, auto = write_reports(out, "shots-check", base_pass, cases)
+    return finish("shots-check", queue, auto, "build/shots-diff/report.html",
+                  [c for c in cases if c["status"] == "new"])
 
 
 if __name__ == "__main__":
+    need_tools()
+    if len(sys.argv) >= 2 and sys.argv[1] == "selfcheck":
+        sys.exit(selfcheck())
     if len(sys.argv) >= 2 and sys.argv[1] == "golden":
         sys.exit(golden())
     if len(sys.argv) >= 2 and sys.argv[1] == "shots":
