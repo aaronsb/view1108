@@ -195,6 +195,7 @@ Each control group in the dock has a header: `[-]` shows the group is open, `[+]
 | `listing` | `dark`, `light` | `?listing=light` |
 | `space` | `room`, `tiled` (Room and Tiled; links carry `tiled` when you chose it) | `?space=tiled` |
 | `labq` | `high`, `low`: the room's quality for this visit | `?labq=low` |
+| `labdust` | `0`: no dust motes in the room (a test switch: they drift with the real frame time; `make shots`) | `?labdust=0` |
 | `code` | with `tab=source`: a unit, `/BLOCK/`, a PARAMETER or COMMON member, a file, or `file:line`. `src=` with any value but `replay` or `sim` reads the same | `?tab=source&code=PROJ`, `?tab=source&code=pen.f:120` |
 | `theme` | the Source browser's theme for this visit: `dark`, `light` or `contrast` (PHOSPHOR when absent) | `?tab=source&theme=dark` |
 | `still` | `earthrise` (frozen Earthrise, controls hidden, for screenshots) | `?still=earthrise` |
