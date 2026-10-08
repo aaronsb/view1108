@@ -120,6 +120,7 @@ make serve      # http://localhost:8108/view1108.html   (make stop to end)
 make check      # render every scene natively with gfortran to build/check/
 make lint       # dialect check and compiler warnings
 make sheet      # regenerate the film comparison sheet (headless Chromium)
+make shots      # scripted screenshots and checks (tools/shots.mjs) into build/shots/; ONLY=<name|glob>
 ```
 
 Every push to `main` rebuilds the page from source in GitHub Actions and publishes it to GitHub Pages.

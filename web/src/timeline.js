@@ -152,5 +152,7 @@ tlChips(); tlList();
 setInterval(tlTick, 200);
 if (DEBUG) {   // test hooks: the companion's address, the view a jump or Following leaves, and a time to play from
   window.VIEW_AIRT = airtUrl;
-  window.VIEW_TL = { state: () => ({ scene: LS.situation, viewMode: LS.view, targetId: LS.target, fov: LS.fov, get: LS.get, mode: LS.mode, follow }), seek: g => track({ get: g }) };
+  window.VIEW_TL = { state: () => ({ scene: LS.situation, viewMode: LS.view, targetId: LS.target, fov: LS.fov, get: LS.get, mode: LS.mode, follow, mounted: reelMounted() }), seek: g => track({ get: g }),
+    // the clock paused, at g.e.t. g (seconds or h:mm:ss) when given: for screenshots (tools/shots.mjs)
+    hold: g => { track(g === undefined ? { playing: false } : { playing: false, get: parseGet(String(g)) }); syncUI(); } };
 }

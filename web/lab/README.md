@@ -90,6 +90,8 @@ Screens are not tone mapped in either tier: in the high tier every `toneMapped: 
 the median of its first frames is over 24 ms or, after that, the mean over the next 2 s is over 22 ms; the button
 then reads `LOW (auto: slow)`. `?labprobe=<ms>` starts high on any renderer and feeds `<ms>` per frame to both
 checks (40 drops at the first, 23 at the second, 10 stays high); `info()` gives `slow` and `checking`.
+`?labdust=0` leaves the dust motes out, whose drift follows the real frame time, for repeatable screenshots
+(`make shots`, `tools/shoot.mjs`).
 
 Budget at the overview (1600 × 900): high about 230 draw calls and 140k triangles, low about 105 and 70k
 (`info()`). The room keeps it there with `src/room/batch.ts`, run after placement: each kind of machine's baked parts
