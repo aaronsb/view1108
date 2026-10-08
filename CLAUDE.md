@@ -85,7 +85,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 
 | Kind | File | Contents |
 |---|---|---|
-| Driver | `vdrive.f` | `VINIT` (selects a situation: `SITSET` copies its row of the situation tables), `VFRAME`, the camera recipes (`SCNCAM`, `LOOK`, `REFTRN`), table setup, model placement (`SCNMOD`: the situation's pose, `LMPIRO`, `S7POSE` with `S7ATT`, `S8POSE`; `VEHPL`, the LM at its state near the camera) |
+| Driver | `vdrive.f` | `VINIT` (selects a situation: `SITSET` copies its row of the situation tables), `VFRAME`, the camera recipes (`SCNCAM`, `LOOK`, `REFTRN`), table setup, model placement (`SCNMOD`: the situation's pose, `LMPIRO`, `S7POSE` with `S7ATT`, `S8POSE`; `VEHPL`, the LM at its state near the camera; `LVPL`, the launch vehicle's stages; `ASCPL`, `PADAX`, `PADPL`, the stack on the pad and the launch complex, #97) |
 | Dispatcher | `vlayer.f` | `LAYERS`: the situation's layer list and a computed `GO TO` over layer ids |
 | Core | `ephem.f` | time, Sun, Moon, Moon orientation |
 | Core | `traj.f` | the current scenario (`SNSET`), its legs, the replay (`ERTORB` about the Earth, `LUNORB` about the Moon, `LEGRV` one leg), events (`EVGET`), the LM's and the S-IVB's state rules (`LMSTAT`, `SIVST`), the LM descent, the Earthrise search |
@@ -103,7 +103,7 @@ gathered "one or more relocatable elements to produce a program" (UE-637 sec. 5.
 | Layer 2 | `lstars.f` | stars |
 | Layer 3 | `lsun.f` | Sun |
 | Layer 4 | `lmoon.f`, `lmoon6.f` | Moon, gazetteer and seeded craters; the whole-disc Moon view's extras |
-| Layer 5 | `learth.f` | Earth |
+| Layer 5 | `learth.f` | Earth; the launch pad's mark (`DPAD`) and its place on the drawn Earth (`PADEF`) |
 | Layer 6 | `lvehic.f`, `lvlab.f` | placed spacecraft models with hidden lines; vehicle labels and markers |
 | Layer 7 | `lcoas.f` | COAS reticle (scene 7) |
 | Layer 8 | `lshad.f` | LM shadow (scene 5) |
@@ -259,7 +259,10 @@ Inputs (written by JS):
   Scene 6 ignores both view and target. In an external view of a scene whose camera rides the
   CSM (1, 2, 3, 4, 7, 9) the CSM is drawn around the camera (its solids, with the camera inside,
   hide nothing), and before SEP the launch stack behind it (`vdrive.f` LVPL, model `KSTK`; see
-  Spacecraft models). Window overlays (COAS,
+  Spacecraft models): before lift-off the whole Saturn V standing on the mobile launcher at the
+  pad, with the launch complex around it (#97, `ASCPL`, `PADPL`). The window and station views
+  draw none of this: a window view from the CM on the pad is the one it was (our decision; the
+  cabin would see the umbilical tower and the sky). Window overlays (COAS,
   LPD) and the LM window sill apply only in the window view.
 
 Outputs (written by the kernel):
@@ -303,7 +306,7 @@ Outputs (written by the kernel):
   (s; 18-20 are 0 before any run and with a deck tape), 21 the vehicles in this frame's world, a bitmask: 1 the
   CSM, 2 the LM, 4 the S-IVB, each set if it is placed as a model or known by its state
   (`VSTATE`; the LM docked too, the S-IVB docked to the stack too, but not before SEP, while it
-  carries the CSM, unless the launch stack is drawn: an external view before SEP, #70 option B); the vehicle the camera rides (`IRIDE` in `vview.f`: the CSM in
+  carries the CSM, unless the launch stack is drawn: an external view before SEP, #70 option B; the launch vehicle's lower stages, the escape system and the launch complex, #97, are not vehicles here and set no bit); the vehicle the camera rides (`IRIDE` in `vview.f`: the CSM in
   the window views of scenes 1-4, 7, 9 and the CM station, the LM in scene 5 and the LM station,
   none in scenes 6, 8 and external views) is not counted. Set at every label level. 22 the crew
   stations the scene offers (its VIEWS card's `CM=` and `LM=`), a bitmask: 1 the CM station (not scenes 5 and 6), 2 the LM station
@@ -347,7 +350,7 @@ outline as ρ = θ. The film's descent LPD marks fit a scaled tangent law (`src/
 Spacecraft models (`src/models.f`, drawn by `src/lvehic.f`): a library built once by `MLIB`, each
 model a range of convex solids (`MKPRS` prisms) and free lines or face marks (`XLINE`) in its own
 body frame in metres, listed in the model table `/CMODI/` (numbers `KLMD`, `KLMS`, `KSIV`,
-`KCSM`, `KLMA`, `KCMO`, `KSTK` and the cabins in `viewcom.inc`; 10 of `MMOD` 16, 115 solids of `MSOL` 160,
+`KCSM`, `KLMA`, `KCMO`, `KSTK`, `KSII`, `KSIC`, `KLES`, `KPAD`, `KARE`, `KARR` and the cabins in `viewcom.inc`; 16 of `MMOD` 24, 150 solids of `MSOL` 160,
 1369 free lines of `MXL` 1500; a full table refuses and counts, `NMODX`, `NSOLX`, `NXLX`, and the selftest's `model tables:` line, `build/viewsvg` with `VIEW_MODT`, `tools/vdump.f` VMODT, fails on any refusal or a table at its maximum). Per frame `SCNMOD` places models with `MPLACE(K, axes, position, body point)`,
 and `MDRALL` draws every placed model after the sky, with hidden-line removal against all placed
 solids; placed solids also hide stars, Sun, Earth and Moon. A model can ride on the observer's
@@ -373,7 +376,35 @@ it behind the placed CSM (`CSMCAM`, the external view) before the scenario's SEP
 the SLA's top at the SM's aft end (`SMAFT`), unless the situation places an S-IVB or an LM of its own (scenes 7 and
 8). While it is placed the CSM's high-gain antenna is not drawn: it was "Nested alongside the service propulsion
 system engine nozzle until deployment" (press kit printed p. 90), inside the SLA (CSMBLD's `LHGA1`-`LHGA2`, MDRAW).
-Code that asks which LM, CSM or S-IVB model is placed uses `KLMPL()`, `KCSPL()` and `KSIVPL()`. The CSM and the lone CM are hidden-line
+Below it the S-II and the S-IC (`KSII`, `KSIC`; LVSII, LVSIC: smooth cylinders 33 ft across, 81.5 and 138 ft long,
+press kit printed p. 109; `SICD`, `SIIH`, `SICH`), each its own model in the same frame, and on the CM the launch escape
+system (`KLES`; LESBLD, in CSMBLD's frame, by the Apollo Operations Handbook's stations, Fig. 1-2, p. 1-5: the LES-CM
+separation plane at CM station 83.476 in, the tower to LES station 118.3, the skirt to 138.0, the motor to 363.7 and the
+tip at 400.762, "33 feet tall, four feet in diameter at the base", press kit printed p. 86; a square-frustum tower, the
+skirt, motor and nose smooth frusta and a cylinder, the widths but the base's ours, measured on that figure). The
+S-II/S-IVB interstage is left out (no held source gives its length; the step is drawn flat). LVPL places each to the
+scenario's event: `SIISEP`, `SICSEP`, `LESJET` (new EVENT kinds, from SP-4029's timeline rows: Apollo 11 printed p.
+105, 2:42.30, 3:17.90, 9:09.00; Apollo 8 p. 47); a scenario without the event places none. The launch complex (#97;
+models.f PADBLD, ARMBLD; sizes in `viewcom.inc`, `MNDH` to `ARM9H`, from the press kit's Launch Complex 39 pages,
+printed pp. 164-168): the pad a truncated pyramid 48 ft high ("The top of the pad stands some 48 feet above sea level",
+p. 168), its top 400 ft square (ours) and its sides at the ramp's five percent (p. 166; all round, ours); the mobile
+launcher's base 160 by 135 ft and 25 ft high on six pedestals 22 ft high (p. 164; the pedestals' places ours), the
+vehicle at the base's centre (ours); the umbilical tower 398 ft above the deck on the base's end (p. 164), 40 ft square
+with its lowest 30 ft flared to 46 ft (ours), the hammerhead crane 85 ft each side of its centre (p. 164); nine service
+arms as thin boxes to the vehicle, arm 9, the access arm, at the 320-foot level (p. 165), the others' levels ours,
+swung out (`KARE`) before lift-off and swung back (`KARR`) from it (the press kit retracts four earlier in the count;
+all at lift-off is ours). `PADAX` (`vdrive.f`) gives the complex's axes at the pad's place on the drawn Earth (learth.f
+`PADEF`, where DPAD marks it; geodetic, on the coastlines' footing): X up, -Z north, toward the tower (ours: no held
+source says which side the tower stood), so the CM's side hatch (-Z) faces the access arm. `PADPL` places it, fixed
+to the turning Earth, wherever CSMCAM places the CSM (an external view of a camera riding the CSM) and the pad is
+within 500 km of the camera (ours), where the scenario has a PAD card and a `LIFTOFF` event. `ASCPL` places the CSM
+for CSMCAM from the pad to `SIISEP`: before `LIFTOFF` (Apollo 11 0.63 s, Apollo 8 0.67 s, SP-4029 pp. 105, 47) on the
+pad, on the deck at the stack's height, in the complex's axes; after it at its state plus the pad's offset at lift-off
+(the drawn pad and the ascent table's geocentric rows put the vehicle about 18 km and 70 m apart), held Earth fixed
+(`MEFAT`) and fading linearly to `SICSEP`, its X along the velocity relative to the turning Earth with the pad's up
+added at 50 m/s, Z from the pad's (no roll programme; all ours). From `SIISEP` on the CSM is placed around the camera
+as before, so its attitude steps there (a few degrees). Code that asks which LM, CSM or S-IVB model is placed uses
+`KLMPL()`, `KCSPL()` and `KSIVPL()`. The CSM and the lone CM are hidden-line
 models like the LM: the CM cone, SM and SPS nozzle are 24-sided solids flagged smooth (`LSMO`),
 whose side edges `lvehic.f` draws only where they are the outline, so curved surfaces read as
 silhouettes; the CM's five windows and side hatch are face marks carried out from CMINT's window
@@ -502,9 +533,12 @@ pirouette (`LMPIRO`) places `KLMA` too after LIFT. From the CMSEP event (Apollo 
 194:49:12.7, MR Table 7-II p. 7-9; Apollo 8 146:28:48.0, SP-4029 p. 50) the CSM drawn around an
 external view's camera (`CSMCAM`) is the CM alone (`KCMO`). The launch pad (the
 scenario's PAD card, LC-39A for Apollo 11: SP-4029 printed p. 103, geocentric 28.4470 N,
--80.6041 E, made geodetic to sit on the coastlines' footing) is the same boxed X on the
+-80.6041 E, made geodetic to sit on the coastlines' footing; `PADEF`) is the same boxed X on the
 Earth, turned with it like the coastlines, hidden on the far side, drawn once the Earth's disc
-is too large for its EARTH name.
+is too large for its EARTH name. Where the launch complex is placed (`PADPL`, #97) the complex
+stands for the box, and its name alone goes 20 ft above the umbilical tower's top (ours; the
+mark's own point is inside the pad). Below 0.0001 RE (638 m) the Earth is not drawn at all
+(`DEARTH`), so a camera on the pad letters no pad name.
 
 Burn cue (`src/lburn.f`, layer 10 in every scene but 6), all ours, a modern addition: no
 source we hold shows VIEW marking an engine firing. The firings are the main-engine burns of

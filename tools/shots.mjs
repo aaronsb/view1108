@@ -372,6 +372,15 @@ export const SHOTS = [
       [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[20]`, 7],
       [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[22]`, 1]] },
 
+  // The launch complex (#97): External on the S-IVB ten minutes before lift-off, the whole Saturn V on the mobile
+  // launcher at LC-39A beside the umbilical tower, its service arms swung out; the world (hdr(21)) holds the CSM, the
+  // LM stowed in the SLA and the S-IVB in the stack, the S-IVB carried with the CSM (hdr(23) 3).
+  { name: "ext-pad", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=3&view=external&target=sivb&lab=1&get=-600&fov=110&yaw=30&pitch=25",
+    steps: [...LINKED(-600), { frames: 3 }],
+    expect: [[TL("viewMode"), 1], [TL("targetId"), 6], [TL("scene"), 3],
+      [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[20]`, 7],
+      [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[22]`, 3]] },
+
   // #85, a book opened in the room and back (← Room, then Esc), by each route: (a) a reference binder, the UNISCOPE
   // 100 manual; (b) a mission notebook through its modal's READ NOTEBOOK ONLY; (c) through LOAD … AND OPEN NOTEBOOK
   // (Apollo 8 mounted, so the Apollo 11 reel mounts as a fresh run); (d) a reel pulled at the rack, its notebook pulled

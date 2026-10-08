@@ -201,6 +201,16 @@ s3-docked-ext-lm  | VIEW_VIEW=1 VIEW_TARGET=5    | apollo11-asflown | 3 14400
 s3-tli-ext-sivb   | VIEW_VIEW=1 VIEW_TARGET=6 VIEW_LABLV=2 | apollo11-asflown | 3 10000
 s3-presep-ext-csm | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 11824
 s3-postsep-ext-csm | VIEW_VIEW=1 VIEW_TARGET=4   | apollo11-asflown | 3 11825
+s3-pad-ext-csm    | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 -600
+s3-pad-ext-side   | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 -600 30 25 0 110
+s3-pad-ext-wide   | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 -600 -150 -40 0 150
+s3-pad-ext-lm     | VIEW_VIEW=1 VIEW_TARGET=5 VIEW_LABLV=2 | apollo11-asflown | 3 -600
+s3-pad-window     |                              | apollo11-asflown | 3 -600
+s3-liftoff-ext    | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 0.7 30 25 0 110
+s3-ascent-ext     | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 100 30 25 0 110
+s3-ascent-pad-lab | VIEW_VIEW=1 VIEW_TARGET=4 VIEW_LABLV=2 | apollo11-asflown | 3 60 0 -60 0 120
+s3-ascent-sii-ext | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 200 30 25 0 110
+s9-pad-ext-csm    | VIEW_VIEW=1 VIEW_TARGET=4    | apollo8-asflown  | 1 -600 0 0 0 70
 EOF
 )
 

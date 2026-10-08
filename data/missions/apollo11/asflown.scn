@@ -166,6 +166,14 @@ EVENT KIND=LMDOK T=128:03:00.0 SRC="SP p. 104, CSM/LM docked 128:03:00.00; MR Ta
 EVENT KIND=JETT T=130:09:31.2 SRC="SP p. 104, LM ascent stage jettisoned 130:09:31.20; MR Table 7-II p. 7-9"
 EVENT KIND=CMSEP T=194:49:12.7 SRC="MR Table 7-II p. 7-9, command module/service module separation; SP p. 109 has 194:49:12.70"
 *
+* The launch vehicle's stages (vdrive.f LVPL, ASCPL; #97): the stack stands on
+* the mobile launcher at the pad before lift-off, then drops the S-IC, the
+* launch escape tower and the S-II at these rows of the timeline below.
+EVENT KIND=LIFTOFF T=0:00:00.63 SRC="SP p. 105, Liftoff (umbilical disconnected) 000:00:00.63"
+EVENT KIND=SICSEP T=0:02:42.30 SRC="SP p. 105, S-IC/S-II separation 000:02:42.30"
+EVENT KIND=LESJET T=0:03:17.90 SRC="SP p. 105, Launch escape tower jettisoned 000:03:17.90"
+EVENT KIND=SIISEP T=0:09:09.00 SRC="SP p. 105, S-II/S-IVB separation 000:09:09.00"
+*
 * The S-IVB (traj.f SIVST): with the CSM to SEP, scene 7's geometry to the
 * spacecraft's ejection, then the CSM's state less the separation the CSM
 * made: the ejection springs' "about one fps" (Apollo 11 press kit, printed
