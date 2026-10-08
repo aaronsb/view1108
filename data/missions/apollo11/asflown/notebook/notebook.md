@@ -80,13 +80,13 @@ Situation 2 follows the film clip's second shot, the Earth growing in an inertia
 - The film clip and the reconstruction: this repository's README.md and CLAUDE.md.
 
 ```figures
-# name          | environment  | reel             | viewsvg arguments (situation GET yaw pitch roll fov flags)
+# name          | environment  | reel             | viewsvg arguments (situation GET yaw pitch roll fov flags); or name | golden=<case of tools/golden.sh>
 tli-cm          | VIEW_VIEW=2  | apollo11-asflown | 3 9856.2 0 0 0 100
-docking         |              | apollo11-asflown | 7
+docking         | golden=s7-default
 earthrise-clear |              | apollo11-asflown | 1 368115
-pirouette       |              | apollo11-asflown | 4
-descent         | VIEW_LABLV=2 | apollo11-asflown | 5 369600
+pirouette       | golden=s4-default
+descent         | golden=s5-burn-dps
 descent-late    |              | apollo11-asflown | 5 369840
-moon-view       |              | apollo11-asflown | 6
-approach        |              | apollo11-asflown | 2
+moon-view       | golden=s6-default
+approach        | golden=s2-default
 ```

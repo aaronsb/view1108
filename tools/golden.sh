@@ -30,6 +30,9 @@
 #                              tools/notebook.py into build/figures/<reel>/<name>.svg and .hdr, the
 #                              two files one after the other.  tools/pack.py packs that same .svg, so
 #                              a change that alters a figure fails the check and changes the package.
+#                              A figure row `name | golden=<case>` has no nb-* capture: it is the
+#                              render of that case of CASES, whose capture covers it, and capture and
+#                              check require the figure to equal the case drawn again (#29 slice f).
 #
 # The tape round trip (#26 slice 6), run by capture and check, writes no file into the capture:
 # for each case in TAPES the engine runs (VIEW_SIM), its tape is written as a deck (VIEW_TAPEW,
@@ -309,7 +312,29 @@ capture() {
     cat "$f.svg" "$f.hdr" > "$out/render/nb-$reel-$name.txt"
     nf=$((nf + 1))
   done < <(python3 tools/notebook.py list)
-  echo "golden: captured 6 tables, $(ls "$out/page" | wc -l) page.json, the run-table dumps ($(cat "$out"/tables-*.txt | wc -l) entries, $(ls "$out"/tables-*.txt | wc -l) reels), $n renders and $nf notebook figures into $out"
+  # A figure that is a golden case's render (a notebook's `name | golden=<case>` row; #29 slice f) has no nb-*
+  # capture: the case's own covers the frame.  What this adds: the figure the reel package carries
+  # (build/reels/<reel>/notebook/figures/<name>.svg, as the last build packed it) must be that case drawn now, byte
+  # for byte, so a package built before the frame changed fails here; and the .hdr notebook.py rendered above must be
+  # the case's too (the case's capture holds the two streams interleaved, so the case is redrawn with them apart).
+  local ng=0 gc genv gargs
+  while read -r reel name gc; do
+    f=build/figures/$reel/$name
+    IFS='|' read -r _ genv _ gargs <<< "$(grep -E "^$gc +\|" <<< "$CASES")"
+    # shellcheck disable=SC2086
+    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP \
+      -u VIEW_DECK -u VIEW_DKSUM VIEW_HDR=1 VIEW_REEL=$reel $genv \
+      build/viewsvg $gargs > "$out/ref.svg" 2> "$out/ref.hdr"
+    if ! cmp -s "$out/ref.svg" "build/reels/$reel/notebook/figures/$name.svg"; then
+      echo "golden: $reel's packed figure $name is not golden case $gc's render (rebuild: tools/build.sh packs it)" >&2; exit 1
+    fi
+    if ! cmp -s "$out/ref.hdr" "$f.hdr"; then
+      echo "golden: $reel figure $name's hdr is not golden case $gc's (tools/notebook.py render)" >&2; exit 1
+    fi
+    ng=$((ng + 1))
+  done < <(python3 tools/notebook.py golden-refs)
+  rm -f "$out/ref.svg" "$out/ref.hdr"
+  echo "golden: captured 6 tables, $(ls "$out/page" | wc -l) page.json, the run-table dumps ($(cat "$out"/tables-*.txt | wc -l) entries, $(ls "$out"/tables-*.txt | wc -l) reels), $n renders and $nf notebook figures into $out; $ng notebook figures are golden cases' renders"
   roundtrip
 }
 

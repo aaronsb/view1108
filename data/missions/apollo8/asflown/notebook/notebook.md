@@ -49,10 +49,10 @@ The report lists TEI and the entry phase among the Apollo 8 maneuver views (TN D
 - NASA Scientific Visualization Studio, *Earthrise: The 45th Anniversary*, ID 4129, 20 December 2013, https://svs.gsfc.nasa.gov/4129.
 
 ```figures
-# name          | environment   | reel            | viewsvg arguments (situation GET yaw pitch roll fov flags)
+# name          | environment   | reel            | viewsvg arguments (situation GET yaw pitch roll fov flags); or name | golden=<case of tools/golden.sh>
 tli-cm          | VIEW_VIEW=2   | apollo8-asflown | 1 10237.79 0 0 0 100
 loi-cm          | VIEW_VIEW=2   | apollo8-asflown | 1 248900.4 0 0 0 100
 earthrise-first |               | apollo8-asflown | 1 272862.4
-earthrise       |               | apollo8-asflown | 1
+earthrise       | golden=s9-default
 transearth      | VIEW_TARGET=1 | apollo8-asflown | 1 520000 0 0 0 50
 ```

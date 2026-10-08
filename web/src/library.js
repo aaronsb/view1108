@@ -1,7 +1,7 @@
 // The reference library (ours): the documents in web/library/ (library.json, inlined by tools/assemble.py as #flib),
 // listed beside the browser's own PDF viewer in an iframe, and after them the reels' scenario notebooks (#29: each
 // REEL_LIB reel that carries notebook/notebook.md), shown by the notebook viewer (notebook.js) in place of the iframe,
-// with "Load this reel". Opened from Source's [ LIBRARY ], from the Reels group's "Read the notebook" (reels.js) or, in
+// with "Load this reel". Opened from Source's [ LIBRARY ], from Tabbed's reel list's "Read the notebook" (reels.js) or, in
 // the room, from the bookcase, one of its binders, or a mission notebook there through its modal (room.js). On a narrow screen
 // the list carries only the documents' links, since built-in PDF viewers in iframes are unreliable on phones, and a
 // notebook takes the overlay with a List button back. Where the PDFs are not beside the page (opened from file://, or
@@ -106,7 +106,65 @@ function libShowNb(id) {
     $("libmd").replaceChildren(pre);
     console.warn(`notebook ${id}: shown as text (${e.message})`);
   }
+  const sheet = libRunSheet(n.reel.manifest.id);
+  if (sheet) $("libmd").prepend(sheet);
   $("libmd").scrollTop = 0;
+}
+// The run sheet at the front of a mission notebook (#29 slice f; the operator, 2026-10-07: the notebook is the tape's
+// operator's manual and opens with every event on the tape): the reel's event listing, generated when it was packed
+// (tools/pack.py; config.js SCNS[id].listing), so the notebook restates no run-deck data. It opens on the situations
+// and the milestones, with a line that shows every entry (libRunSheet). One row per entry: its
+// quick-view key, g.e.t., kind, name and, for a situation, its default camera (view, target, field). Picking one loads
+// the reel as a fresh run (reels.js reelParams, by=mount: its situation defaults, the clock stopped) and then goes to
+// the entry as the event list does (timeline.js tlPick), on a plot tab: in the room the viewer closes onto the
+// workbench's page (Esc goes back to the room), in Tabbed onto the page. Built from DOM nodes and text only. Ours.
+function libRunSheet(rid) {
+  const sc = SCNS[rid];
+  if (!sc || !sc.listing.length) return null;
+  const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+  const keyOf = id => Object.keys(sc.quick).find(k => sc.quick[k] === id) || "";
+  const sec = mk("section", "runsheet"), tbl = mk("table"), head = mk("tr"), body = mk("tbody");
+  // Shown at first (the operator, 2026-10-08): the situations, the timeline's Noteworthy milestones (timeline.js
+  // tlNoteworthy) and any event on a quick-view key; a typed line below the table shows every entry in place, and
+  // hides the rest again.
+  const brief = e => e.kind === "situation" || keyOf(e.id) || tlNoteworthy([e.get, e.tl, e.name]);
+  const nBrief = sc.listing.filter(brief).length, nAll = sc.listing.length;
+  sec.append(mk("h2", "", `RUN SHEET - ${(REEL_LIB.find(r => r.manifest.id === rid)?.manifest.title || rid).toUpperCase()}`),
+    mk("p", "", "Every entry on the tape, generated from the reel's situations and timeline when it was packed (ours); " +
+      "shown first, the situations and the mission's milestones. " +
+      "Pick one to load the reel as a fresh run, clock stopped, and go there: a situation applies its view, an event sets the time. " +
+      "KEY is the entry's quick-view key in the simulation."));
+  for (const h of ["KEY", "G.E.T.", "KIND", "ENTRY", "DEFAULT CAMERA"]) head.appendChild(mk("th", "", h));
+  for (const e of sc.listing) {
+    const sit = e.kind === "situation", tr = mk("tr", sit ? "rssit" : brief(e) ? "" : "rsmore"), b = mk("button", "", e.name);
+    b.type = "button"; b.dataset.id = e.id;
+    b.title = sit ? `Load the reel fresh and apply ${e.name}` : `Load the reel fresh and go to ${getStr(e.get)}`;
+    b.onclick = () => libRunGo(rid, e.id);
+    const name = mk("td", "rsn"); name.appendChild(b);
+    tr.append(mk("td", "", keyOf(e.id)), mk("td", "", tlGetStr(e.get)), mk("td", "", sit ? "SITUATION" : e.tl), name,
+      mk("td", "", sit ? `${e.view} ${e.target} ${e.fov === null ? "-" : e.fov + "°"}` : ""));
+    body.appendChild(tr);
+  }
+  const thead = mk("thead"); thead.appendChild(head); tbl.append(thead, body); sec.appendChild(tbl);
+  if (nBrief < nAll) {
+    const more = mk("button", "rsall"), line = mk("p", "rsline");
+    const label = () => { more.textContent = sec.classList.contains("full") ? `SHOW ONLY THE ${nBrief} SITUATIONS AND MILESTONES` : `SHOW ALL ${nAll} ENTRIES`; };
+    more.type = "button"; label();
+    more.onclick = () => { sec.classList.toggle("full"); label(); };
+    line.appendChild(more); sec.appendChild(line);
+  }
+  return sec;
+}
+// A run-sheet entry picked: the viewer closes onto a plot tab with the event list (Review unless Simulate or Print is
+// showing), the reel mounts fresh, and the entry is picked.
+function libRunGo(rid, eid) {
+  const p = reelParams(rid), e = (SCNS[rid]?.listing || []).find(x => x.id === eid);
+  if (!p || !e) return;
+  if (roomIn) roomLibraryClose(); else libraryClose();
+  if (!["review", "simulate", "print"].includes(tab)) setTab(roomIn && roomCanvasTab !== "fusion" ? roomCanvasTab : "review");
+  loadReel(p);
+  tlPick(e);
+  syncUI();
 }
 /** Open the library, with document `id` or notebook "nb-<reel id>" (else the last one shown, else the first). Open, it
  *  is on the Esc stack (esc.js): Esc closes it (opened from the bookcase or the rack, room.js makes it go back there). */

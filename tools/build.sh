@@ -15,11 +15,16 @@ B="${LF_BIN:+$LF_BIN/}"
 mkdir -p build
 
 python3 tools/gen_data.py
-# The notebook figures are rendered by the native driver: without gfortran a reel with figures cannot be packed,
-# so stop here rather than after the wasm build.
-if [ "${1:-}" != native ] && ! command -v gfortran >/dev/null && [ -n "$(python3 tools/notebook.py list)" ]; then
-  echo "build: no gfortran: the reels' notebook figures are rendered by the native driver (tools/notebook.py)" >&2
-  exit 1
+# Packing needs the native driver: the notebook figures (golden-case figures among them) are its renders, and a
+# situation whose g.e.t. only the kernel resolves (ERISE) takes it from the driver for the event listing (tools/pack.py
+# --needs-native says which). Without gfortran stop here rather than after the wasm build.
+if [ "${1:-}" != native ] && ! command -v gfortran >/dev/null; then
+  why=$(python3 tools/pack.py --needs-native)
+  if [ -n "$why" ]; then
+    echo "build: no gfortran, and packing needs the native driver (tools/pack.py --needs-native):" >&2
+    echo "$why" | sed 's/^/  /' >&2
+    exit 1
+  fi
 fi
 python3 tools/gen_symbols.py || echo "gen_symbols failed; the page builds without the Source tab's symbols" >&2
 
@@ -45,6 +50,7 @@ native() {
   gfortran -O2 -ffree-line-length-none tools/viewsvg.f90 $objs build/vdump_native.o \
     build/vtape_native.o -o build/viewsvg
   rm -f viewsvg*.mod
+  python3 tools/pack.py --stamp-native   # build/viewsvg.json: the driver and its sources, which pack.py checks
   echo "native: build/viewsvg"
 }
 if [ "${1:-}" = native ]; then native; exit 0; fi
@@ -105,7 +111,7 @@ python3 tools/wrap_fallback.py build/view.wasm2js.mjs build/fallback.js
 # the golden gate captures and the packer packs), then the reel packages (build/reels/), each naming this kernel
 # build by its hash.  A reel whose notebook names figures needs gfortran.
 if command -v gfortran >/dev/null; then native; python3 tools/notebook.py render
-else rm -rf build/figures; echo "no gfortran: no native driver" >&2; fi
+else rm -rf build/figures build/viewsvg build/viewsvg.json; echo "no gfortran: no native driver" >&2; fi
 python3 tools/pack.py
 
 # 4. The machine room (web/lab, TypeScript + three.js) -> build/lab.js, with the esbuild pinned in its

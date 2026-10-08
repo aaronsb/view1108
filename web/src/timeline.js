@@ -1,9 +1,16 @@
-// Timeline (Review): the scenario's TIMELINE cards (SP-4029's event lists, its reel's page.json) as chapter marks under the
-// time scrubber and as a jump list; Follow, for any scenario with FOLLOW spans; and the Apollo in Real Time companion
-// window (Apollo 11 only), whose buttons start Following too.
+// Timeline (Review, Simulate, Print): the scenario's TIMELINE cards (SP-4029's event lists, its reel's page.json) as
+// chapter marks under the time scrubber, and the reel's event listing (#29 slice f, #73; tools/pack.py, reelpkg.js) as
+// the event list: its situations as marked entries, each with its quick-view key where it has one, among its timeline
+// events. Picking a situation applies its view (its situation at its defaults, its own view and target); picking an
+// event moves the time (tlJump). Keys 1-9 are the reel's quick views and do exactly what picking their entry does.
+// Follow, for any scenario with FOLLOW spans; and the Apollo in Real Time companion window (Apollo 11 only), whose
+// buttons start Following too. The listing, its marks and the quick views are ours.
 "use strict";
 const tlScenario = () => LS.scn;   // the loaded scenario, by its reel's id (config.js TL, SCNS)
 const TL_KINDS = NAMES.TL_KINDS || [];
+const tlListing = () => (SCNS[tlScenario()] || {}).listing || [];   // the loaded reel's event listing
+const tlQuick = () => (SCNS[tlScenario()] || {}).quick || {};       // its quick views, key -> entry id
+const tlKeyOf = id => Object.keys(tlQuick()).find(k => tlQuick()[k] === id) || "";
 // Noteworthy: our own short list of the mission's milestones, matched by kind and a pattern on the SP-4029 row name.
 const TL_NOTE = [
   ["LAUNCH", /^Liftoff/], ["ORBIT", /^Earth orbit insertion/], ["ORBIT", /^Translunar injection$/],
@@ -65,12 +72,29 @@ function tlJump(g) {
   if (LS.mode !== "live" && !tlSuits(g)) tlFit(g); else loadReel(P({ by: "event", get: g }));
   airtSync();
 }
-const tlTitle = g => {
-  const [, s, v = 0, t = 0] = tlFor(g);
+// An entry of the listing picked (the list, a quick-view key, the notebook's run sheet): a situation applies its view
+// (a viewer's pick of its scene, its own view and target: loader.js loadPick), an event moves the time (tlJump).
+function tlPick(e) {
+  if (e.kind !== "situation") { tlJump(e.get); return; }
+  leaveAttract(); tlManual();
+  loadReel(P({ scene: e.scene, view: 0, target: 0 }));
+  airtSync();
+}
+// Key k (1-9): the loaded reel's quick view, if it maps one. True if it did something.
+function tlQuickKey(k) {
+  const e = tlListing().find(x => x.id === tlQuick()[k]);
+  if (e) tlPick(e);
+  return !!e;
+}
+const tlFov = e => e.fov === null ? "its own field" : `${e.fov}°`;
+const tlTitle = e => {
+  if (e.kind === "situation") return `Apply ${e.name}: ${e.view} view, target ${e.target}, ${tlFov(e)}, at ${getStr(e.get)}`;
+  const [, s, v = 0, t = 0] = tlFor(e.get);
   const note = v === 1 && t === 1 ? EXT_NOTE : v === 0 && t === 1 ? WIN_NOTE : v === 1 ? "external view"
     : v === 2 ? "CM station" : v === 3 ? "LM station" : "";
-  return `Jump to ${getStr(g)}: scene ${s} ${SCENES[s - 1]}` + (note ? ", " + note : "");
+  return `Jump to ${getStr(e.get)}: scene ${s} ${SCENES[s - 1]}` + (note ? ", " + note : "");
 };
+const tlGetStr = g => (g < 0 ? "-" : "") + hms3(Math.floor(Math.abs(g)));
 const tlSpan = () => LS.mode === "live" ? [LIVE_MIN, LIVE_MAX] : [LS.get0 - 7200, LS.get0 + 7200];   // the scrubber's (loop.js)
 
 function tlChips() {
@@ -82,18 +106,24 @@ function tlChips() {
     box.appendChild(b);
   }
 }
+// The list: every situation, marked, and the events the filter keeps, in g.e.t. order (the listing's).
 function tlList() {
-  const box = $("tllist"); box.textContent = ""; tlCur = -2;
+  const box = $("tllist"); box.textContent = ""; tlCur = "";
   const on = airtOn();
-  tlEvents().forEach((e, i) => {
-    if (tlFilter === "note" ? !tlNoteworthy(e) : tlFilter !== "all" && e[1] !== tlFilter) return;
-    const r = document.createElement("div"); r.className = "tlrow"; r.dataset.i = i; r.title = tlTitle(e[0]);
-    r.innerHTML = `<span class="tlg"></span><span class="tlk"></span><span class="tln"></span>`;
-    r.children[0].textContent = (e[0] < 0 ? "-" : "") + hms3(Math.floor(Math.abs(e[0]))); r.children[1].textContent = e[1]; r.children[2].textContent = e[2];
-    r.onclick = () => tlJump(e[0]);
+  $("hintscenes").textContent = Object.keys(tlQuick()).join(" ") || "none";
+  tlListing().forEach((e, i) => {
+    const sit = e.kind === "situation", ev = [e.get, e.tl, e.name];
+    if (!sit && (tlFilter === "note" ? !tlNoteworthy(ev) : tlFilter !== "all" && e.tl !== tlFilter)) return;
+    const r = document.createElement("div"), key = tlKeyOf(e.id);
+    r.className = sit ? "tlrow tlsit" : "tlrow"; r.dataset.i = i; r.dataset.id = e.id; if (sit) r.dataset.scene = e.scene; r.title = tlTitle(e) + (key ? ` (key ${key})` : "");
+    for (const [cls, t] of [["tlg", tlGetStr(e.get)], ["tlk", sit ? "SITUATION" : e.tl], ["tln", e.name]]) {
+      const s = document.createElement("span"); s.className = cls; s.textContent = t; r.appendChild(s);
+    }
+    if (key) { const q = document.createElement("b"); q.className = "tlq"; q.textContent = key; r.children[2].prepend(q); }
+    r.onclick = () => tlPick(e);
     if (on) {
-      const a = document.createElement("a"); a.href = airtUrl(e[0]); a.target = "airt"; a.textContent = "↗"; a.title = "Open this moment in Apollo in Real Time";
-      a.onclick = ev => { ev.stopPropagation(); tlJump(e[0]); airtRealTime(); };
+      const a = document.createElement("a"); a.href = airtUrl(e.get); a.target = "airt"; a.textContent = "↗"; a.title = "Open this moment in Apollo in Real Time";
+      a.onclick = x => { x.stopPropagation(); tlPick(e); airtRealTime(); };
       r.appendChild(a);
     }
     box.appendChild(r);
@@ -110,8 +140,10 @@ function tlMarks() {
     box.appendChild(m);
   });
 }
-// The nearest event at or before the current time is highlighted in the list.
-let tlCur = -2, tlKey = "", tlScene = 0;
+// The row lit is the last at or before the current time that is an event, or a situation only while it is the one
+// loaded (a situation's row names a view, not a moment). Rows run in g.e.t. order with a situation before an event at
+// the same g.e.t., so the event wins a tie.
+let tlCur = "", tlKey = "", tlScene = 0;
 function tlTick() {
   const key = [tlScenario(), tlFilter, LS.mode === "live", Math.round(LS.get0)].join(" ");
   if (key !== tlKey) {
@@ -124,11 +156,14 @@ function tlTick() {
   const fb = $("bfollow"); fb.hidden = !spansOf(tlScenario()).follow.length;   // Follow: any scenario with FOLLOW spans
   fb.classList.toggle("on", follow); fb.textContent = follow ? "Following" : "Follow";
   if (LS.situation !== tlScene) { tlScene = LS.situation; if (!auto()) airtSync(); }
-  const ev = tlEvents(); let c = -1;
-  for (let i = 0; i < ev.length && ev[i][0] <= LS.get; i++) c = i;
-  if (c === tlCur) return; tlCur = c;
+  const ev = tlListing(); let c = -1;
+  for (let i = 0; i < ev.length && ev[i].get <= LS.get; i++) c = i;
+  if (`${c} ${LS.situation}` === tlCur) return; tlCur = `${c} ${LS.situation}`;
   let best = null;
-  for (const r of $("tllist").children) { r.classList.remove("cur"); if (+r.dataset.i <= c) best = r; }
+  for (const r of $("tllist").children) {
+    r.classList.remove("cur");
+    if (+r.dataset.i <= c && (!r.dataset.scene || +r.dataset.scene === LS.situation)) best = r;
+  }
   if (!best) return;
   best.classList.add("cur");   // scrolled into view within the list only, never moving the dock
   const box = $("tllist"), top = best.offsetTop;   // the list is the offset parent (page.css)
@@ -152,7 +187,7 @@ tlChips(); tlList();
 setInterval(tlTick, 200);
 if (DEBUG) {   // test hooks: the companion's address, the view a jump or Following leaves, and a time to play from
   window.VIEW_AIRT = airtUrl;
-  window.VIEW_TL = { state: () => ({ scene: LS.situation, viewMode: LS.view, targetId: LS.target, fov: LS.fov, get: LS.get, mode: LS.mode, follow, mounted: reelMounted() }), seek: g => track({ get: g }),
+  window.VIEW_TL = { state: () => ({ scene: LS.situation, scn: LS.scn, viewMode: LS.view, targetId: LS.target, fov: LS.fov, get: LS.get, mode: LS.mode, playing: LS.playing, follow, mounted: reelMounted() }), seek: g => track({ get: g }),
     // the clock paused, at g.e.t. g (seconds or h:mm:ss) when given: for screenshots (tools/shots.mjs)
     hold: g => { track(g === undefined ? { playing: false } : { playing: false, get: parseGet(String(g)) }); syncUI(); } };
 }

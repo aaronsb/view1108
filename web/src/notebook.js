@@ -182,7 +182,7 @@ function nbParse(md) {
   const figs = [], out = nbBlocks(s.replace(/\r\n?/g, "\n").split("\n"), figs);
   if (figs.length > 1) out.push({ t: "section", c: [
     { t: "h2", c: ["Figures, as rendered"] },
-    { t: "p", c: ["The case each figure was drawn at by the native driver (tools/notebook.py; ours): its name, environment, reel and viewsvg arguments."] },
+    { t: "p", c: ["The case each figure was drawn at by the native driver (tools/notebook.py; ours): its name, environment, reel and viewsvg arguments, or golden=<case> for a figure that is that golden case's render (tools/golden.sh)."] },
     { t: "table", c: [
       { t: "thead", c: [{ t: "tr", c: figs[0].map(x => ({ t: "th", c: [x] })) }] },
       { t: "tbody", c: figs.slice(1).map(r => ({ t: "tr", c: figs[0].map((_, k) => ({ t: "td", c: [{ t: "code", c: [r[k] || ""] }] })) })) },
