@@ -150,17 +150,19 @@ C     External: free-look sets the direction, the camera backs off
 C     along it to DIST from the target.  A situation with XSTART (JXOF;
 C     the docking, whose reference looks down the docking axis, where
 C     the CSM's solids hide the LM it docks with) starts QXY round:
-C     there 60 deg round and 25 deg up (ours).  Before the separation,
-C     while the launch stack is placed behind the CSM (LVPL), a vehicle
-C     target starts 60 deg round and 25 deg down, the camera above the
-C     stack looking down on it against the Earth, since from straight
-C     behind or ahead one end of the stack hides the rest (ours).  Only
-C     while the stack is placed: at SEP the start goes back to the
-C     scene's own, so the external camera jumps by that offset between
-C     the frames either side of SEP (ours; one start for every vehicle
-C     target is filed against #70).
+C     there 60 deg round and 25 deg up (ours).  A vehicle target
+C     picked (in_target 4-6, where it is flown round) starts 60 deg
+C     round and 25 deg down, the camera above the vehicle looking down
+C     on it, before the separation as after it, so the camera does not
+C     jump at SEP
+C     (#70; ours): before it the launch stack is placed behind the CSM
+C     (LVPL), and from straight behind or ahead one end of the stack
+C     hides the rest.  While the stack is placed the situation's own
+C     vehicle target (in_target 0) starts there too; after SEP it
+C     keeps the scene's own start (the docked stack's, scene 8).
       J = 0
       IF (JXOF .NE. 1 .AND. MDON(KSTK) .EQ. 1 .AND. IT .GE. 4) J = 1
+      IF (JXOF .NE. 1 .AND. ITARG .GE. 4 .AND. IT .GE. 4) J = 1
       IF (JXOF .EQ. 1) CALL LOOK(YAW + QXY(1), PIT + QXY(2), ROL)
       IF (J .EQ. 1) CALL LOOK(YAW + 60.0D0, PIT - 25.0D0, ROL)
       IF (JXOF .NE. 1 .AND. J .EQ. 0) CALL LOOK(YAW, PIT, ROL)
