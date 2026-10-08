@@ -4,7 +4,9 @@
 // terminal's screen is the plot (#cv), the glass terminal opens Source, the microfilm recorder Print, the line printer
 // the kernel listing on greenbar over the page, the bookcase (or one of its binders) the library over it; clicking one
 // flies the camera to its close-up, and a click there shows that tab or overlay. The drive is the mounted reel's
-// STOP/START (drivePlay, player.js), used in place. The Room button, or Esc (the one stack, esc.js), flies back out.
+// STOP/START (drivePlay, player.js), used in place. The tape rack holds the site reel index (reels.js reelIndex, handed
+// over as hooks.reels): a reel pulled there and used on a tape unit is mounted through reelMount, the Reels group's
+// loadReel (#19). The Room button, or Esc (the one stack, esc.js), flies back out.
 "use strict";
 const LAB = typeof VIEW_LAB !== "undefined" ? VIEW_LAB : null;
 const ROOM_KEY = "view1108.space";
@@ -22,7 +24,7 @@ let roomState = null;
 
 function labState() {
   const s = roomState || (roomState = { sound: {} });
-  s.tab = tab; s.mode = LS.mode; s.playing = LS.playing; s.reel = reelLabel(); s.get = LS.get; s.frameNo = drawNo;
+  s.tab = tab; s.mode = LS.mode; s.playing = LS.playing; s.reel = reelLabel(); s.mounted = reelMounted(); s.get = LS.get; s.frameNo = drawNo;
   s.situation = LS.situation; s.scenario = LS.scenario; s.mission = LS.mission; s.epoch = LS.epoch; s.zero = LS.zero;
   s.sound.ctx = sndCtx; s.sound.out = sndOut; s.sound.on = sndOn; s.sound.bed = soundBed; s.sound.whine = whineNode(); s.sound.printer = printerRoute;
   return s;
@@ -160,7 +162,7 @@ function roomApply() {
   const want = roomAvail && WIDE.matches && roomWant === "room";
   if (want && !roomIn) {
     const esc = (k, pop) => pop ? escPush(k, pop) : escDrop(k);
-    if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive, screenRect: roomScreenRect, leave: roomLeave, drive: drivePlay, esc })) { roomAvail = false; roomSync(); return; }
+    if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive, screenRect: roomScreenRect, leave: roomLeave, drive: drivePlay, esc, reels: reelIndex(), mount: reelMount })) { roomAvail = false; roomSync(); return; }
     roomIn = true; escBase("room", () => { if (roomShown) LAB.home(); }); roomShowLab(null);
   } else if (!want && roomIn) {
     LAB.stop(); roomIn = roomShown = false; document.body.classList.remove("room"); resize();
