@@ -103,7 +103,7 @@ Probably, with changes: the fenced items above rewritten in FORTRAN V terms, and
 - **Earth:** Natural Earth 1:110m coastlines.
 - **Moon:** craters from the IAU/USGS Gazetteer of Planetary Nomenclature, plus seeded small craters where the gazetteer is sparse.
 - **Missions:** one folder per mission in `data/missions/`, run decks of cards, each with its source. `tools/pack.py` packs each scenario (Apollo 11 as flown, Apollo 8 as flown) and each playlist (the demo and the tour, `data/reels/`) as a reel package, `.reel.tar.gz`, which the page embeds and unpacks at boot; a reel names the kernel build it runs on and carries no code. See [docs/systems-model.md](docs/systems-model.md), section 5.
-- **Trajectories:** low-precision Sun and Moon ephemerides and simple Kepler and circular orbits keyed to Apollo 11 event times. Not a precision tool.
+- **Trajectories:** low-precision Sun and Moon ephemerides and simple Kepler and circular orbits keyed to each mission's sourced event times (Apollo 11 and Apollo 8). Not a precision tool.
 
 ## Build
 
