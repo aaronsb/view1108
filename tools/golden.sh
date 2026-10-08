@@ -183,6 +183,13 @@ s2-cm-sep         | VIEW_VIEW=2                  | apollo11-asflown | 2 12100
 s3-lm-eject       | VIEW_VIEW=3                  | apollo11-asflown | 3 16000
 s8-lm-13000       | VIEW_VIEW=3                  | apollo11-asflown | 8 13000
 s8-cm-13000       | VIEW_VIEW=2                  | apollo11-asflown | 8 13000
+s3-presep-lm      | VIEW_VIEW=3                  | apollo11-asflown | 3 10800
+s3-presep-lm-mask | VIEW_VIEW=3 VIEW_LABLV=3     | apollo11-asflown | 3 10800 0 0 0 - 51
+s3-pad-lm         | VIEW_VIEW=3                  | apollo11-asflown | 3 -600
+s1-lm-doi         | VIEW_VIEW=3                  | apollo11-asflown | 1 366500
+s1-lm-descent     | VIEW_VIEW=3                  | apollo11-asflown | 1 369600 0 0 0 82.4
+s1-lm-landed      | VIEW_VIEW=3                  | apollo11-asflown | 1 400000 0 0 0 82.4
+s1-lm-ascent      | VIEW_VIEW=3 VIEW_LABLV=2     | apollo11-asflown | 1 450000
 s7-ext            | VIEW_VIEW=1                  | apollo11-asflown | 7
 s7-ext-look       | VIEW_VIEW=1                  | apollo11-asflown | 7 - 20 -10 5 -
 s7-ext-lab3       | VIEW_VIEW=1 VIEW_LABLV=3     | apollo11-asflown | 7 12200

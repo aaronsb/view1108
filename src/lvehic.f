@@ -118,8 +118,11 @@ C     The cabins are drawn whole, outside the window mask (vmask.f).
    10 CONTINUE
       IMSK = IM
       ISTYLE = 1
-C     Vehicle labels and markers, with a label level set (lvlab.f).
-      IF (ILABL .GE. 1) CALL VLABEL(GET, VB, NV, LB, NL)
+C     Vehicle labels and markers, with a label level set (lvlab.f);
+C     none from the LM station in the closed SLA (ISLA), which sees
+C     nothing outside.
+      IF (ILABL .GE. 1 .AND. ISLA .EQ. 0) CALL VLABEL(GET, VB, NV, LB,
+     &  NL)
       RETURN
       END
 C

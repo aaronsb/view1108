@@ -575,6 +575,17 @@ const SHOT_LIST = [
       [`(h => Math.abs(h[10]) < 1e-6 && Math.abs(h[11]) < 1e-6 && h[13] === 1 && h[22] === 0 && Math.abs(h[1] - 12.72) < 1e-9)(new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24))`, true],
       [`new Int32Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.nvec.value, 1)[0] > 1000`, true]] },
 
+  // #70 option C: the LM station before SEP (3:00:00, after TLI), the LM stowed in the closed SLA: the station is
+  // offered (hdr(22) bit 2, its button enabled) and its window sees nothing; the frame letters why (the SLA caption).
+  { name: "lm-station-sla", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=3&view=lm&cabin=1&get=3:00:00",
+    steps: [...LINKED(10800), { frames: 3 }],
+    expect: [[TL("viewMode"), 3], [TL("mounted"), "apollo11-asflown"], [TL("scene"), 3],
+      [`(new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[21] & 2) === 2`, true],
+      [`document.querySelectorAll("#viewgrp button")[3].disabled`, false],
+      [`new Int32Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.nstar.value, 1)[0]`, 0],
+      [`(() => { const K = VIEW_KERNEL, m = K.memory.buffer, n = new Int32Array(m, K.nchr.value, 1)[0], c = new Int32Array(m, K.tchr.value, n);
+        return String.fromCharCode(...c).split("\0").includes("LM IN THE CLOSED SLA"); })()`, true]] },
+
   // #85, a book opened in the room and back (← Room, then Esc), by each route: (a) a reference binder, the UNISCOPE
   // 100 manual; (b) a mission notebook through its modal's READ NOTEBOOK ONLY; (c) through LOAD … AND OPEN NOTEBOOK
   // (Apollo 8 mounted, so the Apollo 11 reel mounts as a fresh run); (d) a reel pulled at the rack, its notebook pulled

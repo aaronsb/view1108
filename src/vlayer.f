@@ -43,6 +43,10 @@ C     card's LAYERS, copied by SITSET).
         IF (L .LT. 1 .OR. L .GT. 10) GO TO 95
 C       Window overlays (COAS, LPD) only in the scene's window view.
         IF (IVUSE .NE. 0 .AND. (L .EQ. 7 .OR. L .EQ. 9)) GO TO 90
+C       The LM station in the closed SLA (ISLA, STATLM) sees nothing
+C       outside: only the frame, and the cabin (a placed model, the
+C       only one; its labels and markers left out with the rest).
+        IF (ISLA .EQ. 1 .AND. L .NE. 1 .AND. L .NE. 6) GO TO 90
 C       The window mask (vmask.f) is for the outside: not the frame
 C       and the window overlays.
         IMSK = IMSKON

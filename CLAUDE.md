@@ -260,10 +260,21 @@ Inputs (written by JS):
   CSM Data Book (SNA-8-D-027, Fig. 4.4-8; `models.f` CMEYE) and looks along the CSM's +X with
   -Z up, the view of MSC IN 69-FM-197's CSM maneuver plots, and the cabin is the CM left
   rendezvous window's two outlines read off its figure 9.0-3 (PDF p. 263) plus the X-axis x
-  (`models.f` CMCAB); targets aim it as offsets. LM station (3): scenes 4, 7, 8 (scene 5 is it
-  already), the commander's design eye of Grumman's LM stations (`models.f` LDEYE) with the LM
+  (`models.f` CMCAB); targets aim it as offsets. LM station (3): wherever an LM exists (#70
+  option C; scene 5 is it already), the commander's design eye of Grumman's LM stations (`models.f` LDEYE) with the LM
   window and LPD overlay of scene 5, 30.2 deg down (`LPDDN`, fitted to the film's LPD marks,
-  `llpd.f`); it ignores targets. Which stations a scene offers is its VIEWS card's `CM=` and `LM=` (always, where that vehicle is placed, or no), the same rule for both vehicles. With `in_flags` bit 4 both stations get the interior (CMINT,
+  `llpd.f`); it ignores targets. The LM is the one the situation placed (scenes 4, 7, 8), else
+  `vview.f` LMSTPL places it for the station (all ours): docked to the CSM (its state the
+  CSM's, after SEP), the CSM in the axes the CM station gives it, its CM eye where the window
+  view's camera was, and the LM docked to it as the stack (`STKPL`), gear stowed, or the ascent
+  stage alone after LIFT; from 600 s before TOUCH to LIFT the descending and landed LM of scene
+  5 (`LMDESC`); else at its own state as `VEHPL` places it, at any range (`VEHPLD`), the header's
+  speed then the LM's. Before SEP the LM is stowed in the closed SLA (its state the CSM's) and
+  its window sees nothing (`ISLA`, a modern addition, ours: VIEW drew no such view): the frame
+  draws only the plot frame, the LM window and LPD overlay and, with `in_flags` bit 4, the
+  cabin, no model, star, body, label or marker, and letters LM IN THE CLOSED SLA, OCCLUDED
+  UNTIL SEP in the box's top left corner at every label level; the camera stays at the CM, the
+  LM's axes the CSM's (ours: nothing outside depends on them). Which stations a scene offers is its VIEWS card's `CM=` and `LM=` (always, where that vehicle is placed, or no; for the LM, where it is placed or has a state, its own or the CSM's). With `in_flags` bit 4 both stations get the interior (CMINT,
   LMINT), drawn as an outline model whose own lines are hidden by its opaque faces
   (`vmask.f` CBCUT; ours, #71), and the sky shows through its walls unless bit 5 masks it to
   the windows. Elsewhere a station falls back to the window view.
@@ -321,7 +332,7 @@ Outputs (written by the kernel):
   the window views of scenes 1-4, 7, 9 and the CM station, the LM in scene 5 and the LM station,
   none in scenes 6, 8 and external views) is not counted. Set at every label level. 22 the crew
   stations the scene offers (its VIEWS card's `CM=` and `LM=`), a bitmask: 1 the CM station (not scenes 5 and 6), 2 the LM station
-  (where an LM is placed, in the LM station itself, and scene 5), 4 always (a kernel without
+  (wherever an LM exists: placed, or with a state of its own or the CSM's, docked or stowed in the SLA, `vview.f` LMEX, #70 option C; and scene 5), 4 always (a kernel without
   hdr(22) leaves 0); the page enables its CM and LM buttons from it. 23 the target's status (`vview.f` TGTPOS, `ITGST`; #70): 0 no target asked (`in_target` 0) or none applies (the LM station, a FIXED situation), 1 aimed at a point of its own (a body, a placed model, a vehicle's own state), 2 the vehicle the camera rides, 3 docked to or carried with another vehicle (the LM docked, the S-IVB with the CSM before SEP or docked to the stack; its point is that vehicle's), 4 no point (no state; the Sun from outside), 5 as 3 for the LM stowed in the SLA before SEP. A window or the CM station aims only at 1 and otherwise keeps the scene's aim; the external view flies round 1, 3 and 5 (before SEP, with the launch stack drawn behind the CSM, the S-IVB at its centre and the LM at its place in the closed SLA, hidden by it, the camera starting 60 deg round and 25 deg down, above the stack looking down on it against the Earth, for a vehicle target, only while the stack is placed, so the external camera jumps by that offset at SEP; ours, and one start for every vehicle target is filed against #70), and for 4 the situation's own subject (else the Earth), always choosing before it places the CSM around the camera, so a failed pick never leaves the camera inside the hull. The page shows a vehicle picked from the window at 2, 3 or 5 from outside and letters why on the caption line (`views.js` tgtTick). 24 spare.
   The page letters the report-style header from these.
 - `tbuf(4, MAXT)` real(8), `ntxt` int32, `tchr(MAXTC)` int32, `nchr` int32: text records for the
