@@ -85,7 +85,7 @@ export function clockFace(aniso: number) {
 export function exitSign(aniso: number) {
   return fontTex(256, 108, g => {
     g.fillStyle = "#1a0605"; g.fillRect(0, 0, 256, 108);
-    g.fillStyle = "#ff3a22"; g.font = 'bold 74px "IBM Plex Sans VIEW", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = "#ff3a22"; g.font = 'bold 74px "VIEW Sans", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
     g.fillText("EXIT", 128, 58);
   }, aniso);
 }

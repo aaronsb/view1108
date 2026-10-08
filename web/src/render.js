@@ -38,7 +38,7 @@ function resize() {
 }
 // The caption faces are inlined (page.css) and load on first use; the canvas falls back to the generic family until
 // they are in, so redraw once when they arrive.
-Promise.all(['16px "Courier Prime VIEW"', '16px "IBM Plex Sans Condensed VIEW"'].map(f => document.fonts.load(f))).then(() => { if (drawn) draw(performance.now()); }, () => {});
+Promise.all(['16px "Courier Prime VIEW"', '16px "VIEW Sans Condensed"'].map(f => document.fonts.load(f))).then(() => { if (drawn) draw(performance.now()); }, () => {});
 let drawn = false, drawNo = 0;   // a kernel frame has been drawn since boot; frames drawn (the room's screen follows it)
 // Framed plots sit inside a margin for lettering; unframed shots (as in the film) fill the width.
 let framed = true;

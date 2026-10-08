@@ -149,7 +149,7 @@ export function build(ctx: BuildContext): Equipment {
     g.fillStyle = "#fff";
     FY.forEach((py, r) => FX.forEach((px, c) => {
       const x = (px - W0) / (W1 - W0) * w, y = (py - H0) / (H1 - H0) * h, t = L[r][c];
-      if (/[α-ω]/i.test(t)) { g.font = 'bold 22px "IBM Plex Sans VIEW", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(t, x, y); }
+      if (/[α-ω]/i.test(t)) { g.font = 'bold 22px "VIEW Sans", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(t, x, y); }
       else plateText(g, t, x, y, 18, 0, "center", 0.06);
     }));
   });

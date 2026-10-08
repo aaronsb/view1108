@@ -283,7 +283,7 @@ export function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext
 /** A key's printed legend: text (lines split on "\n"), ink, the printed area w x d in metres, and a matrix placing
  *  that area centred in its XY plane, the text's top along +Y, facing +Z. */
 export interface Legend { t: string; ink: string; w: number; d: number; m: THREE.Matrix4 }
-const LEGEND_FONT = '"IBM Plex Sans VIEW", sans-serif';
+const LEGEND_FONT = '"VIEW Sans", sans-serif';
 
 /** Every legend of a keyboard as one mesh: the texts drawn on one canvas atlas (cells packed on shelves), a quad per
  *  key. Its geometry, material and texture are pushed to `mine`. */
@@ -343,8 +343,8 @@ export function plate(tex: THREE.Texture, w: number, h: number, emissive = false
 export const PLATE_FONT = '"Michroma VIEW", sans-serif';
 
 /** Every bundled face the room's canvases print in (page.css declares them; each name is one face, one file). */
-const ROOM_FACES = ['32px "Michroma VIEW"', '16px "IBM Plex Sans VIEW"', 'bold 16px "IBM Plex Sans VIEW"', '16px "IBM Plex Sans Condensed VIEW"',
-  'bold 16px "IBM Plex Sans Condensed VIEW"', '16px "IBM Plex Serif VIEW"', 'bold 16px "IBM Plex Serif VIEW"', '16px "Courier Prime VIEW"',
+const ROOM_FACES = ['32px "Michroma VIEW"', '16px "VIEW Sans"', 'bold 16px "VIEW Sans"', '16px "VIEW Sans Condensed"',
+  'bold 16px "VIEW Sans Condensed"', '16px "VIEW Serif"', 'bold 16px "VIEW Serif"', '16px "Courier Prime VIEW"',
   'bold 16px "Courier Prime VIEW"', '16px "IBM 3270"'];
 let fontOK = false;
 let fontWait: Promise<boolean> | null = null;
@@ -368,13 +368,20 @@ export function fontTex(w: number, h: number, draw: (g: CanvasRenderingContext2D
   const t = canvasTex(w, h, draw, aniso);
   if (!fontOK) {
     let gone = false;
-    t.addEventListener("dispose", () => { gone = true; });
-    void plateFontReady().then(ok => {
-      if (!ok || gone) return;
+    const redraw = () => {
+      if (gone) return;
       const g = (t.image as HTMLCanvasElement).getContext("2d")!;
       g.clearRect(0, 0, w, h);
       draw(g, w, h); t.needsUpdate = true;
-    });
+    };
+    // A load slower than plateFontReady's timeout still lands: redraw when the document's fonts finish loading.
+    const done = () => {
+      if (gone) return document.fonts.removeEventListener("loadingdone", done);
+      if (ROOM_FACES.every(f => document.fonts.check(f))) { document.fonts.removeEventListener("loadingdone", done); redraw(); }
+    };
+    if (typeof document !== "undefined" && document.fonts) document.fonts.addEventListener("loadingdone", done);
+    t.addEventListener("dispose", () => { gone = true; document.fonts?.removeEventListener("loadingdone", done); });
+    void plateFontReady().then(ok => { if (ok) redraw(); });
   }
   return t;
 }
@@ -461,8 +468,8 @@ export function badgeTex(model: string): THREE.CanvasTexture {
 }
 
 /** Felt-marker lettering (ours): a plain condensed sans, every letter a little off its line and turned, so it reads as
- *  written by hand rather than printed. No web font: whichever of these the browser has. */
-const MARKER_FONT = '"IBM Plex Sans Condensed VIEW", sans-serif';
+ *  written by hand rather than printed. The bundled condensed sans (bold). */
+const MARKER_FONT = '"VIEW Sans Condensed", sans-serif';
 
 /** Width of `text` in felt marker at `px`, letters `0.06 px` apart (as `marker` writes it). */
 export function markerWidth(text: string, px: number): number {

@@ -128,7 +128,7 @@ function fitText(g: CanvasRenderingContext2D, s: string, x: number, y: number, p
   const k = Math.min(1, max / Math.max(1, g.measureText(s).width));
   g.font = `${px * k}px ${face}`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(s, x, y);
 }
-const SERIF = '"IBM Plex Serif VIEW", serif', SANS = '"IBM Plex Sans VIEW", sans-serif';
+const SERIF = '"VIEW Serif", serif', SANS = '"VIEW Sans", sans-serif';
 
 /** The Houston telephone directory for 1969, 6.5 cm thick, 11 x 9 in; its wording, colours and bell are ours. */
 const directory = (aniso: number) => book("directory", "Telephone directory, 1969", 0.065, 0.28, 0.225, plastic(0xe9e1c6, 0.85), (g, w, h) => {

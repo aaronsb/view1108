@@ -31,7 +31,7 @@ const OFF = 0x2a2a26;
 function drawCounter(g: CanvasRenderingContext2D, w: number, h: number, n: number) {
   g.fillStyle = "#151515"; g.fillRect(0, 0, w, h);
   const s = String(n % 100000).padStart(5, "0"), cw = w / 5;
-  g.font = `bold ${Math.round(h * 0.72)}px "IBM Plex Sans VIEW", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = `bold ${Math.round(h * 0.72)}px "VIEW Sans", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
   for (let i = 0; i < 5; i++) {
     g.fillStyle = "#2a2a2a"; g.fillRect(i * cw + 3, 2, cw - 6, h - 4);
     g.fillStyle = "#f2efe6"; g.fillText(s[i], (i + 0.5) * cw, h / 2 + 2);
@@ -102,8 +102,8 @@ export function build(ctx: BuildContext): Equipment {
   const badgeTex = fontTex(384, 80, (g, w, h) => {
     g.fillStyle = "#b9bcbe"; g.fillRect(0, 0, w, h);
     g.fillStyle = "#1a1a1a"; g.textAlign = "center"; g.textBaseline = "middle";
-    g.font = 'bold 40px "IBM Plex Sans VIEW", sans-serif'; g.fillText("S-C 4020", w / 2, h * 0.42);
-    g.font = 'bold 15px "IBM Plex Sans VIEW", sans-serif'; g.fillText("STROMBERG-CARLSON", w / 2, h * 0.82);
+    g.font = 'bold 40px "VIEW Sans", sans-serif'; g.fillText("S-C 4020", w / 2, h * 0.42);
+    g.font = 'bold 15px "VIEW Sans", sans-serif'; g.fillText("STROMBERG-CARLSON", w / 2, h * 0.82);
   }); mine.push(badgeTex);
   const badge = own(new THREE.Mesh(new THREE.PlaneGeometry(0.235, 0.047), new THREE.MeshStandardMaterial({ map: badgeTex, roughness: 0.4, metalness: 0.3 })), mine);
   badge.position.set(XS[1], 1.45, ZF + 0.021); object.add(badge);
