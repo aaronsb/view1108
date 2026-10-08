@@ -237,13 +237,13 @@ const A11_ZERO = Date.UTC(1969, 6, 16, 13, 32, 0);   // Apollo 11's range zero, 
 {
   const bad = [], scenes = JSON.parse(fs.readFileSync(path.join(R, 'build/scenes.json'), 'utf8'));
   for (const r of reels) {
-    // A scenario reel's page.json is gen_data's with the two keys tools/pack.py adds (its listing and quick views,
+    // A scenario reel's page.json is gen_data's with the three keys tools/pack.py adds (its photo events, listing and quick views,
     // checked under "listing:" below); a playlist's is gen_data's byte for byte.
     const id = r.manifest.id, f = path.join(R, 'build/page', id + '.json');
     const packed = r.files.get('page.json'), gen = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
-    const strip = t => { const j = JSON.parse(t); delete j.listing; delete j.quickviews; return JSON.stringify(j); };
-    if (gen === null || (r.manifest.kind === 'scenario' ? strip(packed) !== JSON.stringify(JSON.parse(gen)) || !('listing' in JSON.parse(packed)) : packed !== gen))
-      bad.push(`${id}: page.json is not ${f}${r.manifest.kind === 'scenario' ? ' with its listing and quick views' : ''}`);
+    const strip = t => { const j = JSON.parse(t); delete j.photos; delete j.listing; delete j.quickviews; return JSON.stringify(j); };
+    if (gen === null || (r.manifest.kind === 'scenario' ? strip(packed) !== JSON.stringify(JSON.parse(gen)) || !('listing' in JSON.parse(packed)) || !('photos' in JSON.parse(packed)) : packed !== gen))
+      bad.push(`${id}: page.json is not ${f}${r.manifest.kind === 'scenario' ? ' with its photo events, listing and quick views' : ''}`);
     if (r.manifest.kind !== 'scenario') continue;
     const want = (scenes.reels.find(x => x.id === id) || { scenes: [] }).scenes;
     if (r.page.scenario.id !== 1 || r.page.situations.map(s => s.id).join() !== want.join() || want[0] !== 1)
@@ -661,12 +661,14 @@ if (W.sim_run && fs.existsSync(VSVG)) {
           ? path.join(home, id.slice(r.manifest.mission.id.length + 1), name) : path.join(home, name);
       if (!fs.existsSync(src) || fs.readFileSync(src, 'utf8') !== text) wrong.push(`${id}/${name} is not ${src}`);
     }
-    // Its photographs (#29 slice g), byte for byte as notebook/media/ beside its notebook source holds them.
-    for (const [name, m] of r.notebook ? r.notebook.media : []) {
-      const src = path.join(home, id.slice(r.manifest.mission.id.length + 1), 'notebook/media', name);
-      if (!fs.existsSync(src) || !fs.readFileSync(src).equals(Buffer.from(m.bytes))) wrong.push(`${id}/notebook/media/${name} is not ${src}`);
+    // Its photographs (#29 slice g, #75), byte for byte as media/ in its source folder holds them, and the same Map as
+    // its notebook's.
+    for (const [name, m] of r.media) {
+      const src = path.join(r.manifest.kind === 'playlist' ? home : path.join(home, id.slice(r.manifest.mission.id.length + 1)), 'media', name);
+      if (!fs.existsSync(src) || !fs.readFileSync(src).equals(Buffer.from(m.bytes))) wrong.push(`${id}/media/${name} is not ${src}`);
       nmedia++;
     }
+    if (r.notebook && r.notebook.media !== r.media) wrong.push(`${id}: its notebook's photographs are not the reel's`);
     const want = nbList.filter(([rr]) => rr === id).map(([, n]) => n), have = r.notebook ? [...r.notebook.figures.keys()] : [];
     nfig += have.length;
     if ([...want].sort().join() !== [...have].sort().join() || (r.notebook !== null) !== fs.existsSync(path.join(R, 'build/reels', id, 'notebook')) ||
@@ -774,7 +776,7 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
     await nbRefused('a figure not an SVG', 'nb-not-svg', /notebook\/figures\/\S+\.svg is not an SVG document$/);
     await nbRefused('a figure not at figures/<name>.svg', 'nb-not-svg-path', /notebook\/figures\/plate\.png is a figure, not notebook\/figures\/<name>\.svg$/);
     await nbRefused('two notebooks', 'nb-two', /it lists 2 notebooks, not one$/);
-    await nbRefused('another type under notebook/', 'nb-other-type', /notebook\/plate\.txt is under notebook\/ as type image, not notebook, figure or media$/);
+    await nbRefused('another type under notebook/', 'nb-other-type', /notebook\/plate\.txt is under notebook\/ as type image, not notebook or figure$/);
     // The same texts are refused by tools/notebook.py (refs) when it packs: the reader and the packer agree.
     const NB_TEXTS = {
       'an HTML <img>': ['\n<img src="figures/earthrise.svg">\n', /has an HTML <img>/, /an HTML <img>/],
@@ -793,7 +795,8 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
     // reel, its notebook gaining the text and the package the members) and by tools/notebook.py load (a scratch
     // notebook/ holding a one-figure notebook, the text, any rows added to its figures block, and the files): the two
     // agree, one fault for every rule. A photograph: an SVG under media/, an SVG named .png, JPEG bytes named .png, one
-    // over 256 KB, one no attach names, one without a notebook; an attach naming a missing photograph, a golden=<case>
+    // over 256 KB, one no attach names, one in a reel whose notebook is gone (no attach, no photo event names it, #75);
+    // an attach naming a missing photograph, a golden=<case>
     // without a row, two rows of one golden case, a bad style, a bad finish, a photograph without its credit; a header
     // key unknown, given twice or empty, a line of a C0 control after a header; a finding without its date or source,
     // with a date not on the calendar or not in ASCII digits.
@@ -803,13 +806,13 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
     const att = (src, extra = '') => `\n\`\`\`attach\nsource: ${src}\nstyle: clip\nfinish: photo\ncredit: NASA\ncite: a test\n${extra ? extra + '\n' : ''}\nA caption.\n\`\`\`\n`;
     const fnd = (head, body = 'A finding.') => `\n\`\`\`finding\n${head}\n\n${body}\n\`\`\`\n`;
     const MEDIA_BAD = {
-      'an SVG under media/': [{ files: [['x.svg', SVGB]], text: att('media/x.svg') }, /notebook\/media\/x\.svg is media, not notebook\/media\/<name>\.jpg or \.png/, /media\/x\.svg: a media file is media\/<name>\.jpg or \.png/],
-      'an SVG named .png': [{ files: [['fake.png', SVGB]], text: att('media/fake.png') }, /notebook\/media\/fake\.png is not a PNG file/, /media\/fake\.png: not a PNG file/],
-      'JPEG bytes named .png': [{ files: [['swap.png', JPG]], text: att('media/swap.png') }, /notebook\/media\/swap\.png is not a PNG file/, /media\/swap\.png: not a PNG file/],
-      'a photograph over 256 KB': [{ files: [['big.png', PNG, 262144]], text: att('media/big.png') }, /notebook\/media\/big\.png: 262173 bytes, more than 262144$/, /media\/big\.png: 262173 bytes, more than 262144/],
-      'a photograph no attach names': [{ files: [['extra.png', PNG]], text: '' }, /notebook\/media\/extra\.png is in it, and no attach names it$/, /media\/extra\.png is in notebook\/media\/, and no attach names it/],
-      'a photograph without a notebook': [{ files: [['p.png', PNG]], text: '', alone: true }, /notebook\/media\/\S+ is media, and it holds no notebook$/, /missing \(notebook\/ holds no notebook\.md\)/],
-      'an attach naming a missing photograph': [{ files: [], text: att('media/missing.jpg') }, /an attach names media\/missing\.jpg, which it does not hold$/, /an attach names media\/missing\.jpg, which notebook\/media\/ does not hold/],
+      'an SVG under media/': [{ files: [['x.svg', SVGB]], text: att('media/x.svg') }, /: media\/x\.svg is media, not media\/<name>\.jpg or \.png/, /media\/x\.svg: a media file is media\/<name>\.jpg or \.png/],
+      'an SVG named .png': [{ files: [['fake.png', SVGB]], text: att('media/fake.png') }, /: media\/fake\.png is not a PNG file/, /media\/fake\.png: not a PNG file/],
+      'JPEG bytes named .png': [{ files: [['swap.png', JPG]], text: att('media/swap.png') }, /: media\/swap\.png is not a PNG file/, /media\/swap\.png: not a PNG file/],
+      'a photograph over 256 KB': [{ files: [['big.png', PNG, 262144]], text: att('media/big.png') }, /: media\/big\.png: 262173 bytes, more than 262144$/, /media\/big\.png: 262173 bytes, more than 262144/],
+      'a photograph no attach names': [{ files: [['extra.png', PNG]], text: '' }, /: media\/extra\.png is in it, and no attach or photograph names it$/, /media\/extra\.png is in media\/, and no attach or photograph names it/],
+      'a photograph in a reel without its notebook': [{ files: [['p.png', PNG]], text: '', alone: true }, /: media\/\S+ is in it, and no attach or photograph names it$/, /media\/p\.png is in media\/, and no attach or photograph names it/],
+      'an attach naming a missing photograph': [{ files: [], text: att('media/missing.jpg') }, /an attach names media\/missing\.jpg, which it does not hold$/, /an attach names media\/missing\.jpg, which the reel's media\/ does not hold/],
       'an attach of a golden case without a row': [{ files: [], text: att('golden=s9-default') }, /an attach names golden=s9-default, and the figures block has no row 'name \| golden=s9-default'$/, /an attach names golden=s9-default, and the figures block has no row 'name \| golden=s9-default'/],
       'two rows of one golden case': [{ files: [], text: '\n```figures\ntwice | golden=s7-default\n```\n', rows: 'twice | golden=s7-default\n', pytext: '' }, /its figures block names golden=s7-default twice$/, /figure case twice: golden=s7-default has a row already/],
       'an attach with a bad style': [{ files: [], text: '\n```attach\nsource: figures/tli-cm.svg\nstyle: pinned\nfinish: photo\n\nA caption.\n```\n' }, /attach: style 'pinned' is not one of plate, clip, tape, insert$/, /attach: style 'pinned' is not one of plate, clip, tape, insert/],
@@ -829,15 +832,21 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
     const PARITY_OK = { 'a ```toString fence': '\n```toString\nx = 1\n```\n', 'a ```constructor fence': '\n```constructor\n```\n',
       'a ```finding\\x1f fence': '\n```finding\x1f\ndate: nonsense\n```\n' };
     const tmpm = fs.mkdtempSync(path.join(R, 'build/media-fault-'));
+    // A reel without a notebook (alone): its photographs are checked as tools/pack.py checks them, named by its photo
+    // events only (none here).
     const pyLoad = arg => {
-      fs.rmSync(path.join(tmpm, 'notebook'), { recursive: true, force: true });
-      fs.mkdirSync(path.join(tmpm, 'notebook/media'), { recursive: true });
+      for (const d of ['notebook', 'media']) fs.rmSync(path.join(tmpm, d), { recursive: true, force: true });
+      fs.mkdirSync(path.join(tmpm, 'notebook'), { recursive: true });
+      fs.mkdirSync(path.join(tmpm, 'media'), { recursive: true });
+      if (arg.alone) fs.rmSync(path.join(tmpm, 'notebook'), { recursive: true, force: true });
       if (!arg.alone) fs.writeFileSync(path.join(tmpm, 'notebook/notebook.md'), `# t\n\n![a](figures/tli-cm.svg)${arg.rows ? '\n\n![b](figures/twice.svg)' : ''}\n\n\`\`\`figures\ntli-cm | golden=s7-default\n${arg.rows || ''}\`\`\`\n${arg.pytext ?? arg.text}`);
-      for (const [n, b, pad = 0] of arg.files) fs.writeFileSync(path.join(tmpm, 'notebook/media', n), Buffer.concat([Buffer.from(b, 'base64'), Buffer.alloc(pad)]));
-      try { execFileSync('python3', ['-c', 'import pathlib, sys; sys.path.insert(0, "tools"); import notebook; notebook.load("apollo11-asflown", "scenario", pathlib.Path(sys.argv[1]), None)', tmpm], { cwd: R, stdio: 'pipe' }); return ''; }
+      for (const [n, b, pad = 0] of arg.files) fs.writeFileSync(path.join(tmpm, 'media', n), Buffer.concat([Buffer.from(b, 'base64'), Buffer.alloc(pad)]));
+      const py = arg.alone ? 'import pathlib, sys; sys.path.insert(0, "tools"); import notebook; p = pathlib.Path(sys.argv[1]); notebook.media_unnamed(p, notebook.reel_media(p), set())'
+        : 'import pathlib, sys; sys.path.insert(0, "tools"); import notebook; notebook.load("apollo11-asflown", "scenario", pathlib.Path(sys.argv[1]), None)';
+      try { execFileSync('python3', ['-c', py, tmpm], { cwd: R, stdio: 'pipe' }); return ''; }
       catch (err) { return String(err.stderr) || 'refused'; }
     };
-    const jsArg = arg => JSON.stringify({ text: arg.text, files: arg.files.map(([n, b, pad = 0]) => [`notebook/media/${n}`, b, pad]) });
+    const jsArg = arg => JSON.stringify({ text: arg.text, files: arg.files.map(([n, b, pad = 0]) => [`media/${n}`, b, pad]) });
     for (const [what, [arg, js, py]] of Object.entries(MEDIA_BAD)) {
       await nbRefused(`a notebook with ${what}`, arg.alone ? 'nb-media-alone' : 'nb-media', js, jsArg(arg));
       const msg = pyLoad(arg);
@@ -934,20 +943,30 @@ for rid, n in nb.notebooks():
       wrong.push(`a stale render: ${st.trim()}`);
   }
   // The event listing and quick views (#29 slice f, #73; tools/pack.py, reelpkg.js reelListingWrong): each scenario
-  // reel's listing holds its situations and timeline rows once each, in g.e.t. order; Apollo 11's quick views are its
-  // data/missions/apollo11/asflown/quickviews.txt (key 9 an event) and Apollo 8's, which has no such file, its first
-  // situation on key 1; a repeated name's id carries its g.e.t. Planted faults, the first reel's page.json edited: a
-  // quick view naming an id the listing does not hold, a key outside 1-9, a situation dropped, an event renamed, a
-  // situation's field changed, a kind the page does not know yet (#75's
-  // photo), no listing; each refused by the reader. The packer refuses a quickviews.txt naming an unknown id or a key
-  // twice, and tools/notebook.py a golden=<case> from another reel or not in CASES.
+  // reel's listing holds its situations, timeline rows and photo events (#75) once each, in g.e.t. order; Apollo 11's
+  // quick views are its data/missions/apollo11/asflown/quickviews.txt (key 9 an event) and Apollo 8's, which has no
+  // such file, its first situation on key 1; a repeated name's id carries its g.e.t. Planted faults, the first reel's
+  // page.json edited: a quick view naming an id the listing does not hold, a key outside 1-9, a situation dropped, an
+  // event renamed, a situation's field changed, a kind the page does not know, no listing; and Apollo 8's photo events
+  // edited (below); each refused by the reader. The packer refuses a quickviews.txt naming an unknown id or a key
+  // twice, tools/photos.py the same photo rows, and tools/notebook.py a golden=<case> from another reel or not in CASES.
   {
     const lw = [], A11 = reels.find(r => r.manifest.id === 'apollo11-asflown'), A8 = reels.find(r => r.manifest.id === 'apollo8-asflown');
     for (const r of [A11, A8]) {
-      const L = r.page.listing, sits = L.filter(e => e.kind === 'situation'), evs = L.filter(e => e.kind === 'event');
-      if (sits.length !== r.page.situations.length || evs.length !== r.page.timeline.events.length || L.some((e, i) => i && e.get < L[i - 1].get))
-        lw.push(`${r.manifest.id}: listing of ${sits.length} situations and ${evs.length} events, not the reel's`);
+      const L = r.page.listing, sits = L.filter(e => e.kind === 'situation'), evs = L.filter(e => e.kind === 'event'), phs = L.filter(e => e.kind === 'photo');
+      if (sits.length !== r.page.situations.length || evs.length !== r.page.timeline.events.length || phs.length !== r.page.photos.length ||
+          L.some((e, i) => i && e.get < L[i - 1].get))
+        lw.push(`${r.manifest.id}: listing of ${sits.length} situations, ${evs.length} events and ${phs.length} photographs, not the reel's`);
     }
+    // The photo events (#75) are data/photos.tsv's rows with a situation, each reel its own: frames, situations, fits.
+    const tsv = JSON.parse(execFileSync('python3', ['-c', 'import json, sys; sys.path.insert(0, "tools"); import photos; print(json.dumps(photos.rows()))'], { cwd: R }).toString());
+    for (const r of [A11, A8]) {
+      const want = tsv.filter(x => x.reel === r.manifest.id && x.sit.trim()).map(x => `${x.frame}:${x.sit}`).join(), have = r.page.photos.map(x => `${x.frame}:${x.sit}`).join();
+      if (want !== have) lw.push(`${r.manifest.id}: photo events ${have}, not data/photos.tsv's ${want}`);
+      if (!r.page.photos.length || r.page.photos.some(x => !r.media.has(x.media.slice(6)))) lw.push(`${r.manifest.id}: a photo event without its photograph`);
+    }
+    if (JSON.stringify(A8.page.photos.find(x => x.frame === 'AS08-14-2383').fit) !== '{"cam":[0,0,0],"x":0.056,"y":-0.018,"rot":-0.7,"scale":100.28}')
+      lw.push(`AS08-14-2383's fit is ${JSON.stringify(A8.page.photos.find(x => x.frame === 'AS08-14-2383').fit)}`);
     const qv = JSON.stringify(A11.page.quickviews), qv8 = JSON.stringify(A8.page.quickviews);
     if (qv !== '{"1":"EARTHRISE","2":"EARTH APPROACH","3":"EARTH LIMB","4":"LM RENDEZVOUS","5":"LM DESCENT","6":"MOON VIEW","7":"TRANSPOSITION AND DOCKING","8":"DOCKED STACK","9":"translunar-injection"}')
       lw.push(`apollo11-asflown quick views ${qv}`);
@@ -955,7 +974,8 @@ for rid, n in nb.notebooks():
     // A repeated name's id carries its row's g.e.t. (stable whatever is added elsewhere): a literal from SP-4029's row.
     if (!A11.page.listing.some(e => e.id === 'midcourse-correction-ignition@26:44:58.64' && e.get === 96298.64))
       lw.push('apollo11-asflown: no midcourse-correction-ignition@26:44:58.64 at 96298.64 s');
-    const pg = A11.page, va = VR.find(r => r.id === A11.manifest.id);
+    const pg = A11.page, va = VR.find(r => r.id === A11.manifest.id), pg8 = A8.page, va8 = VR.find(r => r.id === A8.manifest.id);
+    const ph0 = pg8.photos[0], phEdit = f => ({ ...pg8, photos: pg8.photos.map((x, i) => i ? x : f(x)) });
     const sitDrop = pg.listing.filter(e => e.id !== 'EARTHRISE'), evRen = pg.listing.map(e => e.id === 'translunar-injection' ? { ...e, name: 'TLI' } : e);
     const PAGE_BAD = {
       'a quick view naming no entry': [{ ...pg, quickviews: { 1: 'NO SUCH VIEW' } }, /quick view 1 names "NO SUCH VIEW", which the reel's listing does not hold$/],
@@ -963,13 +983,60 @@ for rid, n in nb.notebooks():
       'a situation missing from the listing': [{ ...pg, listing: sitDrop, quickviews: {} }, /the listing holds 7 of the reel's 8 situations$/],
       'an event renamed': [{ ...pg, listing: evRen }, /\(translunar-injection\) is not the timeline's row \d+$/],
       'a situation with another field': [{ ...pg, listing: pg.listing.map(e => e.id === 'EARTHRISE' ? { ...e, fov: 60 } : e) }, /situation EARTHRISE's name, view, target or field is not its card's$/],
-      'a kind not known yet': [{ ...pg, listing: pg.listing.map((e, i) => i ? e : { ...e, kind: 'photo' }) }, /listing entry 1 is of kind photo, not situation or event$/],
-      'no listing': [{ ...pg, listing: undefined }, /page\.json has no listing$/] };
-    for (const [what, [p, re]] of Object.entries(PAGE_BAD)) {
-      try { await RP.readReel(craft('page', va.b64, JSON.stringify(p)), sha, va.id); lw.push(`${what}: not refused`); }
+      'a kind not known yet': [{ ...pg, listing: pg.listing.map((e, i) => i ? e : { ...e, kind: 'slide' }) }, /listing entry 1 is of kind slide, not situation or event or photo$/],
+      'no listing': [{ ...pg, listing: undefined }, /page\.json has no listing$/],
+      // Photo events (#75), Apollo 8's first edited: its situation, its photograph, its frame twice, its credit, its
+      // fit, its listing entry dropped or at another g.e.t., no photos at all.
+      'a photo event naming a situation the reel does not hold': [phEdit(x => ({ ...x, sit: 99 })), new RegExp(`photo ${ph0.frame} names situation 99, which the reel does not hold$`), va8],
+      'a photo event whose photograph the reel does not hold': [phEdit(x => ({ ...x, media: 'media/nope.jpg' })), new RegExp(`photo ${ph0.frame} names "media/nope\\.jpg", which it does not hold$`), va8],
+      'a photo event given twice': [{ ...pg8, photos: [ph0, ...pg8.photos] }, new RegExp(`photo ${ph0.frame} is in page\\.json twice$`), va8],
+      'a photo event without its credit': [phEdit(x => ({ ...x, credit: '' })), new RegExp(`photo ${ph0.frame} has no credit or https source$`), va8],
+      'a photo event with a broken fit': [phEdit(x => ({ ...x, fit: { cam: [0, 0], x: 0, y: 0, rot: 0, scale: 100 } })), new RegExp(`photo ${ph0.frame}'s fit is not null or \\{cam, x, y, rot, scale\\}$`), va8],
+      'a photo event missing from the listing': [{ ...pg8, listing: pg8.listing.filter(e => e.kind !== 'photo' || e.id !== pg8.photos.at(-1).frame) }, /the listing holds \d+ of the reel's \d+ photo events$/, va8],
+      'a photo entry at another g.e.t.': [{ ...pg8, listing: pg8.listing.map(e => e.id === ph0.frame ? { ...e, get: e.get + 1 } : e) }, new RegExp(`\\(${ph0.frame}\\) is not one of the reel.s photo events$`), va8],
+      'no photo events': [{ ...pg8, photos: undefined }, /page\.json has no photos$/, va8],
+      'a photo event whose bracket runs backwards': [phEdit(x => ({ ...x, get: null, get_lo: 20, get_hi: 10 })), new RegExp(`photo ${ph0.frame}'s bracket runs backwards$`), va8],
+      'a photo event whose text field is not text': [phEdit(x => ({ ...x, where: 5 })), new RegExp(`photo ${ph0.frame}'s where is not text$`), va8] };
+    for (const [what, [p, re, reel = va]] of Object.entries(PAGE_BAD)) {
+      try { await RP.readReel(craft('page', reel.b64, JSON.stringify(p)), sha, reel.id); lw.push(`${what}: not refused`); }
       catch (err) { if (!re.test(String(err.message))) lw.push(`${what}: refused as "${err.message}"`); }
     }
+    // A frame on two reels (#75: Fusion keys a photograph by its frame) is refused when the page gathers the reels.
+    try { RP.reelPages([{ ...A11, page: { ...A11.page, photos: [...A11.page.photos, { ...ph0, sit: 1 }] } }, A8]); lw.push('a photo frame on two reels: not refused'); }
+    catch (err) { if (!new RegExp(`photo ${ph0.frame} is on reel apollo11-asflown too$`).test(err.message)) lw.push(`a photo frame on two reels: refused as "${err.message}"`); }
+    // A photo event may be a quick view (#75): the reader takes a key naming one, and so does the packer.
+    try { await RP.readReel(craft('page', va8.b64, JSON.stringify({ ...pg8, quickviews: { 1: 'APOLLO 8 EARTHRISE', 2: ph0.frame } })), sha, va8.id); }
+    catch (err) { lw.push(`a quick view naming a photo event: refused as "${err.message}"`); }
     const tmpq = fs.mkdtempSync(path.join(R, 'build/qv-fault-'));
+    fs.writeFileSync(path.join(tmpq, 'quickviews.txt'), `1 APOLLO 8 EARTHRISE\n2 ${ph0.frame}\n`);
+    try { execFileSync('python3', ['-c', `import json, pathlib, sys; sys.path.insert(0, "tools"); import pack
+page = json.loads(open("build/reels/apollo8-asflown/page.json").read())
+q = pack.quickviews("apollo8-asflown", pathlib.Path(sys.argv[1]), pack.listing("apollo8-asflown", page))
+assert q == {"1": "APOLLO 8 EARTHRISE", "2": sys.argv[2]}, q`, tmpq, ph0.frame], { cwd: R, stdio: 'pipe' }); }
+    catch (err) { lw.push(`tools/pack.py refuses a quick view naming a photo event: ${String(err.stderr).trim()}`); }
+    // The packer's photo events (tools/photos.py events) refuse what the reader refuses: a row whose situation the
+    // reel does not hold, whose photograph is not in its media/, a frame twice, a row without its credit, a fit not
+    // given whole, a row naming no scenario reel.
+    const row = tsv.find(x => x.frame === ph0.frame), head = Object.keys(row);
+    const tsvOf = rows => [head.join('\t'), ...rows.map(x => head.map(k => x[k]).join('\t'))].join('\n') + '\n';
+    const PHOTO_PY = {
+      'a photo row naming a situation the reel does not hold': [[{ ...row, sit: '99' }], /apollo8-asflown has no situation 99/],
+      'a photo row whose photograph is missing': [[{ ...row, frame: 'AS08-99-0001' }], /no media\/as08-99-0001\.jpg in apollo8-asflown's source folder/],
+      'a photo row given twice': [[row, row], /AS08-14-2383: given twice/],
+      'a photo row without its credit': [[{ ...row, credit: '' }], /no credit or https source URL/],
+      'a photo row with half a fit': [[{ ...row, fit_scale: '' }], /a fit gives cam_yaw, .*, not all of/],
+      'a photo row naming no scenario reel': [[{ ...row, reel: 'demo' }], /reel 'demo' is no scenario reel/],
+      'a photo frame on two reels': [[row, { ...row, reel: 'apollo11-asflown' }], /AS08-14-2383: given twice/],
+      'a photo row whose bracket runs backwards': [[{ ...row, get: '', get_lo: '20', get_hi: '10' }], /its bracket runs backwards/] };
+    for (const [what, [rows, re]] of Object.entries(PHOTO_PY)) {
+      let msg = '';
+      try { execFileSync('python3', ['-c', `import json, sys; sys.path.insert(0, "tools"); import notebook, photos, pack
+page = json.loads(open("build/page/apollo8-asflown.json").read())
+src = [s for r, k, s, u in notebook.reels() if r == "apollo8-asflown"][0]
+photos.events("apollo8-asflown", {s["id"] for s in page["situations"]}, notebook.reel_media(src), {"apollo11-asflown", "apollo8-asflown"}, sys.stdin.read())`], { cwd: R, stdio: 'pipe', input: tsvOf(rows) }); }
+      catch (err) { msg = String(err.stderr); }
+      if (!re.test(msg)) lw.push(`tools/photos.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
+    }
     const PY_BAD = {
       'quickviews.txt naming no entry': ['1 EARTHRISE\n2 NO SUCH VIEW\n', /'NO SUCH VIEW' is no entry of apollo11-asflown's listing/],
       'quickviews.txt giving a key twice': ['1 EARTHRISE\n1 MOON VIEW\n', /key 1 given twice/] };
@@ -996,8 +1063,8 @@ pack.quickviews("apollo11-asflown", pathlib.Path(sys.argv[1]), pack.listing("apo
     }
     fs.rmSync(tmpq, { recursive: true, force: true });
     if (!nbRefs.length) lw.push('no notebook figure is a golden case\'s render');
-    console.log(`listing: ${[A11, A8].map(r => `${r.manifest.id} ${r.page.listing.length} entries, quick views ${Object.keys(r.page.quickviews).join('')}`).join('; ')}; ` +
-      `${nbRefs.length} figures golden cases' renders; ${Object.keys(PAGE_BAD).length + Object.keys(PY_BAD).length + Object.keys(NB_GOLD).length} planted faults` +
+    console.log(`listing: ${[A11, A8].map(r => `${r.manifest.id} ${r.page.listing.length} entries (${r.page.photos.length} photo events), quick views ${Object.keys(r.page.quickviews).join('')}`).join('; ')}; ` +
+      `${nbRefs.length} figures golden cases' renders; ${Object.keys(PAGE_BAD).length + Object.keys(PY_BAD).length + Object.keys(NB_GOLD).length + Object.keys(PHOTO_PY).length + 1} planted faults, a photo event as a quick view` +
       `  ${lw.length ? 'WRONG: ' + lw.join('; ') : 'the reels\' own, each fault refused'}`);
     if (lw.length) ok = false;
   }
@@ -1090,7 +1157,8 @@ if (W.sim_run) {
   const RS = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/reelpkg.js'), 'utf8') + '\nreelSlips', vm.createContext({}));
   for (const r of reels.filter(r => r.notebook)) {
     nb++;
-    const id = r.manifest.id, names = [...r.notebook.figures.keys()], pics = [...r.notebook.media.keys()], b = built(r.notebook.text, names, pics);
+    const pics = [...new Set(RS(r.notebook.text).filter(([k, f]) => k === 'attach' && f.source.startsWith('media/')).map(([, f]) => f.source.slice(6)))];
+    const id = r.manifest.id, names = [...r.notebook.figures.keys()], b = built(r.notebook.text, names, pics);
     const imgs = b.els.filter(e => e.tag === 'img' && e.attrs.class === 'nbfig').map(e => e.attrs.src.slice(26));
     const photos = b.els.filter(e => e.tag === 'img' && e.attrs.class === 'nbmedia').map(e => e.attrs.src.replace(/^.*base64,/, ''));
     nphoto += photos.length;

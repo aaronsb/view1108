@@ -34,7 +34,7 @@
 // lettered in 3270font (a recreation of the IBM 3270's characters, BSD 3-Clause; THIRD_PARTY.md), not Univac's, the
 // paper in Courier Prime (SIL OFL 1.1; THIRD_PARTY.md); the phosphor's colour and the paper's lettering are ours.
 // The close-up arrives at the operator's view of the screen and the notebook together (`anchors.view`). #74's file
-// browser will open from here (REEL_FILE in exec8.ts names the reel's file and unit).
+// browser opens from here (web/src/tapes.js; REEL_FILE in exec8.ts names the reel's file and unit).
 import * as THREE from "three";
 import type { BuildContext, Equipment, LabEvent, LabState } from "../types";
 import { PAL, Parts, at, badgeTex, canvasTex, fitDist, fontTex, grid, lampMat, laminate, nameplate, own, paint, plastic, plateText, rng, tileGeo, tubeGlass, viewPose } from "./kit";

@@ -73,8 +73,14 @@ function tlJump(g) {
   airtSync();
 }
 // An entry of the listing picked (the list, a quick-view key, the notebook's run sheet): a situation applies its view
-// (a viewer's pick of its scene, its own view and target: loader.js loadPick), an event moves the time (tlJump).
+// (a viewer's pick of its scene, its own view and target: loader.js loadPick), an event moves the time (tlJump), a
+// photo event (#75) opens Fusion at its photograph on the tape (loader.js loadPhoto).
 function tlPick(e) {
+  if (e.kind === "photo") {
+    leaveAttract(); tlManual(); setTab("fusion");
+    loadReel(P({ photo: e.id }));
+    airtSync(); return;
+  }
   if (e.kind !== "situation") { tlJump(e.get); return; }
   leaveAttract(); tlManual();
   loadReel(P({ scene: e.scene, view: 0, target: 0 }));
@@ -89,6 +95,7 @@ function tlQuickKey(k) {
 const tlFov = e => e.fov === null ? "its own field" : `${e.fov}°`;
 const tlTitle = e => {
   if (e.kind === "situation") return `Apply ${e.name}: ${e.view} view, target ${e.target}, ${tlFov(e)}, at ${getStr(e.get)}`;
+  if (e.kind === "photo") return `Open the photograph ${e.name} in Fusion, over ${SCENES[e.scene - 1]} at ${getStr(e.get)}`;
   const [, s, v = 0, t = 0] = tlFor(e.get);
   const note = v === 1 && t === 1 ? EXT_NOTE : v === 0 && t === 1 ? WIN_NOTE : v === 1 ? "external view"
     : v === 2 ? "CM station" : v === 3 ? "LM station" : "";
@@ -106,17 +113,18 @@ function tlChips() {
     box.appendChild(b);
   }
 }
-// The list: every situation, marked, and the events the filter keeps, in g.e.t. order (the listing's).
+// The list: every situation and photo event (#75), marked, and the events the filter keeps, in g.e.t. order (the
+// listing's).
 function tlList() {
   const box = $("tllist"); box.textContent = ""; tlCur = "";
   const on = airtOn();
   $("hintscenes").textContent = Object.keys(tlQuick()).join(" ") || "none";
   tlListing().forEach((e, i) => {
-    const sit = e.kind === "situation", ev = [e.get, e.tl, e.name];
-    if (!sit && (tlFilter === "note" ? !tlNoteworthy(ev) : tlFilter !== "all" && e.tl !== tlFilter)) return;
+    const sit = e.kind === "situation", photo = e.kind === "photo", ev = [e.get, e.tl, e.name];
+    if (!sit && !photo && (tlFilter === "note" ? !tlNoteworthy(ev) : tlFilter !== "all" && e.tl !== tlFilter)) return;
     const r = document.createElement("div"), key = tlKeyOf(e.id);
-    r.className = sit ? "tlrow tlsit" : "tlrow"; r.dataset.i = i; r.dataset.id = e.id; if (sit) r.dataset.scene = e.scene; r.title = tlTitle(e) + (key ? ` (key ${key})` : "");
-    for (const [cls, t] of [["tlg", tlGetStr(e.get)], ["tlk", sit ? "SITUATION" : e.tl], ["tln", e.name]]) {
+    r.className = sit ? "tlrow tlsit" : photo ? "tlrow tlphoto" : "tlrow"; r.dataset.i = i; r.dataset.id = e.id; if (sit) r.dataset.scene = e.scene; r.title = tlTitle(e) + (key ? ` (key ${key})` : "");
+    for (const [cls, t] of [["tlg", tlGetStr(e.get)], ["tlk", sit ? "SITUATION" : photo ? "PHOTO" : e.tl], ["tln", e.name]]) {
       const s = document.createElement("span"); s.className = cls; s.textContent = t; r.appendChild(s);
     }
     if (key) { const q = document.createElement("b"); q.className = "tlq"; q.textContent = key; r.children[2].prepend(q); }
