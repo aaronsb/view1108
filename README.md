@@ -108,7 +108,7 @@ Probably, with changes: the fenced items above rewritten in FORTRAN V terms, and
 
 ## Build
 
-Needs LFortran 0.66, LLVM/clang 23 and binaryen 121 (conda-forge), plus gfortran, node and python3 (with Pillow, for the Fusion photographs).
+Needs LFortran 0.66, LLVM/clang 23 and binaryen 121 (conda-forge), plus gfortran, node and python3 (Pillow only to remake the packed photographs, `tools/photo_pack.py`).
 
 The machine room (Room, `web/lab/`: TypeScript and three.js, bundled by esbuild) also needs npm and, the first time, the network: `tools/build.sh` runs `npm ci` from `web/lab/package-lock.json` and bundles `build/lab.js`. Without them the build warns and the page comes out without the Room. See [web/lab/README.md](web/lab/README.md).
 

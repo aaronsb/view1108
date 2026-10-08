@@ -1,48 +1,40 @@
-// Fusion: a crew photograph over the vector frame at its moment. The photographs and their timing are
-// data/photos.tsv (tools/photo_pack.py embeds the ones with a situation); the photo is drawn on the visible canvas after
+// Fusion: a crew photograph over the vector frame at its moment. The photographs are the mounted tape's photo events
+// (#75): each scenario reel carries its own, its photograph a media member and its timing, lens and our fit in its
+// page.json `photos` (tools/photos.py from data/photos.tsv; config.js PHOTOS), so Fusion lists the photographs of the
+// reel the situation is on (LS.scn) and nothing of another mission's. The photo is drawn on the visible canvas after
 // the film effects, clipped to the plot box and placed in plot degrees, so it follows the plot through any resize.
 "use strict";
-let PHOTOS = [];
-try { PHOTOS = JSON.parse($("photos").textContent); } catch (e) { /* unassembled page (?mock): no photographs */ }
 // The 70 mm Hasselblad gate, 55.74 mm: our measurement on the ASU scan of AS08-14-2383 (CLAUDE.md, scene 9). A lens
 // of focal length f then spans 2 atan(27.87 / f) across the frame, which on our gnomonic plot is 55.74 / f radians of
-// plot units. Our computation; we take each scan's long side to be the gate.
+// plot units. Our computation; we take each packed copy's long side to be the gate.
 const GATE_MM = 55.74;
-// Our fits, made on the embedded scans (reference/photos) against the kernel's Earth disc and lunar horizon.
-// turn: quarter turns clockwise from the scan to the photo's usual presentation. cam: yaw, pitch, roll added to the
-// scene's defaults, the pointing that brings the kernel's Earth and horizon to the photo's. x, y: the photo's centre,
-// plot deg; rot: deg counterclockwise; scale: % of the lens's field.
-const FUSION_FITS = {
-  "AS08-14-2383": { turn: 1, cam: [0, 0, 0], x: 0.056, y: -0.018, rot: -0.70, scale: 100.28,
-    note: "Our fit on this scan: the Earth's disc to about a pixel. The kernel's horizon sits about 0.1° below the photograph's (0.25° on the left, where the far terrain rises), about 2 s of Earth rise. The photograph is turned 0.7° from the horizon the scene's TURN= card (applied by REFTRN) was fitted to on the ASU scan." },
-  "AS08-14-2384": { turn: 1, cam: [0.727, 1.315, 7.955], x: 0, y: 0, rot: 0, scale: 100.33,
-    note: "Our fit on this scan: the Earth's disc, and the horizon's tilt by pointing (rolled 8° from AS08-14-2383). The kernel's horizon sits about 0.4° below the photograph's, about 8 s of Earth rise against a quoted ~1 s." },
-  "AS08-13-2329": { turn: 0, cam: [-1.184, -3.185, 13.323], x: 0, y: 0, rot: 0, scale: 100.71,
-    note: "Our fit on this scan: the Earth's disc, and the horizon's tilt by pointing (another window, rolled 13°). The kernel's horizon sits about 0.25° below the photograph's, about 5 s of Earth rise: its Earth has cleared the horizon, the photograph's has not." }
-};
 const FUSION_KEY = "view1108.fusion";
 const fz = { align: {}, op: 0.5, blend: "source-over" };   // remembered: each photo's alignment, opacity, blend
 try { Object.assign(fz, JSON.parse(localStorage.getItem(FUSION_KEY) || "{}")); } catch (e) { /* storage unavailable */ }
 if (!fz.align || typeof fz.align !== "object") fz.align = {};
 const fzSave = () => { try { localStorage.setItem(FUSION_KEY, JSON.stringify(fz)); } catch (e) { /* ignore */ } };
 let fCur = null, fImg = null, fPinned = true, fMoving = false, fCam0 = [0, 0, 0];   // fCam0: the scene's default look
-const fFit = p => FUSION_FITS[p.frame] || { turn: 0, cam: [0, 0, 0], x: 0, y: 0, rot: 0, scale: 100, note: "Not fitted yet: align it by hand (Move photo), then Copy alignment." };
+let fListed = null;   // the reel whose photographs the list shows
+// Our fit, carried in the reel (tools/photos.py: cam, the pointing added to the situation's default look; x, y, the
+// photo's centre, plot deg; rot, deg counterclockwise; scale, % of the lens's field), else none yet. The packed copy is
+// turned to its usual presentation already (tools/photo_pack.py).
+const FIT_NONE = { cam: [0, 0, 0], x: 0, y: 0, rot: 0, scale: 100 };
+const fFit = p => p.fit || FIT_NONE;
+const fNote = p => p.fit ? p.note : "Not fitted yet: align it by hand (Move photo), then Copy alignment.";
 // The viewer's alignment once they change it (remembered), else our fit.
 const fAlign = () => fz.align[fCur.frame] || (({ x, y, rot, scale }) => ({ x, y, rot, scale }))(fFit(fCur));
 const fEdit = () => fz.align[fCur.frame] || (fz.align[fCur.frame] = fAlign());
 const lensMm = p => /unverified/i.test(p.lens_mm) ? NaN : parseFloat(p.lens_mm);   // NaN when unknown or unverified
 const lensFov = p => lensMm(p) > 0 ? 2 * Math.atan(GATE_MM / 2 / lensMm(p)) * 180 / Math.PI : null;
-const hasBracket = p => p.get === "" && p.get_lo !== "" && p.get_hi !== "";
-const photoGet = p => p.get !== "" ? +p.get : hasBracket(p) ? (+p.get_lo + +p.get_hi) / 2 : +p.get_lo;
-// The photograph's situation as a scene, or null: its row's sit (a SITUATION card's ID) in the first scenario reel, in
-// load order, of the photograph's mission (its mission column, 8 or 11, as the MISSION card names it: APOLLO 8). Each
-// reel numbers its own situations (#26 slice 7e); ours.
-const photoScene = p => p.sit === "" ? null : (SITS.find(s => s.mission === "APOLLO " + p.mission && s.id === +p.sit) || {}).scene || null;
+const hasBracket = p => p.get === null && p.get_lo !== null && p.get_hi !== null;
+const photoGet = reelPhotoGet;   // its own g.e.t., else its bracket's midpoint, else the bracket's start (the listing's)
+// The mounted tape's photographs: the photo events of the scenario reel the situation is on.
+const fusionPhotos = () => PHOTOS.filter(p => p.reel === LS.scn);
 const plotHalf = () => { const h = new Float64Array(buf(), K.hdr.value, 16)[14]; return h > 0 ? h : LS.fov / 2; };   // hdr(15)
 
 // After the loader has put a photograph's view (loader.js loadPhoto: its scene in the window view, its g.e.t. held, the
-// fitted pointing, the lens's field): photograph i, its row and its controls. cam0: the scene's default look; atGet:
-// the load named a g.e.t. (a link's get=), which the time slider takes.
+// fitted pointing, the lens's field): photograph i of PHOTOS, its row and its controls. cam0: the scene's default
+// look; atGet: the load named a g.e.t. (a link's get=), which the time slider takes.
 function fusionShow(i, cam0, atGet) {
   if (fCur !== PHOTOS[i]) { fCur = PHOTOS[i]; fImg = new Image(); fImg.src = fCur.img; }
   fCam0 = cam0; fPinned = true;
@@ -52,9 +44,12 @@ function fusionShow(i, cam0, atGet) {
   if (hasBracket(fCur) || atGet) b.value = LS.get;
 }
 
-// Drawn after present(): over the film, under nothing.
+// Drawn after present(): over the film, under nothing. Another reel mounted since the list was drawn: the list is the
+// new tape's, and a photograph of the old one is put away.
 function fusionDraw() {
-  if (tab !== "fusion" || !fCur || photoScene(fCur) !== LS.situation || !fPinned || !fImg || !fImg.complete || !fImg.naturalWidth) return;
+  if (tab !== "fusion") return;
+  if (fListed !== LS.scn) { fusionList(); fusionUI(); }
+  if (!fCur || fCur.scene !== LS.situation || !fPinned || !fImg || !fImg.complete || !fImg.naturalWidth) return;
   const a = fAlign(), half = plotHalf(), b = box(), k = b.s / (2 * half);
   const wPlot = (lensMm(fCur) > 0 ? GATE_MM / lensMm(fCur) * 180 / Math.PI : 2 * half) * a.scale / 100;
   const s = wPlot * k / Math.max(fImg.naturalWidth, fImg.naturalHeight), w = fImg.naturalWidth * s, h = fImg.naturalHeight * s;
@@ -62,38 +57,46 @@ function fusionDraw() {
   mctx.beginPath(); mctx.rect(b.x, b.y, b.s, b.s); mctx.clip();
   mctx.globalAlpha = fz.op; mctx.globalCompositeOperation = fz.blend;
   mctx.translate(b.x + b.s / 2 + a.x * k, b.y + b.s / 2 - a.y * k);
-  mctx.rotate(fFit(fCur).turn * Math.PI / 2 - a.rot * Math.PI / 180);
+  mctx.rotate(-a.rot * Math.PI / 180);
   mctx.drawImage(fImg, -w / 2, -h / 2, w, h);
   mctx.restore();
 }
 
 // ---- dock ----
+// The list: the mounted tape's photographs, in its table's order. Picking one stays on the tape (loader.js loadPhoto).
 function fusionList() {
   const box_ = $("flist"); box_.textContent = "";
-  PHOTOS.forEach((p, i) => {
+  fListed = LS.scn;
+  if (fCur && fCur.reel !== LS.scn) { fCur = null; fImg = null; fMoving = false; }
+  const mine = fusionPhotos();
+  for (const p of mine) {
     const r = document.createElement("button"); r.type = "button"; r.className = "fprow";
-    const t = p.get !== "" ? getStr(+p.get) : p.get_lo !== "" ? (p.get_hi !== "" ? getStr(+p.get_lo) + "–" : "after ") + getStr(+(p.get_hi || p.get_lo)) : "?";
+    const t = p.get !== null ? getStr(p.get) : p.get_hi !== null ? getStr(p.get_lo) + "–" + getStr(p.get_hi) : "after " + getStr(p.get_lo);
     r.innerHTML = "<span></span><span></span>"; r.children[0].textContent = p.frame; r.children[1].textContent = t;
-    r.disabled = !p.img || !photoScene(p);
-    r.title = p.img ? p.window_or_vehicle : "Not shown yet, no matching scene: " + p.needs;
+    r.title = p.where; r.dataset.frame = p.frame;
     r.classList.toggle("on", p === fCur);
     r.onclick = () => loadReel(P({ photo: p.frame }));
     box_.appendChild(r);
-  });
+  }
+  if (!mine.length) {
+    const d = document.createElement("div"); d.className = "fnone";
+    d.textContent = `No photographs on this tape (${(REEL_LIB.find(r => r.manifest.id === LS.scn)?.manifest.title) || LS.scn || "none mounted"}).`;
+    box_.appendChild(d);
+  }
 }
 function fusionUI() {
   const p = fCur; $("fctl").hidden = !p;
   if (!p) return;
   const a = fAlign(), f = lensFov(p);
-  const when = p.get !== "" ? "g.e.t. " + getStr(+p.get) : hasBracket(p) ? `g.e.t. ${getStr(+p.get_lo)} to ${getStr(+p.get_hi)} (shown: ${getStr(LS.get)})` : "g.e.t. " + getStr(photoGet(p));
+  const when = p.get !== null ? "g.e.t. " + getStr(p.get) : hasBracket(p) ? `g.e.t. ${getStr(p.get_lo)} to ${getStr(p.get_hi)} (shown: ${getStr(LS.get)})` : "g.e.t. " + getStr(photoGet(p));
   const info = $("finfo"); info.textContent = "";
   const line = (t, cls) => { const d = document.createElement("div"); if (cls) d.className = cls; d.textContent = t; info.appendChild(d); return d; };
-  line(`${p.frame}  Apollo ${p.mission}, magazine ${p.magazine}`, "fhd");
-  line(p.window_or_vehicle);
+  line(`${p.frame}  ${p.mission}, magazine ${p.magazine}`, "fhd");
+  line(p.where);
   line(`${when}. Timing: ${p.get_src}.`);
   line(f ? `Lens ${p.lens_mm} mm: ${f.toFixed(2)}° across the ${GATE_MM} mm gate (our computation), the plot's field.` : `Lens ${p.lens_mm || "unknown"}: no field prior; the photo spans the plot.`);
-  line(fFit(p).note);
-  const cr = line("Credit NASA/JSC. ");
+  line(fNote(p));
+  const cr = line(`Credit ${p.credit}. `);
   const ln = document.createElement("a"); ln.href = p.url; ln.target = "_blank"; ln.rel = "noopener"; ln.textContent = "Source scan"; cr.appendChild(ln);
   for (const [id, v, d] of [["fax", a.x, 3], ["fay", a.y, 3], ["far", a.rot, 2], ["fas", a.scale, 2]]) if (document.activeElement !== $(id)) $(id).value = v.toFixed(d);
   $("fop").value = Math.round(fz.op * 100);
@@ -114,7 +117,7 @@ $("freset").onclick = () => { if (!fCur) return; delete fz.align[fCur.frame]; fz
 $("fcopy").onclick = () => {
   if (!fCur) return;
   const a = fAlign(), r3 = v => +v.toFixed(3);
-  const txt = JSON.stringify({ frame: fCur.frame, scn: LS.scn, sit: sitOf(LS.situation).id, get: r3(LS.get), turn: fFit(fCur).turn, cam: [r3(LS.yaw - fCam0[0]), r3(LS.pitch - fCam0[1]), r3(LS.roll - fCam0[2])], fov: r3(LS.fov), x: r3(a.x), y: r3(a.y), rot: r3(a.rot), scale: r3(a.scale) });
+  const txt = JSON.stringify({ frame: fCur.frame, scn: LS.scn, sit: sitOf(LS.situation).id, get: r3(LS.get), cam: [r3(LS.yaw - fCam0[0]), r3(LS.pitch - fCam0[1]), r3(LS.roll - fCam0[2])], fov: r3(LS.fov), x: r3(a.x), y: r3(a.y), rot: r3(a.rot), scale: r3(a.scale) });
   const lb = $("linkbox"), fallback = () => { lb.style.display = "block"; lb.value = txt; lb.focus(); lb.select(); flash("COPY THE ALIGNMENT BELOW"); };
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => flash("ALIGNMENT COPIED"), fallback); else fallback();
 };
@@ -143,4 +146,7 @@ window.addEventListener("keydown", e => {
   e.preventDefault(); e.stopImmediatePropagation();
 }, true);
 fusionList(); fusionUI();
-if (DEBUG) window.VIEW_FUSION = { pick: f => loadReel(P({ photo: f })), fz, align: () => fCur && fAlign(), state: () => ({ scene: LS.situation, get: LS.get, fov: LS.fov, yaw: LS.yaw, pitch: LS.pitch, roll: LS.roll, mode: LS.mode, tab, link: linkURL() }) };
+// Test hooks: pick a photograph as the list does; the state, with the reel mounted (scn), the photograph shown (cur) and
+// the frames the list shows (list).
+if (DEBUG) window.VIEW_FUSION = { pick: f => loadReel(P({ photo: f })), fz, align: () => fCur && fAlign(), state: () => ({ scene: LS.situation, scn: LS.scn, get: LS.get, fov: LS.fov, yaw: LS.yaw, pitch: LS.pitch, roll: LS.roll, mode: LS.mode, playing: LS.playing, tab, link: linkURL(),
+  cur: fCur ? fCur.frame : null, list: [...document.querySelectorAll("#flist .fprow")].map(b => b.dataset.frame) }) };

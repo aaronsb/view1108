@@ -129,7 +129,7 @@ function nbSlip(kind, body, top) {
     { t: "p", cls: "nbcite", c: ["Source: ", ...nbInline(f.cite)] }] };
   const cap = nbInline(nbJoin(f.body)), plate = f.style === "plate" ? ++top.plates : 0;
   const credit = [...(f.credit ? [`Credit: ${f.credit}.${f.cite ? " " : ""}`] : []), ...(f.cite ? ["Source: ", ...nbInline(f.cite)] : [])];
-  return { t: "figure", cls: `nbattach nb-${f.style} nb-${f.finish}`, c: [
+  return { t: "figure", cls: `nbattach nb-${f.style} nb-${f.finish}`, ...(src.media !== undefined ? { media: src.media } : {}), c: [
     { t: "div", cls: "nbprint", c: [{ t: "img", ...src, alt: cap.map(nbFlat).join("") },
       ...(f.style === "tape" ? ["tl", "tr", "bl", "br"].map(p => ({ t: "div", cls: `nbtape ${p}` })) : []),
       ...(f.style === "clip" ? [{ t: "div", cls: "nbclip" }] : [])] },
@@ -234,10 +234,13 @@ function nbTitle(md) {
   return "";
 }
 /** Build the tree with `doc` (the document) into a fragment. `fig(name)` gives a figure's image URL and `media(file)`
- *  a photograph's (null: none, and the alt text stands in). Elements only from NB_TAGS; strings only as text nodes;
- *  attributes only href (checked again), target, rel, src (from fig or media), alt and class (the builder's own
- *  words: lowercase letters, digits, hyphens and spaces). */
-function nbBuild(nodes, doc, fig, media = () => null) {
+ *  a photograph's (null: none, and the alt text stands in). `photo(file)`, for an attached photograph that is one of
+ *  the reel's photo events (#75), gives {frame, open} (else null): its print and a line under its caption then open
+ *  Fusion at its moment (open, the library's handler, never anything from the text). Elements only from NB_TAGS;
+ *  strings only as text nodes; attributes only href (checked again), target, rel, src (from fig or media), alt and
+ *  class (the builder's own words: lowercase letters, digits, hyphens and spaces), and for a photo event's print and
+ *  line the builder's own title, role and tabindex. */
+function nbBuild(nodes, doc, fig, media = () => null, photo = () => null) {
   const frag = doc.createDocumentFragment();
   const add = (parent, n) => {
     if (typeof n === "string") { parent.appendChild(doc.createTextNode(n)); return; }
@@ -256,8 +259,24 @@ function nbBuild(nodes, doc, fig, media = () => null) {
     const cls = n.t === "section" ? "nbcases" : n.cls;
     if (cls && /^[a-z0-9 -]+$/.test(cls)) el.setAttribute("class", cls);
     for (const k of n.c || []) add(el, k);
+    const go = n.t === "figure" && n.media !== undefined ? photo(n.media) : null;
+    if (go) nbPhotoLink(doc, el, go);
     parent.appendChild(el);
   };
   for (const n of nodes) add(frag, n);
   return frag;
+}
+/** A photo event's print (#75): its <img> and a line added under its caption open Fusion at the photograph, by click,
+ *  Enter or Space. */
+function nbPhotoLink(doc, fig, go) {
+  const img = fig.querySelector("img.nbmedia"), cap = fig.querySelector("figcaption"), line = doc.createElement("span");
+  const what = `Open ${go.frame} in Fusion, over the simulation at its moment`;
+  line.setAttribute("class", "nbfusion"); line.setAttribute("role", "button"); line.setAttribute("tabindex", "0"); line.setAttribute("title", what);
+  line.appendChild(doc.createTextNode(`OPEN ${go.frame} IN FUSION`));
+  if (img) { img.setAttribute("class", "nbmedia nbphoto"); img.setAttribute("title", what); }
+  for (const el of img ? [img, line] : [line]) {
+    el.addEventListener("click", () => go.open());
+    el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go.open(); } });
+  }
+  (cap || fig).appendChild(line);
 }
