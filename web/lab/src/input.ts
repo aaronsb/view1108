@@ -109,13 +109,15 @@ export class Input {
     if (!g || g.id !== e.pointerId) return;
     this.drag = null;
     if (g.moved || e.type !== "pointerup") return;
-    // At a close-up a click on the machine opens it; on a shelf a click on a book pulls it out, again opens it. A click
-    // on anything else (the bookcase's own frame, the room, another machine) steps back into the room.
+    // At a close-up a click on the machine opens it; on a shelf a click on a book pulls it out, again opens it; a note
+    // in the console's notebook is keyed in. A click on anything else (the bookcase's own frame, the room, another
+    // machine) steps back into the room.
     const at = v.at();
     if (at) {
       if (Math.hypot(e.clientX - g.x, e.clientY - g.y) >= CLICK_PX) return;
       const p = v.hit(e.clientX, e.clientY);
-      if (p?.equipment.pull) { if (p.equipment.pull()) v.open(p.name); else v.pulledOut(); }
+      if (p?.equipment.press) p.equipment.press();
+      else if (p?.equipment.pull) { if (p.equipment.pull()) v.open(p.name); else v.pulledOut(); }
       else if (p && p.name === at.name && at.opens !== "library") v.open();
       else v.back();
       return;

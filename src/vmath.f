@@ -38,6 +38,23 @@ C
       RETURN
       END
 C
+C     VORTH: B, a unit vector, made square to the unit vector A and
+C     unit again (Gram-Schmidt); a B along A gives a perpendicular.  A
+C     B already square to A within rounding (1.0D-12) is left as it
+C     is, so a frame that was orthonormal stays bit for bit (ours).
+      SUBROUTINE VORTH(A, B)
+      DOUBLE PRECISION A(3), B(3), K, P(3), VDOT
+      INTEGER I
+      K = VDOT(A, B)
+      IF (DABS(K) .LE. 1.0D-12) RETURN
+      DO 10 I = 1, 3
+        B(I) = B(I) - K * A(I)
+   10 CONTINUE
+      IF (VDOT(B, B) .LT. 1.0D-24) CALL PERP(A, B, P)
+      CALL VUNIT(B)
+      RETURN
+      END
+C
       SUBROUTINE VUNIT(A)
       DOUBLE PRECISION A(3), S
       S = DSQRT(A(1) * A(1) + A(2) * A(2) + A(3) * A(3))
@@ -121,5 +138,23 @@ C
    10   CONTINUE
         M(J,J) = 1.0D0
    20 CONTINUE
+      RETURN
+      END
+C
+C     PERP: unit vectors E1, E2 completing unit A to a right-handed set.
+      SUBROUTINE PERP(A, E1, E2)
+      DOUBLE PRECISION A(3), E1(3), E2(3), Z(3)
+      Z(1) = 0.0D0
+      Z(2) = 0.0D0
+      Z(3) = 1.0D0
+C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
+      IF (DABS(A(3)) .GT. 0.9D0) THEN
+        Z(1) = 1.0D0
+        Z(3) = 0.0D0
+      END IF
+C     RESTOMOD END
+      CALL VCRS(Z, A, E1)
+      CALL VUNIT(E1)
+      CALL VCRS(A, E1, E2)
       RETURN
       END
