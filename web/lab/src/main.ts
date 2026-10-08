@@ -23,6 +23,8 @@ const VIEW_LAB = {
   /** Reel `id` out at the tape rack and carried to a tape unit (the notebook viewer's "Load this reel"; call after
    *  show()). False when the room is not running or the reel is not on the rack. */
   carry(id: string): boolean { return lab ? lab.carryReel(id) : false; },
+  /** The page's answer to its modal (LabHooks.ask) for what was pulled: back, load, read, or loadread. */
+  answer(choice: "back" | "load" | "read" | "loadread"): void { lab?.answer(choice); },
   /** Fly to a placed equipment (null: the overview); a terminal holds at its close-up, or with `open` opens at once. */
   setTarget(name: string | null, open?: boolean): boolean { return lab ? lab.setTarget(name, open) : false; },
   /** At a terminal's close-up: step back out in front of it (false when not at one). */

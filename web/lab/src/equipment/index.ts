@@ -43,6 +43,6 @@ export const FOOTPRINT: Record<string, [number, number, number]> = {
   desk: [1.5, 0.73, 0.75],
   chair: [0.6, 0.88, 0.6],
   filmrecorder: [2.24, 1.88, 0.94],
-  bookcase: [1.0, 1.1, 0.36],
+  bookcase: [1.0, 1.85, 0.36],
   taperack: [2.8, 1.85, 0.45],
 };

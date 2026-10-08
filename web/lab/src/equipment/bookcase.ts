@@ -1,24 +1,33 @@
-// The reference library (ours): a low steel bookcase holding one ring binder per document of web/library/
-// (library.json), standing upright on its upper shelf between a pair of L-shaped steel bookends. 1.0 x 1.1 x 0.36 m.
-// No source shows a bookcase or binders in MSC's machine room; the bookcase, the binders, their colours (grey and blue
-// for the UNIVAC manuals, black and oxblood for Stromberg-Carlson's, buff for the NASA reports) and the bookends are
-// ours. Each binder is its own pickable piece (`anchors.binders`, placed by the room as "binder:<id>"); the bookcase
-// and every binder open "library". After the binders, for looks only (`anchors.props`, placed as "prop:<id>", inert:
-// named on hover, nothing to open): a 1969 Houston telephone directory, two paperbacks, and an index card of places to
-// eat leaning on the back panel (docs/lab.md); a strip of masking tape on each shelf's edge names it. Everything on
-// the shelf pulls out (pullable.ts): a click at the close-up brings one out and puts the last back, a second click on a
-// binder that is out opens it, and leaving puts all back.
+// The reference library (ours): a steel bookcase, 1.0 x 1.85 x 0.36 m, as tall as the tape rack beside it. Its upper
+// manuals shelf holds one ring binder per document of web/library/ (library.json), upright between a pair of L-shaped
+// steel bookends; above it two more shelves hold the mission notebooks (#29; the operator's revision after PR #69):
+// one three-ring binder per reel of the site reel index that carries a scenario notebook (BuildContext.reels,
+// ReelInfo.notebook), each mission's on a shelf of its own while there are shelves, its spine card hand-lettered with
+// the notebook's title, under a tape label MISSION NOTEBOOKS. No source shows a bookcase or binders in MSC's machine
+// room; the bookcase, the binders, their colours (grey and blue for the UNIVAC manuals, black and oxblood for
+// Stromberg-Carlson's, buff for the NASA reports, black for the notebooks) and the bookends are ours. Each binder is its
+// own pickable piece: a document's is `anchors.binders`, placed by the room as "binder:<id>", a notebook's
+// `anchors.notebooks`, placed as "binder:nb-<reel id>"; the bookcase and every binder open "library". After the
+// documents, for looks only (`anchors.props`, placed as "prop:<id>", inert: named on hover, nothing to open): a 1969
+// Houston telephone directory, two paperbacks, and an index card of places to eat leaning on the back panel
+// (docs/lab.md); a strip of masking tape on each shelf's edge names it. Everything on the shelves pulls out
+// (pullable.ts): a click at the close-up brings one out and puts the last back, a second click on a document's binder
+// opens it, on a notebook asks the page for the notebook modal (lab.ts, LabHooks.ask), and leaving puts all back. Each
+// notebook is paired with its reel on the tape rack (room.ts links the two units' shelves): while one is out the other
+// stands half out (#19's half-pull, ours).
 import * as THREE from "three";
-import type { BuildContext, Equipment } from "../types";
-import { Parts, canvasTex, fontTex, nameplate, paint, plastic, plateText, tapeStrip } from "./kit";
-import { Shelf } from "./pullable";
+import type { BuildContext, Equipment, ReelInfo } from "../types";
+import { Parts, canvasTex, fontTex, marker, markerWidth, nameplate, paint, plastic, plateText, rng, tapeStrip } from "./kit";
+import { Shelf, type Pullable } from "./pullable";
 import LIBRARY from "../../../library/library.json";
 
 export interface LibraryDoc { id: string; num: string; spine: string; title: string; year: number; publisher: string; pages: number; colour: string; file: string; source: string }
 export const DOCS = LIBRARY as LibraryDoc[];
 
-const W = 1.0, H = 1.1, D = 0.36, T = 0.018;
-const SHELF = 0.55;                        // the upper shelf's top
+const W = 1.0, H = 1.85, D = 0.36, T = 0.018;
+const SHELF = 0.55;                        // the manuals shelf's top
+const NB_SHELVES = [1.4, 0.96];            // the notebook shelves' tops, the upper first
+const NB_T = 0.045, NB_COLOUR = 0x26292c;  // a notebook binder: a 1 3/4 in ring, black vinyl (ours)
 export const BH = 0.295, BD = 0.26;             // a binder's height and depth (letter-size sheets, 11 x 8 1/2 in, in their covers)
 const FRONT = D / 2 - 0.035;               // the spines' line
 const PULL = 0.09, TIP = 0.05;              // how far a pulled book comes out, m, and its top tipped toward you, rad
@@ -68,6 +77,26 @@ function binder(doc: LibraryDoc, aniso: number): Binder {
     line(doc.num, -w * 0.2, w * 0.3); line(doc.spine, w * 0.2, w * 0.24);
     g.restore();
   }, aniso), doc };
+}
+
+/** A reel's mission notebook binder: its piece, and the reel it goes with. */
+export interface NotebookBinder extends Equipment { reel: ReelInfo }
+
+/** A mission notebook (ringBinder), its spine card hand-lettered top to bottom with the notebook's title, split at its
+ *  colon into two lines (APOLLO 11 AS FLOWN / SCENARIO NOTEBOOK). */
+function notebookBinder(reel: ReelInfo, title: string, aniso: number): NotebookBinder {
+  const r = rng(title.length * 31 + 5), lines = title.split(/:\s*/).filter(Boolean).slice(0, 2);
+  const b = ringBinder(NB_T, NB_COLOUR, (g, w, h) => {
+    g.fillStyle = "#f2eee0"; g.fillRect(0, 0, w, h);
+    g.strokeStyle = "#9a9380"; g.lineWidth = 2; g.strokeRect(3, 3, w - 6, h - 6);
+    g.translate(w / 2, h / 2); g.rotate(Math.PI / 2);   // along the spine, top to bottom: h long, w across
+    const n = lines.length, px0 = w * (n > 1 ? 0.42 : 0.6);
+    lines.forEach((l, i) => {
+      const px = px0 * Math.min(1, h * 0.86 / markerWidth(l, px0));
+      marker(g, l, -markerWidth(l, px) / 2, w * ((i + 0.5) / n - 0.5), px, r);
+    });
+  }, aniso, 160);
+  return { ...b, reel };
 }
 
 /** A prop: one of the shelf's things for looks, picked as "prop:<id>", named `label` on hover. */
@@ -165,12 +194,12 @@ function card(aniso: number): Prop {
 }
 
 /** An L-shaped steel bookend: an upright plate and a foot that slides under the row (toward `side`, -1 or +1). */
-function bookend(P: Parts, x: number, side: number, mat: THREE.Material): void {
-  P.box(0.004, 0.17, 0.13, mat, x, SHELF + 0.085, FRONT - 0.075);
-  P.box(0.11, 0.003, 0.13, mat, x + side * 0.055, SHELF + 0.0015, FRONT - 0.075);
+function bookend(P: Parts, x: number, side: number, mat: THREE.Material, y = SHELF): void {
+  P.box(0.004, 0.17, 0.13, mat, x, y + 0.085, FRONT - 0.075);
+  P.box(0.11, 0.003, 0.13, mat, x + side * 0.055, y + 0.0015, FRONT - 0.075);
 }
 
-export function build(ctx: BuildContext): Equipment & { anchors: { binders: Binder[]; props: Prop[] } } {
+export function build(ctx: BuildContext): Equipment & { anchors: { binders: Binder[]; notebooks: NotebookBinder[]; props: Prop[]; shelf: Shelf; items: Map<string, Pullable> } } {
   const object = new THREE.Group(), mine: { dispose(): void }[] = [];
   const steel = paint(0x8a8d86, 0.9), dark = paint(0x2e3134, 0.9), olive = paint(0x5c6049, 0.7);
   const P = new Parts();
@@ -178,7 +207,8 @@ export function build(ctx: BuildContext): Equipment & { anchors: { binders: Bind
   P.box(W, T, D, steel, 0, H - T / 2, 0);                                           // the top
   P.box(W - 2 * T, H - 0.08, 0.006, steel, 0, (H + 0.08) / 2, -D / 2 + 0.003);
   P.box(W - 2 * T, 0.045, 0.012, steel, 0, H - T - 0.0225, D / 2 - 0.006);          // the rail under the top
-  P.box(W - 2 * T, T, D - 0.01, steel, 0, SHELF - T / 2, -0.005);                    // the upper shelf
+  P.box(W - 2 * T, T, D - 0.01, steel, 0, SHELF - T / 2, -0.005);                    // the manuals shelf
+  for (const y of NB_SHELVES) P.box(W - 2 * T, T, D - 0.01, steel, 0, y - T / 2, -0.005);   // the notebook shelves
   P.box(W - 2 * T, T, D - 0.01, steel, 0, 0.08 + T / 2, -0.005);                     // the bottom shelf
   P.box(W - 2 * T, 0.08, 0.012, dark, 0, 0.04, D / 2 - 0.03);                         // the toe kick
   // The lower shelf: a few binders lying flat (unlabelled, ours).
@@ -194,6 +224,30 @@ export function build(ctx: BuildContext): Equipment & { anchors: { binders: Bind
     object.add(b.object); binders.push(b);
     x += widths[i] + 0.0015;
   });
+  // The mission notebooks on their shelves: one mission a shelf while there are shelves left (the index's reels with a
+  // notebook, missions in range-zero order), from the left, each shelf with a bookend at its left.
+  const notebooks: NotebookBinder[] = [];
+  {
+    const withNb = (ctx.reels ?? []).filter(r => r.notebook);
+    const groups = new Map<string, ReelInfo[]>();
+    for (const r of [...withNb].sort((a, b) => (a.zero ?? Infinity) - (b.zero ?? Infinity))) groups.set(r.mission || r.id, [...groups.get(r.mission || r.id) ?? [], r]);
+    let k = 0, nx = -W / 2 + T + 0.044, used = false;
+    const x1 = W / 2 - T - 0.02;
+    for (const g of groups.values()) {
+      if (used && k + 1 < NB_SHELVES.length) { k++; nx = -W / 2 + T + 0.044; used = false; }
+      for (const r of g) {
+        if (nx + NB_T > x1) {
+          if (k + 1 >= NB_SHELVES.length) { console.warn(`bookcase: no room for ${r.id}'s notebook`); continue; }
+          k++; nx = -W / 2 + T + 0.044; used = false;
+        }
+        if (!used) bookend(P, nx - 0.002, 1, olive, NB_SHELVES[k]);
+        const b = notebookBinder(r, r.notebook!, ctx.maxAnisotropy);
+        b.object.position.set(nx + NB_T / 2, NB_SHELVES[k], FRONT);
+        object.add(b.object); notebooks.push(b);
+        nx += NB_T + 0.0015; used = true;
+      }
+    }
+  }
   // The props after the binders, their spines a little behind the binders' line: the directory, then the paperbacks.
   const props: Prop[] = [];
   const stand = (p: Prop, t: number) => {
@@ -224,6 +278,8 @@ export function build(ctx: BuildContext): Equipment & { anchors: { binders: Bind
   });
   const book = { offset: new THREE.Vector3(0, 0, PULL), turn: new THREE.Euler(TIP, 0, 0) };
   for (const b of binders) Object.assign(b, shelf.member(shelf.add(b.object, { ...book, opens: true })));
+  const items = new Map<string, Pullable>();
+  for (const b of notebooks) { const it = shelf.add(b.object, { ...book, opens: true }); items.set(b.reel.id, it); Object.assign(b, shelf.member(it)); }
   for (const p of props) Object.assign(p, shelf.member(shelf.add(p.object, p === note
     ? { offset: new THREE.Vector3(-0.15, 0.25, 0.44), turn: new THREE.Euler(-0.2, -0.25, 0) } : book)));
   mine.push(...P.bake(object).map(m => m.geometry));
@@ -233,20 +289,25 @@ export function build(ctx: BuildContext): Equipment & { anchors: { binders: Bind
   label.position.set(0, H - T - 0.022, D / 2 + 0.001);
   object.add(label);
   // A strip of masking tape on each shelf's front edge, hand-lettered with what stands there (ours, #19; library.json
-  // has no groups): the manuals on the upper shelf, reference binders lying on the lower.
-  for (const [text, y] of [["MANUALS", SHELF - T / 2], ["REFERENCE", 0.08 + T / 2]] as const) {
+  // has no groups): the mission notebooks on the shelves that hold them, the manuals, reference binders lying lowest.
+  const strips: [string, number][] = [["MANUALS", SHELF - T / 2], ["REFERENCE", 0.08 + T / 2]];
+  NB_SHELVES.forEach((y, i) => { if (notebooks.some(b => b.object.position.y === y) || (i === 0 && notebooks.length)) strips.push(["MISSION NOTEBOOKS", y - T / 2]); });
+  for (const [text, y] of strips) {
     const s = tapeStrip(text, T, mine, { seed: text.length });
     s.position.set(-0.2, y, D / 2 - 0.01 + 0.0008); s.rotation.z = text.length % 2 ? 0.01 : -0.008;
     object.add(s);
   }
-  const target = new THREE.Vector3(-0.1, SHELF + BH * 0.5, FRONT);
+  const target = new THREE.Vector3(-0.1, (SHELF + NB_SHELVES[0] + BH) / 2, FRONT);   // the manuals up to the top notebooks
   return {
     object,
     anchors: {
       screen: { mesh: label, uvRect: [0, 0, 1, 1] },
-      camera: { position: new THREE.Vector3(-0.1, SHELF + 0.62, FRONT + 0.78), target, fov: 40 },
+      camera: { position: new THREE.Vector3(-0.1, target.y + 0.12, FRONT + 1.7), target, fov: 40 },
       binders,
+      notebooks,
       props,
+      shelf,
+      items,
     },
     hint: () => shelf.hint(),
     putBack: () => shelf.putBack(),

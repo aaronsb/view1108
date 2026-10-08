@@ -72,6 +72,9 @@ export interface LabHooks {
   /** The page's one Esc stack (web/src/esc.js): push `key` with what Esc does while it is on top, or (null) take it
    *  off. The lab pushes its close-up and a pulled binder or reel ("pulled"; a reel's stays while it is carried). */
   esc?(key: string, pop: (() => void) | null): void;
+  /** A second click on a pulled reel ("reel") or on a pulled mission notebook whose reel is a scenario reel
+   *  ("notebook"): the page shows its modal for reel `id` (title `title`) and answers through VIEW_LAB.answer. */
+  ask?(kind: "reel" | "notebook", id: string, title: string): void;
 }
 
 /** A camera pose: where the eye is, what it looks at, its vertical field of view (deg). */

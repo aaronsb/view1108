@@ -11,50 +11,39 @@
 // manifest title typed small. Where each stands is racklayout.ts's plan (ours): one group per mission, earliest range
 // zero first, then one for the playlists, each on a level of its own while there are levels enough, from the left of
 // the middle bay, spilling into the west and east bays and the levels below; a reel with no room left is not shelved
-// and the build warns. Beside each reel is its notebook's place (`anchors.notebooks`), and a reel that carries a
-// scenario notebook (#29) has its three-ring binder standing there (`anchors.binders`, placed by the room as
-// "binder:nb-<id>"), its spine card hand-lettered with the notebook's title. Anonymous reels in cases of varied colours
+// and the build warns. A reel that carries a scenario notebook (#29) has it on the bookcase beside the rack, the two
+// paired across the units (bookcase.ts; the operator's revision after PR #69). Anonymous reels in cases of varied colours
 // (one instanced mesh, not picked) stand only on the levels with none of the index's reels, about half to two-thirds
 // full with irregular gaps (racklayout.ts filler; the operator's look of 2026-10-07). Each group has a strip of masking
 // tape on the front edge under its first reel with the group hand-lettered (the mission, and the month and year of its
 // range zero from the reel's page.json; the playlists' titles), and the east bay, nearest the bookcase, an arrow strip
 // toward the operator's manuals (kit.ts tapeStrip; the operator's signage form, 2026-10-07: tape on the shelves, no wall
-// signs). The binders, the labels and their wording are ours.
+// signs). The labels and their wording are ours.
 //
-// Pulling (pullable.ts): a click at the close-up brings a reel 13 cm out of its row, or a binder 11 cm out with its top
-// tipped toward you, and a click on another swaps them. A reel and its binder are paired: while one is out the other
-// stands half out, a pointer to it (#19's half-pull; ours). A pulled reel stays out when the camera leaves (`carried`):
-// the viewer carries it to a tape unit, which mounts it (carry.ts, LabHooks.mount) and puts it back; Esc puts it back
-// too. A second click on a pulled binder opens its notebook in the page's library viewer (the binder opens "library").
+// Pulling (pullable.ts): a click at the close-up brings a reel 13 cm out of its row, and a click on another swaps
+// them. A second click on the pulled reel asks the page for the reel modal, LOAD NEW SIMULATION SCENARIO? (LabHooks.ask;
+// the operator, 2026-10-07: the primary way to swap reels; LOAD ... AND EXEC mounts it, PUT TAPE BACK puts it back).
+// A pulled reel also stays out when the camera leaves (`carried`): carried to a tape unit, it is mounted there
+// (carry.ts, LabHooks.mount), the second way. Its notebook on the bookcase stands half out while it is out (#19's
+// half-pull, ours: the rack's shelf is linked to the bookcase's, room.ts), and Esc puts both back.
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { BuildContext, Equipment, LabState, ReelInfo } from "../types";
 import { Parts, canvasTex, fontTex, marker, markerWidth, nameplate, paint, plastic, plateText, rng, satinMetal, sharedGeo, tapeStrip } from "./kit";
 import { Shelf, type Pullable } from "./pullable";
-import { BH, ringBinder } from "./bookcase";
 
-import { BAYS, D, H, LEVELS, NB, POST, T, W, bayX0, bayX1, BAY_W, filler, postX, rackLayout } from "./racklayout";
+import { BAYS, D, H, LEVELS, POST, T, W, bayX0, bayX1, BAY_W, filler, postX, rackLayout } from "./racklayout";
 
 const LIP = 0.035, LIP_Z = D / 2 - 0.004;               // the shelf's front channel: its height and its face
-const R = 0.135, GAP = 0.004;                            // a reel case's radius, the gap between anonymous cases
+const R = 0.135;                                         // a reel case's radius
 const REEL_Z = D / 2 - 0.03 - R;                         // the cases' centres: their fronts 3 cm behind the lip
 const PULL = new THREE.Vector3(0, 0.012, 0.13);
-const BOOK_PULL = new THREE.Vector3(0, 0, 0.11), BOOK_TIP = new THREE.Euler(0.05, 0, 0);   // a notebook binder's pull
-const BOOK_T = 0.045, BOOK_COLOUR = 0x26292c;   // its thickness (a 1 3/4 in binder) and its black vinyl (ours)
 // Case colours (ours): the slate and grey of tape-seal belts, a few in red, green, mustard and buff.
 const TINTS = [0x2f4a6b, 0x5b6f86, 0x5b6f86, 0x7d8287, 0x7d8287, 0x2b2d30, 0x8a2b22, 0x3f5a3a, 0xb8963a, 0xd8d0b4];
 const TYPED = '"Courier Prime", "Courier New", Courier, monospace';
 
 /** A reel on the rack: its piece, and the reel of the index it stands for. */
 export interface ReelPiece extends Equipment { reel: ReelInfo }
-/** A reel's scenario notebook binder on the rack: its piece, and the reel it goes with. */
-export interface NotebookBinder extends Equipment { reel: ReelInfo }
-
-/** The empty place beside a reel for its notebook binder (slice d), in the rack's frame: `position` is the middle of
- *  the slot's front edge on the deck (a bookcase binder's origin: bottom of the spine), `w` its width, `h` the clear
- *  height above the deck, `d` the depth behind the front line. */
-export interface NotebookSlot { position: THREE.Vector3; w: number; h: number; d: number }
-
 /** A reel case on edge, its axis across the shelf (x): the rim faces the viewer; groups 0 rim, 1 and 2 the faces.
  *  `seg` sides: 28 for the index's reels, 16 for the anonymous ones (instanced, many). */
 const caseGeo = (seg = 28) => sharedGeo(`rackCase${seg}`, () => new THREE.CylinderGeometry(R, R, T, seg).rotateZ(Math.PI / 2));
@@ -113,23 +102,6 @@ function reelPiece(reel: ReelInfo, tint: number, mine: { dispose(): void }[]): R
   return { object, reel, anchors: { camera: { position: new THREE.Vector3(0, R + 0.2, 0.85), target: new THREE.Vector3(0, R, 0), fov: 34 } } };
 }
 
-/** A reel's notebook binder (bookcase.ts ringBinder), its spine card hand-lettered top to bottom with the notebook's
- *  title, split at its colon into two lines (APOLLO 11 AS FLOWN / SCENARIO NOTEBOOK). Origin as a bookcase binder's. */
-function notebookBinder(reel: ReelInfo, title: string, aniso: number): NotebookBinder {
-  const r = rng(title.length * 31 + 5), lines = title.split(/:\s*/).filter(Boolean).slice(0, 2);
-  const b = ringBinder(BOOK_T, BOOK_COLOUR, (g, w, h) => {
-    g.fillStyle = "#f2eee0"; g.fillRect(0, 0, w, h);
-    g.strokeStyle = "#9a9380"; g.lineWidth = 2; g.strokeRect(3, 3, w - 6, h - 6);
-    g.translate(w / 2, h / 2); g.rotate(Math.PI / 2);   // along the spine, top to bottom: h long, w across
-    const n = lines.length, px0 = w * (n > 1 ? 0.42 : 0.6);
-    lines.forEach((l, i) => {
-      const px = px0 * Math.min(1, h * 0.86 / markerWidth(l, px0));
-      marker(g, l, -markerWidth(l, px) / 2, w * ((i + 0.5) / n - 0.5), px, r);
-    });
-  }, aniso, 160);
-  return { ...b, reel };
-}
-
 /** The bay and level number plates, A-1 to C-5: white on black in the nameplate face, one atlas, one mesh. */
 function numberPlates(mine: { dispose(): void }[]): THREE.Mesh {
   const names: string[] = [];
@@ -153,7 +125,7 @@ function numberPlates(mine: { dispose(): void }[]): THREE.Mesh {
   return new THREE.Mesh(geo, mat);
 }
 
-export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPiece[]; binders: NotebookBinder[]; notebooks: Record<string, NotebookSlot> } } {
+export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPiece[]; shelf: Shelf; items: Map<string, Pullable> } } {
   const object = new THREE.Group(), mine: { dispose(): void }[] = [];
   const steel = paint(0x8a8d86, 0.9), wire = satinMetal(0x9da1a4);
   const P = new Parts(), Q = new Parts();
@@ -183,20 +155,13 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
   rods.forEach((m, i) => deck.setMatrixAt(i, m));
   object.add(deck); mine.push(rodGeo, deck);
 
-  // The reels where the plan puts them (racklayout.ts), a notebook slot after each and in it the reel's binder if it has
-  // a notebook; the anonymous reels on the levels with none of them (filler).
-  const r = rng(1919), plan = rackLayout(ctx.reels ?? []), reels: ReelPiece[] = [], binders: NotebookBinder[] = [], notebooks: Record<string, NotebookSlot> = {};
+  // The reels where the plan puts them (racklayout.ts); the anonymous reels on the levels with none of them (filler).
+  const r = rng(1919), plan = rackLayout(ctx.reels ?? []), reels: ReelPiece[] = [];
   if (plan.unplaced.length) console.warn(`tape rack: no room for ${plan.unplaced.length} reel(s): ${plan.unplaced.map(u => u.id).join(", ")}`);
   for (const { reel, level: l, x } of plan.slots) {
-    const y = LEVELS[l], p = reelPiece(reel, reel.kind === "playlist" ? 0x8a2b22 : 0x2f4a6b, mine);
-    p.object.position.set(x + T / 2, y, REEL_Z);
+    const p = reelPiece(reel, reel.kind === "playlist" ? 0x8a2b22 : 0x2f4a6b, mine);
+    p.object.position.set(x + T / 2, LEVELS[l], REEL_Z);
     object.add(p.object); reels.push(p);
-    const slot = notebooks[reel.id] = { position: new THREE.Vector3(x + T + GAP + NB / 2, y, REEL_Z + R), w: NB, h: (l ? LEVELS[l - 1] - LIP : H - 0.025) - y - 0.01, d: 2 * R };
-    if (reel.notebook && BH <= slot.h && BOOK_T <= slot.w) {
-      const nb = notebookBinder(reel, reel.notebook, ctx.maxAnisotropy);
-      nb.object.position.copy(slot.position);
-      object.add(nb.object); binders.push(nb);
-    }
   }
   const anon = filler(plan, r).map(f => ({ x: f.x, y: LEVELS[f.level], yaw: (r() - 0.5) * 0.05, tint: TINTS[Math.floor(r() * TINTS.length)], label: r() > 0.45 }));
   const cases = new THREE.InstancedMesh(caseGeo(16), [plastic(0xffffff, 0.5), plastic(0xcccccc, 0.55), plastic(0xcccccc, 0.55)], anon.length);
@@ -229,17 +194,17 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
   plate.position.set(0, H - 0.0125, D / 2 - 0.0014);
   object.add(plate);
 
-  // Pulling: a reel comes straight out, a little raised off the wire; flying elsewhere leaves it out (carried). A binder
-  // comes out tipped, opens on a second click, and goes back when the camera leaves. A reel and its binder half-pull.
+  // Pulling: a reel comes straight out, a little raised off the wire, and a second click on it asks for the reel modal
+  // (it "opens"; lab.ts); flying elsewhere leaves it out (carried).
   const shelf = new Shelf({
-    idle: "Click a reel to pull it out · a notebook to read it",
-    open: "Click the notebook again to read it · another to pull that one out",
-    out: "Carry the reel to a tape unit and click the unit to mount it · another reel to swap",
+    idle: "Click a reel to pull it out",
+    open: "Click the reel again to load or put back · or carry it to a tape unit · another reel to swap",
+    out: "",
   });
   let mounted = "";
   const items = new Map<string, Pullable>();
   for (const p of reels) {
-    const item = shelf.add(p.object, { offset: PULL });
+    const item = shelf.add(p.object, { offset: PULL, opens: true });
     items.set(p.reel.id, item);
     Object.assign(p, shelf.member(item), {
       select: (on: boolean) => { if (on) shelf.set(item); },
@@ -248,11 +213,6 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
       status: () => mounted === p.reel.id ? "mounted" : "",
     });
   }
-  for (const b of binders) {
-    const item = shelf.add(b.object, { offset: BOOK_PULL, turn: BOOK_TIP, opens: true });
-    shelf.pair(items.get(b.reel.id)!, item);
-    Object.assign(b, shelf.member(item));
-  }
   const target = new THREE.Vector3(0, 1.27, 0.12);
   return {
     object,
@@ -260,12 +220,12 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
       screen: { mesh: plate, uvRect: [0, 0, 1, 1] },
       camera: { position: new THREE.Vector3(0, 1.42, 0.12 + 1.65), target, fov: 40 },
       reels,
-      binders,
-      notebooks,
+      shelf,
+      items,
     },
     hint: () => shelf.hint(),
     putBack: () => shelf.putBack(),
     update: (dt, s: LabState) => { shelf.update(dt); mounted = s.mounted; },
-    dispose() { mine.forEach(d => d.dispose()); binders.forEach(b => b.dispose?.()); },
+    dispose() { mine.forEach(d => d.dispose()); },
   };
 }

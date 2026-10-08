@@ -29,8 +29,9 @@ import type { BuildContext, Equipment, Footprint, Glow, Placed, Room } from "../
 import { STATIONS, stationNamed } from "../stations";
 import { DOOR, DRIVES, ROOM, buildShell } from "./shell";
 import { batch } from "./batch";
-import type { Binder, Prop } from "../equipment/bookcase";
-import type { NotebookBinder, ReelPiece } from "../equipment/taperack";
+import type { Binder, NotebookBinder, Prop } from "../equipment/bookcase";
+import type { ReelPiece } from "../equipment/taperack";
+import type { Pullable, Shelf } from "../equipment/pullable";
 
 /** A builder with the options some modules take (a tape drive's number, the CPU cabinet with the lamp panel). */
 type Builder = (ctx: BuildContext, opts?: Record<string, unknown>) => Equipment;
@@ -136,9 +137,17 @@ export function build(ctx: BuildContext): Room {
   }
   const reels = rack.anchors.reels as ReelPiece[];
   for (const p of reels) { p.object.userData.placed = `reel:${p.reel.id}`; p.opens = rack.opens; placed.push({ name: p.object.userData.placed, equipment: p }); }
-  // Each reel's scenario notebook binder beside it (#29): it opens in the library's viewer, as a bookcase binder does.
-  const notebooks = rack.anchors.binders as NotebookBinder[];
+  // Each reel's mission notebook on the bookcase (#29; the operator's revision after PR #69), opening the library as a
+  // bookcase binder does, and paired with its reel across the two units: the rack's shelf and the bookcase's are linked,
+  // so one thing is out across both and its partner stands half out (pullable.ts).
+  const notebooks = library.anchors.notebooks as NotebookBinder[];
   for (const b of notebooks) { b.object.userData.placed = `binder:nb-${b.reel.id}`; b.opens = library.opens; placed.push({ name: b.object.userData.placed, equipment: b }); }
+  {
+    const rs = rack.anchors.shelf as Shelf, ls = library.anchors.shelf as Shelf;
+    const ri = rack.anchors.items as Map<string, Pullable>, li = library.anchors.items as Map<string, Pullable>;
+    rs.link(ls);
+    for (const [id, it] of li) { const r = ri.get(id); if (r) rs.pair(r, it); }
+  }
   const binders = library.anchors.binders as Binder[];
   for (const b of binders) { b.object.userData.placed = `binder:${b.doc.id}`; b.opens = library.opens; placed.push({ name: b.object.userData.placed, equipment: b }); }
   const props = library.anchors.props as Prop[];   // for looks: named on hover, inert

@@ -4,12 +4,12 @@
 // The index is grouped (ours): one group per mission, earliest range zero first, its scenario reels in index order, then
 // one group for the playlists. Each group's reels fill the rack's cells in order: a cell is one bay of one level, the
 // middle bay first, then the west (A) and the east (C) bays, level by level from the top. Each reel takes a slot: its
-// case and, after it, an empty place for its notebook binder (slice d). A group starts on a fresh level while the levels
+// case and a gap (its notebook stands on the bookcase, #19 revision after PR #69). A group starts on a fresh level while the levels
 // left can still give every group left a level of its own, else in a fresh bay; a group too big for its first bay
 // spills into the next cells. A reel with no cell left is not shelved (`unplaced`; the rack warns).
 //
 // The anonymous reels around them (`filler`, the operator's look of 2026-10-07): a level that holds any of the index's
-// reels holds only those and their notebooks; every other level is filled about half to two-thirds, in runs of cases
+// reels holds only those; every other level is filled about half to two-thirds, in runs of cases
 // with irregular gaps between them.
 import type { ReelInfo } from "../types";
 
@@ -20,11 +20,11 @@ export const bayX0 = (b: number) => postX(b) + POST / 2, bayX1 = (b: number) => 
 export const BAY_W = bayX1(0) - bayX0(0);
 /** Each level's deck top, m, levels 1 to 5 from the top. */
 export const LEVELS = [1.47, 1.12, 0.77, 0.42, 0.07];
-/** A reel case's thickness on edge, the gap between cases, a notebook slot's width; the room left at a bay's ends. */
-export const T = 0.04, GAP = 0.004, NB = 0.05, END0 = 0.012, END1 = 0.008;
-/** One reel's slot: its case, a gap, its notebook's place, a gap. */
-export const SLOT = T + GAP + NB + GAP;
-/** Slots in a bay: the last one's notebook place ends inside the bay. */
+/** A reel case's thickness on edge, the gap between cases; the room left at a bay's ends. */
+export const T = 0.04, GAP = 0.004, END0 = 0.012, END1 = 0.008;
+/** One reel's slot: its case and a gap. */
+export const SLOT = T + GAP;
+/** Slots in a bay: the last one's case ends inside the bay. */
 export const PER_BAY = Math.floor((BAY_W - END0 - END1 + GAP) / SLOT);
 /** The bays in the order a group fills them: B, then A, then C. */
 const BAY_ORDER = [1, 0, 2];

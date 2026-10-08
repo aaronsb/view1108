@@ -17,9 +17,11 @@
 // binder: the first pulls it out, the second opens its document), E or Enter opens it; a click on anything else, Esc,
 // the Room button or a walking key steps back. The tape rack is a shelf station (stations.ts): its close-up opens
 // nothing; a reel pulled there stays out when the camera leaves, carried, and a click (or E) on any tape unit mounts
-// it (hooks.mount, the page's loadReel) and puts it back on the rack (#19). A notebook binder beside a reel on the rack
-// opens its notebook in the library viewer on a second click, as a bookcase binder does (its own `opens`, #29); the
-// page's "Load this reel" there hands the reel back to carry (carryReel).
+// it (hooks.mount, the page's loadReel) and puts it back on the rack (#19). A second click on a pulled reel, or on a
+// pulled mission notebook on the bookcase whose reel is a scenario reel, asks the page for a modal (hooks.ask: LOAD NEW
+// SIMULATION SCENARIO?, LOAD SIMULATION AND REVIEW NOTEBOOK?; the operator, 2026-10-07), and the page answers through
+// answer(): load (mount it), read (open the notebook), load and read, or back (put it back). The viewer's "Load this
+// reel" hands a reel back to carry (carryReel).
 //
 // Esc is the page's one stack (web/src/esc.js, through hooks.esc): the lab pushes its close-up ("closeup": step back)
 // and a binder or reel pulled out there ("pulled": put it back; a carried reel's stays after the close-up); the page's
@@ -46,7 +48,7 @@ import { Input } from "./input";
 import { Picking } from "./picking";
 import { QualityCheck } from "./quality";
 import { anchorShot, matchShot, shotOf, type Mismatch, type Shot } from "./shot";
-import type { LabEvent, LabHooks, Opens, Placed, Quality, Room } from "./types";
+import type { LabEvent, LabHooks, Opens, Placed, Quality, ReelInfo, Room } from "./types";
 
 /** A flight's time, s, by the distance flown (m): 1 s up to 2.5 m, then slower per metre, at most 1.8 s (an 11 m
  *  flight across the room takes 1.7 s). */
@@ -94,6 +96,8 @@ export class Lab {
   /** What the page laid out for a flight (screenRect) and has not been told to leave: set at take-off, so a flight
    *  replaced or ended before it lands still undoes it. */
   private laid: Opens | null = null;
+  /** The pulled piece the page is asking about (hooks.ask), until it answers. */
+  private asking: string | null = null;
   private qualEl: HTMLButtonElement;
   private raf = 0;
   private last = 0;
@@ -272,13 +276,21 @@ export class Lab {
 
   /** At a terminal's close-up: hand over to the page (a binder's name: that document, from the bookcase). The
    *  handover pose is matched now, in case the page moved since the flight, and eased to from the arrival pose. */
-  private open(binder?: string): void {
+  private open(binder?: string, asked = false): void {
     const a = this.at;
     if (!a || this.mode !== "hold") return;
     binder ??= this.room.placed.find(q => q.equipment.pulled?.())?.name;   // E or Enter: what is pulled out, if anything
-    // What opens: the binder's own (a notebook binder on the tape rack opens the library), else the station's; a shelf
-    // opens nothing, and E or Enter there steps back, carrying what is out.
-    const opens = (binder && this.room.placed.find(q => q.name === binder)?.equipment.opens) || a.opens;
+    const piece = binder ? this.room.placed.find(q => q.name === binder) : undefined;
+    // A pulled reel, or a mission notebook whose reel is a scenario reel: the page asks what to do (answer()).
+    const reel = (piece?.equipment as { reel?: ReelInfo } | undefined)?.reel;
+    if (!asked && reel && this.hooks.ask && (binder!.startsWith("reel:") || (binder!.startsWith("binder:nb-") && reel.kind === "scenario"))) {
+      this.asking = binder!; this.picking.clearHover();
+      this.hooks.ask(binder!.startsWith("reel:") ? "reel" : "notebook", reel.id, reel.title);
+      return;
+    }
+    // What opens: the binder's own (a mission notebook opens the library), else the station's; a shelf opens nothing,
+    // and E or Enter there steps back, carrying what is out.
+    const opens = piece?.equipment.opens || a.opens;
     if (isShelf(opens)) { this.back(); return; }
     const laid = this.laid;   // still the lab's to undo until the page takes it over at the end of the handover
     const go = () => { this.laid = null; this.hooks.arrive(opens, binder ?? a.name); };
@@ -306,6 +318,24 @@ export class Lab {
     if (a) this.hooks.esc?.("closeup", () => { this.back(); });
     else { this.hooks.esc?.("closeup", null); if (!this.carry.carried()) this.hooks.esc?.("pulled", null); }
     this.lockUI();
+  }
+
+  /** The page's answer to its modal (hooks.ask) for what was pulled: "back" puts it (and its partner) back, "load"
+   *  puts it back and mounts its reel (hooks.mount), "read" opens the notebook, "loadread" mounts and then opens it. */
+  answer(choice: "back" | "load" | "read" | "loadread"): void {
+    const name = this.asking, p = name ? this.room.placed.find(q => q.name === name) : undefined;
+    this.asking = null;
+    const reel = (p?.equipment as { reel?: ReelInfo } | undefined)?.reel;
+    if (!p || !reel) return;
+    if (choice === "back" || choice === "load") {
+      for (const q of this.room.placed) if (q.equipment.putBack?.()) break;
+      this.hooks.esc?.("pulled", null);
+      if (choice === "load") this.hooks.mount?.(reel.id);
+      this.lockUI();
+      return;
+    }
+    if (choice === "loadread") this.hooks.mount?.(reel.id);
+    this.open(name!, true);
   }
 
   /** Reel `id` out at the tape rack and carried, as if pulled there (its notebook binder half out beside it): the
@@ -432,6 +462,7 @@ export class Lab {
   get info() {
     const w = this.walk, s = this.hooks.state();
     return { locked: this.input.locked, at: this.at?.name ?? null, carried: this.carry.carried()?.name ?? null, walkup: this.walk.auto, line: this.lineEl.style.display === "none" ? null : this.lineEl.textContent, hover: this.picking.hover?.name ?? null, lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.check.probe ? "probe" : this.check.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
+      asking: this.asking,
       walk: { x: w.pos.x, z: w.pos.y, yaw: w.yaw / D2R, pitch: w.pitch / D2R, near: w.near?.name ?? null },
       // what is out on a shelf, by placed name: 1 out, HALF (pullable.ts) half out beside its partner
       out: Object.fromEntries(this.room.placed.flatMap(p => { const o = p.equipment.out?.() ?? 0; return o ? [[p.name, o]] : []; })),

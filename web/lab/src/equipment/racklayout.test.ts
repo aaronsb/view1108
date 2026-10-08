@@ -11,7 +11,7 @@ const ok = (c: boolean, what: string) => { if (!c) { fails++; console.error(`FAI
 const scenario = (id: string, mission: string, zero: number): ReelInfo => ({ id, title: id.toUpperCase(), kind: "scenario", mission, zero });
 const playlist = (id: string): ReelInfo => ({ id, title: id.toUpperCase(), kind: "playlist", mission: "", zero: null });
 
-/** Every slot inside its bay (its case and notebook place), and no two slots in a cell overlapping. */
+/** Every slot inside its bay, and no two slots in a cell overlapping. */
 function sound(name: string, reels: ReelInfo[]) {
   const p = rackLayout(reels);
   for (const s of p.slots) ok(s.x >= bayX0(s.bay) && s.x + SLOT <= bayX1(s.bay) - END1 + 1e-9 && s.level < LEVELS.length && s.bay < BAYS, `${name}: ${s.reel.id} out of its bay`);
