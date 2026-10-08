@@ -77,6 +77,9 @@ export interface LabHooks {
    *  ("notebook") or on a pulled system tape ("system", #87: `id` the tape's, not a reel of the index): the page shows
    *  its modal for `id` (title `title`) and answers through VIEW_LAB.answer. */
   ask?(kind: "reel" | "notebook" | "system", id: string, title: string): void;
+  /** The operator console's second stage (#74): E, Enter or a click on the console at its close-up opens the tape file
+   *  browser, a page overlay over the room, which the page puts on the Esc stack (Esc returns to the console seat). */
+  browse?(): void;
 }
 
 /** A camera pose: where the eye is, what it looks at, its vertical field of view (deg). */

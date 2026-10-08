@@ -10,7 +10,7 @@
 // "shelf" is a close-up opening nothing on the page: the tape rack, to take something from (#19: a reel pulled there is
 // carried to a tape unit, which mounts it through the page's loadReel, LabHooks.mount), and the operator console, to
 // sit at and watch the EXEC run the mounted reel and key in from the operator's notebook (#68; it has no Tabbed
-// counterpart; the file browser of #74 will make it open an overlay).
+// counterpart; #74: E, Enter or a click on it there opens the tape file browser, a page overlay over the room).
 // Adding a station is one row here (for a new kind of opening, its page side in room.js too); both presentations follow.
 
 export interface Station {
@@ -50,7 +50,7 @@ export const STATIONS = [
     label: "Tape library — mission reels", at: "Click a reel to pull it out",
     tabbed: "the reel list (the sim panel's [ RETURN TO REELS ], #73): one button per reel, mounting it through the same loadReel, and Read the notebook after a reel that has one" },
   { name: "console", kind: "console4009", does: "shelf", opens: "exec", tabs: [],
-    label: "UNIVAC 1108 display console — EXEC 8", at: "Click a note in the notebook to key it in",
+    label: "UNIVAC 1108 display console — EXEC 8", at: "Click a note in the notebook to key it in · E or click the console to browse the reel's files",
     tabbed: "none: the EXEC's console is the room's only (#68)" },
 ] as const satisfies readonly Station[];
 
