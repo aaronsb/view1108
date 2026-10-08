@@ -167,7 +167,7 @@ Over the pad, one thin toggle in two sections (#72) sets what its keys are and w
 | `Q` `E` | Roll | Down, up |
 | `R` | Reset the view | Put the eye back |
 
-MOVE is ours (#72, #31): VIEW drew from fixed eye points. In the CM and LM views the eye moves 5 cm a step in the vehicle, up to 0.15 m from the cabin's walls (the kernel's `in_eyeo`, `src/veye.f`), and the cabin, its hidden lines and the window mask follow it, so you can lean toward a window. In the External view the point flown round moves 2% of the distance a step, up to one distance from the target. The window views have no eye to move. A moved eye belongs to its situation and view: choosing another starts again at the design eye, and links and reels always draw from it.
+MOVE is ours (#72, #31): VIEW drew from fixed eye points. In the CM and LM views the eye moves 5 cm a step in the vehicle, up to 0.15 m from the cabin's walls (the kernel's `in_eyeo`, `src/veye.f`), and the cabin, its hidden lines and the window mask follow it, so you can lean toward a window. In the External view the point flown round moves 2% of the distance a step, up to one distance from the target. The window views have no eye to move. A moved eye belongs to its situation and view: choosing another starts again at the design eye, and links and reels always draw from it. The eye is clamped by the cabin's walls only, so it can move into the couches and the console. The pad's toggles are not saved between visits. In Fusion, WASD still moves the look while the photograph is being nudged.
 
 ## View and target
 
