@@ -28,34 +28,34 @@ Attract and Tour keep playing on every tab until you take control (any drag, whe
 
 **Fusion** lays a mission photograph over the plot at its moment. The list is the mounted tape's photographs (#75): each scenario reel carries its own photo events, packed from `data/photos.tsv`'s rows with a situation (the photograph a `media` member, 1024 px, its timing, lens and our fit in the reel's `page.json`; `docs/systems-model.md`, section 3, Photo events), so with Apollo 11 mounted only Apollo 11's frames are listed, and none of another mission's. A tape without photographs says so. Picking one stays on the tape; it opens its scene in the window view in Free-look, held at its g.e.t. (a bracket's midpoint, with a slider across the bracket), with the field of view of its lens on the 70 mm gate (55.74 mm, our measurement; our computation), and lays the photograph over the plot box: opacity, blend (normal, screen, difference), and its centre, rotation and scale in plot degrees and percent. **Move photo** moves it by drag, arrows, `Q`/`E` and `+`/`-` or the wheel (Shift: 10×) instead of the look; Esc ends it. Changes are remembered per photograph in this browser; **Reset alignment** goes back to our fit, **Copy alignment** copies the view and alignment as JSON for `data/photos.tsv`'s fit columns. **Unpin** hides the photograph while you look around, **Return** restores its view. AS08-14-2383, AS08-14-2384 and AS08-13-2329 come fitted by us (pointing and alignment from their Earth discs and horizons); each photograph's panel says what still misfits, and its credit and source. A photo event is also an entry of the reel's event list (kind PHOTO, marked like the situations) and of the notebook's run sheet, and may be a quick view; picking it there opens Fusion at it. A notebook's print of a photo event opens it in Fusion too.
 
-## Room and Tiled
+## Room and Tabbed
 
 **Room** puts the workbench inside a 3D machine room (a modern addition, ours: three.js, built from `web/lab/`). Its layout is ours, after the MSC photograph of 15 July 1969 (white raised floor, troffer rows, tape drives in a row): tape drives along the back wall with a reel table in front of them, the 1108's cabinets on the left across open raised floor, the operator console in the middle, and on the right a UNIVAC 1558 graphic console (UP-7789, 1970; not known to have been at MSC) whose screen is the live plot, beside a UNISCOPE 100 on a desk; along the right-hand wall a microfilm recorder (an S-C 4020, our guess at MSC's) and the line printer, and behind you the door under its EXIT sign, with the light switch beside it. You stand near the front right corner. Click the room (anywhere but a machine) and the mouse looks around as in a first-person game: the pointer is captured, a small crosshair marks the centre, and the machine under it is the one you hover and click; Esc gives the pointer back. A line at the top left says what is mounted and whether it runs (DEMO while Attract or Tour plays, else the situation's title; RUNNING or STOPPED) and, until you first look, walk or click, how to take control. You turn all the way round and 35° up or down. Where the browser will not capture the pointer, and with touch or a pen, drag to turn instead. You walk with `W` `A` `S` `D` or the arrow keys (Shift walks faster), the wheel or a pinch to step forward or back; walls and machines stop you and you slide along them, and your footsteps are faint on the raised floor. While the room is shown these keys walk and the plot's keys wait (Esc, Tab, `M` and the browser's chords still pass); Esc, once you have moved and the pointer is free, flies back to the starting view. Hovering a terminal, with the pointer or the crosshair, lifts it and names it. Walk up to a terminal and face its screen: its name shows with "press E", and `E` or Enter flies the camera in as a click does. With WALK-UP turned on (its button at the bottom right; off by default, and remembered) the line says "approach or press E" and standing there a moment flies in too. The middle tape drive on the back wall holds the mounted reel: its paper label reads DEMO while the demo plays (Attract, then Tour), else the situation's title, and its RUN or STOP lamp is lit. Click it, or `E` in front of it, to stop the playback clock (the g.e.t. holds; the mode, the scene and the shot stay) and again to start it; the room starts with the demo running (#20). Beam paces its own clock, so in Beam the drive's lamps are dark, it does nothing, and the top line leaves it out. The light switch (click it, `E` in front of it, or `L` anywhere in the room) turns the fluorescent lights off and on: off, the room is lit only by the equipment's lamps and screens and the EXIT sign; on, the tubes strike one by one, flickering, a couple of them late. Your choice is remembered. The door's handle (click it, or `E` in front of it) is the way out: it opens the project's repository, github.com/aaronsb/view1108, in a new tab. Click the 1558 and the camera flies to it, ending with its screen and keyboard in view as its operator would see them, and stays there with the room live and a line at the bottom on how to go on: click the machine again, `E` or Enter, and the camera closes in until the screen covers the plot's place on the page and the room crossfades into the workbench on the last plot tab you used (Review the first time); Esc, `[ ROOM ]`, a walking key or a click off the machine steps back to stand in front of it. The UNISCOPE opens Source the same way, the microfilm recorder Print, and the line printer the kernel listing on greenbar (the page torn off on its hood becomes the listing's first sheet; Esc or its `[ ← ROOM ]` goes back to the printer, Close leaves you on the page). The steel bookcase on the back wall, beyond the UNISCOPE's desk east of the tape drives, holds a ring binder for each document of the Library (below): hover a binder for its title, click it (or the crosshair and `E`) and the camera flies to its spine as it slides out of the row; click again and the Library opens on that document. The bookcase itself, clicked or walked up to, flies to its close-up, where a click on a binder pulls it out and a second opens it; a click on the bookcase's frame or anywhere else steps back. Esc or its `[ ← ROOM ]` returns you to stand in front of the bookcase. A tab picked while the room is shown flies to its terminal first and opens it without the second click. `[ ROOM ]` in the tab bar, or Esc on a plot tab or in Source when Esc has nothing else to close (the listing, Fusion's Move photo; Source's quick-open, tooltip and Files drawer), fades the room back in over the page and flies out to stand about 2 m in front of that terminal, facing it; it takes you in again only once you have stepped away. On a terminal's page the button reads `[ ← ROOM ]`, unlit. While the room is shown the plot keeps running, kernel frames at 16 fps on every tab, Source included, so the 1558's screen is live; it is always a Scope (see Screen under Toggles). No tab is lit in the tab bar while the room shows. Esc is one stack (`web/src/esc.js`): it closes or steps back from the last thing opened, in this order: a fresh copy printing (finished at once), the library or the listing (opened from the bookcase or the printer: back to it; from Source: closed), a terminal's page (back to the room), a binder pulled out at the bookcase's close-up (back on the shelf), a terminal's close-up (step back), and last the room itself (back to the starting view). Source's quick-open, tooltip and Files drawer and Fusion's Move photo take Esc first.
 
 The room renders at one of two qualities, shown and switched by the button at its lower right (the choice is remembered): HIGH (soft shadows, area lights from the troffers, ambient occlusion, a little bloom) and LOW (no shadows or post-processing). Without a choice the room starts HIGH and drops to LOW for the visit if its first frames take longer than 24 ms, or the next 2 s average over 22 ms; the button then reads LOW (auto: slow). A software renderer starts LOW.
 
-**Tiled** is the plain page, unchanged: the lab is not started, so there is no WebGL context and no second frame loop. `[ TILED ]` beside `[ ROOM ]` picks it; the choice is remembered. Room is the default where it can run. The page is Tiled, with neither button, on a screen narrower than 1000 px, with `bare` or `still`, where WebGL fails, and in a page built without the lab (the build needs npm for it; see the README).
+**Tabbed** is the plain page, unchanged: the lab is not started, so there is no WebGL context and no second frame loop. `[ TABBED ]` beside `[ ROOM ]` picks it (`space=tabbed` in a link; `space=tiled`, its old name, still works); the choice is remembered. Room is the default where it can run. The page is Tabbed, with neither button, on a screen narrower than 1000 px, with `bare` or `still`, where WebGL fails, and in a page built without the lab (the build needs npm for it; see the README).
 
 ## Modes
 
-Attract and Tour are playlist reels (#18): their shots are SHOT cards in `data/reels/demo/run.scn` and `data/reels/tour/run.scn`, each naming a situation, an absolute g.e.t. and its look, and one player (`web/src/player.js`) plays whichever is mounted. The deck's header gives the card format. Attract and Tour stay the page's names for the two reels (each REEL card's ALIAS), and `reel=demo` or `reel=tour` in a link mounts the same reel as `mode=attract` or `mode=tour`.
+Attract and Tour are playlist reels (#18): their shots are SHOT cards in `data/reels/demo/run.scn` and `data/reels/tour/run.scn`, each naming a situation, an absolute g.e.t. and its look, and one player (`web/src/player.js`) plays whichever is mounted. The deck's header gives the card format. Attract and Tour stay the page's names for the two reels (each REEL card's ALIAS), and `reel=demo` or `reel=tour` in a link mounts that reel (`mode=attract` and `mode=tour` still do, for old links).
 
 | Mode | What it does | Example |
 |---|---|---|
-| **Attract** | The demo reel (`data/reels/demo/run.scn`): replays the four shots of the surviving VIEW film at the film's pace (about 36 s): Earthrise, Earth approach, LM pirouette, LM descent. A fifth shot follows, 12 s orbiting the translunar stack from outside, captioned as a modern addition. Plays once on a fresh load, then mounts its NEXT reel, the tour. The Time group and the room's drive label the mounted reel with its TITLE: DEMO, then TOUR. | [?mode=attract](https://aaronsb.github.io/view1108/?mode=attract) |
-| **Tour** | The tour reel (`data/reels/tour/run.scn`): a slow loop through every scene, a few minutes each, with a caption naming the shot and its g.e.t. It ends by orbiting the stack from outside, looking out of the CM's left rendezvous window, then the Apollo 8 Earthrise. Loops forever. | [?mode=tour](https://aaronsb.github.io/view1108/?mode=tour) |
+| **Attract** | The demo reel (`data/reels/demo/run.scn`): replays the four shots of the surviving VIEW film at the film's pace (about 36 s): Earthrise, Earth approach, LM pirouette, LM descent. A fifth shot follows, 12 s orbiting the translunar stack from outside, captioned as a modern addition. Plays once on a fresh load, then mounts its NEXT reel, the tour. The Time group and the room's drive label the mounted reel with its TITLE: DEMO, then TOUR. | [?reel=demo](https://aaronsb.github.io/view1108/?reel=demo) |
+| **Tour** | The tour reel (`data/reels/tour/run.scn`): a slow loop through every scene, a few minutes each, with a caption naming the shot and its g.e.t. It ends by orbiting the stack from outside, looking out of the CM's left rendezvous window, then the Apollo 8 Earthrise. Loops forever. | [?reel=tour](https://aaronsb.github.io/view1108/?reel=tour) |
 | **Live** | The Apollo 11 mission clock at 1× (or 10×, 60×, 300×, 1000×). The scene follows the mission phase from the g.e.t.: Earth parking orbit until 2:50:00, translunar coast until 75:50:00, lunar orbit until 135:24:00, then transearth coast. The transposition and docking, the LM rendezvous and the descent are jump windows. Phases and jumps are the LIVE and JUMP `SPAN` cards of the Apollo 11 deck. | [Live at touchdown](https://aaronsb.github.io/view1108/?mode=live&get=102:45:40) |
-| **Free-look** | Time paused or running at a chosen speed; look anywhere at the current moment. Any drag, wheel or key in Attract or Tour switches to Free-look and keeps the view. The room's drive is the exception: it stops and starts the demo without leaving it, and once the drive has stopped it, Pause (the button, Space, the pad's key) starts it again. | [A frozen Earthrise](https://aaronsb.github.io/view1108/?mode=free&scene=1&get=102:20:06&fov=8) |
-| **Beam** | Started from the Print tab (Beam trace, or `T`). It keeps tracing on the other plot tabs, with that tab's film defaults; `T` there shows Print, and `T` again stops it. Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades, with a beam spot on the pen. The mission clock advances one frame at a time, by however long the frame took to draw. | [Slow trace of the Earth](https://aaronsb.github.io/view1108/?mode=beam&scene=2&bspeed=3) |
+| **Free-look** | Time paused or running at a chosen speed; look anywhere at the current moment. Any drag, wheel or key in Attract or Tour switches to Free-look and keeps the view. The room's drive is the exception: it stops and starts the demo without leaving it, and once the drive has stopped it, Pause (the button, Space, the pad's key) starts it again. | [A frozen Earthrise](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=1&get=102:20:06&fov=8) |
+| **Beam** | Started from the Print tab (Beam trace, or `T`). It keeps tracing on the other plot tabs, with that tab's film defaults; `T` there shows Print, and `T` again stops it. Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades, with a beam spot on the pen. The mission clock advances one frame at a time, by however long the frame took to draw. | [Slow trace of the Earth](https://aaronsb.github.io/view1108/?mode=beam&scn=apollo11-asflown&sit=2&bspeed=3) |
 
 ### Beam speeds (`bspeed`)
 
 | `bspeed` | Name | Rate | Example |
 |---|---|---|---|
-| 1 | 1108 + recorder (est.) | about 1.3 s of computing, then about 13,000 vectors/s | [bspeed=1](https://aaronsb.github.io/view1108/?mode=beam&scene=1&bspeed=1) |
-| 2 | Recorder only (est.) | about 13,000 vectors/s | [bspeed=2](https://aaronsb.github.io/view1108/?mode=beam&scene=1&bspeed=2) |
-| 3 | Slow trace | 1,000 vectors/s | [bspeed=3](https://aaronsb.github.io/view1108/?mode=beam&scene=5&bspeed=3) |
-| 4 | Persistence | a whole frame in about 1/15 s | [bspeed=4](https://aaronsb.github.io/view1108/?mode=beam&scene=2&bspeed=4) |
+| 1 | 1108 + recorder (est.) | about 1.3 s of computing, then about 13,000 vectors/s | [bspeed=1](https://aaronsb.github.io/view1108/?mode=beam&scn=apollo11-asflown&sit=1&bspeed=1) |
+| 2 | Recorder only (est.) | about 13,000 vectors/s | [bspeed=2](https://aaronsb.github.io/view1108/?mode=beam&scn=apollo11-asflown&sit=1&bspeed=2) |
+| 3 | Slow trace | 1,000 vectors/s | [bspeed=3](https://aaronsb.github.io/view1108/?mode=beam&scn=apollo11-asflown&sit=5&bspeed=3) |
+| 4 | Persistence | a whole frame in about 1/15 s | [bspeed=4](https://aaronsb.github.io/view1108/?mode=beam&scn=apollo11-asflown&sit=2&bspeed=4) |
 
 Speeds 1 and 2 are our estimates, worked out in [univac-1108.md](univac-1108.md). No source gives the recorder's vector rate.
 
@@ -67,14 +67,14 @@ The number is the scene's place in the page's order, `scene=N` in a link (kept f
 
 | # | Scene | What you see | Example |
 |---|---|---|---|
-| 1 | Earthrise | The CSM in 60 n.mi. lunar orbit looking at the horizon; the Earth rises over the limb, night side hatched. | [scene=1](https://aaronsb.github.io/view1108/?mode=free&scene=1&get=102:20:06) |
-| 2 | Transearth coast | The Earth among the stars on the way home (its card's NAME is EARTH APPROACH). Near entry interface (195:03:06) it grows to a limb arc. Live also shows it for the translunar coast. | [Earth approach](https://aaronsb.github.io/view1108/?mode=free&scene=2&get=190:00:00&fov=60) |
-| 3 | Earth limb | The limb from the 100 n.mi. parking orbit. | [scene=3](https://aaronsb.github.io/view1108/?mode=free&scene=3&get=5400) |
-| 4 | LM rendezvous | The LM wireframe turning in place after undocking, 300 ft from the CSM. | [scene=4](https://aaronsb.github.io/view1108/?mode=free&scene=4) |
-| 5 | LM descent | The commander's front window with the LPD scale; the horizon rises as the LM pitches over. | [scene=5](https://aaronsb.github.io/view1108/?mode=free&scene=5&get=102:44:00) |
-| 6 | Moon view | The whole Moon from 35,000 km; drag to spin it. Maria, craters, the terminator and the landing site. A modern addition, not reconstructed 1969 output. | [scene=6](https://aaronsb.github.io/view1108/?mode=free&scene=6) |
-| 7 | Transposition & docking | Through the CSM's docking sight, down onto the LM stowed on the S-IVB, closing from 100 ft to docking at 3:24:03. Hidden-line LM and S-IVB. | [scene=7](https://aaronsb.github.io/view1108/?mode=free&scene=7) |
-| 8 | Translunar stack | The CSM and LM docked, in translunar coast, seen from outside or from a crew station (View). A modern addition, not reconstructed 1969 output. | [scene=8](https://aaronsb.github.io/view1108/?mode=free&scene=8&view=external) |
+| 1 | Earthrise | The CSM in 60 n.mi. lunar orbit looking at the horizon; the Earth rises over the limb, night side hatched. | [sit=1](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=1&get=102:20:06) |
+| 2 | Transearth coast | The Earth among the stars on the way home (its card's NAME is EARTH APPROACH). Near entry interface (195:03:06) it grows to a limb arc. Live also shows it for the translunar coast. | [Earth approach](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=2&get=190:00:00&fov=60) |
+| 3 | Earth limb | The limb from the 100 n.mi. parking orbit. | [sit=3](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=3&get=5400) |
+| 4 | LM rendezvous | The LM wireframe turning in place after undocking, 300 ft from the CSM. | [sit=4](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=4) |
+| 5 | LM descent | The commander's front window with the LPD scale; the horizon rises as the LM pitches over. | [sit=5](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=5&get=102:44:00) |
+| 6 | Moon view | The whole Moon from 35,000 km; drag to spin it. Maria, craters, the terminator and the landing site. A modern addition, not reconstructed 1969 output. | [sit=6](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=6) |
+| 7 | Transposition & docking | Through the CSM's docking sight, down onto the LM stowed on the S-IVB, closing from 100 ft to docking at 3:24:03. Hidden-line LM and S-IVB. | [sit=7](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=7) |
+| 8 | Translunar stack | The CSM and LM docked, in translunar coast, seen from outside or from a crew station (View). A modern addition, not reconstructed 1969 output. | [sit=8](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=8&view=external) |
 | 9 | Apollo 8 Earthrise | The Earth rising over the lunar limb from Apollo 8's lunar orbit, 24 Dec 1968; the status line names APOLLO 8 and the UTC follows Apollo 8's lift-off. Built from Apollo 8 data in the Apollo 11 note's formats: VIEW did make Apollo 8 views: "Preflight views produced for the Apollo 8 mission included views as seen through the spacecraft windows during various critical maneuvers of the flight. These maneuvers were at TLI, LOI, transearth insertion (TEI), and the entry phase." (TN D-6853, printed p. 3; also p. 2, "the window view of the lunar horizon at the Apollo 8 LOI ignition time and attitude"). None survive that we know of. It is situation 1 of the Apollo 8 reel (`apollo8-asflown`); Live and the jump buttons follow the scenario with LIVE and JUMP `SPAN` cards (Apollo 11), so this scene opens in Free-look and hides the jumps. | [scn=apollo8-asflown](https://aaronsb.github.io/view1108/?mode=free&scn=apollo8-asflown) |
 
 ### Scene 7 sources and guesses
@@ -170,55 +170,87 @@ Each control group in the dock has a header: `[-]` shows the group is open, `[+]
 
 ## Link parameters
 
-| Parameter | Values | Example |
+This is the one table of the page's link keys (#22); the README points here. `web/src/urlkeys.js` holds the same keys, and the selftest's `url keys:` line checks the two against each other and against every key the page and the room read. The `[ LINK ]` button (key `L`) copies a URL that reproduces the current view, written in the keys below and no others. You can also write one by hand. Bad values are ignored, parameters override stored preferences for that visit only (nothing is written to storage), and with no `mode` or `reel` the page starts in Attract. A link naming a view (a tab, mode, reel, mission, situation, code location or photograph) opens in Tabbed unless it gives `space`.
+
+| Key | Values | Example |
 |---|---|---|
-| `mode` | `attract`, `tour`, `live`, `free`, `beam` | `?mode=live` |
-| `reel` | a playlist reel's id: `demo` (Attract) or `tour`; it wins over `mode` | `?reel=tour` |
-| `tab` | `review`, `simulate`, `print`, `fusion`, `source`. Without it, the mode's tab (Live: Simulate, Beam: Print, else Review). With no `mode`, the link loads that tab's mode at the first scene (Simulate: Live; Print and Fusion: Free-look; Review and Source: Attract) and its other view keys are ignored, except that with `photo` the photograph's `get`, `fov`, `yaw`, `pitch` and `roll` still apply. Beam is always in Print | `?tab=simulate` |
+| `mode` | `live`, `free`, `beam` | `?mode=live` |
+| `reel` | a playlist reel's id: `demo` (Attract) or `tour`; it wins over `mode`. The LINK button writes it while one plays | `?reel=tour` |
+| `tab` | `review`, `simulate`, `print`, `fusion`, `source`. Without it, the mode's tab (Live: Simulate, Beam: Print, else Review). With no `mode` or `reel`, the link loads that tab's mode at the first scene (Simulate: Live; Print and Fusion: Free-look; Review and Source: Attract) and its other view keys are ignored, except that with `photo` the photograph's `get`, `fov`, `yaw`, `pitch` and `roll` still apply. Beam is always in Print | `?tab=simulate` |
+| `mission` | a mission: `apollo11` or `apollo8` (or its name, `Apollo 8`, in any case and spacing): its first scenario reel, where the link gives no `scn` (the Mission key of `docs/systems-model.md` section 3). Like `scn` and `sit`, it needs a `mode`: without `mode` or `reel` the page plays Attract | `?mode=free&mission=apollo8` |
 | `scn` | a scenario reel's id: `apollo11-asflown` or `apollo8-asflown` (#26 slice 7d; `reel` names playlist reels, so the scenario reel has its own key, the Scenario key of `docs/systems-model.md` section 3; ours). Alone, its first situation | `?mode=free&scn=apollo8-asflown` |
-| `sit` | a situation of that reel, by its id or its card's NAME (any case); without `scn`, the first reel holding it. The LINK button writes `scn` and `sit` by NAME, which no renumbering of a reel moves | `?mode=free&scn=apollo11-asflown&sit=7` |
-| `scene` | kept for old links (#22): `1`–`9`, the Nth situation across the reels in load order: Apollo 11's situations 1–8, then Apollo 8's Earthrise (situation 1 of its reel) as 9, since each reel numbers its own (#26 slice 7e). `scn` and `sit` win over it. In Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase; `9` opens in Free-look | `?mode=free&scene=7` |
-| `photo` | a photo event's frame (a row of `data/photos.tsv` with a situation, packed in its reel, #75): mounts the photograph's reel first when another is mounted (a fresh run, as the rack mounts it), opens it in Fusion, then `get`, `fov`, `yaw`, `pitch` and `roll` apply on top | `?tab=fusion&photo=AS08-14-2383` |
+| `sit` | a situation of that reel, by its id or its card's NAME (any case); without `scn` or `mission`, the first reel holding it. The LINK button writes `scn` and `sit` by NAME, which no renumbering of a reel moves. In Free-look and Beam it opens there; in Live Apollo 11's windowed situations (4, 5 and 7) and the Moon view (6) are pinned, the others follow the mission phase, and another reel's open in Free-look | `?mode=free&scn=apollo11-asflown&sit=lm%20descent` |
+| `photo` | a photo event's frame (a row of `data/photos.tsv` with a situation, packed in its reel, #75): mounts the photograph's reel first when another is mounted (a fresh run, as the rack mounts it; the photograph's reel wins over `mission`, `scn` and `sit`), opens it in Fusion, then `get`, `fov`, `yaw`, `pitch` and `roll` apply on top | `?tab=fusion&photo=AS08-14-2383` |
 | `get` | g.e.t. as `h:mm:ss` or seconds | `?get=102:45:40` |
-| `utc` | `YYYY-MM-DDTHH:MM:SS` (the scene's mission lift-off plus g.e.t.; Apollo 11: 1969-07-16T13:32:00Z) | `?utc=1969-07-20T20:17:40` |
-| `fov`, `yaw`, `pitch`, `roll` | degrees | `?fov=100&pitch=-10` |
-| `rate` | Live `1`/`10`/`60`/`300`/`1000`; Free-look speed | `?mode=live&rate=60` |
-| `bspeed` | `1`–`4` | `?mode=beam&bspeed=3` |
-| `labels`, `frame`, `hidden` | `0`/`1` | `?labels=0` |
-| `lab` | `0`–`3`: label level OFF, PRIMARY, SECONDARY, ALL (with a kernel that has levels; otherwise `0` is off, else on) | `?lab=1` |
-| `view` | `window`, `external`, `cm`, `lm` | `?mode=free&scene=8&view=external` |
-| `target` | `default`, `earth`, `moon`, `sun`, `csm`, `lm` | `?view=external&target=moon` |
-| `cabin` | `0`/`1`: the cabin interior in the CM and LM views (default 1) | `?mode=free&scene=8&view=cm&cabin=0` |
-| `walls` | `0`/`1`: with the cabin, the outside only through its windows (default 1) | `?mode=free&scene=8&view=lm&walls=0` |
-| `bloom`, `jitter`, `dust`, `fps` | `0`/`1` | `?bloom=0&jitter=0` |
-| `catalog` | `nav`, `full` | `?catalog=full` |
-| `disp` | `auto`, `film`, `scope`: the Screen | `?mode=free&scene=4&disp=scope` |
+| `utc` | `YYYY-MM-DDTHH:MM:SS` (the situation's mission lift-off plus g.e.t.; Apollo 11: 1969-07-16T13:32:00Z) | `?utc=1969-07-20T20:17:40` |
+| `fov`, `yaw`, `pitch`, `roll` | degrees (`fov` 1 to 170) | `?fov=100&pitch=-10` |
+| `rate` | Live `1`/`10`/`60`/`300`/`1000`; Free-look's speed | `?mode=live&rate=60` |
+| `bspeed` | `1`–`4`: 1108 + recorder, recorder only, slow trace, persistence (Beam speeds, above) | `?mode=beam&bspeed=3` |
+| `labels` | `off`, `primary`, `secondary`, `all`: the label level (with a kernel that has no levels, `off` is off and the rest on) | `?labels=primary` |
+| `frame`, `hidden` | `0`/`1`: the plot frame and ticks; hidden lines dashed | `?frame=0` |
+| `view` | `window`, `external`, `cm`, `lm` | `?mode=free&scn=apollo11-asflown&sit=8&view=external` |
+| `target` | `default`, `earth`, `moon`, `sun`, `csm`, `lm`, `sivb` | `?view=external&target=moon` |
+| `cabin` | `0`/`1`: the cabin interior in the CM and LM views (default 1) | `?mode=free&scn=apollo11-asflown&sit=8&view=cm&cabin=0` |
+| `walls` | `0`/`1`: with the cabin, the outside only through its windows (default 1) | `?mode=free&scn=apollo11-asflown&sit=8&view=lm&walls=0` |
+| `bloom`, `jitter`, `dust`, `fps` | `0`/`1`: the film effects (`fps=1` is the 16 fps film rate) | `?bloom=0&jitter=0` |
+| `catalog` | `nav` (391 stars), `full` | `?catalog=full` |
+| `disp` | `auto`, `film`, `scope`: the Screen (the microfilm look or the 1558 vector console) | `?mode=free&scn=apollo11-asflown&sit=4&disp=scope` |
 | `hz` | `16`, `steady`: the Scope's refresh | `?disp=scope&hz=steady` |
-| `src` | `replay`, `sim` (Simulation; only when the kernel has the engine) | `?src=sim` |
-| `svu` | `0`/`1`: state vector updates in simulation (default 1) | `?src=sim&svu=0` |
-| `listing` | `dark`, `light` | `?listing=light` |
+| `traj` | `replay`, `sim`: the trajectory drawn, the sourced one replayed or our engine's (Simulation's Source; only when the kernel has the engine) | `?traj=sim` |
+| `svu` | `0`/`1`: state vector updates in simulation (default 1) | `?traj=sim&svu=0` |
+| `listing` | `dark`, `light`: the Fortran listing | `?listing=light` |
 | `notebook` | `light`, `dark`: the scenario notebook's reading view for this visit (the toggle's choice is remembered) | `?notebook=dark` |
-| `space` | `room`, `tiled` (Room and Tiled; links carry `tiled` when you chose it) | `?space=tiled` |
-| `labq` | `high`, `low`: the room's quality for this visit | `?labq=low` |
-| `labdust` | `0`: no dust motes in the room (a test switch: they drift with the real frame time; `make shots`) | `?labdust=0` |
-| `code` | with `tab=source`: a unit, `/BLOCK/`, a PARAMETER or COMMON member, a file, or `file:line`. `src=` with any value but `replay` or `sim` reads the same | `?tab=source&code=PROJ`, `?tab=source&code=pen.f:120` |
+| `space` | `room`, `tabbed`: the 3D machine room around the workbench, or the plain page with its tabs (Room and Tabbed). Where the room can run, the LINK button writes the one you are in, so a link copied in the Room reopens the Room | `?space=tabbed` |
+| `code` | with `tab=source`: a unit, `/BLOCK/`, a PARAMETER or COMMON member, a file, or `file:line` | `?tab=source&code=PROJ`, `?tab=source&code=pen.f:120` |
 | `theme` | the Source browser's theme for this visit: `dark`, `light` or `contrast` (PHOSPHOR when absent) | `?tab=source&theme=dark` |
-| `still` | `earthrise` (frozen Earthrise, controls hidden, for screenshots) | `?still=earthrise` |
-| `bare` | present to hide the controls | `?bare&film=8` |
+
+Switches for screenshots, tests and debugging. The LINK button never writes them; `make shots` (`tools/shoot.mjs`) sets `debug`, `labq=low`, `labdust=0` and `labmotion=0`.
+
+| Switch | Values | Example |
+|---|---|---|
+| `still` | `earthrise`: a frozen Earthrise, controls hidden | `?still=earthrise` |
+| `t` | with `still`: seconds after the situation's default g.e.t. (default 70) | `?still=earthrise&t=30` |
+| `bare` | present: the controls hidden | `?bare&film=8` |
+| `film` | `N`: Attract held at second N of the film, for screenshots against it | `?film=8` |
+| `p` | with `film`: `from,to`, absolute g.e.t. in seconds, in place of the shot's time law (with `fov`, `yaw`, `pitch` and `roll` in place of its look), for tuning a shot against the film | `?film=8&p=369500,369560` |
+| `nosteer` | present: a demo shot's look not steered to the Earth's limb | `?film=2&nosteer` |
+| `debug` | present: the test hooks (`VIEW_TL`, `VIEW_FUSION`, `VIEW_LAB` and the rest; `tools/shots.mjs`) | `?debug` |
+| `dpr` | with `debug`: the device pixel ratio the plot is drawn at, in place of the screen's (capped at about 1800 device px across) | `?debug&dpr=2` |
+| `nowasm` | present: the wasm2js fallback in place of WebAssembly | `?nowasm` |
+| `mock` | present: the mock kernel (`web/mock.js`), for a page served without a build | `?mock` |
+| `labq` | `high`, `low`: the room's quality for this visit | `?labq=low` |
+| `labprobe` | `<ms>`: the room starts high on any renderer and feeds that frame time to its slowness checks (`web/lab/README.md`) | `?labprobe=40` |
+| `labmotion` | `0`: the room's machines held still (the tape units' reels, the FASTRAND II, the CPU lamp panel) | `?labmotion=0` |
+| `labdust` | `0`: no dust motes in the room (they drift with the real frame time) | `?labdust=0` |
+
+Old keys and values, still read for old links and slated for removal (#22): each is read as its canonical key and value, and the LINK button never writes them. Where a link gives a key more than one way, a canonical value wins (`labels=primary&lab=3` is `labels=primary`); without one, the first old key or value in the link does (`lab=2&labels=1` is `labels=secondary`). The equipment gallery (`web/lab/gallery.html`, development only) has keys of its own, in `web/lab/README.md`.
+
+| Old | Read as | Why |
+|---|---|---|
+| `space=tiled` | `space=tabbed` | Room and Tiled became Room and Tabbed (#27) |
+| `src=replay` | `traj=replay` | `src` was both the state source and a code location |
+| `src=sim` | `traj=sim` | |
+| `src` (any other value) | `code` | |
+| `lab` | `labels` | `lab`, the label level, sat beside `labq`, the room's quality: a number from 0 to 3, rounded, read as `off`, `primary`, `secondary` or `all` |
+| `labels=0` | `labels=off` | `labels` was on or off before the levels |
+| `labels=1` | `labels=all` | |
+| `scene` | `scn` and `sit` | `1`–`9`, the Nth situation across the reels in load order: Apollo 11's situations 1–8, then Apollo 8's Earthrise (situation 1 of its reel) as 9, since each reel numbers its own (#26 slice 7e). `scn`, `sit` and `mission` win over it. In Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase; `9` opens in Free-look. Example: `?mode=free&scene=7` |
+| `mode=attract` | `reel=demo` | a playlist reel's ALIAS as a mode (#18) |
+| `mode=tour` | `reel=tour` | |
 
 Moon view links to share (drag to spin; wheel or pinch to zoom):
 
-- [The near side at the moment of landing](https://aaronsb.github.io/view1108/?mode=free&scene=6&get=102:45:40)
-- [The far side](https://aaronsb.github.io/view1108/?mode=free&scene=6&yaw=180)
-- [The east limb and Mare Crisium, labels on, no film effects](https://aaronsb.github.io/view1108/?mode=free&scene=6&yaw=60&labels=1&bloom=0&jitter=0&dust=0&fps=0)
-- [Looking down on the south pole](https://aaronsb.github.io/view1108/?mode=free&scene=6&pitch=-90)
-- [Zoomed in on the Apollo 11 landing site](https://aaronsb.github.io/view1108/?mode=free&scene=6&yaw=23.5&pitch=0.7&fov=1.5)
+- [The near side at the moment of landing](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=6&get=102:45:40)
+- [The far side](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=6&yaw=180)
+- [The east limb and Mare Crisium, labels on, no film effects](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=6&yaw=60&labels=all&bloom=0&jitter=0&dust=0&fps=0)
+- [Looking down on the south pole](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=6&pitch=-90)
+- [Zoomed in on the Apollo 11 landing site](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=6&yaw=23.5&pitch=0.7&fov=1.5)
 
 More examples:
 
 - [Touchdown through the LM window, at 60×](https://aaronsb.github.io/view1108/?mode=live&utc=1969-07-20T20:17:40&rate=60)
 - [Transearth coast, looking back at the Earth](https://aaronsb.github.io/view1108/?mode=live&get=150:00:00)
-- [The full star catalog around the Earth, no film effects](https://aaronsb.github.io/view1108/?mode=free&scene=2&get=100:00:00&fov=90&catalog=full&bloom=0&jitter=0&dust=0&fps=0)
-- [Transposition and docking, live from 3:20:30 to the docking](https://aaronsb.github.io/view1108/?mode=live&scene=7)
-- [The last 13 ft before docking, hidden lines dashed](https://aaronsb.github.io/view1108/?mode=free&scene=7&get=3:23:00&hidden=1)
+- [The full star catalog around the Earth, no film effects](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=2&get=100:00:00&fov=90&catalog=full&bloom=0&jitter=0&dust=0&fps=0)
+- [Transposition and docking, live from 3:20:30 to the docking](https://aaronsb.github.io/view1108/?mode=live&scn=apollo11-asflown&sit=7)
+- [The last 13 ft before docking, hidden lines dashed](https://aaronsb.github.io/view1108/?mode=free&scn=apollo11-asflown&sit=7&get=3:23:00&hidden=1)
 - [The crisp Earthrise still used for the README](https://aaronsb.github.io/view1108/?still=earthrise&bloom=1&jitter=0)

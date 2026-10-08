@@ -39,7 +39,7 @@ function simTick() {
     (r.rget ? `   ERR ${r.perr.toFixed(1)} KM ${r.verr.toFixed(1)} FT/S   VS ${getStr(r.rget)}` : "");
   const el = $("simread"); if (el.textContent !== t) el.textContent = t;
 }
-// After boot: show the group if the kernel has the engine, then apply ?src=sim&svu=0|1.
+// After boot: show the group if the kernel has the engine, then apply ?traj=sim&svu=0|1.
 function simInit() {
   simAvail = SIMK.present();
   $("simgrp").hidden = !simAvail;
@@ -47,5 +47,5 @@ function simInit() {
   $("ssrc-replay").onclick = () => simSet(false, simSvu);
   $("ssrc-sim").onclick = () => simSet(true, simSvu);
   $("ssvu").onclick = () => simSet(simOn, !simSvu);
-  simSet(UP.get("src") === "sim", UP.get("svu") !== "0");
+  simSet(UP.get("traj") === "sim", UP.get("svu") !== "0");
 }

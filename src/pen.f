@@ -505,24 +505,6 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     PERP: unit vectors E1, E2 completing unit A to a right-handed set.
-      SUBROUTINE PERP(A, E1, E2)
-      DOUBLE PRECISION A(3), E1(3), E2(3), Z(3)
-      Z(1) = 0.0D0
-      Z(2) = 0.0D0
-      Z(3) = 1.0D0
-C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
-      IF (DABS(A(3)) .GT. 0.9D0) THEN
-        Z(1) = 1.0D0
-        Z(3) = 0.0D0
-      END IF
-C     RESTOMOD END
-      CALL VCRS(Z, A, E1)
-      CALL VUNIT(E1)
-      CALL VCRS(A, E1, E2)
-      RETURN
-      END
-C
 C-----------------------------------------------------------------------
 C     MSEG0: 3-D segment A-B (camera relative) to the frame, for model
 C     edges, which may pass beside or behind the camera or very close

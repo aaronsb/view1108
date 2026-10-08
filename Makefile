@@ -11,10 +11,17 @@ SCENES  = $(shell python3 -c 'import json; print(*("%s:%s" % (r["id"], s) for r 
 # card reader's vocabulary).
 KSRC    = $(filter-out src/viewdata.f src/vdvoc.f,$(wildcard src/*.f))
 
-export LF_BIN
+# Image comparison (#103): a case's score is 100 - changed-pixel percent after the fuzz; at or above the pass score it
+# auto-passes, below it the case is in the verification queue and the target exits 1.
+FUZZ                 ?= 2
+GOLDEN_PASS_SCORE    ?= 99.5
+SHOTS_PASS_SCORE     ?= 99.5
+SHOTS_UNSTABLE_SCORE ?= 90
+
+export LF_BIN FUZZ GOLDEN_PASS_SCORE SHOTS_PASS_SCORE SHOTS_UNSTABLE_SCORE
 
 .DEFAULT_GOAL := help
-.PHONY: help sheet build data native test shots lint check golden golden-check serve stop status clean
+.PHONY: help sheet build data native test shots lint check golden golden-check golden-diff shots-baseline shots-check serve stop status clean
 
 help: ## Show this list
 	@echo "VIEW-1108 — make <target>   (LF_BIN=$(LF_BIN)  PORT=$(PORT))"
@@ -55,6 +62,9 @@ lint: ## Check kernel dialect, compile warnings, and script syntax
 	node --check tools/selftest.mjs
 	node --check tools/shoot.mjs
 	node --check tools/shots.mjs
+	python3 tools/imgdiff.py selfcheck
+	bash -n tools/golden-diff.sh
+	bash -n tools/shots-check
 
 check: native ## Render every situation natively to build/check/<reel>-s<N>.png for eyeballing
 	mkdir -p build/check
@@ -68,6 +78,15 @@ golden: ## Capture the golden master (generated tables, native renders) into bui
 
 golden-check: ## Re-capture and diff against build/golden; fails on any difference
 	./tools/golden.sh check
+
+golden-diff: ## Re-capture, score each difference from build/golden -> build/golden.diff/report.html; exit 1 on a non-empty verification queue
+	./tools/golden-diff.sh
+
+shots-baseline: ## Copy build/shots/*.png to build/shots-baseline (the reference for shots-check)
+	./tools/shots-check baseline
+
+shots-check: ## make shots, then score each PNG against the baseline -> build/shots-diff; ONLY=<name|glob>
+	./tools/shots-check check
 
 serve: ## Start a local web server for web/ in the background (PORT=8108)
 	@mkdir -p build

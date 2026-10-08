@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# make shots-baseline / make shots-check (#103).
+#   tools/shots-check baseline   copy build/shots/*.png to build/shots-baseline/ (run `make shots` first)
+#   tools/shots-check check      run make shots (ONLY= respected), compare each PNG with its baseline by similarity
+#                                score, write build/shots-diff/{<name>.png,report.html,report.md,notice.json}; exit 1
+#                                if a shot failed or the verification queue is not empty
+set -uo pipefail
+cd "$(dirname "$0")/.."
+case "${1:-}" in
+  baseline)
+    ls build/shots/*.png >/dev/null 2>&1 || { echo 'shots-baseline: no build/shots/*.png (make shots)' >&2; exit 2; }
+    rm -rf build/shots-baseline; mkdir -p build/shots-baseline
+    cp build/shots/*.png build/shots-baseline/
+    echo "shots-baseline: $(ls build/shots-baseline | wc -l) shots in build/shots-baseline" ;;
+  check)
+    rc=0
+    node tools/shoot.mjs ${ONLY:+--only "$ONLY"} || rc=$?
+    [ "$rc" -ge 2 ] && exit "$rc"
+    python3 tools/imgdiff.py shots ${ONLY:+--only "$ONLY"} || rc=1
+    exit "$rc" ;;
+  *) echo 'usage: tools/shots-check baseline|check' >&2; exit 2 ;;
+esac

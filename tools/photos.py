@@ -62,9 +62,10 @@ def _num(where, key, v, need=False):
 
 def events(rid, sits, media, scenario_reels, text=None):
     """Reel `rid`'s photo events, its rows with a situation, as page.json `photos` entries in the table's order,
-    checked: each row's reel a scenario reel (`scenario_reels`), its frame unique, its situation one of the reel's
-    (`sits`, ids), its packed copy in the reel's media (`media`, file names), a g.e.t. or a bracket, its credit and an
-    https source, its fit all numbers or none."""
+    checked: each row's reel a scenario reel (`scenario_reels`), its frame unique in the whole table (Fusion keys a
+    photograph by its frame across reels: its remembered alignment, a photo= link), its situation one of the reel's
+    (`sits`, ids), its packed copy in the reel's media (`media`, file names), a g.e.t. or a bracket (get_lo not after
+    get_hi), its credit and an https source, its fit all numbers or none."""
     out, seen = [], set()
     for r in rows(text):
         where = f"data/photos.tsv {r['frame']}"
@@ -72,11 +73,11 @@ def events(rid, sits, media, scenario_reels, text=None):
             fail(where, "a frame is [A-Z0-9][A-Z0-9-]*")
         if r["reel"] not in scenario_reels:
             fail(where, f"reel {r['reel']!r} is no scenario reel")
-        if r["reel"] != rid or not r["sit"].strip():
-            continue
         if r["frame"] in seen:
             fail(where, "given twice")
         seen.add(r["frame"])
+        if r["reel"] != rid or not r["sit"].strip():
+            continue
         if not re.fullmatch(r"\d+", r["sit"].strip()) or int(r["sit"]) not in sits:
             fail(where, f"{rid} has no situation {r['sit'].strip()}")
         f = media_file(r["frame"])
@@ -85,6 +86,8 @@ def events(rid, sits, media, scenario_reels, text=None):
         get, lo, hi = (_num(where, k, r[k]) for k in ("get", "get_lo", "get_hi"))
         if get is None and lo is None:
             fail(where, "no g.e.t. (get) or bracket (get_lo)")
+        if lo is not None and hi is not None and lo > hi:
+            fail(where, f"its bracket runs backwards (get_lo {lo} after get_hi {hi})")
         if not r["credit"].strip() or not r["url"].startswith("https://"):
             fail(where, "no credit or https source URL (url)")
         given = [k for k in FIT if r.get(k, "").strip()]

@@ -14,7 +14,7 @@
 // shoulder height, about twice her height long): we found no manual or brochure on bitsavers (univac/) that gives the
 // dimensions. The proportions of the parts, the colours, the lamps' meaning and the motion's pace are ours.
 //
-// Motion (ours, `BuildContext.still` holds it): the drums turn behind the window, slowly (the real 880 rev/min would
+// Motion (ours, `BuildContext.still` holds it): the drums turn behind the window, contra to each other, slowly (the real 880 rev/min would
 // strobe at the display's frame rate), their streaked surface catching the light; the head carriage, a moving
 // carriage per UP-4046, steps along the drums on a seek, now and then when idle and often while busy (its travel shown
 // larger than the real track pitch, so it reads); the red lamps flicker with that activity, brighter and busier after
@@ -93,7 +93,13 @@ export function build(ctx: BuildContext): Equipment {
   // The drums, streaked cylinders along x, as one mesh: they turn by their texture sliding round them (one draw call).
   const tex = drumTex(); tex.wrapS = THREE.RepeatWrapping;
   const drumMat = new THREE.MeshStandardMaterial({ map: tex, metalness: 0.75, roughness: 0.22 });
-  const parts = DRUM.y.map((y, i) => new THREE.CylinderGeometry(DRUM.r, DRUM.r, DRUM.len, 40).rotateZ(Math.PI / 2).rotateX(i * 1.3).translate(XC, y, DRUM.z));
+  // The two drums turn contra to each other (ours, the operator's call; no source we hold gives their directions): the
+  // second's u runs the other way round, so the one sliding texture turns it backwards.
+  const parts = DRUM.y.map((y, i) => {
+    const g = new THREE.CylinderGeometry(DRUM.r, DRUM.r, DRUM.len, 40).rotateZ(Math.PI / 2).rotateX(i * 1.3).translate(XC, y, DRUM.z);
+    if (i % 2) { const uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setX(k, 1 - uv.getX(k)); }
+    return g;
+  });
   const drumGeo = mergeGeometries(parts)!;
   parts.forEach(g => g.dispose());
   const drums = new THREE.Mesh(drumGeo, drumMat); drums.userData.noShadow = true; object.add(drums);

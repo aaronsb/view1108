@@ -11,6 +11,8 @@ export interface PickView {
   active(): boolean;
   /** At a close-up. */
   at(): boolean;
+  /** The station whose close-up it is, if any. */
+  atName(): string | null;
 }
 
 export class Picking {
@@ -24,12 +26,14 @@ export class Picking {
   hit(x: number, y: number): Placed | null {
     const r = this.v.renderer.domElement.getBoundingClientRect();
     this.ray.setFromCamera(new THREE.Vector2((x - r.left) / r.width * 2 - 1, -((y - r.top) / r.height) * 2 + 1), this.v.camera);
+    const named = (o: THREE.Object3D) => o.userData.placed === undefined ? undefined : this.v.room.placed.find(q => q.name === o.userData.placed);
     for (const h of this.ray.intersectObject(this.v.room.object, true)) {
-      let o: THREE.Object3D | null = h.object;
-      while (o && o.userData.placed === undefined) o = o.parent;
-      if (!o) continue;   // the shell
-      const p = this.v.room.placed.find(q => q.name === o!.userData.placed);
-      return p && (p.equipment.opens || p.equipment.use || p.equipment.inert) && p.equipment.usable?.() !== false ? p : null;
+      // The nearest placed piece above what was hit; a piece pressed only at its station's close-up stands for that
+      // station anywhere else.
+      let o: THREE.Object3D | null = h.object, p = named(o);
+      while (o && (!p || (p.equipment.press && this.v.atName() !== p.equipment.pressAt))) { o = o.parent; p = o ? named(o) : undefined; }
+      if (!o || !p) continue;   // the shell
+      return (p.equipment.opens || p.equipment.use || p.equipment.inert || p.equipment.press) && p.equipment.usable?.() !== false ? p : null;
     }
     return null;
   }
@@ -38,7 +42,7 @@ export class Picking {
   pick(x: number, y: number): void {
     if (!this.v.active()) return;
     let p = this.hit(x, y);
-    if (this.v.at() && !p?.equipment.pull) p = null;   // at a close-up only what pulls out
+    if (this.v.at() && !p?.equipment.pull && !p?.equipment.press) p = null;   // at a close-up only what pulls out or is pressed
     this.v.renderer.domElement.style.cursor = p || this.v.at() ? "pointer" : "";
     if (p !== this.hover) { this.clearHover(); if (p) this.lift(p, true); this.hover = p; }
     const label = p && this.nameOf(p);

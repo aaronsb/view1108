@@ -229,9 +229,10 @@ function reelFigureRefs(md) {
 // A scenario reel's photo events (#75; tools/photos.py, which gives the entry's format): page.json's `photos`, the
 // photographs Fusion lays over the plot, each pinned to a situation of the reel and a moment. Why they may not be the
 // reel's, or null: each a frame ([A-Z0-9][A-Z0-9-]*, once), its photograph a media member the reel holds (`media`,
-// file -> {bytes, type}), a situation the reel holds, a g.e.t. or a bracket's start (numbers or null), its credit and an
-// https source, and its fit null or {cam: three numbers, x, y, rot: numbers, scale above 0}. The same rules as
-// tools/photos.py events.
+// file -> {bytes, type}), a situation the reel holds, a g.e.t. or a bracket's start (numbers or null; get_lo not after
+// get_hi), its credit and an https source, its text fields text (get_src, lens_mm, magazine, where, needs, note), and its
+// fit null or {cam: three numbers, x, y, rot: numbers, scale above 0}. A frame on two reels is refused by reelPages
+// (Fusion keys a photograph by its frame). The same rules as tools/photos.py events.
 const REEL_FRAME = /^[A-Z0-9][A-Z0-9-]*$/;
 const reelNum = v => typeof v === "number" && isFinite(v);
 /** A photo event's g.e.t. in the listing: its own, else its bracket's midpoint, else the bracket's start
@@ -250,6 +251,9 @@ function reelPhotosWrong(pg, media) {
     if (!m || !media.has(m[1])) return `${at} names ${JSON.stringify(p.media)}, which it does not hold`;
     if (![p.get, p.get_lo, p.get_hi].every(v => v === null || reelNum(v)) || (p.get === null && p.get_lo === null))
       return `${at} has no g.e.t. or bracket`;
+    if (p.get_lo !== null && p.get_hi !== null && p.get_lo > p.get_hi) return `${at}'s bracket runs backwards`;
+    for (const k of ["get_src", "lens_mm", "magazine", "where", "needs", "note"])
+      if (typeof p[k] !== "string") return `${at}'s ${k} is not text`;
     if (typeof p.credit !== "string" || !p.credit || typeof p.url !== "string" || !p.url.startsWith("https://")) return `${at} has no credit or https source`;
     const f = p.fit;
     if (f !== null && !(f && typeof f === "object" && Array.isArray(f.cam) && f.cam.length === 3 && f.cam.every(reelNum) &&
@@ -433,8 +437,11 @@ function reelPages(reels) {
       listing: (pg.listing || []).map(e => e.kind === "event" ? e : { ...e, scene: scene(e.sit) }),
       quick: pg.quickviews || {} };
     tl[id] = pg.timeline;
-    for (const ph of pg.photos || [])
+    for (const ph of pg.photos || []) {
+      const twin = photos.find(x => x.frame === ph.frame);
+      if (twin) throw new Error(`REEL ${id}: photo ${ph.frame} is on reel ${twin.reel} too`);
       photos.push({ ...ph, reel: id, scene: scene(ph.sit), mission: pg.scenario.mission, pic: r.media && r.media.get(ph.media.slice(6)) });
+    }
   }
   for (const r of reels.filter(x => x.manifest.kind === "playlist")) {
     const id = r.manifest.id, uses = r.manifest.uses;
