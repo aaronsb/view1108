@@ -22,18 +22,23 @@ string `figures`, one case per line in tools/golden.sh's CASES columns (ours):
                 number or '-' (the situation's default)
 
 Lines starting with # and blank lines in the block are skipped. Every figure the text names has a case, every case
-is named in the text, and the text names no other image. The block stays in the packed notebook.md (copied byte for
+is named in the text, and the text names no other image: outside fenced blocks every "![" must open an inline image
+![alt](figures/<name>.svg) (alt text without "]"), and an HTML <img> or a reference definition ("[r]: ...", which
+reference-style images need) is refused. web/src/reelpkg.js reelFigureRefs applies the same rules. The block stays in the packed notebook.md (copied byte for
 byte), so a reader of the reel can see how each figure was made.
 
 One render serves the golden gate and the package: `render` runs build/viewsvg once per case and writes
 build/figures/<reel id>/<name>.svg (stdout) and .hdr (stderr, VIEW_HDR=1); tools/golden.sh captures those files as
-the cases nb-<reel id>-<name>, and tools/pack.py packs the .svg as notebook/figures/<name>.svg.
+the cases nb-<reel id>-<name>, and tools/pack.py packs the .svg as notebook/figures/<name>.svg. With them it writes
+build/figures/<reel id>/cases.json, what the render was made from (stamp: the cases, each with the SHA-256 of its
+reel's decks, and the SHA-256 of build/viewsvg); tools/pack.py refuses a reel whose stamp today differs (stale), so a
+case, deck or driver changed since the render cannot be packed with the old figure.
 
   tools/notebook.py render       render every notebook's figures into build/figures/ (needs build/viewsvg,
                                  build/decks/ and build/scenes.json: tools/build.sh native)
   tools/notebook.py list         print each case as "<reel id> <name>", the notebooks in load order
 """
-import json, os, pathlib, re, shutil, subprocess, sys
+import hashlib, json, os, pathlib, re, shutil, subprocess, sys
 
 R = pathlib.Path(__file__).resolve().parent.parent
 D = R / "data"
@@ -41,6 +46,8 @@ FIGDIR = R / "build" / "figures"
 NAME = re.compile(r"[a-z0-9][a-z0-9-]*$")
 ENVS = ("VIEW_VIEW", "VIEW_TARGET", "VIEW_LABLV", "VIEW_SIM")
 IMAGE = re.compile(r"!\[[^\]]*\]\(([^)\s]*)[^)]*\)")
+REFDEF = re.compile(r" {0,3}\[[^\]]+\]:")
+HTMLIMG = re.compile(r"<img\b", re.I)
 NUM = re.compile(r"(-|[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?)$")
 
 
@@ -87,6 +94,14 @@ def refs(text, where="notebook.md"):
     anything but figures/<name>.svg is refused."""
     out = []
     for ln in prose(text, where)[0]:
+        if HTMLIMG.search(ln):
+            fail(where, f"an HTML <img> ({ln.strip()[:60]!r}): a notebook's images are ![alt](figures/<name>.svg)")
+        if REFDEF.match(ln):
+            fail(where, f"a reference definition ({ln.strip()[:60]!r}): a notebook's images are inline, "
+                        "![alt](figures/<name>.svg)")
+        if ln.count("![") != len(IMAGE.findall(ln)):
+            fail(where, f"an image not written ![alt](figures/<name>.svg) ({ln.strip()[:60]!r}): no \"]\" in alt "
+                        "text, no reference-style images")
         for path in IMAGE.findall(ln):
             m = re.fullmatch(r"figures/(.+)\.svg", path)
             if not m or not NAME.match(m.group(1)):
@@ -168,6 +183,33 @@ def notebooks():
     return [(rid, nb) for rid, kind, src, uses in reels() for nb in [load(rid, kind, src, uses, sits)] if nb]
 
 
+def sha(path):
+    return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
+
+
+def stamp(nb):
+    """What a notebook's figures are rendered from: the SHA-256 of build/viewsvg and each case with the SHA-256 of
+    its reel's decks (build/decks/<reel>.txt's files, in order)."""
+    def decks(reel):
+        lst = R / "build" / "decks" / f"{reel}.txt"
+        return hashlib.sha256(b"".join(sha(R / f).encode() for f in lst.read_text().split())).hexdigest()
+    return {"viewsvg": sha(R / "build" / "viewsvg"),
+            "cases": [[name, env, reel, args, decks(reel)] for name, env, reel, args in nb["cases"]]}
+
+
+def stale(rid, nb):
+    """Why build/figures/<rid>/ is not the render of this notebook today, or None (tools/pack.py)."""
+    f = FIGDIR / rid / "cases.json"
+    if not f.is_file():
+        return f"no {f.relative_to(R)}"
+    was, now = json.loads(f.read_text()), stamp(nb)
+    if was["viewsvg"] != now["viewsvg"]:
+        return "build/viewsvg has changed since the figures were rendered"
+    if was["cases"] != now["cases"]:
+        return "its figure cases or their reels' decks have changed since the figures were rendered"
+    return None
+
+
 def render():
     exe = R / "build" / "viewsvg"
     if not exe.is_file():
@@ -186,6 +228,7 @@ def render():
             if r.returncode:
                 fail(f"{rid} figure {name}", f"build/viewsvg exited {r.returncode} (see {out}.hdr)")
             n += 1
+        (FIGDIR / rid / "cases.json").write_text(json.dumps(stamp(nb), indent=1) + "\n")
     print(f"notebook: {n} figures rendered into build/figures/")
 
 

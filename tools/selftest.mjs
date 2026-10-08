@@ -591,8 +591,9 @@ if (W.sim_run && fs.existsSync(VSVG)) {
   // The notebook faults (#29), from the first reel with a notebook, its manifest edited to match: a figure without
   // the notebook (notebook dropped), a figure the notebook names missing (its first figure dropped), a figure it does
   // not name (one added), the notebook in the package but not listed, a figure whose file is not an SVG, one whose
-  // path is not notebook/figures/<name>.svg, and a second notebook.
-  const craft = (mode, b64 = VR[0].b64) => execFileSync('python3', ['-c', `import base64, gzip, io, json, sys, tarfile
+  // path is not notebook/figures/<name>.svg, a second notebook, another type under notebook/, and notebook texts
+  // naming an image other than an inline ![alt](figures/<name>.svg) (NB_TEXTS, appended to the notebook).
+  const craft = (mode, b64 = VR[0].b64, arg = '') => execFileSync('python3', ['-c', `import base64, gzip, io, json, sys, tarfile
 sys.path.insert(0, "tools"); import pack
 raw = gzip.decompress(base64.b64decode(sys.stdin.read()))
 t = tarfile.open(fileobj=io.BytesIO(raw))
@@ -620,16 +621,19 @@ elif mode.startswith("nb-"):
         "nb-not-svg": lambda: edit(drop=figs[:1], add=[(figs[0], "figure", b"GIF89a, not an SVG\\n")]),
         "nb-not-svg-path": lambda: edit(add=[("notebook/figures/plate.png", "figure", SVG)]),
         "nb-two": lambda: edit(add=[("notebook/notes.md", "notebook", b"# notes\\n")]),
+        "nb-other-type": lambda: edit(add=[("notebook/plate.txt", "image", b"x\\n")]),
+        "nb-text": lambda: edit(drop=["notebook/notebook.md"],
+                                add=[("notebook/notebook.md", "notebook", dict(m)["notebook/notebook.md"] + sys.argv[2].encode())]),
     }[mode]())
 else:
     out = pack.tar_gz({"reverse": m[::-1], "drop": m[:-1], "extra": m + [("extra.txt", b"x")]}[mode])
-sys.stdout.write(base64.b64encode(out).decode())`, mode], { cwd: R, input: b64 }).toString();
+sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: b64 }).toString();
   await refused('the manifest not first', craft('reverse'), /manifest\.json is not first/);
   await refused('a listed file missing', craft('drop'), /is listed but missing/);
   const nbReel = VR.find(r => r.id === nbooks[0]);
   if (nbReel) {
-    const nbRefused = async (what, mode, want) => {
-      try { await RP.readReel(craft(mode, nbReel.b64), sha, nbReel.id); wrong.push(`${what}: not refused`); }
+    const nbRefused = async (what, mode, want, arg) => {
+      try { await RP.readReel(craft(mode, nbReel.b64, arg), sha, nbReel.id); wrong.push(`${what}: not refused`); }
       catch (err) { if (!want.test(String(err.message))) wrong.push(`${what}: refused as "${err.message}"`); }
     };
     await nbRefused('a figure without a notebook', 'nb-fig-alone', /notebook\/figures\/\S+\.svg is a figure, and it holds no notebook$/);
@@ -639,6 +643,29 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode], { cwd: R, input: b64 }
     await nbRefused('a figure not an SVG', 'nb-not-svg', /notebook\/figures\/\S+\.svg is not an SVG document$/);
     await nbRefused('a figure not at figures/<name>.svg', 'nb-not-svg-path', /notebook\/figures\/plate\.png is a figure, not notebook\/figures\/<name>\.svg$/);
     await nbRefused('two notebooks', 'nb-two', /it lists 2 notebooks, not one$/);
+    await nbRefused('another type under notebook/', 'nb-other-type', /notebook\/plate\.txt is under notebook\/ as type image, not notebook or figure$/);
+    // The same texts are refused by tools/notebook.py (refs) when it packs: the reader and the packer agree.
+    const NB_TEXTS = {
+      'an HTML <img>': ['\n<img src="figures/earthrise.svg">\n', /has an HTML <img>/, /an HTML <img>/],
+      'a reference definition': ['\n[r]: figures/earthrise.svg\n', /has a reference definition/, /a reference definition/],
+      'a reference-style image': ['\n![a][r]\n', /has an image not written/, /an image not written/],
+      'alt text holding "]"': ['\n![a]b](figures/earthrise.svg)\n', /has an image not written/, /an image not written/],
+      'another image path': ['\n![a](photo.png)\n', /has an image "photo\.png"/, /an image 'photo\.png'/] };
+    for (const [what, [t, js, py]] of Object.entries(NB_TEXTS)) {
+      await nbRefused(`a notebook with ${what}`, 'nb-text', js, t);
+      let msg = '';
+      try { execFileSync('python3', ['-c', 'import sys; sys.path.insert(0, "tools"); import notebook; notebook.refs(sys.argv[1])', t], { cwd: R, stdio: 'pipe' }); }
+      catch (err) { msg = String(err.stderr); }
+      if (!py.test(msg)) wrong.push(`tools/notebook.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
+    }
+    // A stale render is not packed: tools/notebook.py stale finds nothing today and names a changed case (its GET).
+    const st = execFileSync('python3', ['-c', `import sys; sys.path.insert(0, "tools"); import notebook as nb
+for rid, n in nb.notebooks():
+    print(rid, nb.stale(rid, n))
+    c = n["cases"][0]
+    print(rid, nb.stale(rid, dict(n, cases=[(c[0], c[1], c[2], c[3][:1] + ["1"])] + n["cases"][1:])))`], { cwd: R }).toString();
+    if (!st.split('\n').filter(Boolean).every((l, i) => i % 2 ? / its figure cases or their reels' decks have changed/.test(l) : / None$/.test(l)))
+      wrong.push(`a stale render: ${st.trim()}`);
   }
   await refused('a member not listed', craft('extra'), /extra\.txt is in it but not listed/);
   await refused('a negative size field', craft('negsize'), /does not unpack: manifest\.json: bad size/);
@@ -651,7 +678,7 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode], { cwd: R, input: b64 }
   if (pageSha !== sha || reels.some(r => r.manifest.kernel.sha256 !== pageSha))
     wrong.push(`the page's KERNEL_SHA ${pageSha} is not the wasm's ${sha.slice(0, 8)} or a manifest's`);
   console.log(`packages: ${reels.length} reels (${reels.map(r => `${r.manifest.id} ${r.manifest.kind}`).join(', ')}), ${ndecks} decks; ` +
-    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, 7 notebook faults` +
+    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, 13 notebook faults, a stale render` +
     `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/ and build/figures/, packed twice the same, refusals hold'}`);
   if (wrong.length) ok = false;
 }

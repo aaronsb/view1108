@@ -72,6 +72,9 @@ def notebook_members(rid, kind, src, uses, sits):
     nb = notebook.load(rid, kind, src, uses, sits)
     if not nb:
         return [], []
+    why = notebook.stale(rid, nb)
+    if why:
+        sys.exit(f"pack.py: {rid}: build/figures/{rid}/ is stale: {why} (tools/notebook.py render)")
     members, entries = [("notebook/notebook.md", nb["text"])], [{"path": "notebook/notebook.md", "type": "notebook"}]
     for name, *_ in nb["cases"]:
         fig = R / "build" / "figures" / rid / f"{name}.svg"
