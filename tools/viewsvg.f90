@@ -16,7 +16,9 @@
 ! VIEW_CABN set, writes the cabins' hidden-line table counts against
 ! their maxima (tools/vdump.f VCABN) and stops.  With VIEW_MODT set, writes
 ! the spacecraft model table's counts, maxima and refusals (tools/
-! vdump.f VMODT) and stops.
+! vdump.f VMODT) and stops.  With VIEW_PADCK set, draws the frame and writes
+! the placed CSM's horizontal offset and height (m) from the launch complex's
+! foot (tools/vdump.f VPADCK, #97) instead of the SVG, and stops.
 ! The run decks come first, through the kernel's card reader
 ! (src/vdeck.f): the paths in VIEW_DECK (separated by colons), else the
 ! decks of the scenario reel VIEW_REEL names (its id; default the first
@@ -64,6 +66,8 @@ program viewsvg
     end subroutine vdump
     subroutine vcabn()
     end subroutine vcabn
+    subroutine vpadck()
+    end subroutine vpadck
     subroutine vtape()
     end subroutine vtape
     subroutine crdopn()
@@ -150,6 +154,12 @@ program viewsvg
 
   call vsetin(envint('VIEW_VIEW'), envint('VIEW_TARGET'), envint('VIEW_LABLV'))
   call vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, lb, nl, hd, tb, nt, tc, nch)
+
+  call get_environment_variable('VIEW_PADCK', tv)
+  if (len_trim(tv) > 0) then
+    call vpadck()
+    stop
+  end if
 
   call get_environment_variable('VIEW_HDR', tv)
   if (len_trim(tv) > 0) then

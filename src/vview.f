@@ -94,10 +94,11 @@ C     leaves the eye before the CSM is placed around it.
 C     Seen from outside, a camera riding the CSM in its own view (JRID
 C     1: situations 1, 2, 3, 4, 7, 9) shows the CSM: its origin
 C     (CSMBLD) 1.2 m behind the eye along the reference boresight, its
-C     X axis along that boresight (ours); after CM/SM separation the
-C     CM alone.  The target's point is then taken again: the CSM's is
-C     the top of the tunnel of the CSM placed here.
-      IF (KCSPL() .EQ. 0 .AND. JRID .EQ. 1) CALL CSMCAM(GET)
+C     X axis along that boresight (ours), or on the pad and rising from
+C     it (ASCPL); after CM/SM separation the CM alone.  The target's
+C     point is then taken again: the CSM's is the top of the tunnel of
+C     the CSM placed here.
+      IF (KCSPL() .EQ. 0 .AND. JRID .EQ. 1) CALL CSMCAM(GET, CG)
       CALL TGTPOS(GET, IT, PM, CG, TG, DIST, IST)
     8 DO 10 I = 1, 3
         CG0(I) = CG(I)
@@ -108,6 +109,11 @@ C     as it can be.  A target at the camera's own point (a vehicle
 C     docked to it or carried with it, seen from outside) keeps the
 C     scene's boresight, which every recipe makes unit (SCNCAM; #80).
       IF (VDOT(D, D) .LE. 1.0D-18) GO TO 22
+C     On the pad and in the ascent (the launch complex placed, PADPL)
+C     the target is in the stack the camera rides, a few tens of metres
+C     up or down it, which says nothing of where to look from: the
+C     scene's own boresight is kept (ours, #97).
+      IF (MDON(KPAD) .EQ. 1) GO TO 22
       CALL VUNIT(D)
       DO 20 I = 1, 3
         BREF(I) = D(I)
@@ -310,18 +316,22 @@ C     RESTOMOD END
       RETURN
       END
 C
-C     CSMCAM: place the CSM around the scene's camera, its origin
-C     (CSMBLD) 1.2 m behind the eye, X along the reference boresight, Z
-C     along its up (ours).  From CM/SM separation (the scenario's
-C     CMSEP event) the CM alone (KCMO).  Before the separation (SEP)
-C     the S-IVB, IU and closed SLA behind it (LVPL).
-      SUBROUTINE CSMCAM(GET)
+C     CSMCAM: place the CSM around the scene's camera (geocentric CG),
+C     its origin (CSMBLD) 1.2 m behind the eye, X along the reference
+C     boresight, Z along its up (ours); but from the pad to the S-II/
+C     S-IVB separation where ASCPL puts it (#97): on the pad, then
+C     rising from it along its flight path.  From CM/SM separation (the
+C     scenario's CMSEP event) the CM alone (KCMO).  Before the
+C     separation (SEP) the launch vehicle's stages below it and the
+C     escape system above it (LVPL), and near the pad the launch
+C     complex (PADPL).
+      SUBROUTINE CSMCAM(GET, CG)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION GET, AT(3,3), P(3), Z(3), TS, EVGET
-      INTEGER I, K
+      DOUBLE PRECISION GET, CG(3), AT(3,3), P(3), Z(3), TS, EVGET
+      INTEGER I, K, IOK
       K = KCSM
       TS = EVGET(KECMS)
       IF (TS .GE. 0.0D0 .AND. GET .GE. TS) K = KCMO
@@ -332,9 +342,11 @@ C     RESTOMOD END
         Z(I) = 0.0D0
    10 CONTINUE
       CALL VCRS(AT(1,3), AT(1,1), AT(1,2))
+      CALL ASCPL(GET, CG, AT, P, IOK)
       CALL MPLACE(K, AT, P, Z)
 C     Before the separation the launch stack behind it (LVPL).
       CALL LVPL(GET)
+      CALL PADPL(GET, CG)
       RETURN
       END
 C
