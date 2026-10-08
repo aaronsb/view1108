@@ -482,6 +482,7 @@ export class Lab {
       units: this.room.placed.filter(p => p.equipment.anchors.tapeUnit !== undefined).map(p => (p.equipment.anchors.tapeInfo as () => unknown)()),
       tapes: this.room.placed.filter(p => p.equipment.anchors.tapeUnit !== undefined).map(p => (p.equipment.anchors.tapeInfo as () => { label: string })().label),
       // the system tapes on the rack, by their labels (#87)
+      systapeIds: this.room.placed.filter(p => (p.equipment as { tape?: SystemTape }).tape).map(p => p.name),
       systapes: this.room.placed.map(p => (p.equipment as { tape?: SystemTape }).tape?.label).filter(Boolean),
       // the 1108 console's EXEC loop (#68): its screen's 16 lines, the PAGEWRITER's last lines, the run's phase, typing
       exec: (x => x ? { screen: x.screen(), paper: x.paper.slice(-20), run: x.run ? `${x.run.id} ${x.run.phase}` : null, busy: x.busy } : null)(

@@ -38,7 +38,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { BuildContext, Equipment, LabState, ReelInfo } from "../types";
 import { Parts, canvasTex, fontTex, marker, markerWidth, nameplate, paint, plastic, plateText, rng, satinMetal, sharedGeo, tapeStrip } from "./kit";
 import { Shelf, type Pullable } from "./pullable";
-import { systemTapes, type SystemTape } from "./systapes";
+import { REEL_COLOURS, systemTapes, type SystemTape } from "./systapes";
 
 import { BAYS, D, H, LEVELS, POST, T, W, bayX0, bayX1, BAY_W, filler, postX, rackLayout } from "./racklayout";
 
@@ -180,7 +180,7 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
   if (plan.unplaced.length) console.warn(`tape rack: no room for ${plan.unplaced.length} reel(s): ${plan.unplaced.map(u => u.id).join(", ")}`);
   if (plan.unplacedTapes.length) console.warn(`tape rack: no room for ${plan.unplacedTapes.length} system tape(s)`);
   for (const { reel, level: l, x } of plan.slots) {
-    const p = reelPiece(reel, reel.kind === "playlist" ? 0x8a2b22 : 0x2f4a6b, mine);
+    const p = reelPiece(reel, REEL_COLOURS[reel.kind].tint, mine);
     p.object.position.set(x + T / 2, LEVELS[l], REEL_Z);
     object.add(p.object); reels.push(p);
   }

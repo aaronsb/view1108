@@ -49,7 +49,7 @@
 // - The timing: every delay, the typing rate, the status figures and their drift, which messages roll off when.
 // - Lines roll off to the PAGEWRITER when the message area is full (oldest first), not "when no longer current".
 import type { LabEvent, LabState, ReelInfo } from "../types";
-import { systemTapes } from "./systapes";
+import { systemTapes, volumeNo } from "./systapes";
 
 export const COLS = 64, ROWS = 16;
 /** The message area between the status summary (2 lines) and the keyboard line. */
@@ -109,9 +109,7 @@ const missionNo = (m: string) => Number((/\d+/.exec(m) || ["0"])[0]);
 export const runIdFor = (mission: string) => "VIEW" + pad(missionNo(mission));
 /** A stable reel number (ours): V, the mission's number, three digits of an FNV-1a hash of the reel's id. */
 export function reelNumber(id: string, mission: string): string {
-  let h = 0x811c9dc5;
-  for (const c of id) { h ^= c.charCodeAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
-  return "V" + pad(missionNo(mission)) + pad(h % 1000, 3);
+  return volumeNo("V", id, mission);
 }
 const clip = (s: string) => s.length > COLS ? s.slice(0, COLS) : s;
 

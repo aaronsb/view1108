@@ -57,8 +57,11 @@ const ROOM_STILL = { wait: `${LAB}.mode !== "flight" && !document.getElementById
 // clicked at its middle, 0.13 m up from its origin on the deck; a binder's origin is
 // at its foot, so 0.16 m up its spine), as the pointer
 // events the room's input reads; the capture is the browser's for a real pointer only, so it is a no-op here.
+// The system tape to click (#104): the final one of the layout (VIEW_LAB.info().systapeIds), the end of a set in the west
+// bay, so no neighbouring case stands between it and the camera at the close-up.
+const SYS_LAST = "systape:final", SYS_EXPR = "VIEW_LAB.info().systapeIds.at(-1)";
 const ROOM_CLICK = name => ({ js: `(() => {
-  const c = document.querySelector("#labhost canvas"), p = VIEW_LAB.project(${JSON.stringify(name)}, ${name.startsWith("binder:") ? 0.16 : /^(reel|systape):/.test(name) ? 0.13 : 0});
+  const c = document.querySelector("#labhost canvas"), p = VIEW_LAB.project(${name === SYS_LAST ? SYS_EXPR : JSON.stringify(name)}, ${name.startsWith("binder:") ? 0.16 : /^(reel|systape):/.test(name) ? 0.13 : 0});
   c.setPointerCapture = () => {};
   const o = { clientX: p.x, clientY: p.y, button: 0, pointerId: 1, pointerType: "mouse", bubbles: true };
   c.dispatchEvent(new PointerEvent("pointerdown", o)); c.dispatchEvent(new PointerEvent("pointerup", o));
@@ -124,14 +127,14 @@ const SHOT_LIST = [
   // 4 mm apart and the close-up looks at them from the middle, so the click aims at a tape with no neighbour on the camera's
   // side: the last of a set in the west bay, Apollo 8's MEDIA 1.)
   { name: "room-system-tape-modal", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
-    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK("systape:media1.apollo8-asflown"), { wait: `${LAB}.out["systape:media1.apollo8-asflown"] === 1` },
-      { frames: 12 }, { expect: [`[...document.querySelectorAll("#labhost > div")].map(d => d.textContent).join("|")`, /System tape · click again · Esc to put it back/] }, ROOM_CLICK("systape:media1.apollo8-asflown"), { wait: `!document.getElementById("ask").hidden` }, { frames: 3 }],
-    expect: [[`document.getElementById("asktitle").textContent`, "MEDIA 1 · APOLLO 8 · SYSTEM TAPE — NOT A SIMULATION SCENARIO"],
-      [`[...document.querySelectorAll("#askbtns button")].map(b => b.textContent)`, ["PUT TAPE BACK"]], [`${LAB}.asking`, "systape:media1.apollo8-asflown"], [TL("mounted"), "apollo11-asflown"]] },
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK(SYS_LAST), { wait: `${LAB}.out[${SYS_EXPR}] === 1` },
+      { frames: 12 }, { expect: [`[...document.querySelectorAll("#labhost > div")].map(d => d.textContent).join("|")`, /System tape · click again · Esc to put it back/] }, ROOM_CLICK(SYS_LAST), { wait: `!document.getElementById("ask").hidden` }, { frames: 3 }],
+    expect: [[`document.getElementById("asktitle").textContent`, "MEDIA 1 · TOUR · SYSTEM TAPE — NOT A SIMULATION SCENARIO"],
+      [`[...document.querySelectorAll("#askbtns button")].map(b => b.textContent)`, ["PUT TAPE BACK"]], [`${LAB}.asking === ${SYS_EXPR}`, true], [TL("mounted"), "apollo11-asflown"]] },
   // #87: a system tape pulled at the rack goes back when the camera flies to the overview (setTarget(null), as back()),
   // and nothing is left on the Esc stack for it.
   { name: "room-system-tape-overview", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
-    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK("systape:media1.apollo8-asflown"), { wait: `${LAB}.out["systape:media1.apollo8-asflown"] === 1` },
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK(SYS_LAST), { wait: `${LAB}.out[${SYS_EXPR}] === 1` },
       { js: `VIEW_LAB.setTarget(null)` }, { wait: `${LAB}.at === null && ${LAB}.mode === "free"`, timeout: 20000 }, ROOM_STILL, { frames: 3 }],
     expect: [[`Object.keys(${LAB}.out)`, []], [`VIEW_ESC()`, ["room"]], [TL("mounted"), "apollo11-asflown"]] },
   // #104: while the demo plays every tape unit carries the demo's set in the reel's colours (red, a playlist): the six
@@ -149,8 +152,8 @@ const SHOT_LIST = [
       ROOM_CLICK("reel:apollo8-asflown"), { wait: `${LAB}.out["reel:apollo8-asflown"] === 1` }, { frames: 12 }, ROOM_CLICK("reel:apollo8-asflown"),
       { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button.primary" }, { wait: `${TL("mounted")} === "apollo8-asflown"` }, { frames: 3 },
       { expect: [`${LAB}.tapes.filter((t, i) => i !== 3)`, SET_LABELS("APOLLO 8")] },
-      ROOM_CLICK("systape:media1.apollo8-asflown"), { wait: `${LAB}.out["systape:media1.apollo8-asflown"] === 1` }, { frames: 12 }, ROOM_CLICK("systape:media1.apollo8-asflown"), { wait: `!document.getElementById("ask").hidden` },
-      { click: "#askbtns button.primary" }, { wait: `document.getElementById("ask").hidden && !${LAB}.out["systape:media1.apollo8-asflown"]` },
+      ROOM_CLICK(SYS_LAST), { wait: `${LAB}.out[${SYS_EXPR}] === 1` }, { frames: 12 }, ROOM_CLICK(SYS_LAST), { wait: `!document.getElementById("ask").hidden` },
+      { click: "#askbtns button.primary" }, { wait: `document.getElementById("ask").hidden && !${LAB}.out[${SYS_EXPR}]` },
       { js: `VIEW_LAB.setTarget(null)` }, { wait: `${LAB}.at === null && ${LAB}.mode === "free"`, timeout: 20000 }, ROOM_STILL, { js: `VIEW_LAB.stand(1.0, -2.3, 57, 6)` }, { frames: 3 }],
     expect: [[TL("mounted"), "apollo8-asflown"], ...UNITS_OF("apollo8-asflown", "scenario", "APOLLO 8"), [`${LAB}.asking`, null],
       [`${LAB}.units.map(u => [u.run, u.stop].join())`, Array(7).fill("false,true")]] },

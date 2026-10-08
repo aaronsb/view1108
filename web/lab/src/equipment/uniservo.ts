@@ -196,6 +196,7 @@ export function build(ctx: BuildContext, opts: UniservoOptions = {}): Equipment 
   reelPair.forEach((q, i) => { q.group.position.set(i ? 0.17 : -0.17, 1.37, 0.366); q.group.rotation.z = r() * 6; object.add(q.group); });
 
   const kindOf = (id: string) => reels.find(q => q.id === id)?.kind;
+  let hubReel: string | null = null, hubMounted: string | null = null;
   let mountedId: string | null = null, tape: ReturnType<typeof tapeOnUnit>;
   /** The drive's last reading of the page: whether its clock runs, and the reel's name. */
   const mounted = { playing: true, reel: "", beam: false, read: false };
@@ -243,7 +244,10 @@ export function build(ctx: BuildContext, opts: UniservoOptions = {}): Equipment 
           hub.set(now ? [now.name, now.reelName, now.volume] : [], now?.tint ?? 0);
         }
       }
-      if (drive) hub.set(s.reel ? [s.reel] : [], REEL_COLOURS[kindOf(s.mounted) ?? kindOf(fallback) ?? "scenario"].tint);
+      if (drive && (s.reel !== hubReel || s.mounted !== hubMounted)) {   // the hub label only when the reel or its kind changes
+        hubReel = s.reel; hubMounted = s.mounted;
+        hub.set(s.reel ? [s.reel] : [], REEL_COLOURS[kindOf(s.mounted) ?? kindOf(fallback) ?? "scenario"].tint);
+      }
       dt = still ? 0 : dt;   // ?labmotion=0: the labels and lamps follow the page, the reels hold still
       if (drive) {
         // In Beam the drive does not drive the clock (Beam paces itself): both lamps dark, the reels still.
