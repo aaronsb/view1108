@@ -15,6 +15,7 @@ t0=$SECONDS
 "$@" > "$log" 2>&1
 rc=$?
 last=$(grep -v '^[[:space:]]*$' "$log" | tail -1 | cut -c1-150)
+[ "$last" = PASS ] && last="all $(grep -c ' ' "$log") check lines passed"
 label=${GATE_LABEL:-$gate}
 if [ "$rc" -eq 0 ]; then
   printf 'PASS  %-14s %4ss  %s\n' "$label" "$((SECONDS - t0))" "$last"
