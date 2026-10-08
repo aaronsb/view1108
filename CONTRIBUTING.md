@@ -12,6 +12,7 @@ make build      # FORTRAN -> wasm -> web/view1108.html, then the self-test
 make test       # headless self-test (wasm vs wasm2js fallback, every scene)
 make lint       # kernel dialect check, compiler warnings, script syntax
 make check      # render every scene natively with gfortran to build/check/
+make shots      # scripted screenshots and headless checks into build/shots/ (needs chromium)
 make serve      # http://localhost:8108/view1108.html  (make stop to end)
 ```
 

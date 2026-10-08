@@ -14,7 +14,7 @@ KSRC    = $(filter-out src/viewdata.f src/vdvoc.f,$(wildcard src/*.f))
 export LF_BIN
 
 .DEFAULT_GOAL := help
-.PHONY: help sheet build data native test lint check golden golden-check serve stop status clean
+.PHONY: help sheet build data native test shots lint check golden golden-check serve stop status clean
 
 help: ## Show this list
 	@echo "VIEW-1108 — make <target>   (LF_BIN=$(LF_BIN)  PORT=$(PORT))"
@@ -33,6 +33,9 @@ native: ## Build the native SVG renderer (build/viewsvg) with gfortran
 test: ## Run the headless self-test (wasm vs wasm2js fallback, every scene)
 	node tools/selftest.mjs
 
+shots: ## Scripted screenshots and checks (tools/shots.mjs) -> build/shots/*.png; ONLY=<name|glob>, LIST=1
+	node tools/shoot.mjs $(if $(ONLY),--only '$(ONLY)') $(if $(LIST),--list)
+
 sheet: ## Regenerate docs/media/film-vs-view1108.png (film vs our page; needs chromium + Pillow)
 	python3 tools/film_sheet.py
 
@@ -50,6 +53,8 @@ lint: ## Check kernel dialect, compile warnings, and script syntax
 	gfortran -fsyntax-only -std=legacy -Wall -fimplicit-none -Isrc tools/vdump.f
 	python3 -m py_compile tools/*.py
 	node --check tools/selftest.mjs
+	node --check tools/shoot.mjs
+	node --check tools/shots.mjs
 
 check: native ## Render every situation natively to build/check/<reel>-s<N>.png for eyeballing
 	mkdir -p build/check
