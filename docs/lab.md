@@ -250,7 +250,7 @@ filters, a panner per source and one convolver with a made-up response for the r
 what MSC's machine room sounded like. The aim is a room that was "not quiet but tolerable", with the air handling
 and the fans as a steady bed and the machines heard when you are near them. It plays only with Sound on, through
 the page's master gain, so the Sound button and M mute it everywhere (a 15 ms fade, then the context suspends). While
-the room runs it replaces the page's ambience bed (`web/src/sound.js`); Tiled plays that bed. With a terminal's page
+the room runs it replaces the page's ambience bed (`web/src/sound.js`); Tabbed plays that bed. With a terminal's page
 shown the room ducks 8 dB and its tape units keep turning, so an engine run is still heard.
 
 | Source | Where | What it is | Sourced | Ours |
