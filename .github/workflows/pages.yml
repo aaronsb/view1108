@@ -45,7 +45,7 @@ jobs:
       - name: Check the page carries the room, the photographs and the symbols
         run: |
           grep -q VIEW_LAB web/view1108.html
-          grep -q 'data:image/jpeg;base64' web/view1108.html
+          tar tzf build/reels/apollo8-asflown.reel.tar.gz | grep -q '^media/'   # the photographs ride in the reel packages (#75)
           grep -q 'id="fsym"' web/view1108.html
           test -s web/library/library.json
       # esbuild bundles without type-checking; a name lost in a merge would only fail in the visitor's browser.
