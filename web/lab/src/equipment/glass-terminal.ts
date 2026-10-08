@@ -124,13 +124,13 @@ export function build(ctx: BuildContext): Equipment {
     g.beginPath();
     for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, rr = k % 2 ? s * 0.32 : s; g.lineTo(sx + Math.sin(a) * rr, sy - Math.cos(a) * rr); }
     g.closePath(); g.fill();
-    g.font = 'italic 700 22px "Helvetica Neue", Helvetica, Arial, sans-serif'; g.textBaseline = "middle"; g.textAlign = "left";
+    g.font = 'italic 700 22px "IBM Plex Sans VIEW", sans-serif'; g.textBaseline = "middle"; g.textAlign = "left";
     g.save(); g.translate(sx + 12, Y(0.0085)); g.scale(0.92, 1); g.fillText("SPERRY RAND", 0, 0); g.restore();
     // The window.
     g.fillStyle = "#0b0c0d"; g.fillRect(X(fx(780)), Y(fy(740)), X(fx(930)) - X(fx(780)), Y(fy(775)) - Y(fy(740)));
     g.fillStyle = "rgba(170,180,185,0.35)"; g.fillRect(X(fx(785)), Y(fy(740)) + 3, X(fx(925)) - X(fx(785)), 2);
     // Button legends.
-    g.fillStyle = "#3c3e40"; g.font = '600 15px "Helvetica Neue", Helvetica, Arial, sans-serif'; g.textAlign = "center";
+    g.fillStyle = "#3c3e40"; g.font = '600 15px "IBM Plex Sans VIEW", sans-serif'; g.textAlign = "center";
     ["WAIT", "INTENSITY", "POWER"].forEach((t, i) => g.fillText(t, X(bxs[i]), Y(fy(688))));
   }, ctx.maxAnisotropy);
   const stripMat = new THREE.MeshStandardMaterial({ map: strip, metalness: 0.45, roughness: 0.38, alphaTest: 0.5 });
@@ -163,7 +163,7 @@ export function build(ctx: BuildContext): Equipment {
   let lines: string[] = [], key = "";
   const tex = canvasTex(1024, 512, () => {}, ctx.maxAnisotropy); mine.push(tex);
   const cv = tex.image as HTMLCanvasElement, g = cv.getContext("2d")!;
-  const FONT = '28px "IBM 3270", "Courier New", monospace';
+  const FONT = '28px "IBM 3270", monospace';
   const draw = () => {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.fillStyle = "#06100a"; g.fillRect(0, 0, cv.width, cv.height);

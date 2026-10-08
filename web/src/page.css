@@ -1,7 +1,7 @@
 /* IBM 3270 (1971) styling for the chrome is our nod to glass terminals of the era, not the UNIVAC's own
    console. The plot canvas and its lettering keep the report style (--hd, --lab). */
 @font-face { font-family:"IBM 3270"; src:url("data:font/woff2;base64,__FONT_3270_B64__") format("woff2"); font-display:swap; }
-:root { --bg:#000; --fg:#a8f5b8; --dim:#4e9c64; --line:#2a5a38; --lab:"Courier Prime","Courier New",monospace; --hd:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif; --term:"IBM 3270","Courier New",monospace; }
+:root { --bg:#000; --fg:#a8f5b8; --dim:#4e9c64; --line:#2a5a38; --lab:"Courier Prime VIEW",monospace; --hd:"IBM Plex Sans Condensed VIEW",sans-serif; --term:"IBM 3270",monospace; }
 /* Native controls and scrollbars dark, the scrollbars in the page's greens (#srcws sets its own --sb-* per theme). */
 :root { color-scheme:dark; --sb-track:#000; --sb-thumb:var(--line); --sb-hover:var(--dim); }
 * { box-sizing:border-box; scrollbar-width:thin; scrollbar-color:var(--sb-thumb) var(--sb-track); }
@@ -311,7 +311,7 @@ button.librow.on .libm { color:var(--fg); }
   box-sizing:border-box; width:var(--view); height:var(--ph); padding:var(--mt) var(--m) calc(var(--mt) + 4px);
   columns:1; column-gap:calc(2 * var(--m) + var(--gut)); column-fill:auto;
   overflow-x:auto; overflow-y:hidden; scrollbar-width:none; scroll-snap-type:x mandatory; scroll-padding-inline-start:var(--m); overscroll-behavior-x:contain;
-  font:400 var(--fs)/1.42 "Courier Prime VIEW","Courier New",monospace; color:var(--ink); text-shadow:0 0 .5px rgba(0,0,0,.35); }
+  font:400 var(--fs)/1.42 "Courier Prime VIEW",monospace; color:var(--ink); text-shadow:0 0 .5px rgba(0,0,0,.35); }
 #libmd.light .nbpages::-webkit-scrollbar { display:none; }
 #libmd.light .nbpages::column { scroll-snap-align:start; }
 /* One view's tile, repeated along the columns: the sheet, its binding's shade and its three punched holes, placed
@@ -511,6 +511,14 @@ body.still { padding:0; }
 @font-face { font-family:"JetBrains Mono VIEW"; src:url("data:font/woff2;base64,__FONT_JBM_B64__") format("woff2"); font-display:swap; }
 /* The machine room's nameplates (web/lab kit.ts PLATE_FONT); not used by the page's own UI. */
 @font-face { font-family:"Michroma VIEW"; src:url("data:font/woff2;base64,__FONT_MICH_B64__") format("woff2"); font-display:swap; }
+/* IBM Plex (SIL OFL 1.1; web/fonts/, THIRD_PARTY.md): Sans Condensed for the page's headings (--hd) and the room's marker
+   labels, Sans for the room's legends, Serif for the bookcase's spines. "VIEW" names, as for the faces above. */
+@font-face { font-family:"IBM Plex Sans Condensed VIEW"; src:url("data:font/woff2;base64,__FONT_PSC_R_B64__") format("woff2"); font-weight:400; font-display:swap; }
+@font-face { font-family:"IBM Plex Sans Condensed VIEW"; src:url("data:font/woff2;base64,__FONT_PSC_B_B64__") format("woff2"); font-weight:700; font-display:swap; }
+@font-face { font-family:"IBM Plex Sans VIEW"; src:url("data:font/woff2;base64,__FONT_PS_R_B64__") format("woff2"); font-weight:400; font-display:swap; }
+@font-face { font-family:"IBM Plex Sans VIEW"; src:url("data:font/woff2;base64,__FONT_PS_B_B64__") format("woff2"); font-weight:700; font-display:swap; }
+@font-face { font-family:"IBM Plex Serif VIEW"; src:url("data:font/woff2;base64,__FONT_PX_R_B64__") format("woff2"); font-weight:400; font-display:swap; }
+@font-face { font-family:"IBM Plex Serif VIEW"; src:url("data:font/woff2;base64,__FONT_PX_B_B64__") format("woff2"); font-weight:700; font-display:swap; }
 #srcws {
   --sx-bg:#000; --sx-pane:#020805; --sx-fg:var(--fg); --sx-dim:var(--dim); --sx-line:var(--line); --sx-rule:var(--line);
   --sx-hover:#06140a; --sx-sel:#0d2a17; --sx-cu:#071a0d; --sx-out:.6; --sx-hi:#f2fff5; --sx-doc:#cfe9d6;
@@ -546,9 +554,9 @@ body.still { padding:0; }
   --sx-rm:rgba(255,224,102,.14); --sx-rmbar:#ffe066; --sx-hl:#00336b; --sx-ring:#fff;
   --sx-flash:rgba(255,255,255,.35); --sx-tip:#000; --sx-shadow:rgba(0,0,0,.9); --sx-badge:#000; --sx-selbg:#1d5fb0;
   --sb-track:#000; --sb-thumb:#9a9a9a; --sb-hover:#fff; }
-#srcws:not([data-sxtheme=phosphor]) { --sx-ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+#srcws:not([data-sxtheme=phosphor]) { --sx-ui:"IBM Plex Sans VIEW",sans-serif; }
 #srcws[data-sxfont=jbm] { --sx-mono:"JetBrains Mono VIEW",ui-monospace,monospace; }
-#srcws[data-sxfont=system] { --sx-mono:ui-monospace,"JetBrains Mono","Fira Code","Cascadia Code",Menlo,Consolas,"DejaVu Sans Mono",monospace; }
+#srcws[data-sxfont=system] { --sx-mono:ui-monospace,monospace; }
 #srcws ::selection { background:var(--sx-selbg); }
 #srcws[hidden] { display:none; }
 #srcws button { min-height:28px; padding:2px 10px; border:1px solid var(--sx-line); border-radius:3px; font:13px var(--sx-ui); letter-spacing:0; text-transform:none; color:var(--sx-fg); background:var(--sx-bg); }
@@ -679,14 +687,14 @@ body.still { padding:0; }
 #tapesbody { flex:1; min-height:0; display:flex; gap:12px; }
 #tapeslist { flex:none; width:clamp(300px, 34vw, 480px); margin:0; padding:0; list-style:none; overflow-y:auto; border:1px solid var(--line); }
 #tapeslist li { border-bottom:1px solid var(--line); }
-#tapeslist button { display:grid; grid-template-columns:1fr auto; gap:0 10px; width:100%; text-align:left; border:0; padding:5px 8px; font:13px "Courier Prime VIEW","Courier New",monospace; }
+#tapeslist button { display:grid; grid-template-columns:1fr auto; gap:0 10px; width:100%; text-align:left; border:0; padding:5px 8px; font:13px "Courier Prime VIEW",monospace; }
 #tapeslist button.on { background:#0e2a18; color:var(--fg); }
 #tapeslist .tpn { grid-column:1 / 3; word-break:break-all; }
 #tapeslist .tpk, #tapeslist .tps { color:var(--dim); font-size:12px; }
 #tapeslist .tps { text-align:right; }
 #tapesview { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
 #tapesname { font-size:14px; color:var(--dim); }
-#tapescontent { flex:1; min-height:0; overflow:auto; border:1px solid var(--line); padding:10px 14px; font:13px/1.4 "Courier Prime VIEW","Courier New",monospace; }
+#tapescontent { flex:1; min-height:0; overflow:auto; border:1px solid var(--line); padding:10px 14px; font:13px/1.4 "Courier Prime VIEW",monospace; }
 #tapescontent pre { margin:0; white-space:pre-wrap; word-break:break-word; font:inherit; }
 #tapescontent.deck pre { white-space:pre; }
 #tapescontent .card { display:flex; gap:12px; } #tapescontent .cn { color:var(--dim); user-select:none; }
