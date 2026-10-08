@@ -11,6 +11,15 @@ const TL = k => `VIEW_TL.state().${k}`;
 // clock ran from the link until now), then hold it at s for a picture that repeats.
 const LINKED = s => [HOLD(), { expect: [`(d => d >= 0 && d < 300)(VIEW_TL.state().get - ${s})`] }, HOLD(s)];
 const LAB = "VIEW_LAB.info()";
+// #104: the tapes of a reel's set, by the unit that carries them (60, 61, 62, 64, 65, 66; the drive, 63, is not among
+// them), and the tape units' state (VIEW_LAB.info().units: label, the reel whose colours it carries, flange, RUN, STOP).
+const SET_NAMES = ["RUN STREAMS", "MEDIA 2", "EPHEMERIS", "MODELS", "PLOT TAPE", "MEDIA 1"];
+const SET_LABELS = rn => SET_NAMES.map(n => `${n} · ${rn}`);
+const REEL_FLANGE = { scenario: 0x5d82b0, playlist: 0xb0453a };
+// Every one of the seven units carries reel `id`'s set in its colours (the drive: the mounted reel's); `others` are the
+// six units' labels, west to east.
+const UNITS_OF = (id, kind, rn) => [[`${LAB}.units.length`, 7], [`${LAB}.units.every(u => u.set === ${JSON.stringify(id)} && u.flange === ${REEL_FLANGE[kind]})`, true],
+  [`${LAB}.tapes.filter((t, i) => i !== 3)`, SET_LABELS(rn)], [`${LAB}.tapes[3]`, /\S/]];
 // The LINK button's URL (link.js linkURL), and no old key in it (docs/modes.md, Link parameters: the old keys, #22).
 const LINK = "VIEW_FUSION.state().link";
 const NO_OLD = /^(?!.*[?&](?:src|lab|scene)=)(?!.*[?&]labels=[01](&|$))(?!.*space=tiled)(?!.*mode=(?:attract|tour))/;
@@ -101,40 +110,52 @@ const SHOT_LIST = [
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.setTarget("rack")` }, { wait: `${LAB}.mode === "flight"`, timeout: 2000 }, ROOM_STILL, { frames: 3 }],
     expect: [[`${LAB}.at`, "rack"], [`${LAB}.mode`, "hold"], [`${LAB}.quality`, "low"]] },
 
-  // #87: the rack's system tapes, a level of props below the playlists, each pulled like a reel; their labels.
+  // #87, #104: the rack's system tapes, the site's two and then a set for each reel (Apollo 8, Apollo 11, demo, tour; the
+  // levels below the playlists, one bay each), each pulled like a reel; their labels.
   { name: "room-rack-system", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(2.0, -3.25, 0, -35)` }, { frames: 3 }],
-    expect: [[`${LAB}.systapes`, ["EXEC 8 SYSTEM (COPY)", "RUN STREAMS", "VIEW KERNEL", "EPHEMERIS", "MODELS", "PLOT TAPE", "MEDIA 1", "MEDIA 2"]],
-      [`["exec8", "runstreams", "kernel", "ephemeris", "models", "plot", "media1", "media2"].every(id => (p => p && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight)(VIEW_LAB.project("systape:" + id)))`, true]] },
-  // #87: a pulled system tape asks the page for its modal, which only puts it back; nothing is mounted.
+    expect: [[`${LAB}.systapes`, ["EXEC 8 SYSTEM (COPY)", "VIEW KERNEL", ...["APOLLO 8", "APOLLO 11", "DEMO", "TOUR"].flatMap(SET_LABELS)]],
+      [`(ids => ids.length === 26 && ids.every(id => (p => p && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight)(VIEW_LAB.project("systape:" + id))))(
+        ["exec8", "kernel", ...["apollo8-asflown", "apollo11-asflown", "demo", "tour"].flatMap(r => ["runstreams", "media2", "ephemeris", "models", "plot", "media1"].map(t => t + "." + r))])`, true]] },
+  // #87: a pulled system tape asks the page for its modal, which only puts it back; nothing is mounted. (The cases stand
+  // 4 mm apart and the close-up looks at them from the middle, so the click aims at a tape with no neighbour on the camera's
+  // side: the last of a set in the west bay, Apollo 8's MEDIA 1.)
   { name: "room-system-tape-modal", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
-    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK("systape:ephemeris"), { wait: `${LAB}.out["systape:ephemeris"] === 1` },
-      { frames: 12 }, { expect: [`[...document.querySelectorAll("#labhost > div")].map(d => d.textContent).join("|")`, /System tape · click again · Esc to put it back/] }, ROOM_CLICK("systape:ephemeris"), { wait: `!document.getElementById("ask").hidden` }, { frames: 3 }],
-    expect: [[`document.getElementById("asktitle").textContent`, "EPHEMERIS · SYSTEM TAPE — NOT A SIMULATION SCENARIO"],
-      [`[...document.querySelectorAll("#askbtns button")].map(b => b.textContent)`, ["PUT TAPE BACK"]], [`${LAB}.asking`, "systape:ephemeris"], [TL("mounted"), "apollo11-asflown"]] },
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK("systape:media1.apollo8-asflown"), { wait: `${LAB}.out["systape:media1.apollo8-asflown"] === 1` },
+      { frames: 12 }, { expect: [`[...document.querySelectorAll("#labhost > div")].map(d => d.textContent).join("|")`, /System tape · click again · Esc to put it back/] }, ROOM_CLICK("systape:media1.apollo8-asflown"), { wait: `!document.getElementById("ask").hidden` }, { frames: 3 }],
+    expect: [[`document.getElementById("asktitle").textContent`, "MEDIA 1 · APOLLO 8 · SYSTEM TAPE — NOT A SIMULATION SCENARIO"],
+      [`[...document.querySelectorAll("#askbtns button")].map(b => b.textContent)`, ["PUT TAPE BACK"]], [`${LAB}.asking`, "systape:media1.apollo8-asflown"], [TL("mounted"), "apollo11-asflown"]] },
   // #87: a system tape pulled at the rack goes back when the camera flies to the overview (setTarget(null), as back()),
   // and nothing is left on the Esc stack for it.
   { name: "room-system-tape-overview", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
-    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK("systape:models"), { wait: `${LAB}.out["systape:models"] === 1` },
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK("systape:media1.apollo8-asflown"), { wait: `${LAB}.out["systape:media1.apollo8-asflown"] === 1` },
       { js: `VIEW_LAB.setTarget(null)` }, { wait: `${LAB}.at === null && ${LAB}.mode === "free"`, timeout: 20000 }, ROOM_STILL, { frames: 3 }],
     expect: [[`Object.keys(${LAB}.out)`, []], [`VIEW_ESC()`, ["room"]], [TL("mounted"), "apollo11-asflown"]] },
-  // #87: while the demo plays the six other tape units stand undressed; the drive names the demo.
+  // #104: while the demo plays every tape unit carries the demo's set in the reel's colours (red, a playlist): the six
+  // others its tapes, the drive the demo; the drive's RUN lamp lit and STOP dark, the others by their tape (held still).
   { name: "room-drive-row-demo", url: "space=room&reel=demo",
     steps: [ROOM_UP, ROOM_STILL, { frames: 3 }],
-    expect: [[`${LAB}.tapes`, ["", "", "", "DEMO", "", "", ""]], [TL("mounted"), "demo"]] },
-  // #87: the drive row after Apollo 8 is mounted from its reel modal: the drive names it, the six other units carry the
-  // system tapes with their labels; a system tape pulled and put back after changes nothing mounted. Motion held
-  // (?labmotion=0).
+    expect: [...UNITS_OF("demo", "playlist", "DEMO"), [`${LAB}.tapes[3]`, "DEMO"], [TL("mounted"), "demo"],
+      [`${LAB}.units.map(u => [u.run, u.stop].join())`, ["false,true", "false,true", "false,true", "true,false", "false,true", "false,true", "false,true"]]] },
+  // #87, #104: the drive row after Apollo 8 is mounted from its reel modal: every unit carries Apollo 8's set (the drive
+  // names the reel, blue), and the clock stopped lights STOP on the drive; a system tape pulled and put back after
+  // changes nothing mounted or carried. Motion held (?labmotion=0).
   { name: "room-drive-row", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL,
+      { expect: [`${LAB}.units.every(u => u.set === "apollo11-asflown" && u.flange === ${REEL_FLANGE.scenario})`, true] },
       ROOM_CLICK("reel:apollo8-asflown"), { wait: `${LAB}.out["reel:apollo8-asflown"] === 1` }, { frames: 12 }, ROOM_CLICK("reel:apollo8-asflown"),
       { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button.primary" }, { wait: `${TL("mounted")} === "apollo8-asflown"` }, { frames: 3 },
-      { expect: [`${LAB}.tapes.filter((t, i) => i !== 3)`, ["RUN STREAMS", "VIEW KERNEL", "EPHEMERIS", "MODELS", "PLOT TAPE", "MEDIA 1"]] },
-      ROOM_CLICK("systape:media2"), { wait: `${LAB}.out["systape:media2"] === 1` }, { frames: 12 }, ROOM_CLICK("systape:media2"), { wait: `!document.getElementById("ask").hidden` },
-      { click: "#askbtns button.primary" }, { wait: `document.getElementById("ask").hidden && !${LAB}.out["systape:media2"]` },
+      { expect: [`${LAB}.tapes.filter((t, i) => i !== 3)`, SET_LABELS("APOLLO 8")] },
+      ROOM_CLICK("systape:media1.apollo8-asflown"), { wait: `${LAB}.out["systape:media1.apollo8-asflown"] === 1` }, { frames: 12 }, ROOM_CLICK("systape:media1.apollo8-asflown"), { wait: `!document.getElementById("ask").hidden` },
+      { click: "#askbtns button.primary" }, { wait: `document.getElementById("ask").hidden && !${LAB}.out["systape:media1.apollo8-asflown"]` },
       { js: `VIEW_LAB.setTarget(null)` }, { wait: `${LAB}.at === null && ${LAB}.mode === "free"`, timeout: 20000 }, ROOM_STILL, { js: `VIEW_LAB.stand(1.0, -2.3, 57, 6)` }, { frames: 3 }],
-    expect: [[TL("mounted"), "apollo8-asflown"], [`${LAB}.tapes.length`, 7], [`${LAB}.tapes[3]`, /\S/],
-      [`${LAB}.tapes.filter((t, i) => i !== 3)`, ["RUN STREAMS", "VIEW KERNEL", "EPHEMERIS", "MODELS", "PLOT TAPE", "MEDIA 1"]], [`${LAB}.asking`, null]] },
+    expect: [[TL("mounted"), "apollo8-asflown"], ...UNITS_OF("apollo8-asflown", "scenario", "APOLLO 8"), [`${LAB}.asking`, null],
+      [`${LAB}.units.map(u => [u.run, u.stop].join())`, Array(7).fill("false,true")]] },
+  // #104: a mission reel mounted by its link: every unit carries that reel's set in its colours (blue), the drive the
+  // reel; the clock stopped, STOP lit on the drive.
+  { name: "room-drive-row-mission", url: "space=room&mode=free&scn=apollo8-asflown&sit=1",
+    steps: [ROOM_UP, ROOM_STILL, { wait: `${TL("mounted")} === "apollo8-asflown"` }, HOLD(), { frames: 3 }],
+    expect: [[TL("mounted"), "apollo8-asflown"], ...UNITS_OF("apollo8-asflown", "scenario", "APOLLO 8"), [`${LAB}.units[3].stop`, true], [`${LAB}.units[3].run`, false]] },
   // #89: the FASTRAND II close up, from the walkway south of it, and the machine floor from the south-east: the drum
   // unit before the cabinet run. Motion held (?labmotion=0).
   { name: "room-fastrand", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
@@ -162,7 +183,7 @@ const SHOT_LIST = [
       ...AT_ST("console"), ROOM_STILL, { wait: `${LAB}.exec.run === "VIEW11 profile" && !${LAB}.exec.busy`, timeout: 60000 }, { frames: 3 }],
     timeout: 150000,
     expect: [[TL("mounted"), "apollo11-asflown"], [TL("playing"), false], [`${LAB}.at`, "console"],
-      [`${LAB}.exec.screen.join("|")`, /\|VIEW08 @FIN\|RN 06\/00 VIEW11\|VIEW11 @RUN VIEW11,69197,APOLLO\|VIEW11 @ASG,T VIEWTP,T,(V11\d{3})\|LOAD \1 06\/03 VIEWTP VIEW11\|VIEW11 @ASG,T PLTTAP,T,SCRTCH\|LOAD SCRTCH 06\/05 PLTTAP VIEW11\|VIEW11 @XQT VIEW\|VIEW11\* APOLLO 11 AS FLOWN - APOLLO 11\|0 VIEW11\* AWAITING PROFILE - WAIT\|$/],
+      [`${LAB}.exec.screen.join("|")`, /\|VIEW08 @FIN\|RN 06\/00 VIEW11\|VIEW11 @RUN VIEW11,69197,APOLLO\|VIEW11 @ASG,T VIEWTP,T,(V11\d{3})\|LOAD \1 06\/03 VIEWTP VIEW11\|VIEW11 @ASG,T PLTTAP,T,(P11\d{3})\|LOAD \2 06\/05 PLTTAP VIEW11\|VIEW11 @XQT VIEW\|VIEW11\* APOLLO 11 AS FLOWN - APOLLO 11\|0 VIEW11\* AWAITING PROFILE - WAIT\|$/],
       [`${LAB}.exec.paper.length > 0`, true]] },
   // #68: a note in the operator's notebook clicked at the console's close-up: SS typed on the keyboard line, a character
   // at a time, then answered with the status report; then CS TYPE, answered with the run (the link's clock ran when the
