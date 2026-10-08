@@ -71,8 +71,10 @@ come from `src/audio/roomsound.ts` (`footstep`), one per 0.77 m actually walked.
 
 ### Rendering
 
-`src/lab.ts` owns the renderer, the camera (free look about the overview, flights, hover and picking) and the
-quality tier; `src/post.ts` the high tier's post chain; `src/room/lighting.ts` the lights, fog and environment.
+`src/lab.ts` owns the renderer, the camera (free look about the overview, flights) and the quality tier, and wires
+the parts it hands work to: `src/input.ts` (pointer, pointer lock, keys), `src/picking.ts` (hover, hit, lift),
+`src/carry.ts` (the reel carried from the rack and the tape units that mount it), `src/shot.ts` (camera shots and
+the screen-matching pose) and `src/quality.ts` (the auto-quality probe); `src/post.ts` the high tier's post chain; `src/room/lighting.ts` the lights, fog and environment.
 Screens are not tone mapped in either tier: in the high tier every `toneMapped: false` material writes alpha 0
 (`markScreens`) and the tone pass mixes ACES by alpha (progression's approach, MIT, same author).
 
