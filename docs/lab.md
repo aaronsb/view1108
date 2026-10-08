@@ -93,7 +93,9 @@ the UNISCOPE 100, from one atlas shared with it (`kit.ts` keyLegends): one more 
 
 - **Microfilm recorder.** A finished beam frame exposes a frame: the shutter lamp and a lamp at the camera's lens flash,
   the advance lamp lights for the pull-down (about 100 ms, 4060 description p. 20) and the frame counter steps on.
-  The viewing port shows the plot, dimmed. The other lamps hold steady.
+  The viewing port shows the plot, dimmed. The other lamps hold steady. It opens the Print tab, whose Film group
+  writes the frame as an SVG NEGATIVE (white lines on black, the film's image) or POSITIVE (true black lines on white
+  or, CLEAR, on a transparent background, with no film effects); the prints are ours (#82, `web/src/svgout.js`).
 
 ## The 4009 console
 

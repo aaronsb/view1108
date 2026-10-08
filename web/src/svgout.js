@@ -1,4 +1,8 @@
-// Print: the current frame as an SVG file, the film recorder's frame as vectors.
+// Print: the current frame as an SVG file, the film recorder's frame as vectors, as two prints (#82): the NEGATIVE,
+// white lines on black, the image as it went onto the film, and the POSITIVE, black lines on white or, CLEAR, on no
+// background at all, for a modern printer. Both are the kernel's vectors only: the page's film effects (bloom, weave,
+// dust, grain, flicker) are drawn on the canvas and never reach these files, and every stroke and star of the
+// positive is true black (#000). The two prints, their names and their file names are ours.
 "use strict";
 // The file is laid out as the canvas is (render.js box(): a plot box 0.8 of the width under a header, or the full
 // width unframed), 1000 units wide. Paths follow the beam's order (beam.js: vbuf, then stars, then text), so the file
@@ -6,21 +10,23 @@
 // font; that font has capitals only, so the page's mixed-case header and captions are set in capitals.
 // Stroke widths and star sizes are our choices for print.
 const SVG_W = 1000;
-function svgFrame(paper) {
+// kind: "negative", "positive" (on white) or "clear" (the positive on no background).
+function svgFrame(kind) {
+  const paper = kind !== "negative";
   const fl = ri("in_flags"), nv = ri("nvec"), ns = ri("nstar"), nl = ri("nlab");
   const V = new Float64Array(buf(), K.vbuf.value, nv * 5), S = new Float64Array(buf(), K.sbuf.value, ns * 3);
   const L = new Float64Array(buf(), K.lbuf.value, nl * 4), H = new Float64Array(buf(), K.hdr.value, 16);
   const F = H[1] || LS.fov, half = H[14] > 0 ? H[14] : F / 2, fr = !!(fl & 2), Wd = SVG_W, Hd = Math.floor(Wd * HGT);
   const b = fr ? { x: Wd * (1 - BOXF) / 2, y: Wd * HDR, s: Wd * BOXF } : { x: 0, y: Wd * 0.02, s: Wd };
   const k = b.s / (2 * half), cx = b.x + b.s / 2, cy = b.y + b.s / 2, fs = 0.021 * Wd;
-  const fg = paper ? "#000" : "#fff", dim = paper ? "#555" : "#aaa", bg = paper ? "#fff" : "#000", lw = paper ? 1.0 : 1.2;
+  const fg = paper ? "#000" : "#fff", dim = paper ? "#000" : "#aaa", bg = paper ? "#fff" : "#000", lw = paper ? 1.0 : 1.2;
   const n2 = v => (Math.round(v * 100) / 100).toString();
   // A path builder with the Path2D calls strokeText() makes; a moveTo to the pen's position is dropped.
   const pathOf = () => { const p = { d: [], pen: "", moveTo(x, y) { const q = n2(x) + " " + n2(y); if (q !== p.pen) p.d.push("M" + q); p.pen = q; }, lineTo(x, y) { const q = n2(x) + " " + n2(y); p.d.push("L" + q); p.pen = q; } }; return p; };
   const out = [`<svg xmlns="http://www.w3.org/2000/svg" width="${Wd}" height="${Hd}" viewBox="0 0 ${Wd} ${Hd}">`,
-    `<title>VIEW-1108 ${LS.scn} situation ${H[6] | 0} g.e.t. ${getStr(H[0])}</title>`,
+    `<title>VIEW-1108 ${LS.scn} situation ${H[6] | 0} g.e.t. ${getStr(H[0])} ${paper ? "positive" : "negative"}</title>`,
     `<desc>inputs: reel ${LS.scn} situation ${H[6] | 0} in_get ${rd("in_get")} in_yaw ${rd("in_yaw")} in_pitch ${rd("in_pitch")} in_roll ${rd("in_roll")} in_fov ${rd("in_fov")} in_flags ${fl}</desc>`,
-    `<rect id="film" width="${Wd}" height="${Hd}" fill="${bg}"/>`,
+    ...(kind === "clear" ? [] : [`<rect id="film" width="${Wd}" height="${Hd}" fill="${bg}"/>`]),
     `<clipPath id="plotbox"><rect x="${n2(fr ? b.x - 2 : 0)}" y="${n2(b.y - 2)}" width="${n2(fr ? b.s + 4 : Wd)}" height="${n2(b.s + 4)}"/></clipPath>`,
     `<g fill="none" stroke="${fg}" stroke-width="${lw}" stroke-linecap="round" stroke-linejoin="round">`];
   // vectors: one path per run of one style, in kernel order
@@ -69,17 +75,25 @@ function svgFrame(paper) {
   out.push("</g></g></svg>");
   return out.join("\n");
 }
-// File name: view1108_<scenario reel id>_s<situation id>_<g.e.t. as HHHMMSS>.svg
-function svgName() {
+// File name: <reel id>-s<situation id>-<situation name>-<g.e.t. as h-mm-ss>-<print>.svg in lower case, e.g.
+// apollo11-asflown-s5-lm-descent-102-45-40-negative.svg, the clear positive ending -positive-clear.svg; a g.e.t.
+// before range zero is written m0-05-00. The reel is the one whose decks the kernel holds (LS.deck), which numbers the
+// situation hdr(7) names (config.js frameScene).
+function svgName(kind) {
   const H = new Float64Array(buf(), K.hdr.value, 16), t = Math.floor(Math.abs(H[0]));
-  return `view1108_${LS.scn}_s${H[6] | 0}_${H[0] < 0 ? "-" : ""}${String(Math.floor(t / 3600)).padStart(3, "0")}${pad2(Math.floor(t / 60) % 60)}${pad2(t % 60)}.svg`;
+  const slug = v => String(v).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const reel = LS.deck || LS.scn, id = H[6] | 0, nm = slug((SITS.find(s => s.reel === reel && s.id === id) || {}).name || "");
+  const get = `${H[0] < 0 ? "m" : ""}${Math.floor(t / 3600)}-${pad2(Math.floor(t / 60) % 60)}-${pad2(t % 60)}`;
+  return [slug(reel) || "view1108", "s" + id, nm, get, kind === "negative" ? "negative" : "positive", kind === "clear" ? "clear" : ""]
+    .filter(Boolean).join("-") + ".svg";
 }
-function downloadSvg(paper) {
+function downloadSvg(kind) {
   if (!drawn) K.view_frame();
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([svgFrame(paper)], { type: "image/svg+xml" }));
-  a.download = svgName(); document.body.appendChild(a); a.click(); a.remove();
+  a.href = URL.createObjectURL(new Blob([svgFrame(kind)], { type: "image/svg+xml" }));
+  a.download = svgName(kind); document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-$("bsvg").onclick = () => downloadSvg(false);
-$("bsvgp").onclick = () => downloadSvg(true);
+$("bneg").onclick = () => downloadSvg("negative");
+$("bpos").onclick = () => downloadSvg("positive");
+$("bposc").onclick = () => downloadSvg("clear");
