@@ -579,7 +579,7 @@ const SHOT_LIST = [
   // and no target was asked (hdr(23) 0).
   { name: "tec-window-a8-default", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1&get=120:00:00",
     steps: [...LINKED(432000), { frames: 3 }],
-    expect: [[TL("viewMode"), 0], [TL("mounted"), "apollo8-asflown"], [TL("scene"), 9],
+    expect: [[TL("viewMode"), 0], [TL("mounted"), "apollo8-asflown"], [TL("scene"), 10],
       [`(h => Math.abs(h[10]) < 1e-6 && Math.abs(h[11]) < 1e-6 && h[13] === 1 && h[22] === 0 && Math.abs(h[1] - 12.72) < 1e-9)(new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24))`, true],
       [`new Int32Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.nvec.value, 1)[0] > 1000`, true]] },
 
