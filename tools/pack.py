@@ -11,7 +11,11 @@ scenario and situations, and the page's kernel holds one at a time (#26 slice 7e
 "playlist", <id> its folder under data/reels/; #26 slice 7e) holds its run.scn, byte for byte (the
 kernel never reads it), and page.json, its REEL and SHOT cards as the playlist player reads them; its
 manifest's `uses` lists the scenario reels its shots name, in their order of first use. tools/gen_data.py
-writes each page.json as build/page/<id>.json and this copies it. The manifest names the kernel build the
+writes each page.json as build/page/<id>.json and this copies it. A reel with a scenario notebook (#29; its source
+notebook/notebook.md in data/missions/<mission>/<scenario file stem>/ or data/reels/<id>/, tools/notebook.py) also
+holds notebook/notebook.md, byte for byte (type "notebook"), and each figure it names as notebook/figures/<name>.svg
+(type "figure"), the SVG tools/notebook.py rendered into build/figures/<id>/<name>.svg, the same file the golden gate
+captures (tools/golden.sh, case nb-<id>-<name>); tools/build.sh renders the figures before it packs. The manifest names the kernel build the
 reel is for, by the SHA-256 of build/view.opt.wasm, and never carries code (#26, 2026-10-06 decision). Packages are reproducible: USTAR members with mtime 0,
 uid/gid 0, no user or group names, mode 0644, no directory entries; gzip with mtime 0 and no file
 name: the same bytes again for a given Python and zlib (the selftest packs twice and compares). Writes:
@@ -32,6 +36,8 @@ Reels in a package are per scenario (operator, 2026-10-07): a mission's second s
 second reel carrying its own copy of mission.scn.
 """
 import base64, gzip, hashlib, io, json, pathlib, re, shutil, sys, tarfile
+
+import notebook
 
 R = pathlib.Path(__file__).resolve().parent.parent
 D = R / "data"
@@ -60,6 +66,35 @@ def tar_gz(members):
     return out.getvalue()
 
 
+def notebook_members(rid, kind, src, uses, sits):
+    """The reel's notebook members and their manifest entries: ([(name, bytes)], [entry]), both empty without a
+    notebook. Each figure is build/figures/<rid>/<name>.svg as tools/notebook.py rendered it."""
+    nb = notebook.load(rid, kind, src, uses, sits)
+    if not nb:
+        return [], []
+    why = notebook.stale(rid, nb)
+    if why:
+        sys.exit(f"pack.py: {rid}: build/figures/{rid}/ is stale: {why} (tools/notebook.py render)")
+    members, entries = [("notebook/notebook.md", nb["text"])], [{"path": "notebook/notebook.md", "type": "notebook"}]
+    for name, *_ in nb["cases"]:
+        fig = R / "build" / "figures" / rid / f"{name}.svg"
+        if not fig.is_file():
+            sys.exit(f"pack.py: no {fig.relative_to(R)} (tools/notebook.py render writes it, with build/viewsvg)")
+        path = f"notebook/figures/{name}.svg"
+        if len(path) > 100:
+            sys.exit(f"pack.py: {rid}: {path}: a member name longer than 100 characters (USTAR)")
+        members.append((path, fig.read_bytes()))
+        entries.append({"path": path, "type": "figure"})
+    return members, entries
+
+
+def write_members(rdir, rid, members):
+    for name, data in members:
+        f = rdir / rid / name
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(data)
+
+
 def main():
     out = R / "build"
     if len(sys.argv) == 3 and sys.argv[1] == "--out":
@@ -76,6 +111,7 @@ def main():
         shutil.rmtree(rdir)
     rdir.mkdir(parents=True)
     index, page = [], []
+    sits = notebook.scenes()
     for mdir in sorted(p for p in (D / "missions").iterdir() if p.is_dir()):
         mfile = mdir / "mission.scn"
         mtext = mfile.read_bytes()
@@ -92,18 +128,17 @@ def main():
             if not pfile.is_file():
                 sys.exit(f"pack.py: no {pfile.relative_to(R)} (tools/gen_data.py writes it first)")
             title = f"{mname} {card_name(stext.decode('utf-8'), 'SCENARIO')}"
+            nbm, nbe = notebook_members(rid, "scenario", mdir / sfile.stem, None, sits)
             manifest = {"format": FORMAT, "id": rid, "kind": "scenario", "title": title,
                         "mission": {"id": mdir.name, "name": mname}, "kernel": kernel,
                         "contents": [{"path": "mission.scn", "type": "scn"},
                                      {"path": sfile.name, "type": "scn"},
-                                     {"path": "page.json", "type": "page"}]}
+                                     {"path": "page.json", "type": "page"}, *nbe]}
             members = [("manifest.json", (json.dumps(manifest, indent=1) + "\n").encode()),
-                       ("mission.scn", mtext), (sfile.name, stext), ("page.json", pfile.read_bytes())]
+                       ("mission.scn", mtext), (sfile.name, stext), ("page.json", pfile.read_bytes()), *nbm]
             pkg = tar_gz(members)
             (rdir / f"{rid}.reel.tar.gz").write_bytes(pkg)
-            (rdir / rid).mkdir()
-            for name, data in members:
-                (rdir / rid / name).write_bytes(data)
+            write_members(rdir, rid, members)
             index.append({"id": rid, "kind": "scenario", "title": title, "mission": mdir.name,
                           "file": f"{rid}.reel.tar.gz", "sha256": hashlib.sha256(pkg).hexdigest()})
             page.append({"id": rid, "b64": base64.b64encode(pkg).decode()})
@@ -121,16 +156,15 @@ def main():
         missing = [u for u in uses if u not in scenarios]
         if missing:
             sys.exit(f"pack.py: playlist {rid} uses {', '.join(missing)}, which is no scenario reel")
+        nbm, nbe = notebook_members(rid, "playlist", rdeck.parent, uses, sits)
         manifest = {"format": FORMAT, "id": rid, "kind": "playlist", "title": reel["title"], "kernel": kernel,
                     "uses": uses,
-                    "contents": [{"path": "run.scn", "type": "playlist"}, {"path": "page.json", "type": "page"}]}
+                    "contents": [{"path": "run.scn", "type": "playlist"}, {"path": "page.json", "type": "page"}, *nbe]}
         members = [("manifest.json", (json.dumps(manifest, indent=1) + "\n").encode()),
-                   ("run.scn", rdeck.read_bytes()), ("page.json", pbytes)]
+                   ("run.scn", rdeck.read_bytes()), ("page.json", pbytes), *nbm]
         pkg = tar_gz(members)
         (rdir / f"{rid}.reel.tar.gz").write_bytes(pkg)
-        (rdir / rid).mkdir()
-        for name, data in members:
-            (rdir / rid / name).write_bytes(data)
+        write_members(rdir, rid, members)
         index.append({"id": rid, "kind": "playlist", "title": reel["title"], "uses": uses,
                       "file": f"{rid}.reel.tar.gz", "sha256": hashlib.sha256(pkg).hexdigest()})
         page.append({"id": rid, "b64": base64.b64encode(pkg).decode()})
