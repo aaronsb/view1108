@@ -407,16 +407,20 @@ C     OCSTRP, as MLIB builds the cabins).  Cabin IC (1 the CM's, KCMI;
 C     2 the LM's, KLMI) is drawn as its NCP(IC) visible pieces
 C     CPL(1..6, J, IC), as LXL holds a free line, cut for its eye
 C     moved by COFF(1..3, IC) body metres; KCOK(IC) = 1 once cut.
+C     NOCX triangles and NCPX(IC) pieces were refused, the tables
+C     full: the selftest fails on any (its cabin tables line).
+C     OCTA, OCTB: CBCUT's work area, a line's hidden runs (OCCUT).
       INTEGER MOC, MCP
 C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
-C     (1978); and about 28,900 words more of core for the cabins'
+C     (1978); and about 21,400 words more of core for the cabins'
 C     hidden lines (2 words a DP number), on top of /CLM/'s two
 C     thirds of the 1108's 262,144 (docs/univac-1108.md).
-      PARAMETER (MOC=256, MCP=1000)
+      PARAMETER (MOC=512, MCP=400)
       DOUBLE PRECISION OCV(3,3,MOC), CPL(6,MCP,2), COFF(3,2)
-      INTEGER NOC, OCMOD(MOC), NCP(2), KCOK(2)
-      COMMON /COCC/ OCV, CPL, COFF
-      COMMON /COCCI/ NOC, OCMOD, NCP, KCOK
+      DOUBLE PRECISION OCTA(MOC), OCTB(MOC)
+      INTEGER NOC, OCMOD(MOC), NCP(2), KCOK(2), NOCX, NCPX(2)
+      COMMON /COCC/ OCV, CPL, COFF, OCTA, OCTB
+      COMMON /COCCI/ NOC, OCMOD, NCP, KCOK, NOCX, NCPX
 C     RESTOMOD END
 C
 C     /CVLAB/ work area of the vehicle labels (lvlab.f): the plot

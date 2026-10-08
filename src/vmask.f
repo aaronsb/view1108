@@ -299,7 +299,7 @@ C-----------------------------------------------------------------------
 C     CBCUT: cut cabin model K's free lines (MDX1(K)..MDX2(K)) for its
 C     eye (CMEYE, LDEYE) moved by OFF (body metres) into the pieces
 C     CPL of /COCC/ that MDRAW draws.  Nothing to do when the cabin is
-C     already cut for OFF.  Pieces past MCP are dropped.
+C     already cut for OFF.  Pieces past MCP are counted in NCPX.
 C-----------------------------------------------------------------------
       SUBROUTINE CBCUT(K, OFF)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -308,7 +308,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       INTEGER K
       DOUBLE PRECISION OFF(3)
-      DOUBLE PRECISION E(3), A(3), B(3), TA(MOC), TB(MOC), T0, T1
+      DOUBLE PRECISION E(3), A(3), B(3), T0, T1
       DOUBLE PRECISION D, VNRM
       INTEGER IC, I, J, L, NP, ICABN
 C     RESTOMOD BEGIN: the cabins and their hidden lines are ours, a
@@ -325,13 +325,14 @@ C     modern addition (VIEW drew no cabin; TN D-6853, printed p. 12)
         COFF(I,IC) = OFF(I)
    10 CONTINUE
       NCP(IC) = 0
+      NCPX(IC) = 0
       IF (MDX2(K) .LT. MDX1(K)) GO TO 90
       DO 80 J = MDX1(K), MDX2(K)
         DO 20 I = 1, 3
           A(I) = LXL(I,J) - E(I)
           B(I) = LXL(I + 3,J) - E(I)
    20   CONTINUE
-        CALL OCCUT(A, B, E, K, TA, TB, NP)
+        CALL OCCUT(A, B, E, K, OCTA, OCTB, NP)
 C       The pieces between the hidden runs, but none under 1 mm.
         DO 25 I = 1, 3
           B(I) = B(I) - A(I)
@@ -340,10 +341,12 @@ C       The pieces between the hidden runs, but none under 1 mm.
         T0 = 0.0D0
         DO 60 L = 1, NP + 1
           T1 = 1.0D0
-          IF (L .LE. NP) T1 = TA(L)
+          IF (L .LE. NP) T1 = OCTA(L)
           IF ((T1 - T0) * D .LE. 1.0D-3) GO TO 50
-          IF (NCP(IC) .GE. MCP) GO TO 50
-          NCP(IC) = NCP(IC) + 1
+          IF (NCP(IC) .LT. MCP) GO TO 30
+          NCPX(IC) = NCPX(IC) + 1
+          GO TO 50
+   30     NCP(IC) = NCP(IC) + 1
           DO 40 I = 1, 3
             CPL(I,NCP(IC),IC) = LXL(I,J)
      &        + T0 * (LXL(I + 3,J) - LXL(I,J))
@@ -351,7 +354,7 @@ C       The pieces between the hidden runs, but none under 1 mm.
      &        + T1 * (LXL(I + 3,J) - LXL(I,J))
             IF (T1 .GE. 1.0D0) CPL(I + 3,NCP(IC),IC) = LXL(I + 3,J)
    40     CONTINUE
-   50     IF (L .LE. NP) T0 = TB(L)
+   50     IF (L .LE. NP) T0 = OCTB(L)
    60   CONTINUE
    80 CONTINUE
    90 KCOK(IC) = 1
@@ -442,6 +445,7 @@ C       Into the list, kept in order of TA.
    45   TA(I) = T0
         TB(I) = T1
    50 CONTINUE
+      IF (NP .EQ. 0) RETURN
       M = 0
       DO 60 I = 1, NP
         IF (M .EQ. 0) GO TO 55

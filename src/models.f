@@ -45,6 +45,7 @@ C     RESTOMOD END
       NMOD = 0
       NWIN = 0
       NOC = 0
+      NOCX = 0
 C     LM, landing gear deployed (scene 4).
       CALL MODBEG(KLMD)
       CALL LMBODY
@@ -1757,7 +1758,13 @@ C     Windows (XWIN: also the window mask's).
           WN(I,K) = LMWIN(I,K)
    12   CONTINUE
    15 CONTINUE
-      CALL XWIN(3, WN, 1.0D0)
+C     The commander's window is kept for the mask (WKEEP) with only
+C     its outboard edge drawn (corner 3 to 1): OVLPD (llpd.f) draws
+C     its sill and inboard edge, the period frame.  The LM pilot's is
+C     drawn whole.
+      CALL WKEEP(3, WN, 1.0D0)
+      CALL XLINE(WN(2,3), WN(1,3), WN(3,3), WN(2,1), WN(1,1), WN(3,1),
+     &  0)
       CALL XWIN(3, WN, -1.0D0)
       CALL XWIN(4, DW, 1.0D0)
 C     Midsection: its section at both ends, the decks' edges and the
@@ -1986,7 +1993,7 @@ C     face with a hole: the forward bulkhead about the CM's tunnel.
       END
 C
 C     OCTRI: triangle A, B, C (body metres) of the cabin being built
-C     (MDBLD), into /COCC/.
+C     (MDBLD), into /COCC/; counted in NOCX if the table is full.
       SUBROUTINE OCTRI(A, B, C)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -1994,8 +2001,10 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION A(3), B(3), C(3)
       INTEGER I
-      IF (NOC .GE. MOC) RETURN
-      NOC = NOC + 1
+      IF (NOC .LT. MOC) GO TO 5
+      NOCX = NOCX + 1
+      RETURN
+    5 NOC = NOC + 1
       OCMOD(NOC) = MDBLD
       DO 10 I = 1, 3
         OCV(I,1,NOC) = A(I)

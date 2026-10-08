@@ -12,7 +12,9 @@
 ! in_target and in_lablv (default 0).  With VIEW_HDR set, prints
 ! hdr(1..24) to stderr.  With VIEW_DUMP set, writes the run tables
 ! (tools/vdump.f: every scenario-specific COMMON table's used entries,
-! doubles as hex bit patterns) to stdout instead and stops.
+! doubles as hex bit patterns) to stdout instead and stops.  With
+! VIEW_CABN set, writes the cabins' hidden-line table counts against
+! their maxima (tools/vdump.f VCABN) and stops.
 ! The run decks come first, through the kernel's card reader
 ! (src/vdeck.f): the paths in VIEW_DECK (separated by colons), else the
 ! decks of the scenario reel VIEW_REEL names (its id; default the first
@@ -58,6 +60,8 @@ program viewsvg
     end subroutine vsetin
     subroutine vdump()
     end subroutine vdump
+    subroutine vcabn()
+    end subroutine vcabn
     subroutine vtape()
     end subroutine vtape
     subroutine crdopn()
@@ -105,6 +109,11 @@ program viewsvg
     read (arg, *) isc
   end if
   call vinit(isc, get, yaw, pit, rol, fov)
+  call get_environment_variable('VIEW_CABN', tv)
+  if (len_trim(tv) > 0) then
+    call vcabn()
+    stop
+  end if
   if (na >= 2) then
     call get_command_argument(2, arg)
     if (trim(arg) /= '-') read (arg, *) get

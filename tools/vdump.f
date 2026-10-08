@@ -191,3 +191,15 @@ C     One integer: NAME, NAME(I) or NAME(I,K), value.
       END IF
       RETURN
       END
+C
+C     VCABN: the cabins' hidden-line tables against their maxima, for
+C     the selftest's cabin tables line (build/viewsvg, VIEW_CABN=1,
+C     after a situation is set up and MLIB has run): NOC MOC NOCX,
+C     NCP(1) NCP(2) MCP, NCPX(1) NCPX(2), on one line.
+      SUBROUTINE VCABN
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+      WRITE (*, '(8(I0,1X))') NOC, MOC, NOCX, NCP(1), NCP(2), MCP,
+     &  NCPX(1), NCPX(2)
+      RETURN
+      END
