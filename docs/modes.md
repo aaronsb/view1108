@@ -177,7 +177,7 @@ This is the one table of the page's link keys (#22); the README points here. `we
 | `mode` | `live`, `free`, `beam` | `?mode=live` |
 | `reel` | a playlist reel's id: `demo` (Attract) or `tour`; it wins over `mode`. The LINK button writes it while one plays | `?reel=tour` |
 | `tab` | `review`, `simulate`, `print`, `fusion`, `source`. Without it, the mode's tab (Live: Simulate, Beam: Print, else Review). With no `mode` or `reel`, the link loads that tab's mode at the first scene (Simulate: Live; Print and Fusion: Free-look; Review and Source: Attract) and its other view keys are ignored, except that with `photo` the photograph's `get`, `fov`, `yaw`, `pitch` and `roll` still apply. Beam is always in Print | `?tab=simulate` |
-| `mission` | a mission: `apollo11` or `apollo8` (or its name, `Apollo 8`, in any case and spacing): its first scenario reel, where the link gives no `scn` (the Mission key of `docs/systems-model.md` section 3) | `?mode=free&mission=apollo8` |
+| `mission` | a mission: `apollo11` or `apollo8` (or its name, `Apollo 8`, in any case and spacing): its first scenario reel, where the link gives no `scn` (the Mission key of `docs/systems-model.md` section 3). Like `scn` and `sit`, it needs a `mode`: without `mode` or `reel` the page plays Attract | `?mode=free&mission=apollo8` |
 | `scn` | a scenario reel's id: `apollo11-asflown` or `apollo8-asflown` (#26 slice 7d; `reel` names playlist reels, so the scenario reel has its own key, the Scenario key of `docs/systems-model.md` section 3; ours). Alone, its first situation | `?mode=free&scn=apollo8-asflown` |
 | `sit` | a situation of that reel, by its id or its card's NAME (any case); without `scn` or `mission`, the first reel holding it. The LINK button writes `scn` and `sit` by NAME, which no renumbering of a reel moves. In Free-look and Beam it opens there; in Live Apollo 11's windowed situations (4, 5 and 7) and the Moon view (6) are pinned, the others follow the mission phase, and another reel's open in Free-look | `?mode=free&scn=apollo11-asflown&sit=lm%20descent` |
 | `photo` | a frame in `data/photos.tsv` with a scene: opens it in Fusion, then `get`, `fov`, `yaw`, `pitch` and `roll` apply on top | `?tab=fusion&photo=AS08-14-2383` |
@@ -200,7 +200,7 @@ This is the one table of the page's link keys (#22); the README points here. `we
 | `svu` | `0`/`1`: state vector updates in simulation (default 1) | `?traj=sim&svu=0` |
 | `listing` | `dark`, `light`: the Fortran listing | `?listing=light` |
 | `notebook` | `light`, `dark`: the scenario notebook's reading view for this visit (the toggle's choice is remembered) | `?notebook=dark` |
-| `space` | `room`, `tabbed`: the 3D machine room around the workbench, or the plain page with its tabs (Room and Tabbed; links carry `tabbed` when you chose it) | `?space=tabbed` |
+| `space` | `room`, `tabbed`: the 3D machine room around the workbench, or the plain page with its tabs (Room and Tabbed). Where the room can run, the LINK button writes the one you are in, so a link copied in the Room reopens the Room | `?space=tabbed` |
 | `code` | with `tab=source`: a unit, `/BLOCK/`, a PARAMETER or COMMON member, a file, or `file:line` | `?tab=source&code=PROJ`, `?tab=source&code=pen.f:120` |
 | `theme` | the Source browser's theme for this visit: `dark`, `light` or `contrast` (PHOSPHOR when absent) | `?tab=source&theme=dark` |
 
@@ -223,7 +223,7 @@ Switches for screenshots, tests and debugging. The LINK button never writes them
 | `labmotion` | `0`: the room's machines held still (the tape units' reels, the FASTRAND II, the CPU lamp panel) | `?labmotion=0` |
 | `labdust` | `0`: no dust motes in the room (they drift with the real frame time) | `?labdust=0` |
 
-Old keys and values, still read for old links and slated for removal (#22): each is read as its canonical key and value, a canonical key in the same link wins over its old one, and the LINK button never writes them. The equipment gallery (`web/lab/gallery.html`, development only) has keys of its own, in `web/lab/README.md`.
+Old keys and values, still read for old links and slated for removal (#22): each is read as its canonical key and value, and the LINK button never writes them. Where a link gives a key more than one way, a canonical value wins (`labels=primary&lab=3` is `labels=primary`); without one, the first old key or value in the link does (`lab=2&labels=1` is `labels=secondary`). The equipment gallery (`web/lab/gallery.html`, development only) has keys of its own, in `web/lab/README.md`.
 
 | Old | Read as | Why |
 |---|---|---|
@@ -231,10 +231,7 @@ Old keys and values, still read for old links and slated for removal (#22): each
 | `src=replay` | `traj=replay` | `src` was both the state source and a code location |
 | `src=sim` | `traj=sim` | |
 | `src` (any other value) | `code` | |
-| `lab=0` | `labels=off` | `lab`, the label level, sat beside `labq`, the room's quality |
-| `lab=1` | `labels=primary` | |
-| `lab=2` | `labels=secondary` | |
-| `lab=3` | `labels=all` | |
+| `lab` | `labels` | `lab`, the label level, sat beside `labq`, the room's quality: a number from 0 to 3, rounded, read as `off`, `primary`, `secondary` or `all` |
 | `labels=0` | `labels=off` | `labels` was on or off before the levels |
 | `labels=1` | `labels=all` | |
 | `scene` | `scn` and `sit` | `1`–`9`, the Nth situation across the reels in load order: Apollo 11's situations 1–8, then Apollo 8's Earthrise (situation 1 of its reel) as 9, since each reel numbers its own (#26 slice 7e). `scn`, `sit` and `mission` win over it. In Live, `4`–`7` pin that view; `1`–`3` and `8` follow the mission phase; `9` opens in Free-look. Example: `?mode=free&scene=7` |

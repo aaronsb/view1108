@@ -81,7 +81,7 @@ const bookShots = (route, scn, from, doc, extra = []) => ["room", "esc"].map(how
 // The terminal the walk stands nearest.
 const NEAREST = `(w => VIEW_LAB.layout().terminals.map(t => [t.name, Math.hypot(t.x - w.x, t.z - w.z)]).sort((a, b) => a[1] - b[1])[0][0])(${LAB}.walk)`;
 
-export const SHOTS = [
+const SHOT_LIST = [
   // The headless boot gate: the page starts (Attract), with no console error and #err empty.
   { name: "boot", url: "",
     expect: [[TL("mode"), "attract"], ["!!VIEW_KERNEL.view_frame"]] },
@@ -119,7 +119,7 @@ export const SHOTS = [
       { js: `VIEW_LAB.setTarget(null)` }, { wait: `${LAB}.at === null && ${LAB}.mode === "free"`, timeout: 20000 }, ROOM_STILL, { frames: 3 }],
     expect: [[`Object.keys(${LAB}.out)`, []], [`VIEW_ESC()`, ["room"]], [TL("mounted"), "apollo11-asflown"]] },
   // #87: while the demo plays the six other tape units stand undressed; the drive names the demo.
-  { name: "room-drive-row-demo", url: "space=room&mode=attract",
+  { name: "room-drive-row-demo", url: "space=room&reel=demo",
     steps: [ROOM_UP, ROOM_STILL, { frames: 3 }],
     expect: [[`${LAB}.tapes`, ["", "", "", "DEMO", "", "", ""]], [TL("mounted"), "demo"]] },
   // #87: the drive row after Apollo 8 is mounted from its reel modal: the drive names it, the six other units carry the
@@ -385,6 +385,10 @@ export const SHOTS = [
     steps: [{ frames: 2 }],
     expect: [[TL("mode"), "tour"], [TL("mounted"), "tour"], [LINK, /^[^?]*\?reel=tour(&|$)/], [LINK, NO_OLD]] },
   // The canonical keys #22 adds: mission (its first scenario reel), and a reel with a tab (the reel, not the tab's mode).
+  // In the Room the LINK button writes space=room, so a link copied there reopens the Room.
+  { name: "link-room-space", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, HOLD(), ROOM_STILL],
+    expect: [[`document.body.classList.contains("room")`, true], [LINK, /&space=room(&|$)/]] },
   { name: "link-mission", url: "mode=free&space=tabbed&mission=apollo8",
     steps: [HOLD(), { frames: 2 }],
     expect: [[TL("mounted"), "apollo8-asflown"], [TL("scene"), 9], [LINK, /scn=apollo8-asflown/]] },
@@ -405,7 +409,7 @@ export const SHOTS = [
   // External on the CSM at Earth orbit insertion (#70 option B): the launch stack behind it, the S-IVB, IU and closed
   // SLA, so the kernel's world (hdr(21)) holds the CSM, the docked LM and the placed S-IVB, and the target is the CSM's own
   // point (hdr(23) 1).
-  { name: "ext-eoi-stack", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=3&view=external&target=csm&lab=1&get=709.33",
+  { name: "ext-eoi-stack", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=3&view=external&target=csm&labels=primary&get=709.33",
     steps: [...LINKED(709.33), { frames: 3 }],
     expect: [[TL("viewMode"), 1], [TL("targetId"), 4], [TL("scene"), 3],
       [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.hdr.value, 24)[20]`, 7],
@@ -451,6 +455,12 @@ export const SHOTS = [
   printShot("print-svg-apollo11-descent", "scn=apollo11-asflown&sit=5&get=102:45:40", 369940, "apollo11-asflown-s5-lm-descent-102-45-40"),
   printShot("print-svg-apollo8-earthrise", "scn=apollo8-asflown&sit=1&get=75:48:39", 272919, "apollo8-asflown-s1-apollo-8-earthrise-75-48-39"),
 ];
+
+// Every shot but the old-key ones (link-alias-*, link-scene-alias) is written in canonical keys (docs/modes.md, Link
+// parameters; #22), and the link the LINK button writes at its end holds no old key either.
+const OLD_KEY_SHOT = n => n.startsWith("link-alias-") || n === "link-scene-alias";
+for (const s of SHOT_LIST) if (!OLD_KEY_SHOT(s.name) && !NO_OLD.test("?" + s.url)) throw new Error(`shots.mjs: ${s.name}: an old link key in ${s.url}`);
+export const SHOTS = SHOT_LIST.map(s => OLD_KEY_SHOT(s.name) ? s : { ...s, expect: [...(s.expect || []), [LINK, NO_OLD]] });
 
 // A print shot: the Print tab open at a situation and g.e.t., the clock held there, and the three print buttons
 // pressed with each download link's click caught (its file name and the SVG at its blob URL, read before the page

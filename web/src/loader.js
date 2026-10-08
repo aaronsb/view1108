@@ -12,8 +12,9 @@
 // and mode=tour, the demo and tour reels' ALIASes, still mount them for old links (#22). mission, scn and sit name a
 // situation (a mission's first scenario reel, a scenario reel, a situation id or name) and only a link reads them
 // (reelpkg.js sceneOfLink); everywhere else scene is the page's handle for a situation (config.js sitOf), which a
-// link's scene=N still is for old links (#22). labels is a level by name (views.js LAB_LEVELS). One more, `by`, names the page's own callers whose rule
-// differs from a viewer's pick; openLink sets it to "url" and never passes the URL's own:
+// link's scene=N still is for old links (#22). labels is a level by name (views.js LAB_LEVELS).
+// One more, `by`, names the page's own callers whose rule differs from a viewer's pick; openLink sets it to "url"
+// and never passes the URL's own:
 //   url     a link: the reel or mode (default the demo reel, Attract), its situation, time, look, labels and display flags (loadLink)
 //   phase   Live's phase changed: the phase's situation, the time and look kept, the field its own, aimed at the body
 //   shot    the playlist player's shot changed: its situation at its defaults, with its view, labels and frame, and

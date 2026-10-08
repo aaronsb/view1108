@@ -24,7 +24,7 @@ function linkURL() {
   }
   if (effCatalog() === "full") add("catalog", "full");
   if (simAvail && simOn) { add("traj", "sim"); add("svu", +simSvu); }
-  if (roomAvail && roomWant === "tiled") add("space", "tabbed");   // Room is the default where it can run (room.js; "tiled" is Tabbed's stored name)
+  if (roomAvail) add("space", roomWant === "tiled" ? "tabbed" : "room");   // where the room can run, the one shown (room.js; "tiled" is Tabbed's stored name), so a Room link reopens the Room
   if (tab === "source" && srcLinkParam()) add("code", srcLinkParam());
   if (tab === "source" && srcThemeParam()) add("theme", srcThemeParam());
   return location.origin === "null" ? location.href.split("?")[0] + "?" + q.join("&") : location.origin + location.pathname + "?" + q.join("&");
