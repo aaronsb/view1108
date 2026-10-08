@@ -228,10 +228,11 @@ def notebooks():
 # tools/viewsvg.f90 writes (svg, g, line, circle, rect, text; their geometry, paint and font attributes), checked over
 # every golden render and figure. The page shows a figure as an <img> from a data: URL, but a reader may open it as a
 # page, so anything else is refused: a <! (doctype, entity, comment, CDATA) anywhere, a <? other than a leading XML
-# declaration (after at most a byte order mark, which the page's TextDecoder drops), an element or attribute not on
-# the list (a prefixed name among them: h:script, s:script, xlink:href but to #...), an href to anything but a
-# fragment, a style, url( or attributeName, a javascript: URL, an entity other than the five XML ones and numeric
-# references, and a tag the scanner cannot read whole. Whitespace is XML's: space, tab, CR, LF. The scan is linear
+# declaration ("<?xml" and whitespace, so not <?xml-stylesheet; after at most one byte order mark, which the page
+# reads from the member's bytes too), an element or attribute not on the list (a prefixed name among them: h:script,
+# s:script, xlink:href but to #...), an href to anything but a fragment, a style, url( or attributeName, a
+# javascript: URL, a character reference in an attribute value (which could spell either; viewsvg writes none), an
+# entity other than the five XML ones and numeric references, and a tag the scanner cannot read whole. Whitespace is XML's: space, tab, CR, LF. The scan is linear
 # (#79): each tag is read once, left to right, by patterns anchored where the last one ended, whose parts cannot
 # trade characters, so a tag of 200K spaces costs what its length costs. The same rule is web/src/reelpkg.js
 # reelSvgUnsafe, which the page applies when it unpacks a reel; the selftest runs both over every figure and golden
@@ -252,7 +253,7 @@ _WS = re.compile(r"[ \t\r\n]*")
 
 def svg_unsafe(text):
     """Why the SVG text `text` may not be a figure (the allowlist above), or None."""
-    s = re.sub(r"^\ufeff?[ \t\r\n]*<\?xml[^<>?]*\?>", "", text, count=1)
+    s = re.sub(r"^\ufeff?[ \t\r\n]*<\?xml[ \t\r\n][^<>?]*\?>", "", text, count=1)
     if "<!" in s:
         return "a <! declaration (doctype, entity, comment or CDATA)"
     if "<?" in s:
@@ -280,6 +281,8 @@ def svg_unsafe(text):
             name, val = a.group(1), a.group(2) if a.group(2) is not None else a.group(3)
             if name not in SVG_ATTRS:
                 return f"an attribute not on the list ({name!r})"
+            if "&#" in val:
+                return "a character reference in an attribute value"
             if name in SVG_NS and val != SVG_NS[name]:
                 return f"a namespace not SVG's ({val[:40]!r})"
             if name in ("href", "xlink:href") and not val.startswith("#"):

@@ -691,6 +691,11 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
       'a comment': `<svg ${W3}><!-- --></svg>\n`,
       'a namespace swap': `<svg xmlns="http://www.w3.org/1999/xhtml"><text>x</text></svg>\n`,
       'an unquoted attribute': `<svg ${W3}><rect x=1 onload=alert(1)/></svg>\n`,
+      'a leading CSS <?xml-stylesheet?>': `<?xml-stylesheet type="text/css" href="https://evil.example/x.css"?><svg ${W3}></svg>\n`,
+      'a leading XSLT <?xml-stylesheet?>': `<?xml-stylesheet type="text/xsl" href="https://evil.example/x.xsl"?><svg ${W3}></svg>\n`,
+      'a url( from a decimal reference': `<svg ${W3}><rect fill="&#117;rl(https://evil.example/p.svg#g)"/></svg>\n`,
+      'a url( from a hex reference': `<svg ${W3}><rect fill="&#x75;rl(https://evil.example/p.svg#g)"/></svg>\n`,
+      'two byte order marks before the declaration': `﻿﻿<?xml version="1.0"?>\n<svg ${W3}></svg>\n`,
     };
     for (const [what, svg] of Object.entries(SVG_BAD)) {
       await nbRefused(`a figure with ${what}`, 'nb-fig-unsafe', /(holds .*, which a figure may not \(the allowlist\)|is not an SVG document)$/, svg);
@@ -717,7 +722,7 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
 out = []
 for t in json.load(sys.stdin):
     t0 = time.perf_counter(); why = notebook.svg_unsafe(t); out.append([why, (time.perf_counter() - t0) * 1000])
-print(json.dumps(out))`], { cwd: R, input: JSON.stringify(Object.values(SVG_SLOW).map(v => v[0])) }).toString());
+print(json.dumps(out))`], { cwd: R, timeout: 20000, input: JSON.stringify(Object.values(SVG_SLOW).map(v => v[0])) }).toString());
     Object.entries(SVG_SLOW).forEach(([what, [svg, ok]], i) => {
       const t0 = performance.now(), js = RP.reelSvgUnsafe(svg), ms = performance.now() - t0, [py, pms] = pySlow[i];
       if ((js === null) !== ok || (py === null) !== ok) wrong.push(`a figure with ${what}: the page says ${js}, tools/notebook.py ${py}`);

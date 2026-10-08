@@ -49,9 +49,11 @@ function untar(t) {
 const REEL_FIGURE = /^notebook\/figures\/([a-z0-9][a-z0-9-]*)\.svg$/;
 // What a figure may hold (ours; reviews of PR #69): an ALLOWLIST, the same as tools/notebook.py svg_unsafe (render and
 // pack): the elements and attributes tools/viewsvg.f90 writes. Refused: a <! anywhere (doctype, entity, comment,
-// CDATA), a <? but a leading XML declaration (after at most a byte order mark), an element or attribute not on the
-// list (prefixed names among them), a namespace not SVG's, an href but to #..., url( or javascript:, an entity but
-// the XML five and numeric references, and a tag the scanner cannot read whole. Whitespace is XML's: space, tab, CR,
+// CDATA), a <? but a leading XML declaration ("<?xml" and whitespace, so not <?xml-stylesheet; after at most one byte
+// order mark, read from the member's bytes), an element or attribute not on the list (prefixed names among them), a
+// namespace not SVG's, an href but to #..., url( or javascript:, a character reference in an attribute value (which
+// could spell either; viewsvg writes none), an entity but the XML five and numeric references, and a tag the scanner
+// cannot read whole. Whitespace is XML's: space, tab, CR,
 // LF. The scan is linear (#79): each tag is read once, left to right, by anchored (sticky) patterns whose parts cannot
 // trade characters, so a tag of 200K spaces costs what its length costs. The viewer shows figures as <img> from
 // data: URLs; this keeps a figure inert even when a reader opens it as a page.
@@ -66,7 +68,7 @@ const REEL_SVG_ATTR = /[ \t\r\n]+([^ \t\r\n=/<>"']+)[ \t\r\n]*=[ \t\r\n]*(?:"([^
 const REEL_SVG_END = /[ \t\r\n]*(?:\/[ \t\r\n]*)?$/y, REEL_SVG_WS = /[ \t\r\n]*$/y;
 /** Why SVG text `text` may not be a figure, or null. */
 function reelSvgUnsafe(text) {
-  const s = String(text).replace(/^\uFEFF?[ \t\r\n]*<\?xml[^<>?]*\?>/, ""), TAG = /<([^<>]*)>/g;
+  const s = String(text).replace(/^\uFEFF?[ \t\r\n]*<\?xml[ \t\r\n][^<>?]*\?>/, ""), TAG = /<([^<>]*)>/g;
   const at = (re, body, k) => { re.lastIndex = k; return re.exec(body); };
   if (s.includes("<!")) return "a <! declaration (doctype, entity, comment or CDATA)";
   if (s.includes("<?")) return "a <? processing instruction";
@@ -82,6 +84,7 @@ function reelSvgUnsafe(text) {
     for (let a; (a = at(REEL_SVG_ATTR, body, k)); k += a[0].length) {
       const name = a[1], val = a[2] ?? a[3];
       if (!REEL_SVG_ATTRS.has(name)) return `an attribute not on the list ('${name}')`;
+      if (val.includes("&#")) return "a character reference in an attribute value";
       if (name in REEL_SVG_NS && val !== REEL_SVG_NS[name]) return `a namespace not SVG's ('${val.slice(0, 40)}')`;
       if ((name === "href" || name === "xlink:href") && !val.startsWith("#")) return "an href to anything but #...";
     }
@@ -198,12 +201,13 @@ async function readReel(b64, sha, id) {
   if (figs.length && !books.length) throw no(`${figs[0].path} is a figure, and it holds no notebook`);
   let notebook = null;
   if (books.length) {
-    const figures = new Map();
+    // The allowlist reads a figure as tools/notebook.py does, its byte order marks kept (dec drops a leading one).
+    const figures = new Map(), raw = new TextDecoder("utf-8", { ignoreBOM: true }), member = new Map(files);
     for (const e of figs) {
       const m = REEL_FIGURE.exec(e.path), svg = text.get(e.path);
       if (!m) throw no(`${e.path} is a figure, not notebook/figures/<name>.svg`);
-      if (!/^\s*(<\?xml[^>]*\?>\s*)?<svg[\s>]/.test(svg) || !/<\/svg>\s*$/.test(svg)) throw no(`${e.path} is not an SVG document`);
-      const bad = reelSvgUnsafe(svg);
+      if (!/^\s*(<\?xml[ \t\r\n][^>]*\?>\s*)?<svg[\s>]/.test(svg) || !/<\/svg>\s*$/.test(svg)) throw no(`${e.path} is not an SVG document`);
+      const bad = reelSvgUnsafe(raw.decode(member.get(e.path)));
       if (bad) throw no(`${e.path} holds ${bad}, which a figure may not (the allowlist)`);
       figures.set(m[1], svg);
     }
