@@ -8,19 +8,19 @@
 // It refreshes when the mounted reel changes. Open, it is on the Esc stack as "tapes" (esc.js); Esc, like its button,
 // returns to the console's seat, and no other key reaches the room behind it. The typefaces are the page's bundled ones.
 "use strict";
-let tapesOn = false, tapesReel = null, tapesSel = null, tapesTimer = 0, tapesPrev = null;
+let tapesOn = false, tapesReel = null, tapesRowsOf = [], tapesSel = null, tapesTimer = 0, tapesPrev = null;
 const TAPES_KIND = { manifest: "manifest", page: "page.json", scn: "run deck", playlist: "playlist deck", notebook: "notebook", figure: "figure", media: "photograph" };
 const tapesEnc = new TextEncoder();
 const tapesMounted = () => REEL_LIB.find(r => r.manifest.id === reelMounted()) || null;
 // The reel's package members: [{path, type, kind, size, img}], img the data: URL of a figure or photograph.
 function tapesRows(r) {
-  const media = r.notebook ? r.notebook.media : new Map();
+  const media = r.media || new Map();   // the reel's photographs (#75: media members belong to the reel)
   const rows = [{ path: "manifest.json", type: "manifest", kind: TAPES_KIND.manifest, size: tapesEnc.encode(JSON.stringify(r.manifest, null, 2)).length }];
   for (const e of r.manifest.contents) {
     const row = { path: e.path, type: e.type, kind: TAPES_KIND[e.type] || String(e.type), size: 0, img: null };
     if (e.type === "media") {
-      const m = [...media].find(([k]) => e.path.replace(/^.*\//, "") === k);
-      if (m) { row.size = m[1].bytes.length; row.img = libDataUrl(m[1].type, m[1].bytes); }
+      const m = media.get(e.path.replace(/^media\//, ""));
+      if (m) { row.size = m.bytes.length; row.img = libDataUrl(m.type, m.bytes); }
     } else {
       const t = r.files.get(e.path);
       if (t !== undefined) row.size = tapesEnc.encode(t).length;
@@ -42,7 +42,7 @@ function tapesBuild() {
   ul.textContent = "";
   $("tapestitle").textContent = r ? `TAPE VIEWTP · ${r.manifest.title || r.manifest.id} · ${r.manifest.kind} reel` : "TAPE FILE BROWSER · NO REEL MOUNTED";
   if (!r) { $("tapesname").textContent = ""; $("tapescontent").textContent = "No reel is mounted on the drive."; tapesSel = null; return; }
-  const rows = tapesRows(r);
+  const rows = tapesRowsOf = tapesRows(r);
   for (const row of rows) {
     const li = document.createElement("li"), b = document.createElement("button");
     b.type = "button"; b.dataset.path = row.path;
@@ -55,7 +55,7 @@ function tapesBuild() {
   tapesSelect(rows.some(x => x.path === tapesSel) ? tapesSel : rows[0].path);
 }
 function tapesSelect(path) {
-  const r = tapesReel, row = r && tapesRows(r).find(x => x.path === path), box = $("tapescontent");
+  const r = tapesReel, row = r && tapesRowsOf.find(x => x.path === path), box = $("tapescontent");
   if (!row) return;
   tapesSel = path;
   for (const li of $("tapeslist").children) li.firstChild.classList.toggle("on", li.firstChild.dataset.path === path);
