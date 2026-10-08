@@ -478,7 +478,17 @@ C     onto the sphere, by its ellipsoid's depth there times
 C     1 - ALT/HB, nothing from HB (50 n mi, ours) up: the vehicle
 C     stands on the drawn pad, and the rows at orbit and at entry
 C     interface keep their true radius, where the legs either side
-C     meet them.
+C     meet them.  Below HB a geocentric row's latitude is also made
+C     geodetic, TAN(GD) = TAN(GC) / (1 - F)**2, the footing of the
+C     coastlines, the pad's mark (learth.f PADEF, DPAD) and the launch
+C     complex, so the vehicle lifts off from the drawn pad, not 17.9
+C     km south of it (#105; ours).  The latitude is taken whole, not
+C     blended by altitude as the radius is: a blend would lean the
+C     climb south by 0.19 m for each metre up (114 m off the pad's
+C     axis at 10 s, 739 at 30 s, against the table's own northing),
+C     where whole rows put the 0.16 deg step on the arc from the last
+C     row below HB to the first above it (Apollo 11 2:42.30 to
+C     7:40.62, 36 to 97 n mi up, some 1000 km down range).
 C-----------------------------------------------------------------------
       SUBROUTINE TABRV(K, GET, R, V)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -489,9 +499,10 @@ C     RESTOMOD END
       DOUBLE PRECISION GET, R(3), V(3)
       DOUBLE PRECISION PA(NLGP), PB(NLGP), RA(3), VA(3), RB(3), VB(3)
       DOUBLE PRECISION TA, TB, H, S, H00, H10, H01, H11, D00, D10, D01
-      DOUBLE PRECISION D11, HB, SF
+      DOUBLE PRECISION D11, HB, SF, FG
       INTEGER I, IGA, IGB
       HB = 50.0D0
+      FG = (1.0D0 - 1.0D0 / 298.257D0)**2
       DO 10 I = 1, NLGP
         PA(I) = LGP(I,K)
         PB(I) = LGP(I,K)
@@ -505,7 +516,10 @@ C     RESTOMOD END
       PB(7) = LGP(13,K)
       PB(8) = LGP(14,K)
       PB(9) = LGP(15,K)
-      SF = DSIN(PA(4) * DR)
+      IF (LGGC(K) .NE. 1) GO TO 5
+      IF (PA(6) .LT. HB) PA(4) = DATAN(DTAN(PA(4) * DR) / FG) / DR
+      IF (PB(6) .LT. HB) PB(4) = DATAN(DTAN(PB(4) * DR) / FG) / DR
+    5 SF = DSIN(PA(4) * DR)
       IF (PA(6) .LT. HB) PA(6) = PA(6)
      &  + RE * SF * SF / (298.257D0 * 1.852D0) * (1.0D0 - PA(6) / HB)
       SF = DSIN(PB(4) * DR)

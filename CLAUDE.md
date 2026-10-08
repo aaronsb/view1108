@@ -409,12 +409,14 @@ position, 12 degrees from the spacecraft, at about T-43 minutes" (`KA9P`) and "f
 mark" (`KA9R`; p. 165), the count's T- taken as g.e.t. before range zero; its hinge and the sense it turns are ours.
 `PADAX` (`vdrive.f`) gives the complex's axes from the pad's place on the drawn Earth (learth.f `PADEF`, where DPAD
 marks it; geodetic, on the coastlines' footing): X up, -Z north, toward the tower (ours: no held source says which
-side the tower stood), so the CM's side hatch (-Z) faces the access arm. Its foot is where the ascent table stands the
-CSM before lift-off: the CSM's state at `LIFTOFF`, held Earth fixed (`MEFAT`, which VFRAME's `MEF` uses too) and turned
-with the Earth, less the stack's height (mpad.f `PADHC`) along X. The table's latitudes are geocentric, so the complex
-stands 17.9 km south of DPAD's mark (0.161 deg at 28.447 deg N), and about 70 m inside the drawn sphere (the table's
-lift-off altitude, 0.032 n mi, is less than the stack's height; ours); every ascent frame already put the vehicle
-there (the root fix, blending TABRV's latitude below 50 n mi, is filed on #105). `PADPL` places the complex, fixed to
+side the tower stood), so the CM's side hatch (-Z) faces the access arm. Its foot is under DPAD's mark, where the
+ascent table stands the CSM before lift-off, at the radius of the CSM's state at `LIFTOFF` less the stack's height
+(mpad.f `PADHC`): about 70 m inside the drawn sphere (the table's lift-off altitude, 0.032 n mi, is less than the
+stack's height; ours). The table's latitudes are geocentric; `TABRV` makes each row below 50 n mi geodetic (#105,
+taken whole, not blended by altitude as its radius is, which would lean the climb south 0.19 m per metre up), so the
+trajectory, the mark and the complex agree (before #105 they stood 17.9 km south of the mark, 0.161 deg at 28.447
+deg N), and the 0.16 deg step falls on the arc from the last row below 50 n mi to the first above (Apollo 11 2:42.30
+to 7:40.62, some 1000 km down range). `PADPL` places the complex, fixed to
 the turning Earth, wherever CSMCAM places the CSM (an external view of a camera riding the CSM), before `SIISEP`
 (without one, before `LIFTOFF`) and within 500 km of the camera (ours), where the scenario has a PAD card and a
 `LIFTOFF` event. `ASCPL` places the CSM for CSMCAM from the pad to `SIISEP`: before `LIFTOFF` (Apollo 11 0.63 s,
