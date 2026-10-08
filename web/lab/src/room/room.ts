@@ -30,7 +30,7 @@ import { STATIONS, stationNamed } from "../stations";
 import { DOOR, DRIVES, ROOM, buildShell } from "./shell";
 import { batch } from "./batch";
 import type { Binder, Prop } from "../equipment/bookcase";
-import type { ReelPiece } from "../equipment/taperack";
+import type { NotebookBinder, ReelPiece } from "../equipment/taperack";
 
 /** A builder with the options some modules take (a tape drive's number, the CPU cabinet with the lamp panel). */
 type Builder = (ctx: BuildContext, opts?: Record<string, unknown>) => Equipment;
@@ -136,6 +136,9 @@ export function build(ctx: BuildContext): Room {
   }
   const reels = rack.anchors.reels as ReelPiece[];
   for (const p of reels) { p.object.userData.placed = `reel:${p.reel.id}`; p.opens = rack.opens; placed.push({ name: p.object.userData.placed, equipment: p }); }
+  // Each reel's scenario notebook binder beside it (#29): it opens in the library's viewer, as a bookcase binder does.
+  const notebooks = rack.anchors.binders as NotebookBinder[];
+  for (const b of notebooks) { b.object.userData.placed = `binder:nb-${b.reel.id}`; b.opens = library.opens; placed.push({ name: b.object.userData.placed, equipment: b }); }
   const binders = library.anchors.binders as Binder[];
   for (const b of binders) { b.object.userData.placed = `binder:${b.doc.id}`; b.opens = library.opens; placed.push({ name: b.object.userData.placed, equipment: b }); }
   const props = library.anchors.props as Prop[];   // for looks: named on hover, inert
@@ -190,6 +193,7 @@ export function build(ctx: BuildContext): Room {
     labels: { ...Object.fromEntries(STATIONS.map(st => [st.name, st.label])), switch: "Lights", power: "Power distribution — click to open/close the doors", "power:selector": "Voltmeter selector — click to turn", door: "Exit — github.com/aaronsb/view1108",
       ...Object.fromEntries(Array.from({ length: DRIVES.n }, (_, i) => [`uniservo-${60 + i}`, `UNISERVO VIII-C — tape unit ${60 + i}`]).filter((_, i) => i !== 3)),
       ...Object.fromEntries(reels.map(p => [`reel:${p.reel.id}`, `${p.reel.title} — ${p.reel.kind} reel`])),
+      ...Object.fromEntries(notebooks.map(b => [`binder:nb-${b.reel.id}`, b.reel.notebook ?? b.reel.title])),
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
       ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },
     lightsOn: true,

@@ -20,6 +20,9 @@ const VIEW_LAB = {
   /** Show the room; with a terminal name and the page element's rect, start where its screen covers that rect. */
   show(from?: string, rect?: DOMRect | null, holdMs?: number): void { lab?.show(from, rect, holdMs); },
   hide(): void { lab?.hide(); },
+  /** Reel `id` out at the tape rack and carried to a tape unit (the notebook viewer's "Load this reel"; call after
+   *  show()). False when the room is not running or the reel is not on the rack. */
+  carry(id: string): boolean { return lab ? lab.carryReel(id) : false; },
   /** Fly to a placed equipment (null: the overview); a terminal holds at its close-up, or with `open` opens at once. */
   setTarget(name: string | null, open?: boolean): boolean { return lab ? lab.setTarget(name, open) : false; },
   /** At a terminal's close-up: step back out in front of it (false when not at one). */
@@ -37,8 +40,8 @@ const VIEW_LAB = {
   /** Quality tier, draw calls and triangles of the last frame, the last handover's mismatch (px), the page's loaded
    *  state as the lab reads it and the UTC its clocks show: for tests. */
   info() { return lab?.info ?? null; },
-  /** Client px of a placed equipment's screen: for tests. */
-  project(name: string) { return lab?.project(name) ?? null; },
+  /** Client px of a placed equipment's screen (else its origin), `lift` metres above it: for tests. */
+  project(name: string, lift?: number) { return lab?.project(name, lift) ?? null; },
   /** The room from above, ceiling left out, `px` pixels per metre, as a PNG data URL: for tests. */
   plan(px?: number) { return lab?.plan(px) ?? null; },
   /** Footprints of the pieces on the floor and the door: for tests. */

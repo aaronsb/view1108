@@ -1,6 +1,8 @@
 // Things on a shelf that come out toward the viewer when clicked (ours): a book pulled out of its row, a card lifted
 // off the back. A Shelf holds them; one is out at a time, and the lab puts them all back when the camera leaves. An
-// item with `opens` opens on a second click while it is out (the lab's `pull` route); the rest only come out.
+// item with `opens` opens on a second click while it is out (the lab's `pull` route); the rest only come out. Two
+// items may be paired (the tape rack's reel and its notebook binder, #19/#29): while one is out its partner stands
+// half out (HALF), a pointer to it, and goes back with it.
 import * as THREE from "three";
 
 export interface PullSpec {
@@ -11,6 +13,9 @@ export interface PullSpec {
   /** A second click while it is out opens it. */
   opens?: boolean;
 }
+
+/** How far a paired item comes out while its partner is out: a half-pull (ours). */
+export const HALF = 0.45;
 
 /** One item: its rest pose (taken when added) and its out pose, eased between. */
 export class Pullable {
@@ -48,6 +53,7 @@ export interface ShelfHints {
 export class Shelf {
   private items: Pullable[] = [];
   private outItem: Pullable | null = null;
+  private partners = new Map<Pullable, Pullable>();
   constructor(private hints: ShelfHints, private tau = 0.18) {}
 
   /** Add `object` at its resting pose (place it first). */
@@ -56,10 +62,13 @@ export class Shelf {
     this.items.push(p);
     return p;
   }
-  /** That item out and every other back (null: all back). */
+  /** Pair two items: while either is out the other stands half out. */
+  pair(a: Pullable, b: Pullable): void { this.partners.set(a, b); this.partners.set(b, a); }
+  /** That item out, its partner half out and every other back (null: all back). */
   set(item: Pullable | null): void {
     this.outItem = item;
-    for (const p of this.items) p.want = p === item ? 1 : 0;
+    const half = item && this.partners.get(item);
+    for (const p of this.items) p.want = p === item ? 1 : p === half ? HALF : 0;
   }
   /** Put back whatever is out; false when nothing is. */
   putBack(): boolean { if (!this.outItem) return false; this.set(null); return true; }
@@ -78,13 +87,14 @@ export class Shelf {
   update(dt: number): void { for (const p of this.items) p.update(dt, this.tau); }
 
   /** The Equipment members for one item on this shelf: `select` (the camera flies to it: out; leaves: back),
-   *  `pull`, `pulled` and `hint`. */
-  member(item: Pullable): { select(on: boolean): void; pull(): boolean; pulled(): boolean; hint(): string } {
+   *  `pull`, `pulled`, `hint` and `out` (how far it is wanted out: 0, HALF or 1; for tests). */
+  member(item: Pullable): { select(on: boolean): void; pull(): boolean; pulled(): boolean; hint(): string; out(): number } {
     return {
       select: on => on ? this.set(item) : this.back(item),
       pull: () => this.pull(item),
       pulled: () => this.outItem === item && item.opens,
       hint: () => this.hint(),
+      out: () => item.want,
     };
   }
 }

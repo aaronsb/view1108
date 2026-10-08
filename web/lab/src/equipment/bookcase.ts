@@ -19,7 +19,7 @@ export const DOCS = LIBRARY as LibraryDoc[];
 
 const W = 1.0, H = 1.1, D = 0.36, T = 0.018;
 const SHELF = 0.55;                        // the upper shelf's top
-const BH = 0.295, BD = 0.26;               // a binder's height and depth (letter-size sheets, 11 x 8 1/2 in, in their covers)
+export const BH = 0.295, BD = 0.26;             // a binder's height and depth (letter-size sheets, 11 x 8 1/2 in, in their covers)
 const FRONT = D / 2 - 0.035;               // the spines' line
 const PULL = 0.09, TIP = 0.05;              // how far a pulled book comes out, m, and its top tipped toward you, rad
 
@@ -28,19 +28,35 @@ const thick = (pages: number) => 0.028 + 0.036 * Math.min(1, pages / 330);
 
 export interface Binder extends Equipment { doc: LibraryDoc }
 
-function binder(doc: LibraryDoc, aniso: number): Binder {
+/** A three-ring binder standing upright (ours; the bookcase's, and the tape rack's scenario notebooks, #29): vinyl
+ *  covers `t` m apart and a rounded spine in `colour`, letter-size sheets inside, and a spine card `card` draws on
+ *  (its canvas `CW` px across, the card's long side vertical). Its origin is the bottom of the spine's middle, the
+ *  spine facing +z, the binder `BD` deep behind it. */
+export function ringBinder(t: number, colour: number, card: (g: CanvasRenderingContext2D, w: number, h: number) => void, aniso: number, CW = 96): { object: THREE.Group; anchors: Equipment["anchors"]; dispose(): void } {
   const object = new THREE.Group(), mine: { dispose(): void }[] = [];
-  const t = thick(doc.pages), col = new THREE.Color(doc.colour).getHex();
-  const vinyl = new THREE.MeshStandardMaterial({ color: col, roughness: 0.55, metalness: 0 });
+  const vinyl = new THREE.MeshStandardMaterial({ color: colour, roughness: 0.55, metalness: 0 });
   mine.push(vinyl);
   const P = new Parts();
   for (const s of [-1, 1]) P.box(0.003, BH, BD, vinyl, s * (t / 2 - 0.0015), BH / 2, -BD / 2);   // the covers
   P.rbox(t, BH, 0.012, 0.004, vinyl, 0, BH / 2, -0.006);                                           // the spine
   P.box(t - 0.012, BH - 0.02, BD - 0.03, plastic(0xeee8d6, 0.8), 0, BH / 2 - 0.004, -BD / 2 - 0.006);   // the sheets
   mine.push(...P.bake(object).map(m => m.geometry));
-  // The spine card, lettered top to bottom in the nameplate face: the number, then the short title, shrunk to fit.
-  const cw = t * 0.72, ch = 0.2, CW = 96, CH = Math.round(CW * ch / cw);
-  const tex = fontTex(CW, CH, (g, w, h) => {
+  const cw = t * 0.72, ch = 0.2, CH = Math.round(CW * ch / cw);
+  const tex = fontTex(CW, CH, card, aniso);
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7 }));
+  face.position.set(0, BH * 0.54, 0.0004);
+  object.add(face); mine.push(face.geometry, face.material as THREE.Material, tex);
+  return {
+    object,
+    anchors: { camera: { position: new THREE.Vector3(0, 0.36, 0.42), target: new THREE.Vector3(0, BH * 0.5, 0), fov: 34 } },
+    dispose() { mine.forEach(d => d.dispose()); },
+  };
+}
+
+/** A reference binder: thick as its page count, its spine card lettered top to bottom in the nameplate face with the
+ *  number, then the short title, shrunk to fit. */
+function binder(doc: LibraryDoc, aniso: number): Binder {
+  return { ...ringBinder(thick(doc.pages), new THREE.Color(doc.colour).getHex(), (g, w, h) => {
     g.fillStyle = "#ece6d2"; g.fillRect(0, 0, w, h);
     g.strokeStyle = "#8d8672"; g.lineWidth = 2; g.strokeRect(3, 3, w - 6, h - 6);
     g.save(); g.translate(w / 2, h / 2); g.rotate(Math.PI / 2);
@@ -51,16 +67,7 @@ function binder(doc: LibraryDoc, aniso: number): Binder {
     };
     line(doc.num, -w * 0.2, w * 0.3); line(doc.spine, w * 0.2, w * 0.24);
     g.restore();
-  }, aniso);
-  const card = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7 }));
-  card.position.set(0, BH * 0.54, 0.0004);
-  object.add(card); mine.push(card.geometry, card.material as THREE.Material, tex);
-  const target = new THREE.Vector3(0, BH * 0.5, 0);
-  return {
-    object, doc,
-    anchors: { camera: { position: new THREE.Vector3(0, 0.36, 0.42), target, fov: 34 } },
-    dispose() { mine.forEach(d => d.dispose()); },
-  };
+  }, aniso), doc };
 }
 
 /** A prop: one of the shelf's things for looks, picked as "prop:<id>", named `label` on hover. */

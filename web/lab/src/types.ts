@@ -45,6 +45,8 @@ export interface ReelInfo {
   kind: "scenario" | "playlist";
   mission: string;
   zero: number | null;
+  /** The reel's scenario notebook (#29), if it carries one: its title (the notebook's first heading). */
+  notebook?: string | null;
 }
 
 /** Hooks the page hands to VIEW_LAB.start. */
@@ -120,6 +122,8 @@ export interface Equipment {
   hint?(): string;
   /** Its state, added to its hover label (the drive: its reel, running or stopped). */
   status?(): string;
+  /** How far it is out on its shelf: 0 back, HALF (pullable.ts) half out beside its out partner, 1 out. For tests. */
+  out?(): number;
   /** Something out on a shelf at a close-up (a pulled binder): put it back; false when nothing is out. */
   putBack?(): boolean;
   /** The camera is flying to this piece (true) or the room is shown again (false): a binder slides out and back. */
