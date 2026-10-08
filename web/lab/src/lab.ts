@@ -304,6 +304,7 @@ export class Lab {
     // What opens: the binder's own (a mission notebook opens the library), else the station's; a shelf opens nothing,
     // and E or Enter there steps back, carrying what is out.
     const opens = piece?.equipment.opens || a.opens;
+    if (a.name === "console" && !binder && this.hooks.browse) { this.picking.clearHover(); this.hooks.browse(); return; }   // #74: the file browser, over the room
     if (isShelf(opens)) { this.back(); return; }
     const laid = this.laid;   // still the lab's to undo until the page takes it over at the end of the handover
     const go = () => { this.laid = null; this.hooks.arrive(opens, binder ?? a.name, a.name); };
