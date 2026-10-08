@@ -11,6 +11,10 @@ const TL = k => `VIEW_TL.state().${k}`;
 // clock ran from the link until now), then hold it at s for a picture that repeats.
 const LINKED = s => [HOLD(), { expect: [`(d => d >= 0 && d < 300)(VIEW_TL.state().get - ${s})`] }, HOLD(s)];
 const LAB = "VIEW_LAB.info()";
+// The Look pad's toggle (#72): a click on a control by id, through the element (it may be scrolled out of view), and
+// the expressions for the toggle's two halves and the pad.
+const CLICK = id => ({ js: `document.getElementById(${JSON.stringify(id)}).click()` });
+const PADQ = m => `document.getElementById("${{ BK: "bkeys", BM: "bmove", PADEL: "pad" }[m]}")`;
 // #104: the tapes of a reel's set, by the unit that carries them (60, 61, 62, 64, 65, 66; the drive, 63, is not among
 // them), and the tape units' state (VIEW_LAB.info().units: label, the reel whose colours it carries, flange, RUN, STOP).
 const SET_NAMES = ["RUN STREAMS", "MEDIA 2", "EPHEMERIS", "MODELS", "PLOT TAPE", "MEDIA 1"];
@@ -591,6 +595,44 @@ const SHOT_LIST = [
   { name: "cabin-cm", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=8&view=cm&cabin=1&walls=1&get=11:28:19",
     steps: [...LINKED(41299), { frames: 3 }],
     expect: [[TL("viewMode"), 2], [TL("mounted"), "apollo11-asflown"], [TL("scene"), 8]] },
+
+  // The Look pad's toggle (#72): one thin button over the pad, ARROWS | LOOK by default; LOOK to MOVE turns the pad to
+  // reverse video and relabels its caps (slide, forward and back, Q down, E up, R the eye), ARROWS to WASD puts W A S D
+  // on the arrow caps and greys the W, S and D shortcuts in the hint.
+  { name: "look-pad-toggle", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=8&view=cm&cabin=1&walls=1&get=11:28:19",
+    steps: [...LINKED(41299), { frames: 2 },
+      { expect: [`[BK.textContent, BM.textContent, PADEL.classList.contains("move")].join()`.replace(/BK|BM|PADEL/g, PADQ), "ARROWS,LOOK,false"] },
+      CLICK("bmove"), CLICK("bkeys"), { frames: 2 }],
+    expect: [[`[BK.textContent, BM.textContent].join()`.replace(/BK|BM/g, PADQ), "WASD,MOVE"],
+      [`document.getElementById("pad").classList.contains("move") && document.getElementById("hint").classList.contains("wasd")`, true],
+      [`(c => c.color === "rgb(0, 0, 0)" && c.backgroundColor !== "rgb(0, 0, 0)")(getComputedStyle(document.querySelector('#pad [data-act="up"]')))`, true],
+      [`["up", "down", "left", "right", "rollL", "rollR", "reset"].map(a => document.querySelector('#pad [data-act="' + a + '"]').textContent).join()`,
+        "WFWD,SBACK,ALEFT,DRIGHT,QDOWN,EUP,REYE"],
+      ["VIEW_PAD.state().move && VIEW_PAD.state().wasd", true]] },
+
+  // MOVE in the CM station (#72, #31): a forward step moves the eye 5 cm along the view (the CSM's +X at the station's
+  // own look), and sliding left far past the wall leaves the eye clamped 0.15 m inside the cabin's cone wall (veye.f
+  // EYCLMP), the picture changed from the design eye's.
+  { name: "look-move-cm", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=8&view=cm&cabin=1&walls=1&get=11:28:19&fov=100",
+    steps: [...LINKED(41299), { frames: 2 }, { js: `window.__nv0 = new Int32Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.nvec.value, 1)[0]` },
+      CLICK("bmove"), { key: "ArrowUp" }, { frames: 2 },
+      { expect: [`(s => s.kind === 2 && Math.abs(s.eye[0] - 0.05) < 1e-9 && Math.abs(s.eye[1]) < 1e-9 && Math.abs(s.eye[2]) < 1e-9)(VIEW_PAD.state())`, true] },
+      { js: `VIEW_PAD.act("left", 80)` }, { frames: 3 }],
+    expect: [[TL("viewMode"), 2],
+      [`(s => { const e = [0.0254 * 27.7 + s.eye[0], -0.0254 * 24.5 + s.eye[1], -0.0254 * 33.8 + s.eye[2]], r = Math.hypot(e[1], e[2]),
+        w = 1.777 + (0.754 - 1.777) * (e[0] - 0.051) / (1.626 - 0.051) - 0.15; return s.eye[1] < -0.2 && Math.abs(r - w) < 1e-9; })(VIEW_PAD.state())`, true],
+      [`new Float64Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.in_eyeo.value, 3)[1] > -1`, true],
+      [`new Int32Array(VIEW_KERNEL.memory.buffer, VIEW_KERNEL.nvec.value, 1)[0] !== window.__nv0`, true]] },
+
+  // Under WASD (#72) W, S and D are the pad's: D yaws right and S and W pitch, and the walls, screen and dust shortcuts
+  // wait; back under ARROWS, W toggles the walls again.
+  { name: "look-wasd-keys", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=8&view=cm&cabin=1&walls=1&get=11:28:19",
+    steps: [...LINKED(41299), { frames: 2 }, CLICK("bkeys"), { js: `window.__s0 = VIEW_PAD.state()` },
+      { key: "d" }, { key: "w" }, { key: "w" }, { key: "s" }, { frames: 2 },
+      { expect: [`(s => s.yaw > __s0.yaw && s.pitch > __s0.pitch && s.walls && s.dust === __s0.dust && s.disp === __s0.disp)(VIEW_PAD.state())`, true] },
+      CLICK("bkeys"), { key: "w" }, { frames: 2 }],
+    expect: [["VIEW_PAD.state().walls", false], [`document.getElementById("bkeys").textContent`, "ARROWS"],
+      [`document.getElementById("hint").classList.contains("wasd")`, false]] },
 
   // External on the CSM at Earth orbit insertion (#70 option B): the launch stack behind it, the S-IVB, IU and closed
   // SLA, so the kernel's world (hdr(21)) holds the CSM, the docked LM and the placed S-IVB, and the target is the CSM's own

@@ -6,8 +6,8 @@
 !   view_init(scene), view_frame(), sim_run(flags)
 !   deck_open(), deck_card(n), deck_file(), deck_close(), deck_sum()
 !   in_get, in_yaw, in_pitch, in_roll, in_fov, in_flags, in_src,
-!   in_view, in_target, in_lablv, in_card
-!   out_terise, out_dkerr, out_dkcrd, out_dkwrn, out_dksum (read-only)
+!   in_view, in_target, in_lablv, in_eyeo, in_card
+!   out_terise, out_eyek, out_eyax, out_dkerr, out_dkcrd, out_dkwrn, out_dksum (read-only)
 !   vbuf, nvec, sbuf, nstar, lbuf, nlab, hdr, tbuf, ntxt, tchr, nchr
 module view_shell
   use iso_c_binding, only: c_double, c_int
@@ -29,6 +29,16 @@ module view_shell
   integer(c_int), bind(c, name="in_view") :: in_view = 0
   integer(c_int), bind(c, name="in_target") :: in_target = 0
   integer(c_int), bind(c, name="in_lablv") :: in_lablv = 0
+  ! The eye offset (#72, #31; src/veye.f): in a crew station body metres
+  ! from the design eye, in the external view the orbit centre's offset
+  ! from the target along its reference axes in units of the camera's
+  ! distance.  view_frame writes back the offset the frame used (clamped
+  ! inside the cabin, or to -1..1), its kind in out_eyek (0 none, 1
+  ! external, 2 CM station, 3 LM station) and the camera's right, up and
+  ! boresight in the offset's frame in out_eyax (columns).
+  real(c_double), bind(c, name="in_eyeo") :: in_eyeo(3) = 0
+  integer(c_int), bind(c, name="out_eyek") :: out_eyek = 0
+  real(c_double), bind(c, name="out_eyax") :: out_eyax(3, 3) = 0
   ! Read-only: the Earthrise time (g.e.t. s) of the last Earthrise search
   ! (ERFIND, TERISE in /CORB/), which view_init runs for a situation whose
   ! GET rule is ERISE; copied out after each view_init.  The page's
@@ -73,6 +83,13 @@ module view_shell
     subroutine vsetin(iview, itarg, ilabl)
       integer :: iview, itarg, ilabl
     end subroutine vsetin
+    subroutine vsetey(eo)
+      double precision :: eo(3)
+    end subroutine vsetey
+    subroutine vgetey(eo, k, ax)
+      double precision :: eo(3), ax(3, 3)
+      integer :: k
+    end subroutine vgetey
     subroutine simrun(ifl)
       integer :: ifl
     end subroutine simrun
@@ -114,8 +131,8 @@ contains
   end subroutine view_init
 
   subroutine view_frame() bind(c, name="view_frame")
-    integer :: iflag, nv, ns, nl, nt, nch, iv, it, il
-    double precision :: get, yaw, pit, rol, fov
+    integer :: iflag, nv, ns, nl, nt, nch, iv, it, il, ik
+    double precision :: get, yaw, pit, rol, fov, eo(3), ax(3, 3)
     get = in_get
     yaw = in_yaw
     pit = in_pitch
@@ -127,8 +144,14 @@ contains
     it = in_target
     il = in_lablv
     call vsetin(iv, it, il)
+    eo = in_eyeo
+    call vsetey(eo)
     call vframe(get, yaw, pit, rol, fov, iflag, vbuf, nv, sbuf, ns, &
                 lbuf, nl, hdr, tbuf, nt, tchr, nch)
+    call vgetey(eo, ik, ax)
+    in_eyeo = eo
+    out_eyek = ik
+    out_eyax = ax
     ntxt = nt
     nchr = nch
     nvec = nv

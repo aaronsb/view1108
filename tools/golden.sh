@@ -59,8 +59,8 @@ MASK='^[Cc].*(data/|tools/|\.scn|\.py|BURN_CUES)'
 
 # One render per line: NAME | environment | scenario reel | viewsvg arguments (situation GET yaw
 # pitch roll fov flags; the situation by its id in the reel).  Environment: VIEW_VIEW, VIEW_TARGET,
-# VIEW_LABLV (in_view, in_target, in_lablv) and VIEW_SIM (run the engine first; flags +8 draw from
-# the tape).  GETs are g.e.t. s of the reel's scenario.  The names keep the scene numbers of one
+# VIEW_LABLV (in_view, in_target, in_lablv), VIEW_EYE (in_eyeo, the moved eye: x,y,z; #72) and
+# VIEW_SIM (run the engine first; flags +8 draw from the tape).  GETs are g.e.t. s of the reel's scenario.  The names keep the scene numbers of one
 # numbering for all reels (before #26 slice 7e: s9 is Apollo 8's situation 1), so a capture
 # compares file for file across that change.
 CASES=$(cat <<'EOF'
@@ -191,6 +191,12 @@ s1-lm-doi         | VIEW_VIEW=3                  | apollo11-asflown | 1 366500
 s1-lm-descent     | VIEW_VIEW=3                  | apollo11-asflown | 1 369600 0 0 0 82.4
 s1-lm-landed      | VIEW_VIEW=3                  | apollo11-asflown | 1 400000 0 0 0 82.4
 s1-lm-ascent      | VIEW_VIEW=3 VIEW_LABLV=2     | apollo11-asflown | 1 450000
+s8-cm-eye-cabin   | VIEW_VIEW=2 VIEW_EYE=0.3,0.25,0.1 | apollo11-asflown | 8 - 0 0 0 100 19
+s8-cm-eye-wall-mask | VIEW_VIEW=2 VIEW_EYE=0,-2,0 VIEW_LABLV=3 | apollo11-asflown | 8 - 0 0 0 100 51
+s8-lm-eye-cabin   | VIEW_VIEW=3 VIEW_EYE=0.1,0.3,0.05 | apollo11-asflown | 8 - 0 0 0 100 19
+s5-lm-eye-mask    | VIEW_VIEW=3 VIEW_EYE=0,0.4,0 VIEW_LABLV=3 | apollo11-asflown | 5 - 0 0 0 - 51
+s8-ext-eye        | VIEW_VIEW=1 VIEW_EYE=0.3,0,0.2 | apollo11-asflown | 8
+s1-eye-window     | VIEW_EYE=0.5,0.5,0.5         | apollo11-asflown | 1
 s7-ext            | VIEW_VIEW=1                  | apollo11-asflown | 7
 s7-ext-look       | VIEW_VIEW=1                  | apollo11-asflown | 7 - 20 -10 5 -
 s7-ext-lab3       | VIEW_VIEW=1 VIEW_LABLV=3     | apollo11-asflown | 7 12200
@@ -291,7 +297,7 @@ padcheck() {
 
 roundtrip() {
   local tmp=build/tape-rt decks n=0 bad=0 name sim reel args want sc get src
-  local E="env -u VIEW_TIME -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP -u VIEW_DKSUM"
+  local E="env -u VIEW_TIME -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_EYE -u VIEW_DUMP -u VIEW_DKSUM"
   rm -rf "$tmp"; mkdir -p "$tmp"
   while IFS='|' read -r name sim reel args want; do
     name=$(echo $name); sim=$(echo $sim); reel=$(echo $reel); want=$(echo $want)
@@ -353,7 +359,7 @@ capture() {
   [ -f build/decks/reels.txt ] || { echo "golden: no build/decks/reels.txt (tools/gen_data.py writes it)" >&2; exit 1; }
   local reel
   for reel in $(cat build/decks/reels.txt); do
-    if ! env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_HDR \
+    if ! env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_EYE -u VIEW_HDR \
          -u VIEW_DECK -u VIEW_DKSUM VIEW_REEL=$reel VIEW_DUMP=1 build/viewsvg > "$out/tables-$reel.txt"; then
       echo "golden: the card reader refused the decks of build/decks/$reel.txt (the deck error is above)" >&2
       exit 1
@@ -368,7 +374,7 @@ capture() {
   while IFS='|' read -r name envs reel args; do
     name=$(echo $name); reel=$(echo $reel)
     # shellcheck disable=SC2086
-    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP \
+    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_EYE -u VIEW_DUMP \
       -u VIEW_DECK -u VIEW_DKSUM VIEW_HDR=1 VIEW_REEL=$reel $envs \
       build/viewsvg $args > "$out/render/$name.svg.tmp" 2> "$out/render/$name.hdr.tmp"
     cat "$out/render/$name.svg.tmp" "$out/render/$name.hdr.tmp" > "$out/render/$name.txt"
@@ -393,7 +399,7 @@ capture() {
     grep -qE "^$gc +\\|" <<< "$CASES" || continue   # a slice without this figure's case
     IFS='|' read -r _ genv _ gargs <<< "$(grep -E "^$gc +\|" <<< "$CASES")"
     # shellcheck disable=SC2086
-    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP \
+    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_EYE -u VIEW_DUMP \
       -u VIEW_DECK -u VIEW_DKSUM VIEW_HDR=1 VIEW_REEL=$reel $genv \
       build/viewsvg $gargs > "$out/ref.svg" 2> "$out/ref.hdr"
     if ! cmp -s "$out/ref.svg" "build/reels/$reel/notebook/figures/$name.svg"; then
