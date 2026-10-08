@@ -141,6 +141,44 @@ const SHOT_LIST = [
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(-1.6, 1.4, 36, -8)` }, { frames: 3 }],
     expect: [[`VIEW_LAB.layout().footprints.some(f => f.name === "fastrand" && Math.abs(f.hw - 1.75) < 0.03 && Math.abs(f.hd - 0.45) < 0.03)`, true],
       [`(p => p && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight)(VIEW_LAB.project("fastrand", 1))`, true]] },
+  // #68: the 1108 console's close-up, the operator's view of its screen and notebook, the console as text (VIEW_LAB
+  // info().exec). The demo playing: the idle EXEC, the status summary on the top two lines (the SS report's form) and
+  // the shift's last run (ours: the index's last scenario reel) ended.
+  { name: "room-console-idle", url: "space=room&reel=demo",
+    steps: [ROOM_UP, ROOM_STILL, ...AT_ST("console"), ROOM_STILL, { frames: 3 }],
+    expect: [[TL("mounted"), "demo"], [`${LAB}.at`, "console"], [`${LAB}.exec.run`, null],
+      [`${LAB}.exec.screen[0]`, /^LAST PERIOD USAGE; EXEC \d\d%, BATCH \d\d%, DEMAND \d\d%, IDLE \d\d%,$/],
+      [`${LAB}.exec.screen[1]`, /^RT 00%, OPENBCH 00, UNOPRUN 00, AVEBCH \d\d%, AVEDEM \d\d%$/],
+      [`${LAB}.exec.screen.join("|")`, /\|RN 06\/00 VIEW08\|.*\|LOAD V08\d{3} 06\/03 VIEWTP VIEW08\|.*\|VIEW08 @FIN\|/],
+      [`${LAB}.exec.screen.length === 16 && ${LAB}.exec.screen.every(l => l.length <= 64)`, true]] },
+  // #68: LOAD APOLLO 11 AS FLOWN AND EXEC from the rack's reel modal while the demo plays, then the console: the operator
+  // keys RN from the RUN STREAMS tape, the EXEC asks for the reel on the drive (LOAD, UP-4144 Rev. 1 p. 12-10) and the
+  // plot tape, the program is loaded and waits for its profile (ours), the clock stopped as a fresh mount leaves it.
+  { name: "room-console-mounted", url: "space=room&reel=demo",
+    steps: [ROOM_UP, ROOM_STILL, ...AT_ST("rack"), ROOM_STILL,
+      ROOM_CLICK("reel:apollo11-asflown"), { wait: `${LAB}.out["reel:apollo11-asflown"] === 1` }, { frames: 12 }, ROOM_CLICK("reel:apollo11-asflown"),
+      { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button.primary" }, { wait: `${TL("mounted")} === "apollo11-asflown"` },
+      // The console's clock is the room's frame time (each step at most 0.1 s), slow in a software renderer.
+      ...AT_ST("console"), ROOM_STILL, { wait: `${LAB}.exec.run === "VIEW11 profile" && !${LAB}.exec.busy`, timeout: 60000 }, { frames: 3 }],
+    timeout: 150000,
+    expect: [[TL("mounted"), "apollo11-asflown"], [TL("playing"), false], [`${LAB}.at`, "console"],
+      [`${LAB}.exec.screen.join("|")`, /\|VIEW08 @FIN\|RN 06\/00 VIEW11\|VIEW11 @RUN VIEW11,69197,APOLLO\|VIEW11 @ASG,T VIEWTP,T,(V11\d{3})\|LOAD \1 06\/03 VIEWTP VIEW11\|VIEW11 @ASG,T PLTTAP,T,SCRTCH\|LOAD SCRTCH 06\/05 PLTTAP VIEW11\|VIEW11 @XQT VIEW\|VIEW11\* APOLLO 11 AS FLOWN - APOLLO 11\|0 VIEW11\* AWAITING PROFILE - WAIT\|$/],
+      [`${LAB}.exec.paper.length > 0`, true]] },
+  // #68: a note in the operator's notebook clicked at the console's close-up: SS typed on the keyboard line, a character
+  // at a time, then answered with the status report; then CS TYPE, answered with the run (the link's clock ran when the
+  // room was built, so the run had its GO; the hold after it is the run's CLOCK HELD).
+  { name: "room-console-keyin", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("console"), ROOM_STILL, { wait: `!${LAB}.exec.busy`, timeout: 30000 },
+      ROOM_CLICK("note:ss"), { wait: `${LAB}.exec.busy` }, { wait: `!${LAB}.exec.busy && ${LAB}.exec.screen[14].startsWith("RT 00%")`, timeout: 30000 },
+      { expect: [`${LAB}.exec.screen.slice(12, 15)`, /^SS,LAST PERIOD USAGE; .*,RT 00%, OPENBCH 01/] },
+      ROOM_CLICK("note:cstype"), { wait: `!${LAB}.exec.busy && ${LAB}.exec.screen[14].startsWith("VIEW11 ")`, timeout: 30000 }, { frames: 3 }],
+    expect: [[`${LAB}.at`, "console"], [`${LAB}.exec.screen.slice(13, 15)`, ["CS TYPE", "VIEW11   ACTIVE"]], [`${LAB}.exec.run`, "VIEW11 go"],
+      [TL("mounted"), "apollo11-asflown"]],
+    timeout: 150000 },
+  // #68: the console's PAGEWRITER, the lines rolled off the CRT printed on its paper, the newest at the platen.
+  { name: "room-console-pagewriter", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(0.15, -2.35, 180, -28)` }, { frames: 3 }],
+    expect: [[`${LAB}.exec.paper[0]`, "RN 06/00 VIEW08"], [`${LAB}.exec.paper.length >= 5`, true]] },
   { name: "room-machine-floor", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(1.2, 3.2, 50, -6)` }, { frames: 3 }],
     expect: [[`(p => p && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight)(VIEW_LAB.project("fastrand", 1))`, true]] },

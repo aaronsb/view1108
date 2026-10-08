@@ -23,12 +23,24 @@
 //
 // The Day Clock shows hours, minutes and hundredths of a minute (sec. 2.3.3, p. 2-5), here the replay's UTC: Apollo
 // 11's range zero, 1969-07-16 13:32:00 UTC, plus the g.e.t., less 17,887,260 s in scene 9 (Apollo 8; hdr(16), see
-// CLAUDE.md). Its orange digits are HYPOTHETICAL. The CRT's console log, the PAGEWRITER's copy of it and the lamp
-// patterns are ours.
+// CLAUDE.md). Its orange digits are HYPOTHETICAL. The lamp patterns are ours.
+//
+// The operator's station (#68; the station table's "console", a close-up with nothing to open on the page): the CRT
+// shows the EXEC 8 loop (exec8.ts) as the 1968 manual lays the screen out, the status summary on the top two lines, the
+// messages under it and the keyboard line at the bottom (UP-4144 Rev. 1 p. 11-3); lines rolled off the CRT are printed on
+// the PAGEWRITER's paper ("The PAGEWRITER is intended for use as a logging device to record all CRT transactions
+// between the control program and the operator", UP-7604 sec. 2.3.2, p. 2-5). The operator's notebook lies open on the
+// desk left of the display unit (opnotebook.ts, ours); a note clicked there is typed on the keyboard line. The CRT is
+// lettered in 3270font (a recreation of the IBM 3270's characters, BSD 3-Clause; THIRD_PARTY.md), not Univac's, the
+// paper in Courier Prime (SIL OFL 1.1; THIRD_PARTY.md); the phosphor's colour and the paper's lettering are ours.
+// The close-up arrives at the operator's view of the screen and the notebook together (`anchors.view`). #74's file
+// browser will open from here (REEL_FILE in exec8.ts names the reel's file and unit).
 import * as THREE from "three";
-import type { BuildContext, Equipment, LabState } from "../types";
-import { PAL, Parts, at, badgeTex, canvasTex, fitDist, fontTex, grid, lampMat, laminate, nameplate, own, paint, plastic, plateText, rng, tileGeo, tubeGlass } from "./kit";
+import type { BuildContext, Equipment, LabEvent, LabState } from "../types";
+import { PAL, Parts, at, badgeTex, canvasTex, fitDist, fontTex, grid, lampMat, laminate, nameplate, own, paint, plastic, plateText, rng, tileGeo, tubeGlass, viewPose } from "./kit";
 import { UNISCOPE_KEYBOARD, uniscopeKeyboard } from "./keyboard";
+import { COLS, Exec8 } from "./exec8";
+import { HAND, operatorNotebook } from "./opnotebook";
 
 // ---- proportions (metres; x across, y up, z toward the operator; origin on the floor under the centre) ----
 /** The desk: its top's x span, depth span, height and thickness; the display unit stands in a notch from `notch` to
@@ -52,34 +64,17 @@ const PW = { x0: -1.40, x1: -0.86, d: 0.56, h: 0.66, depth: 0.48, height: 0.15 }
 export function replayUTC(s: LabState): number {
   return (s.zero || 0) + (s.get || 0) * 1000;
 }
-/** The run's name on the console log (ours): VIEW and the mission's number, VIEW11 for APOLLO 11. */
-const runName = (s: LabState) => "VIEW" + String((/\d+/.exec(s.mission || "") || ["0"])[0]).padStart(2, "0");
-
 const pad = (n: number, w = 2) => String(Math.floor(n)).padStart(w, "0");
-const fmtGet = (g: number) => `${pad(g / 3600, 3)}:${pad(g / 60 % 60)}:${pad(g % 60)}`;
-const hhmm = (ms: number) => { const d = new Date(ms); return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`; };
+/** The CRT's and the paper's faces (page.css declares both); canvas text drawn before they load falls back. */
+const CRT_FONT = '"IBM 3270", monospace';
+/** The operator's notebook on the desk (ours): its centre (x, z) left of the display unit, turned toward the seat. */
+const NOTEBOOK = { x: 0.12, z: 0.13, turn: 0.22 };
 
 /** A frame on a leaning face: origin at the face's bottom edge (x, y, z), `u` across, `v` up the face, `n` out of it,
  *  from `n0` out (the bevel the extruded profile adds to its surface). */
 function faceFrame(x: number, y: number, z: number, lean: number, n0 = 0) {
   const c = Math.cos(lean), s = Math.sin(lean);
   return (u: number, v: number, n = 0, sx = 1, sy = sx, sz = sx) => at(x + u, y + v * c + (n + n0) * s, z - v * s + (n + n0) * c, -lean, 0, 0, sx, sy, sz);
-}
-
-/** The console log (ours): EXEC run-stream traffic in the style of docs/batch-pipeline.md's sample run. */
-function prologue(run: string, t: number): string[] {
-  const at = (min: number) => hhmm(t - min * 60e3);
-  return [
-    `${at(14)} ${run}*APOLLO START`,
-    `${at(14)} ${run} @ASG,T EPHTAP,T,A201`,
-    `${at(13)} MOUNT A201 ON T60 FOR ${run}`,
-    `${at(12)} T60 A201 READY`,
-    `${at(12)} ${run} @ASG,T PLTTAP,T,A202`,
-    `${at(11)} MOUNT A202 RING-IN ON T61 FOR ${run}`,
-    `${at(10)} T61 A202 READY`,
-    `${at(9)} ${run} @XQT VIEWPGM.INTEG`,
-    `${at(4)} ${run} @XQT VIEWPGM.DISPLAY`,
-  ];
 }
 
 export function build(ctx: BuildContext): Equipment {
@@ -265,45 +260,80 @@ export function build(ctx: BuildContext): Equipment {
     clockTex.needsUpdate = true;
   };
 
-  // ---- the CRT: 16 lines of 64 characters, the console log (ours) ----
-  const crtTex = canvasTex(1024, 512, () => {}, ctx.maxAnisotropy); mine.push(crtTex);
+  // ---- the CRT: 16 lines of 64 characters, the EXEC loop (exec8.ts) ----
+  const exec = new Exec8(ctx.reels ?? [], !!ctx.still);
+  const CW = 1024, CH = 512;
+  const crtTex = canvasTex(CW, CH, () => {}, ctx.maxAnisotropy); mine.push(crtTex);
   const tg = (crtTex.image as HTMLCanvasElement).getContext("2d")!;
   const crt = own(new THREE.Mesh(new THREE.PlaneGeometry(CRT.w, CRT.h), new THREE.MeshBasicMaterial({ map: crtTex, toneMapped: false })), mine);
   const fc = Math.cos(lean), fs = Math.sin(lean), cn = 0.0215;
   crt.position.set(dux + CRT.u * ty(CRT.v), fby + CRT.v * fc + cn * fs, fbz - CRT.v * fs + cn * fc); crt.rotation.x = -lean; object.add(crt);
-  let crtKey = "";
-  const drawCrt = (s: LabState) => {
-    const run = runName(s), now = replayUTC(s), g = Math.max(0, s.get || 0), blink = Math.floor(performance.now() / 530) % 2;
-    const recent: string[] = [];
-    for (let k = 4; k >= 0; k--) { const f = Math.floor(s.frameNo / 16) * 16 - k * 16; if (f > 0) recent.push(`${hhmm(now)} ${run} PLTTAP FRAME ${pad(f, 6)} GET ${fmtGet(Math.max(0, g - k))}`); }
-    const lines = [
-      `UNIVAC 1108 EXEC 8          MSC HOUSTON                ${hhmm(now)}`,
-      ...prologue(run, now), ...recent,
-      `${hhmm(now)} ${run} ${s.playing ? "RUNNING" : "HOLD   "} SCENE ${pad(s.situation)} FRAMES ${pad(s.frameNo, 7)}`,
-      `>${blink ? "_" : " "}`,
-    ].slice(0, 16);
-    const k = lines.join("\n");
+  let crtKey = "", fontRev = 0;
+  // The faces load after the room is built: redraw once they are in (the canvas falls back silently before).
+  if (typeof document !== "undefined" && document.fonts) void Promise.all([document.fonts.load(`28px ${CRT_FONT}`), document.fonts.load(`bold 20px ${HAND}`), document.fonts.load(`12px ${HAND}`)])
+    .then(() => { fontRev++; book.redraw(); }, () => {});
+  // Redrawn only when the loop's screen changed (Exec8.rev), the cursor blinked or the faces arrived.
+  const drawCrt = () => {
+    // The cursor after the keyboard line blinks (steady under ?labmotion=0, ours); the rest is the loop's screen.
+    const blink = ctx.still || Math.floor(performance.now() / 530) % 2 === 0;
+    const k = `${fontRev}|${blink}|${exec.rev}`;
     if (k === crtKey) return;
     crtKey = k;
-    tg.fillStyle = "#0b120d"; tg.fillRect(0, 0, 1024, 512);
-    tg.font = '25px "IBM 3270", "Courier New", monospace'; tg.fillStyle = "#b9f5b2"; tg.shadowColor = "rgba(150,255,150,0.6)"; tg.shadowBlur = 6;
-    lines.forEach((l, i) => tg.fillText(l.slice(0, 64), 10, 26 + i * 31.5));
+    const lines = exec.screen();
+    tg.shadowBlur = 0; tg.fillStyle = "#06100a"; tg.fillRect(0, 0, CW, CH);
+    // A cell 64 x 16 across the 10 x 5 in face (UP-7604 Table 2-1), the face filled to its edges less a margin (ours).
+    const mx = 18, my = 10, cw = (CW - 2 * mx) / COLS, lh = (CH - 2 * my) / lines.length;
+    let px = lh * 0.82;
+    tg.font = `${px}px ${CRT_FONT}`;
+    const adv = tg.measureText("0".repeat(COLS)).width / COLS;
+    if (adv > cw) { px *= cw / adv; tg.font = `${px}px ${CRT_FONT}`; }
+    tg.textBaseline = "middle"; tg.textAlign = "left";
+    tg.shadowColor = "rgba(120,255,140,0.55)"; tg.shadowBlur = 7;
+    lines.forEach((l, i) => {
+      tg.fillStyle = i < 2 ? "#c9ffcf" : "#9df0a6";   // the status summary a little brighter (ours)
+      [...l].forEach((c, j) => { if (c !== " ") tg.fillText(c, mx + j * cw, my + (i + 0.55) * lh); });
+    });
+    tg.shadowBlur = 0; tg.fillStyle = "rgba(157,240,166,0.35)"; tg.fillRect(mx, my + 2 * lh - 2, CW - 2 * mx, 1.5);   // under the summary (ours)
+    if (blink) { const i = lines.length - 1, j = Math.min(COLS - 1, lines[i].length); tg.fillStyle = "#9df0a6"; tg.fillRect(mx + j * cw, my + (i + 0.9) * lh, cw * 0.9, lh * 0.1); }
     crtTex.needsUpdate = true;
   };
 
-  // ---- the PAGEWRITER's paper: the log, up out of the platen and leaning back ----
-  const paperTex = canvasTex(256, 320, (g, w, h) => {
-    g.fillStyle = "#f3f0e6"; g.fillRect(0, 0, w, h);
-    g.fillStyle = "#2a2a2a"; g.font = "9px 'Courier New', monospace";
-    const L = prologue("VIEW11", Date.UTC(1969, 6, 20, 20, 30));
-    for (let i = 0; i < 26; i++) g.fillText(L[i % L.length], 6, 14 + i * 11.5);
-  });
+  // ---- the PAGEWRITER's paper: what rolled off the CRT, up out of the platen and leaning back; the newest line at the
+  // platen. "Its maximum line length is 80 characters ... Horizontal spacing of characters is ten to the inch.
+  // Vertical spacing is six lines per inch" (UP-7604 sec. 2.3.2, p. 2-5): an 80-column line is 8 in, centred on the
+  // sheet; the sheet's size and the ink are ours. ----
+  const PWW = 1024, PWH = 784, PW_M = 0.26 / PWH;   // the sheet is 0.34 x 0.26 m; metres a pixel
+  const paperTex = canvasTex(PWW, PWH, () => {}, ctx.maxAnisotropy);
   mine.push(paperTex);
+  const pgx = (paperTex.image as HTMLCanvasElement).getContext("2d")!;
+  let paperKey = "";
+  const drawPaper = () => {
+    const k = `${fontRev}|${exec.paperRev}`;
+    if (k === paperKey) return;
+    paperKey = k;
+    // 10 to the inch and 6 lines to the inch; the newest line 0.035 m above the sheet's foot, clear of the platen's bar.
+    const IN = 0.0254 / PW_M, cw = IN / 10, lh = IN / 6, foot = PWH - 0.035 / PW_M, rows = Math.floor(foot / lh), x0 = (PWW - 80 * cw) / 2;
+    pgx.fillStyle = "#f2eee2"; pgx.fillRect(0, 0, PWW, PWH);
+    pgx.font = `bold ${cw / 0.6}px ${HAND}`; pgx.textBaseline = "alphabetic"; pgx.textAlign = "left";
+    const r = rng(7604), lines = exec.paper.slice(-rows);
+    lines.forEach((l, i) => {
+      pgx.fillStyle = `rgba(28,28,34,${0.72 + r() * 0.22})`;   // the ribbon's ink, uneven (ours)
+      pgx.fillText(l, x0, foot - (lines.length - 1 - i) * lh);
+    });
+    paperTex.needsUpdate = true;
+  };
   const paper = own(new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.26, 1, 6), new THREE.MeshStandardMaterial({ map: paperTex, roughness: 0.9, side: THREE.DoubleSide })), mine);
   const pp = paper.geometry.attributes.position;
   for (let i = 0; i < pp.count; i++) { const v = (pp.getY(i) + 0.13) / 0.26; pp.setZ(i, -0.07 * v * v); }
   paper.geometry.computeVertexNormals();
   paper.position.set(px, py + ph + 0.13, -0.06); paper.rotation.x = -0.2; object.add(paper);
+
+  // ---- the operator's notebook on the desk, left of the display unit (opnotebook.ts; ours) ----
+  const book = operatorNotebook(exec, ctx.maxAnisotropy, mine);
+  book.group.position.set(NOTEBOOK.x, top, NOTEBOOK.z); book.group.rotation.y = NOTEBOOK.turn; object.add(book.group);
+  // The arrival pose: the operator's view of the screen and the notebook together, from the seat (ours).
+  object.updateMatrixWorld(true);
+  const view = viewPose([new THREE.Box3().setFromObject(crt), new THREE.Box3().setFromObject(book.group)], 38, 30, 16 / 10, 1.02);
 
   // ---- the lamps' activity (ours): the address counter runs with the replay, GUARD mode on, a stop shows on HOLD ----
   const r = rng(4009), PAC = secAt["PROGRAM ADDRESS COUNTER"];
@@ -329,6 +359,10 @@ export function build(ctx: BuildContext): Equipment {
         position: crt.position.clone().add(new THREE.Vector3(0, fs, fc).multiplyScalar(fitDist(CRT.h * 2.2, 40))),
         target: crt.position.clone(), fov: 40,
       },
+      view,
+      // The EXEC loop (for the lab's info()), the notebook's notes (placed by the room as "note:<id>") and the keys typed
+      // so far, which the room's sound clicks at the keyboard (roomsound.ts).
+      exec, notes: book.notes, keys: () => exec.keys, keyboard: kbFront.clone(),
       // Where the operator's chair stands (floor point) and its yaw (a chair faces its +z at 0): centred on the keyboard,
       // KB_AT.seat in front of its front edge, facing the display unit.
       seat: { position: new THREE.Vector3(kbFront.x, 0, kbFront.z + KB_AT.seat), yaw: Math.PI },
@@ -337,11 +371,12 @@ export function build(ctx: BuildContext): Equipment {
       lamps: { center: new THREE.Vector3(PANEL.x, PANEL.y + PANEL.h / 2 * Math.cos(PANEL.lean), PANEL.z - PANEL.h / 2 * Math.sin(PANEL.lean) + 0.007), normal: new THREE.Vector3(0, Math.sin(PANEL.lean), Math.cos(PANEL.lean)), w: PANEL.w, h: PANEL.h },
     },
     update(dt, s) {
-      drawClock(s); drawCrt(s);
+      exec.step(dt, s);
+      drawClock(s); drawCrt(); drawPaper();
       busy = Math.max(0, busy - dt);
       if ((tick += dt) > (s.playing || busy > 0 ? 0.07 : 0.9)) { tick = 0; step(s); }
     },
-    event(e) { if (e.type === "tape") busy = 1.5; },
+    event(e: LabEvent) { if (e.type === "tape") busy = 1.5; exec.event(e); },
     dispose() { mine.forEach(d => d.dispose()); },
   };
 }
