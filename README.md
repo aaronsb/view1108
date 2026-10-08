@@ -47,30 +47,7 @@ Keys (in every tab but Source): arrows look, Q/E roll, +/- field of view, space 
 
 ## Link parameters
 
-The `[ LINK ]` button (key `L`) copies a URL that reproduces the current view. You can also write one by hand. Bad values are ignored, parameters override stored preferences for that visit only (nothing is written to storage), and with no `mode` the page starts in Attract.
-
-| Parameter | Values | Example |
-|---|---|---|
-| `mode` | `attract`, `tour`, `live`, `free`, `beam` | `mode=live` |
-| `tab` | `review`, `simulate`, `print`, `fusion`, `source` (default: the mode's tab) | `tab=print` |
-| `scn` | a scenario reel: `apollo11-asflown` or `apollo8-asflown`; alone, its first situation | `scn=apollo8-asflown` |
-| `sit` | a situation of that reel, by id or by its card's NAME (any case; the LINK button writes the NAME); without `scn`, the first reel holding it (Free-look, Beam; in Live the windowed ones, 4, 5 and 7, and the Moon view, 6, are pinned) | `scn=apollo11-asflown&sit=lm%20descent` |
-| `scene` | kept for old links: `1`..`9`, the Nth situation across the reels in load order; `scn` and `sit` win over it | `scene=5` |
-| `get` | g.e.t. as `h:mm:ss` or seconds | `get=102:45:40` |
-| `utc` | UTC as `YYYY-MM-DDTHH:MM:SS` | `utc=1969-07-20T20:17:40` |
-| `fov`, `yaw`, `pitch`, `roll` | degrees (`fov` 1 to 170) | `fov=100&pitch=-10` |
-| `rate` | `1`, `10`, `60`, `300`, `1000` (Live, Free-look) | `rate=60` |
-| `bspeed` | `1`..`4`: 1108 + recorder, recorder only, slow trace, persistence (Beam) | `bspeed=3` |
-| `labels`, `frame`, `hidden` | `0` or `1` (names, plot frame, hidden lines) | `labels=0` |
-| `bloom`, `jitter`, `dust`, `fps` | `0` or `1` (film effects; `fps=1` is the 16 fps film rate) | `bloom=1` |
-| `catalog` | `nav` (391 stars) or `full` | `catalog=full` |
-| `disp`, `hz` | `auto`, `film` or `scope` (the microfilm look or the 1558 vector console); `16` or `steady` (the scope's refresh) | `disp=scope&hz=steady` |
-| `listing` | `dark` or `light` (Fortran listing) | `listing=light` |
-| `notebook` | `light` or `dark` (the scenario notebook's reading view: a binder of typed pages, or green on black; for this visit) | `notebook=dark` |
-| `space` | `room` or `tiled`: the 3D machine room around the workbench, or the plain page | `space=tiled` |
-| `bare`, `still=earthrise`, `film=N` | chrome hidden; frozen Earthrise; Attract at film second N (for screenshots) | `still=earthrise` |
-
-Example: <https://aaronsb.github.io/view1108/?mode=live&get=102:45:40&fov=100> opens Live at the landing, with a 100 degree field of view.
+The `[ LINK ]` button (key `L`) copies a URL that reproduces the current view, and you can write one by hand: <https://aaronsb.github.io/view1108/?mode=live&get=102:45:40&fov=100> opens Live at the landing, with a 100 degree field of view. Every key, the switches for screenshots and tests, and the old keys still read for old links are in one table, [docs/modes.md, Link parameters](docs/modes.md#link-parameters).
 
 ## Period engine, modern chassis
 
