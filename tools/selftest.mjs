@@ -1149,4 +1149,16 @@ if (fs.existsSync(VSVG)) {
     `  ${full ? `FULL (refused: ${nocx} triangles, ${cmx} CM and ${lmx} LM pieces)` : 'room left, none refused'}`);
   if (full) ok = false;
 } else console.log('cabin tables: no native driver (build/viewsvg)');
+// The spacecraft model table (src/viewcom.inc /CMOD/, /CLM/; #70 option B): models, solids and free lines against
+// their maxima, and the builders' refusals (NMODX, NSOLX, NXLX), from the native driver (VIEW_MODT, tools/vdump.f
+// VMODT).  A refused solid or line is a piece of a vehicle silently missing, so any refusal, or a table at its maximum, fails.
+if (fs.existsSync(VSVG)) {
+  const [nmod, mmod, nmodx, nsol, msol, nsolx, nxl, mxl, nxlx] = execFileSync(VSVG, ['1'], { cwd: R,
+    env: Object.fromEntries(Object.entries({ ...process.env, VIEW_MODT: '1' }).filter(([k]) => !['VIEW_DECK', 'VIEW_REEL'].includes(k))) })
+    .toString().trim().split(/\s+/).map(Number);
+  const full = nmodx + nsolx + nxlx > 0 || nmod >= mmod || nsol >= msol || nxl >= mxl;
+  console.log(`model tables: ${nmod} of ${mmod} models, ${nsol} of ${msol} solids, ${nxl} of ${mxl} free lines` +
+    `  ${full ? `FULL (refused: ${nmodx} models, ${nsolx} solids, ${nxlx} lines)` : 'room left, none refused'}`);
+  if (full) ok = false;
+} else console.log('model tables: no native driver (build/viewsvg)');
 console.log(ok ? 'PASS' : 'FAIL'); process.exit(ok ? 0 : 1);

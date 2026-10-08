@@ -27,8 +27,11 @@ C         for the CSM, the docked stack or the S-IVB, 40 m for the
 C         LM, 60,000 km for the Earth, 36,737 km (35,000 km up, as
 C         scene 6) for the Moon.  The Sun is a target only for the
 C         window view.  A docked or carried vehicle is flown round at
-C         the point of the vehicle it is with; a target with no point
-C         gives way to the situation's subject, else the Earth.
+C         the point of the vehicle it is with, but before the
+C         separation the S-IVB at its centre and the LM at its place in
+C         the SLA, in the launch stack drawn behind the CSM (LVPL); a
+C         target with no point gives way to the situation's subject,
+C         else the Earth.
 C     A situation with FIXED=YES (the Moon view's body-centred camera)
 C     keeps its own camera and ignores both.
 C=======================================================================
@@ -50,7 +53,7 @@ C     RESTOMOD END
       INTEGER LOOKD
       DOUBLE PRECISION TG(3), D(3), DIST, DS(3), CG0(3), P(3), VDOT
       DOUBLE PRECISION C
-      INTEGER IT, IST, IOK, I, KCSPL
+      INTEGER IT, IST, IOK, I, J, KCSPL
       LOOKD = 0
       ITGST = 0
       IVUSE = IVIEW
@@ -130,9 +133,20 @@ C     External: free-look sets the direction, the camera backs off
 C     along it to DIST from the target.  A situation with XSTART (JXOF;
 C     the docking, whose reference looks down the docking axis, where
 C     the CSM's solids hide the LM it docks with) starts QXY round:
-C     there 60 deg round and 25 deg up (ours).
+C     there 60 deg round and 25 deg up (ours).  Before the separation,
+C     while the launch stack is placed behind the CSM (LVPL), a vehicle
+C     target starts 60 deg round and 25 deg down, the camera above the
+C     stack looking down on it against the Earth, since from straight
+C     behind or ahead one end of the stack hides the rest (ours).  Only
+C     while the stack is placed: at SEP the start goes back to the
+C     scene's own, so the external camera jumps by that offset between
+C     the frames either side of SEP (ours; one start for every vehicle
+C     target is filed against #70).
+      J = 0
+      IF (JXOF .NE. 1 .AND. MDON(KSTK) .EQ. 1 .AND. IT .GE. 4) J = 1
       IF (JXOF .EQ. 1) CALL LOOK(YAW + QXY(1), PIT + QXY(2), ROL)
-      IF (JXOF .NE. 1) CALL LOOK(YAW, PIT, ROL)
+      IF (J .EQ. 1) CALL LOOK(YAW + 60.0D0, PIT - 25.0D0, ROL)
+      IF (JXOF .NE. 1 .AND. J .EQ. 0) CALL LOOK(YAW, PIT, ROL)
       LOOKD = 1
       DO 30 I = 1, 3
         CG(I) = TG(I) - DIST * CB(I)
@@ -172,7 +186,10 @@ C         point at the camera itself;
 C       4 no point here: no state, or the Sun from outside;
 C       5 as 3, the LM before the separation (SEP): stowed in the SLA
 C         on the S-IVB, docked to nothing yet.
-C     The caller aims at 1, and from outside at 3 and 5 too.
+C     The caller aims at 1, and from outside at 3 and 5 too.  Before
+C     the separation the external view draws the launch stack behind
+C     the CSM (LVPL); once it is placed the S-IVB's point is its centre
+C     in it and the LM's its place in the closed SLA (still 3 and 5).
 C-----------------------------------------------------------------------
       SUBROUTINE TGTPOS(GET, IT, PM, CG, TG, DIST, IST)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -182,6 +199,7 @@ C     RESTOMOD END
       DOUBLE PRECISION GET, PM(3), CG(3), TG(3), DIST, R(3), V(3)
       DOUBLE PRECISION D, C(3), W(3), EVGET
       INTEGER IT, IST, I, IOK, KL, IRIDE, KC, KCSPL, KLMPL, IVEH
+      INTEGER KS, KSIVPL
       IST = 1
       DIST = 0.0D0
       IVEH = 0
@@ -221,6 +239,18 @@ C         The placed CSM (or CM): aim at the top of its tunnel.
           DO 50 I = 1, 3
             TG(I) = CG(I) + MDP(I,KL)
    50     CONTINUE
+        ELSE IF (MDON(KSTK) .EQ. 1) THEN
+C         Stowed in the placed stack's SLA, hidden by it: its stage
+C         joint, the point of its state, the LM's base 1.5 m above the
+C         IU's top (S7POSE) plus the joint 2.3 m above the base
+C         (VEHPL's body point).
+          IST = 5
+          CALL SETV(C, (1.5D0 + 2.3D0 - MDBO(1,KSTK)) * 1.0D-3,
+     &      -MDBO(2,KSTK) * 1.0D-3, -MDBO(3,KSTK) * 1.0D-3)
+          CALL MXV(MDAT(1,1,KSTK), C, W)
+          DO 52 I = 1, 3
+            TG(I) = CG(I) + MDP(I,KSTK) + W(I)
+   52     CONTINUE
         ELSE IF (IRIDE() .NE. 2) THEN
           IVEH = 2
         ELSE
@@ -228,15 +258,19 @@ C         The placed CSM (or CM): aim at the top of its tunnel.
         END IF
       ELSE
         DIST = 0.060D0
-        IF (MDON(KSIV) .EQ. 1) THEN
-C         The placed S-IVB: aim at its centre, the point of its state
-C         (SIVST), half its 61.3 ft below the IU's top (SIVBMD).
-          CALL SETV(C, (-0.5D0 * (58.3D0 + 3.0D0) * 0.3048D0
-     &      - MDBO(1,KSIV)) * 1.0D-3, -MDBO(2,KSIV) * 1.0D-3,
-     &      -MDBO(3,KSIV) * 1.0D-3)
-          CALL MXV(MDAT(1,1,KSIV), C, W)
+        KS = KSIVPL()
+        IF (KS .NE. 0) THEN
+C         The placed S-IVB (alone, or the launch stack before the
+C         separation): aim at its centre, the point of its state
+C         (SIVST), half its 61.3 ft below the IU's top (SIVBMD).  In
+C         the stack it is still carried with the CSM (3).
+          IF (KS .EQ. KSTK) IST = 3
+          CALL SETV(C, (-0.5D0 * (SIVBH + SIUH) * 0.3048D0
+     &      - MDBO(1,KS)) * 1.0D-3, -MDBO(2,KS) * 1.0D-3,
+     &      -MDBO(3,KS) * 1.0D-3)
+          CALL MXV(MDAT(1,1,KS), C, W)
           DO 70 I = 1, 3
-            TG(I) = CG(I) + MDP(I,KSIV) + W(I)
+            TG(I) = CG(I) + MDP(I,KS) + W(I)
    70     CONTINUE
         ELSE
           IVEH = 3
@@ -285,7 +319,8 @@ C
 C     CSMCAM: place the CSM around the scene's camera, its origin
 C     (CSMBLD) 1.2 m behind the eye, X along the reference boresight, Z
 C     along its up (ours).  From CM/SM separation (the scenario's
-C     CMSEP event) the CM alone (KCMO).
+C     CMSEP event) the CM alone (KCMO).  Before the separation (SEP)
+C     the S-IVB, IU and closed SLA behind it (LVPL).
       SUBROUTINE CSMCAM(GET)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
@@ -304,6 +339,8 @@ C     RESTOMOD END
    10 CONTINUE
       CALL VCRS(AT(1,3), AT(1,1), AT(1,2))
       CALL MPLACE(K, AT, P, Z)
+C     Before the separation the launch stack behind it (LVPL).
+      CALL LVPL(GET)
       RETURN
       END
 C

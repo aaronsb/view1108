@@ -39,7 +39,7 @@ C     RESTOMOD END
       DOUBLE PRECISION GET, VB(5,MAXV), SB(3,MAXS), LB(4,MAXL)
       INTEGER NV, NS, NL
       DOUBLE PRECISION XE(4), RE0(4), PL(4), FT, TS, EVGET
-      INTEGER K, KM, IV, IE, IRIDE, KCSPL, KLMPL
+      INTEGER K, KM, IV, IE, IRIDE, KCSPL, KLMPL, KSIVPL
       FT = 0.3048D0
 C     Per engine (SPS, DPS, APS, J-2): exit plane X and radius (m, in
 C     the model's body frame), plume length (m).  SPS: CSMBLD's nozzle
@@ -60,9 +60,9 @@ C     aft end, 61.3 ft (SIVBMD), radius 1.0 m, ours.
       XE(3) = 1.7D0
       RE0(3) = 0.4D0
       PL(3) = 3.0D0 * 2.81D0
-      XE(4) = -(58.3D0 + 3.0D0) * FT
+      XE(4) = -(SIVBH + SIUH) * FT
       RE0(4) = 1.0D0
-      PL(4) = 3.0D0 * (58.3D0 + 3.0D0) * FT
+      PL(4) = 3.0D0 * (SIVBH + SIUH) * FT
       IBRTX = 0
       IF (ILABL .LT. 1) RETURN
       DO 50 K = 1, NBR
@@ -81,7 +81,7 @@ C       The exhaust, from the vehicle's placed model.
         IF (IV .EQ. 1) KM = KCSPL()
         IF (KM .EQ. KCMO) KM = 0
         IF (IV .EQ. 2) KM = KLMPL()
-        IF (IV .EQ. 3 .AND. MDON(KSIV) .EQ. 1) KM = KSIV
+        IF (IV .EQ. 3) KM = KSIVPL()
         IF (KM .NE. 0) CALL PLUME(VB, NV, KM, XE(IE), RE0(IE), PL(IE))
    50 CONTINUE
       ISTYLE = 1
