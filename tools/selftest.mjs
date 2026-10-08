@@ -845,4 +845,16 @@ if (W.sim_run) {
     `${wrong.length ? 'WRONG: ' + wrong.join('; ') : `inert: elements ${tags.join(' ')}, https links only, one figure`}`);
   if (wrong.length) ok = false;
 }
+// The cabins' hidden-line tables (#71; src/viewcom.inc /COCC/): the opaque triangles and each cabin's cut pieces
+// against their maxima, from the native driver (VIEW_CABN, tools/vdump.f VCABN).  A full table refuses entries
+// (NOCX, NCPX), and a refused triangle brings hidden lines back, so any refusal, or a table filled to its maximum, fails.
+if (fs.existsSync(VSVG)) {
+  const [noc, moc, nocx, cm, lm, mcp, cmx, lmx] = execFileSync(VSVG, ['1'], { cwd: R,
+    env: Object.fromEntries(Object.entries({ ...process.env, VIEW_CABN: '1' }).filter(([k]) => !['VIEW_DECK', 'VIEW_REEL'].includes(k))) })
+    .toString().trim().split(/\s+/).map(Number);
+  const full = nocx + cmx + lmx > 0 || noc >= moc || cm >= mcp || lm >= mcp;
+  console.log(`cabin tables: ${noc} of ${moc} opaque triangles, pieces CM ${cm} LM ${lm} of ${mcp} a cabin` +
+    `  ${full ? `FULL (refused: ${nocx} triangles, ${cmx} CM and ${lmx} LM pieces)` : 'room left, none refused'}`);
+  if (full) ok = false;
+} else console.log('cabin tables: no native driver (build/viewsvg)');
 console.log(ok ? 'PASS' : 'FAIL'); process.exit(ok ? 0 : 1);
