@@ -395,7 +395,8 @@ def scenarios():
                     assert cur is None, f"{name}: one SCENARIO card per file (a reel holds one scenario)"
                     # Each reel numbers its own: its one scenario is 1 (the card reader's deck
                     # error 20, ids 1..N over the decks loaded together, holds it too).
-                    assert kv["ID"] == "1", f"{name}: SCENARIO ID={kv['ID']}: each reel's scenario is 1"
+                    assert kv["ID"].isdigit() and int(kv["ID"]) == 1, \
+                        f"{name}: SCENARIO ID={kv['ID']}: each reel's scenario is 1"
                     cur = {"n": len(mis) + 1, "id": 1, "mission": mdir.name, "mname": ms["name"],
                            "reel": f"{mdir.name}-{path.stem}",
                            "name": ms["name"] + " " + kv["NAME"], "jd": ms["jd"],

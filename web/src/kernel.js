@@ -99,9 +99,10 @@ function loadDecks(reel) {
   LS.deck = reel.manifest.id;
 }
 // The scenario reel `id`'s decks into the kernel unless they are there already (loader.js mount, before view_init).
-// The mock kernel reads no decks.
+// The mock kernel reads no decks, but the page still records which reel is loaded (captions, frameScene).
 function useDeck(id) {
-  if (USE_MOCK || LS.deck === id) return;
+  if (LS.deck === id) return;
+  if (USE_MOCK) { LS.deck = id; return; }
   const r = scenarioReels().find(x => x.manifest.id === id);
   if (!r) throw new Error(`no scenario reel ${id}`);
   loadDecks(r);

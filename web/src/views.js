@@ -40,7 +40,7 @@ function featTick() {
 function featInit() {
   FEAT.view = !!K.in_view; FEAT.target = !!K.in_target; FEAT.lablv = !!K.in_lablv;
   // The cabin probe: the first situation of the reel the kernel holds (LS.deck, the boot reel; each reel numbers its
-  // own situations) that always offers the CM station (Earthrise), from it with a 170 deg field, draws more with bit 4
+  // own situations) that always offers the CM station, from it with a 170 deg field, draws more with bit 4
   // than without.
   if (FEAT.view) {
     const held = SITS.filter(s => s.reel === LS.deck), cm = (held.find(s => s.stations.cm === "ALWAYS") || held[0]).id;
