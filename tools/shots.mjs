@@ -144,7 +144,7 @@ const SHOT_LIST = [
   // #68: the 1108 console's close-up, the operator's view of its screen and notebook, the console as text (VIEW_LAB
   // info().exec). The demo playing: the idle EXEC, the status summary on the top two lines (the SS report's form) and
   // the shift's last run (ours: the index's last scenario reel) ended.
-  { name: "room-console-idle", url: "space=room&mode=attract",
+  { name: "room-console-idle", url: "space=room&reel=demo",
     steps: [ROOM_UP, ROOM_STILL, ...AT_ST("console"), ROOM_STILL, { frames: 3 }],
     expect: [[TL("mounted"), "demo"], [`${LAB}.at`, "console"], [`${LAB}.exec.run`, null],
       [`${LAB}.exec.screen[0]`, /^LAST PERIOD USAGE; EXEC \d\d%, BATCH \d\d%, DEMAND \d\d%, IDLE \d\d%,$/],
@@ -154,7 +154,7 @@ const SHOT_LIST = [
   // #68: LOAD APOLLO 11 AS FLOWN AND EXEC from the rack's reel modal while the demo plays, then the console: the operator
   // keys RN from the RUN STREAMS tape, the EXEC asks for the reel on the drive (LOAD, UP-4144 Rev. 1 p. 12-10) and the
   // plot tape, the program is loaded and waits for its profile (ours), the clock stopped as a fresh mount leaves it.
-  { name: "room-console-mounted", url: "space=room&mode=attract",
+  { name: "room-console-mounted", url: "space=room&reel=demo",
     steps: [ROOM_UP, ROOM_STILL, ...AT_ST("rack"), ROOM_STILL,
       ROOM_CLICK("reel:apollo11-asflown"), { wait: `${LAB}.out["reel:apollo11-asflown"] === 1` }, { frames: 12 }, ROOM_CLICK("reel:apollo11-asflown"),
       { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button.primary" }, { wait: `${TL("mounted")} === "apollo11-asflown"` },
