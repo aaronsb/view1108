@@ -51,10 +51,10 @@ Our render: the situation at its default, the moment of AS08-14-2383, the Earth 
 source: media/as08-14-2383.jpg
 style: clip
 finish: photo
-credit: NASA
-cite: https://images.nasa.gov/details/as08-14-2383 (its medium file, reduced by us)
+credit: NASA/JSC
+cite: https://apollojournals.org/afj/ap08fj/photos/14-b/hr/as08-14-2383hr.jpg (the Apollo Flight Journal's scan, reduced by us)
 
-The photograph AS08-14-2383, clipped beside our render of its moment: "The rising Earth is about five degrees above the lunar horizon" (NASA's description).
+The photograph AS08-14-2383, clipped beside our render of its moment: "The rising Earth is about five degrees above the lunar horizon" (NASA's description). It is the reel's photo event of the same frame, the print Fusion lays over the plot; pick it to open Fusion there.
 ```
 
 The first figure's time is our arithmetic from those frame numbers; the same arithmetic puts AS08-14-2383 within 0.1 s of the situation's own time. The situation's camera is fitted to AS08-14-2383 alone. The crew took AS08-13-2329 while the spacecraft rolled (SVS 4129), so the first figure keeps the fitted aim and shows only where the Earth stood a minute earlier, not that photograph's framing.
@@ -76,7 +76,7 @@ The report lists TEI and the entry phase among the Apollo 8 maneuver views (TN D
 - C. T. Hyle and A. N. Lunde, *Apollo Experience Report: The Application of a Computerized Visualization Capability to Lunar Missions*, NASA TN D-6853, June 1972 (`reference/TN-D-6853_Hyle_Lunde_1972.pdf`; printed pages).
 - A. N. Lunde, *Revision 1 to Views from the CM and LM During the Flight of Apollo 11 (Mission G)*, MSC Internal Note 69-FM-197, 3 July 1969, NASA-TM-X-69921, N74-71189 (`reference/MSC-IN-69-FM-197_Apollo11_views.pdf`; printed pages).
 - NASA Scientific Visualization Studio, *Earthrise: The 45th Anniversary*, ID 4129, 20 December 2013, https://svs.gsfc.nasa.gov/4129.
-- AS08-14-2383, NASA Image and Video Library, https://images.nasa.gov/details/as08-14-2383 (NASA; public domain). The clipped print is its file https://images-assets.nasa.gov/image/as08-14-2383/as08-14-2383~medium.jpg, reduced by us.
+- AS08-14-2383, NASA Image and Video Library, https://images.nasa.gov/details/as08-14-2383 (NASA; public domain): its description. The clipped print is the Apollo Flight Journal's scan, https://apollojournals.org/afj/ap08fj/photos/14-b/hr/as08-14-2383hr.jpg (NASA/JSC; public domain), turned to its usual presentation and reduced by us (`data/photos.tsv`, `tools/photo_pack.py`).
 
 ```figures
 # name          | environment   | reel            | viewsvg arguments (situation GET yaw pitch roll fov flags); or name | golden=<case of tools/golden.sh>

@@ -206,14 +206,14 @@ function roomApply() {
   if (want && !roomIn) {
     // Overlays Tabbed left open (the library or the listing, which the tab bar's Room does not close; a modal) are not
     // the room's: they would stay over it, with no station to go back to (#90).
-    roomLibraryClose(); roomListingClose(); askClose();
+    roomLibraryClose(); roomListingClose(); askClose(); tapesClose();
     const esc = (k, pop) => pop ? escPush(k, pop) : escDrop(k);
-    if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive, screenRect: roomScreenRect, leave: roomLeave, drive: drivePlay, esc, reels: reelIndex(), mount: reelMount, ask: roomAsk })) { roomAvail = false; roomSync(); return; }
+    if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive, screenRect: roomScreenRect, leave: roomLeave, drive: drivePlay, esc, reels: reelIndex(), mount: reelMount, ask: roomAsk, browse: tapesOpen })) { roomAvail = false; roomSync(); return; }
     roomIn = true; escBase("room", () => { if (roomShown) LAB.home(); }); roomShowLab(null);
   } else if (!want && roomIn) {
     LAB.stop(); roomIn = roomShown = false; document.body.classList.remove("room"); resize();
     roomLibrary = false; $("blibroom").hidden = true;   // a library left open is Tabbed's now, with no station to go back to
-    askClose(); for (const k of ["room", "terminal", "closeup", "pulled"]) escDrop(k);
+    askClose(); tapesClose(); for (const k of ["room", "terminal", "closeup", "pulled"]) escDrop(k);
   }
   roomSync();
 }

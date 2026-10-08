@@ -42,11 +42,14 @@
 //   for one (issue #68's research findings: the evidence points to batch, TN D-6853 p. 3). It is what a typed READ$
 //   line from a terminal would allow (Rev. 1 pp. 9-26, 9-27).
 // - Channel/unit numbers: channel 6, the unit the tape unit's head plate's last digit (unit 63, the drive, is 06/03).
+// - The plot tape (unit 65): named by the volume number lettered on the tape that unit carries for the run's reel
+//   (systapes.ts, #104), not by SCRTCH; the manual's SCRTCH stays the sourced form for a scratch reel.
 // - Reel numbers: V, the mission's number and three digits of a hash of the reel's id (a stable number, not a
 //   manifest field; "SIX OR LESS CHARACTERS", p. 12-10).
 // - The timing: every delay, the typing rate, the status figures and their drift, which messages roll off when.
 // - Lines roll off to the PAGEWRITER when the message area is full (oldest first), not "when no longer current".
 import type { LabEvent, LabState, ReelInfo } from "../types";
+import { systemTapes, volumeNo } from "./systapes";
 
 export const COLS = 64, ROWS = 16;
 /** The message area between the status summary (2 lines) and the keyboard line. */
@@ -82,6 +85,8 @@ interface Run {
   id: string;
   reel: string;          // the scenario reel's id
   reelNo: string;
+  /** The volume number on the plot tape unit 65 carries for this reel (systapes.ts), else SCRTCH. */
+  plotNo: string;
   title: string;
   /** opening: statements still to come; reel: waiting for its reel; profile: waiting for GO; go: running; done */
   phase: "opening" | "reel" | "profile" | "go" | "done";
@@ -104,9 +109,7 @@ const missionNo = (m: string) => Number((/\d+/.exec(m) || ["0"])[0]);
 export const runIdFor = (mission: string) => "VIEW" + pad(missionNo(mission));
 /** A stable reel number (ours): V, the mission's number, three digits of an FNV-1a hash of the reel's id. */
 export function reelNumber(id: string, mission: string): string {
-  let h = 0x811c9dc5;
-  for (const c of id) { h ^= c.charCodeAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
-  return "V" + pad(missionNo(mission)) + pad(h % 1000, 3);
+  return volumeNo("V", id, mission);
 }
 const clip = (s: string) => s.length > COLS ? s.slice(0, COLS) : s;
 
@@ -284,7 +287,7 @@ export class Exec8 {
   // ---- a run ----
 
   private newRun(r: ReelInfo): Run {
-    const run: Run = { id: runIdFor(r.mission), reel: r.id, reelNo: reelNumber(r.id, r.mission), title: r.title, phase: "opening", waitN: 0, service: SERVICE_S, shown: false };
+    const run: Run = { id: runIdFor(r.mission), reel: r.id, reelNo: reelNumber(r.id, r.mission), plotNo: systemTapes(this.reels).find(t => t.reel === r.id && t.id.startsWith("plot."))?.volume ?? "SCRTCH", title: r.title, phase: "opening", waitN: 0, service: SERVICE_S, shown: false };
     this.run = run;
     return run;
   }
@@ -305,8 +308,8 @@ export class Exec8 {
       this.after(0.7, () => this.line(`${run.id} @RUN ${run.id},69197,APOLLO`), run);
       this.after(0.8, () => this.line(`${run.id} @ASG,T ${REEL_FILE.name},T,${run.reelNo}`), run);
       this.after(0.5, () => this.line(`LOAD ${run.reelNo} ${REEL_CU} ${REEL_FILE.name} ${run.id}`), run);
-      this.after(0.8, () => this.line(`${run.id} @ASG,T PLTTAP,T,SCRTCH`), run);
-      this.after(0.5, () => this.line(`LOAD SCRTCH ${PLOT_CU} PLTTAP ${run.id}`), run);
+      this.after(0.8, () => this.line(`${run.id} @ASG,T PLTTAP,T,${run.plotNo}`), run);
+      this.after(0.5, () => this.line(`LOAD ${run.plotNo} ${PLOT_CU} PLTTAP ${run.id}`), run);
       this.after(0.4, () => { if (this.seen?.mounted === run.reel) this.toXqt(run); else { run.phase = "reel"; run.service = SERVICE_S; } }, run);
     };
     if (how === "type") this.type(rn, () => { this.line(rn); go(); }, run);

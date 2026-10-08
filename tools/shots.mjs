@@ -11,9 +11,21 @@ const TL = k => `VIEW_TL.state().${k}`;
 // clock ran from the link until now), then hold it at s for a picture that repeats.
 const LINKED = s => [HOLD(), { expect: [`(d => d >= 0 && d < 300)(VIEW_TL.state().get - ${s})`] }, HOLD(s)];
 const LAB = "VIEW_LAB.info()";
+// #104: the tapes of a reel's set, by the unit that carries them (60, 61, 62, 64, 65, 66; the drive, 63, is not among
+// them), and the tape units' state (VIEW_LAB.info().units: label, the reel whose colours it carries, flange, RUN, STOP).
+const SET_NAMES = ["RUN STREAMS", "MEDIA 2", "EPHEMERIS", "MODELS", "PLOT TAPE", "MEDIA 1"];
+const SET_LABELS = rn => SET_NAMES.map(n => `${n} · ${rn}`);
+const REEL_FLANGE = { scenario: 0x5d82b0, playlist: 0xb0453a };
+// Every one of the seven units carries reel `id`'s set in its colours (the drive: the mounted reel's); `others` are the
+// six units' labels, west to east.
+const UNITS_OF = (id, kind, rn) => [[`${LAB}.units.length`, 7], [`${LAB}.units.every(u => u.set === ${JSON.stringify(id)} && u.flange === ${REEL_FLANGE[kind]})`, true],
+  [`${LAB}.tapes.filter((t, i) => i !== 3)`, SET_LABELS(rn)], [`${LAB}.tapes[3]`, /\S/]];
 // The LINK button's URL (link.js linkURL), and no old key in it (docs/modes.md, Link parameters: the old keys, #22).
 const LINK = "VIEW_FUSION.state().link";
 const NO_OLD = /^(?!.*[?&](?:src|lab|scene)=)(?!.*[?&]labels=[01](&|$))(?!.*space=tiled)(?!.*mode=(?:attract|tour))/;
+// Fusion's lists (#75): each reel's photo events, data/photos.tsv's rows with a situation, in the table's order.
+const FUSION_A8 = ["AS08-14-2383", "AS08-13-2329", "AS08-14-2384", "AS08-14-2392"];
+const FUSION_A11 = ["AS11-44-6550", "AS11-44-6552", "AS11-44-6574", "AS11-44-6581", "AS11-44-6667"];
 // The notebook's binder (#29 slice g): Apollo 11's notebook opened from the library, and its paging plate's label.
 const NB_OPEN = [{ js: `document.getElementById("blib").click()` },
   { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` }, { frames: 2 }];
@@ -45,8 +57,11 @@ const ROOM_STILL = { wait: `${LAB}.mode !== "flight" && !document.getElementById
 // clicked at its middle, 0.13 m up from its origin on the deck; a binder's origin is
 // at its foot, so 0.16 m up its spine), as the pointer
 // events the room's input reads; the capture is the browser's for a real pointer only, so it is a no-op here.
+// The system tape to click (#104): the final one of the layout (VIEW_LAB.info().systapeIds), the end of a set in the west
+// bay, so no neighbouring case stands between it and the camera at the close-up.
+const SYS_LAST = "systape:final", SYS_EXPR = "VIEW_LAB.info().systapeIds.at(-1)";
 const ROOM_CLICK = name => ({ js: `(() => {
-  const c = document.querySelector("#labhost canvas"), p = VIEW_LAB.project(${JSON.stringify(name)}, ${name.startsWith("binder:") ? 0.16 : /^(reel|systape):/.test(name) ? 0.13 : 0});
+  const c = document.querySelector("#labhost canvas"), p = VIEW_LAB.project(${name === SYS_LAST ? SYS_EXPR : JSON.stringify(name)}, ${name.startsWith("binder:") ? 0.16 : /^(reel|systape):/.test(name) ? 0.13 : 0});
   c.setPointerCapture = () => {};
   const o = { clientX: p.x, clientY: p.y, button: 0, pointerId: 1, pointerType: "mouse", bubbles: true };
   c.dispatchEvent(new PointerEvent("pointerdown", o)); c.dispatchEvent(new PointerEvent("pointerup", o));
@@ -101,40 +116,52 @@ const SHOT_LIST = [
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.setTarget("rack")` }, { wait: `${LAB}.mode === "flight"`, timeout: 2000 }, ROOM_STILL, { frames: 3 }],
     expect: [[`${LAB}.at`, "rack"], [`${LAB}.mode`, "hold"], [`${LAB}.quality`, "low"]] },
 
-  // #87: the rack's system tapes, a level of props below the playlists, each pulled like a reel; their labels.
+  // #87, #104: the rack's system tapes, the site's two and then a set for each reel (Apollo 8, Apollo 11, demo, tour; the
+  // levels below the playlists, one bay each), each pulled like a reel; their labels.
   { name: "room-rack-system", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(2.0, -3.25, 0, -35)` }, { frames: 3 }],
-    expect: [[`${LAB}.systapes`, ["EXEC 8 SYSTEM (COPY)", "RUN STREAMS", "VIEW KERNEL", "EPHEMERIS", "MODELS", "PLOT TAPE", "MEDIA 1", "MEDIA 2"]],
-      [`["exec8", "runstreams", "kernel", "ephemeris", "models", "plot", "media1", "media2"].every(id => (p => p && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight)(VIEW_LAB.project("systape:" + id)))`, true]] },
-  // #87: a pulled system tape asks the page for its modal, which only puts it back; nothing is mounted.
+    expect: [[`${LAB}.systapes`, ["EXEC 8 SYSTEM (COPY)", "VIEW KERNEL", ...["APOLLO 8", "APOLLO 11", "DEMO", "TOUR"].flatMap(SET_LABELS)]],
+      [`(ids => ids.length === 26 && ids.every(id => (p => p && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight)(VIEW_LAB.project("systape:" + id))))(
+        ["exec8", "kernel", ...["apollo8-asflown", "apollo11-asflown", "demo", "tour"].flatMap(r => ["runstreams", "media2", "ephemeris", "models", "plot", "media1"].map(t => t + "." + r))])`, true]] },
+  // #87: a pulled system tape asks the page for its modal, which only puts it back; nothing is mounted. (The cases stand
+  // 4 mm apart and the close-up looks at them from the middle, so the click aims at a tape with no neighbour on the camera's
+  // side: the last of a set in the west bay, Apollo 8's MEDIA 1.)
   { name: "room-system-tape-modal", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
-    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK("systape:ephemeris"), { wait: `${LAB}.out["systape:ephemeris"] === 1` },
-      { frames: 12 }, { expect: [`[...document.querySelectorAll("#labhost > div")].map(d => d.textContent).join("|")`, /System tape · click again · Esc to put it back/] }, ROOM_CLICK("systape:ephemeris"), { wait: `!document.getElementById("ask").hidden` }, { frames: 3 }],
-    expect: [[`document.getElementById("asktitle").textContent`, "EPHEMERIS · SYSTEM TAPE — NOT A SIMULATION SCENARIO"],
-      [`[...document.querySelectorAll("#askbtns button")].map(b => b.textContent)`, ["PUT TAPE BACK"]], [`${LAB}.asking`, "systape:ephemeris"], [TL("mounted"), "apollo11-asflown"]] },
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK(SYS_LAST), { wait: `${LAB}.out[${SYS_EXPR}] === 1` },
+      { frames: 12 }, { expect: [`[...document.querySelectorAll("#labhost > div")].map(d => d.textContent).join("|")`, /System tape · click again · Esc to put it back/] }, ROOM_CLICK(SYS_LAST), { wait: `!document.getElementById("ask").hidden` }, { frames: 3 }],
+    expect: [[`document.getElementById("asktitle").textContent`, "MEDIA 1 · TOUR · SYSTEM TAPE — NOT A SIMULATION SCENARIO"],
+      [`[...document.querySelectorAll("#askbtns button")].map(b => b.textContent)`, ["PUT TAPE BACK"]], [`${LAB}.asking === ${SYS_EXPR}`, true], [TL("mounted"), "apollo11-asflown"]] },
   // #87: a system tape pulled at the rack goes back when the camera flies to the overview (setTarget(null), as back()),
   // and nothing is left on the Esc stack for it.
   { name: "room-system-tape-overview", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
-    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK("systape:models"), { wait: `${LAB}.out["systape:models"] === 1` },
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL, ROOM_CLICK(SYS_LAST), { wait: `${LAB}.out[${SYS_EXPR}] === 1` },
       { js: `VIEW_LAB.setTarget(null)` }, { wait: `${LAB}.at === null && ${LAB}.mode === "free"`, timeout: 20000 }, ROOM_STILL, { frames: 3 }],
     expect: [[`Object.keys(${LAB}.out)`, []], [`VIEW_ESC()`, ["room"]], [TL("mounted"), "apollo11-asflown"]] },
-  // #87: while the demo plays the six other tape units stand undressed; the drive names the demo.
+  // #104: while the demo plays every tape unit carries the demo's set in the reel's colours (red, a playlist): the six
+  // others its tapes, the drive the demo; the drive's RUN lamp lit and STOP dark, the others by their tape (held still).
   { name: "room-drive-row-demo", url: "space=room&reel=demo",
     steps: [ROOM_UP, ROOM_STILL, { frames: 3 }],
-    expect: [[`${LAB}.tapes`, ["", "", "", "DEMO", "", "", ""]], [TL("mounted"), "demo"]] },
-  // #87: the drive row after Apollo 8 is mounted from its reel modal: the drive names it, the six other units carry the
-  // system tapes with their labels; a system tape pulled and put back after changes nothing mounted. Motion held
-  // (?labmotion=0).
+    expect: [...UNITS_OF("demo", "playlist", "DEMO"), [`${LAB}.tapes[3]`, "DEMO"], [TL("mounted"), "demo"],
+      [`${LAB}.units.map(u => [u.run, u.stop].join())`, ["false,true", "false,true", "false,true", "true,false", "false,true", "false,true", "false,true"]]] },
+  // #87, #104: the drive row after Apollo 8 is mounted from its reel modal: every unit carries Apollo 8's set (the drive
+  // names the reel, blue), and the clock stopped lights STOP on the drive; a system tape pulled and put back after
+  // changes nothing mounted or carried. Motion held (?labmotion=0).
   { name: "room-drive-row", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("rack"), ROOM_STILL,
+      { expect: [`${LAB}.units.every(u => u.set === "apollo11-asflown" && u.flange === ${REEL_FLANGE.scenario})`, true] },
       ROOM_CLICK("reel:apollo8-asflown"), { wait: `${LAB}.out["reel:apollo8-asflown"] === 1` }, { frames: 12 }, ROOM_CLICK("reel:apollo8-asflown"),
       { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button.primary" }, { wait: `${TL("mounted")} === "apollo8-asflown"` }, { frames: 3 },
-      { expect: [`${LAB}.tapes.filter((t, i) => i !== 3)`, ["RUN STREAMS", "VIEW KERNEL", "EPHEMERIS", "MODELS", "PLOT TAPE", "MEDIA 1"]] },
-      ROOM_CLICK("systape:media2"), { wait: `${LAB}.out["systape:media2"] === 1` }, { frames: 12 }, ROOM_CLICK("systape:media2"), { wait: `!document.getElementById("ask").hidden` },
-      { click: "#askbtns button.primary" }, { wait: `document.getElementById("ask").hidden && !${LAB}.out["systape:media2"]` },
+      { expect: [`${LAB}.tapes.filter((t, i) => i !== 3)`, SET_LABELS("APOLLO 8")] },
+      ROOM_CLICK(SYS_LAST), { wait: `${LAB}.out[${SYS_EXPR}] === 1` }, { frames: 12 }, ROOM_CLICK(SYS_LAST), { wait: `!document.getElementById("ask").hidden` },
+      { click: "#askbtns button.primary" }, { wait: `document.getElementById("ask").hidden && !${LAB}.out[${SYS_EXPR}]` },
       { js: `VIEW_LAB.setTarget(null)` }, { wait: `${LAB}.at === null && ${LAB}.mode === "free"`, timeout: 20000 }, ROOM_STILL, { js: `VIEW_LAB.stand(1.0, -2.3, 57, 6)` }, { frames: 3 }],
-    expect: [[TL("mounted"), "apollo8-asflown"], [`${LAB}.tapes.length`, 7], [`${LAB}.tapes[3]`, /\S/],
-      [`${LAB}.tapes.filter((t, i) => i !== 3)`, ["RUN STREAMS", "VIEW KERNEL", "EPHEMERIS", "MODELS", "PLOT TAPE", "MEDIA 1"]], [`${LAB}.asking`, null]] },
+    expect: [[TL("mounted"), "apollo8-asflown"], ...UNITS_OF("apollo8-asflown", "scenario", "APOLLO 8"), [`${LAB}.asking`, null],
+      [`${LAB}.units.map(u => [u.run, u.stop].join())`, Array(7).fill("false,true")]] },
+  // #104: a mission reel mounted by its link: every unit carries that reel's set in its colours (blue), the drive the
+  // reel; the clock stopped, STOP lit on the drive.
+  { name: "room-drive-row-mission", url: "space=room&mode=free&scn=apollo8-asflown&sit=1",
+    steps: [ROOM_UP, ROOM_STILL, { wait: `${TL("mounted")} === "apollo8-asflown"` }, HOLD(), { frames: 3 }],
+    expect: [[TL("mounted"), "apollo8-asflown"], ...UNITS_OF("apollo8-asflown", "scenario", "APOLLO 8"), [`${LAB}.units[3].stop`, true], [`${LAB}.units[3].run`, false]] },
   // #89: the FASTRAND II close up, from the walkway south of it, and the machine floor from the south-east: the drum
   // unit before the cabinet run. Motion held (?labmotion=0).
   { name: "room-fastrand", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
@@ -162,7 +189,7 @@ const SHOT_LIST = [
       ...AT_ST("console"), ROOM_STILL, { wait: `${LAB}.exec.run === "VIEW11 profile" && !${LAB}.exec.busy`, timeout: 60000 }, { frames: 3 }],
     timeout: 150000,
     expect: [[TL("mounted"), "apollo11-asflown"], [TL("playing"), false], [`${LAB}.at`, "console"],
-      [`${LAB}.exec.screen.join("|")`, /\|VIEW08 @FIN\|RN 06\/00 VIEW11\|VIEW11 @RUN VIEW11,69197,APOLLO\|VIEW11 @ASG,T VIEWTP,T,(V11\d{3})\|LOAD \1 06\/03 VIEWTP VIEW11\|VIEW11 @ASG,T PLTTAP,T,SCRTCH\|LOAD SCRTCH 06\/05 PLTTAP VIEW11\|VIEW11 @XQT VIEW\|VIEW11\* APOLLO 11 AS FLOWN - APOLLO 11\|0 VIEW11\* AWAITING PROFILE - WAIT\|$/],
+      [`${LAB}.exec.screen.join("|")`, /\|VIEW08 @FIN\|RN 06\/00 VIEW11\|VIEW11 @RUN VIEW11,69197,APOLLO\|VIEW11 @ASG,T VIEWTP,T,(V11\d{3})\|LOAD \1 06\/03 VIEWTP VIEW11\|VIEW11 @ASG,T PLTTAP,T,(P11\d{3})\|LOAD \2 06\/05 PLTTAP VIEW11\|VIEW11 @XQT VIEW\|VIEW11\* APOLLO 11 AS FLOWN - APOLLO 11\|0 VIEW11\* AWAITING PROFILE - WAIT\|$/],
       [`${LAB}.exec.paper.length > 0`, true]] },
   // #68: a note in the operator's notebook clicked at the console's close-up: SS typed on the keyboard line, a character
   // at a time, then answered with the status report; then CS TYPE, answered with the run (the link's clock ran when the
@@ -179,6 +206,31 @@ const SHOT_LIST = [
   { name: "room-console-pagewriter", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(0.15, -2.35, 180, -28)` }, { frames: 3 }],
     expect: [[`${LAB}.exec.paper[0]`, "RN 06/00 VIEW08"], [`${LAB}.exec.paper.length >= 5`, true]] },
+  // #74: the tape file browser, a page overlay over the room opened at the console's seat with E: the mounted reel's
+  // members (name, type, size) from its manifest, a JSON member pretty-printed, a run deck as numbered cards, a figure as
+  // an <img> from a data: URL; Esc closes it and leaves the camera at the console, the Esc stack as it was.
+  { name: "room-console-tapes", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, ...AT_ST("console"), ROOM_STILL,
+      { expect: [`VIEW_ESC().join()`, "room,closeup"] },
+      { key: "e" }, { wait: `VIEW_TAPES.state().open` }, { frames: 3 },
+      { expect: [`VIEW_ESC().join()`, "room,closeup,tapes"] },
+      { expect: [`VIEW_TAPES.state().reel`, "apollo11-asflown"] },
+      { expect: [`VIEW_TAPES.state().rows[0].slice(0, 2).join("|")`, "manifest.json|manifest"] },
+      { expect: [`VIEW_TAPES.state().rows.map(r => r[0] + "|" + r[1]).join()`, /(^|,)page\.json\|page\.json(,|$)/] },
+      { expect: [`VIEW_TAPES.state().rows.map(r => r[0] + "|" + r[1]).join()`, /\|run deck/] },
+      { expect: [`VIEW_TAPES.state().rows.every(r => /^\\d+(\\.\\d)? (B|KB)$/.test(r[2]))`, true] },
+      { js: `VIEW_TAPES.select("page.json")` },
+      { expect: [`VIEW_TAPES.state().text.startsWith("{\\n  \\"")`, true] },
+      { js: `VIEW_TAPES.select(VIEW_TAPES.state().rows.find(r => r[1] === "run deck")[0])` },
+      { expect: [`VIEW_TAPES.state().kind`, "deck"] }, { expect: [`VIEW_TAPES.state().cards > 20`, true] },
+      { js: `VIEW_TAPES.select(VIEW_TAPES.state().rows.find(r => r[1] === "figure")[0])` },
+      { expect: [`VIEW_TAPES.state().img`, /^data:image\/svg\+xml;base64,/] },
+      { expect: [`document.querySelector("#tapescontent img").tagName + document.querySelectorAll("#tapes script, #tapes svg").length`, "IMG0"] },
+      { js: `VIEW_TAPES.select(VIEW_TAPES.state().rows.find(r => r[1] === "photograph")[0])` },
+      { expect: [`VIEW_TAPES.state().img`, /^data:image\/(jpeg|png);base64,/] },
+      { key: "Escape" }, { wait: `!VIEW_TAPES.state().open` }, { frames: 3 },
+      { expect: [`VIEW_ESC().join()`, "room,closeup"] }, { expect: [`${LAB}.at`, "console"] }],
+    expect: [[`document.getElementById("tapes").hidden`, true]] },
   { name: "room-machine-floor", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
     steps: [ROOM_UP, ...LINKED(368044), ROOM_STILL, { js: `VIEW_LAB.stand(1.2, 3.2, 50, -6)` }, { frames: 3 }],
     expect: [[`(p => p && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight)(VIEW_LAB.project("fastrand", 1))`, true]] },
@@ -235,18 +287,18 @@ const SHOT_LIST = [
     steps: [HOLD(), { js: `document.getElementById("blib").click()` },
       { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` }, { frames: 3 }],
     expect: [[`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"],
-      [`document.querySelectorAll("#libmd .runsheet tbody tr").length`, 255], [`document.querySelectorAll("#libmd .runsheet tr.rssit").length`, 8],
-      [VISIBLE_ROWS, 21], [`document.querySelector("#libmd .runsheet button.rsall").textContent`, "SHOW ALL 255 ENTRIES"],
+      [`document.querySelectorAll("#libmd .runsheet tbody tr").length`, 260], [`document.querySelectorAll("#libmd .runsheet tr.rssit").length`, 8],
+      [VISIBLE_ROWS, 26], [`document.querySelector("#libmd .runsheet button.rsall").textContent`, "SHOW ALL 260 ENTRIES"],
       [`document.querySelector("#libmd .runsheet h2").textContent`, "RUN SHEET - APOLLO 11 AS FLOWN"]] },
 
   // Expanded in place: every entry, the line now offering the short sheet; a second press collapses it again.
   { name: "tabbed-run-sheet-all", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { js: `document.getElementById("blib").click()` },
       { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` },
-      { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { expect: [VISIBLE_ROWS, 255] },
-      { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { expect: [VISIBLE_ROWS, 21] },
+      { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { expect: [VISIBLE_ROWS, 260] },
+      { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { expect: [VISIBLE_ROWS, 26] },
       { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { frames: 3 }],
-    expect: [[VISIBLE_ROWS, 255], [`document.querySelector("#libmd .runsheet button.rsall").textContent`, "SHOW ONLY THE 21 SITUATIONS AND MILESTONES"]] },
+    expect: [[VISIBLE_ROWS, 260], [`document.querySelector("#libmd .runsheet button.rsall").textContent`, "SHOW ONLY THE 26 SITUATIONS, PHOTOGRAPHS AND MILESTONES"]] },
 
   // A run-sheet entry mounts the reel as a fresh run and goes there: from Apollo 8 with the clock running, Apollo 11's
   // Translunar injection (the time, the clock stopped), then its LM DESCENT (the situation's view).
@@ -265,7 +317,7 @@ const SHOT_LIST = [
   { name: "notebook-light-page", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1", viewport: [400, 860],
     steps: [HOLD(), ...NB_OPEN],
     expect: [[`document.getElementById("libmd").className`, "light"], [NB_COLS, "1"], [NB_PAGE, /^PAGE 1 OF \d+$/],
-      [`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"], [VISIBLE_ROWS, 21],
+      [`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"], [VISIBLE_ROWS, 26],
       [`document.getElementById("blibtheme").textContent`, "Dark"], [NO_HSCROLL]] },
 
   // On a narrow screen LIST hides the viewer; a resize while it is hidden, then the same notebook again: counted anew
@@ -297,15 +349,16 @@ const SHOT_LIST = [
       [`(p => Math.abs(p.scrollLeft / (p.clientWidth + parseFloat(getComputedStyle(p).columnGap) - 2 * parseFloat(getComputedStyle(p).paddingLeft)) - 2) < 0.01)(document.querySelector("#libmd .nbpages"))`],
       [`VIEW_TL.state().playing`, false]] },
 
-  // End: Apollo 8's notebook at its last spread, the figure cases, on a whole view; its pages are odd here, so the
-  // spread ends on a blank page (.nbend.blank), which is not counted. Home goes back to the first spread.
+  // End: Apollo 8's notebook at its last spread, the figure cases, on a whole view. Where its pages are odd the spread
+  // ends on a blank page (.nbend.blank), which is not counted; where even (16 since its run sheet gained the photo
+  // events, #75), on its last page. Home goes back to the first spread.
   { name: "notebook-light-end", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, { js: `document.getElementById("blib").click()` },
       { js: `document.querySelector('#liblist .librow[data-id="nb-apollo8-asflown"]').click()` }, { frames: 2 },
-      { key: "End" }, { expect: [NB_PAGE, /^PAGE \d+ OF \d+$/] }, { key: "Home" }, { expect: [NB_PAGE, /^PAGES 1-2 OF /] },
+      { key: "End" }, { expect: [`(m => !!m && m[2] === m[3])(/(\\d+-)?(\\d+) OF (\\d+)$/.exec(${NB_PAGE}))`, true] }, { key: "Home" }, { expect: [NB_PAGE, /^PAGES 1-2 OF /] },
       { key: "End" }, { frames: 2 }],
     expect: [[`(m => !!m && m[1] === m[2])(/(\\d+) OF (\\d+)$/.exec(${NB_PAGE}))`], [`document.querySelector("#libmd .nbnext").disabled`, true],
-      [`document.querySelector("#libmd .nbend").className`, "nbend blank"],
+      [`document.querySelector("#libmd .nbend").className === (+/OF (\\d+)$/.exec(${NB_PAGE})[1] % 2 ? "nbend blank" : "nbend")`, true],
       [`(p => p.scrollLeft > 0 && Math.abs(p.scrollLeft / (p.clientWidth + parseFloat(getComputedStyle(p).columnGap) - 2 * parseFloat(getComputedStyle(p).paddingLeft)) % 1) < 0.01)(document.querySelector("#libmd .nbpages"))`],
       [`(r => r.left > 0 && r.right < innerWidth)(document.querySelector("#libmd section.nbcases h2").getBoundingClientRect())`]] },
 
@@ -335,7 +388,7 @@ const SHOT_LIST = [
     expect: [[NB_SHOWN("#libmd figure.nb-tape")], [NB_SHOWN("#libmd figure.nb-clip")],
       [`document.querySelector("#libmd figure.nb-tape").className`, "nbattach nb-tape nb-film"], [`document.querySelectorAll("#libmd figure.nb-tape .nbtape").length`, 4],
       [`document.querySelector("#libmd figure.nb-clip").className`, "nbattach nb-clip nb-photo"],
-      [`(i => i.naturalWidth + "x" + i.naturalHeight + " " + i.src.slice(0, 23))(document.querySelector("#libmd figure.nb-clip img.nbmedia"))`, "800x800 data:image/jpeg;base64,"]] },
+      [`(i => i.naturalWidth + "x" + i.naturalHeight + " " + i.src.slice(0, 23))(document.querySelector("#libmd figure.nb-clip img.nbmedia"))`, "1024x1024 data:image/jpeg;base64,"]] },
   // An insert, a sheet of its own tipped in: a figure of MSC IN 69-FM-197 (a media member, PNG) with the copy finish, in
   // Apollo 11's notebook; on the facing page the descent section's first figure.
   { name: "notebook-attach-insert", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1",
@@ -362,7 +415,7 @@ const SHOT_LIST = [
     steps: [HOLD(), ...NB8_OPEN, { js: `document.querySelector("#libmd figure.nb-clip").scrollIntoView({ block: "center" })` },
       { wait: `[...document.querySelectorAll("#libmd img")].every(i => i.complete && i.naturalWidth > 0)` }, { frames: 2 }],
     expect: [[`document.getElementById("libmd").className`, "dark"], [`getComputedStyle(document.querySelector("#libmd .nbclip")).display`, "none"],
-      [`document.querySelector("#libmd figure.nb-clip .nbcredit").textContent.startsWith("Credit: NASA. Source: ")`, true]] },
+      [`document.querySelector("#libmd figure.nb-clip .nbcredit").textContent.startsWith("Credit: NASA/JSC. Source: ")`, true]] },
 
   // ?notebook=dark holds DARK for the visit without touching the remembered choice.
   { name: "notebook-dark-url", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1&notebook=dark",
@@ -434,10 +487,53 @@ const SHOT_LIST = [
     steps: [{ frames: 2 }],
     expect: [[TL("mode"), "tour"], [TL("mounted"), "tour"], [`document.body.dataset.tab`, "simulate"], [LINK, /^[^?]*\?reel=tour&tab=simulate(&|$)/]] },
 
-  // Fusion: the Earthrise photograph AS08-14-2383 over its fitted view.
+  // Fusion: the Earthrise photograph AS08-14-2383 over its fitted view, the fit carried in the Apollo 8 reel (#75); the
+  // list holds the mounted tape's photographs only.
   { name: "fusion-as08-14-2383", url: "tab=fusion&photo=AS08-14-2383&space=tabbed",
     steps: [HOLD(), { frames: 3 }],
-    expect: [["VIEW_FUSION.state().tab", "fusion"], [TL("mounted"), "apollo8-asflown"], ["VIEW_FUSION.state().link", /photo=AS08-14-2383/]] },
+    expect: [["VIEW_FUSION.state().tab", "fusion"], [TL("mounted"), "apollo8-asflown"], ["VIEW_FUSION.state().link", /photo=AS08-14-2383/],
+      ["VIEW_FUSION.state().cur", "AS08-14-2383"], ["VIEW_FUSION.state().list", FUSION_A8], ["VIEW_FUSION.align()", { x: 0.056, y: -0.018, rot: -0.7, scale: 100.28 }]] },
+  // #75: with each reel mounted, Fusion lists that tape's photographs and nothing of the other mission's.
+  { name: "fusion-list-apollo11", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1&tab=fusion",
+    steps: [HOLD(), { frames: 3 }],
+    expect: [["VIEW_FUSION.state().tab", "fusion"], [TL("mounted"), "apollo11-asflown"], ["VIEW_FUSION.state().list", FUSION_A11], ["VIEW_FUSION.state().cur", null]] },
+  { name: "fusion-list-apollo8", url: "mode=free&space=tabbed&scn=apollo8-asflown&sit=1&tab=fusion",
+    steps: [HOLD(), { frames: 3 }],
+    expect: [["VIEW_FUSION.state().tab", "fusion"], [TL("mounted"), "apollo8-asflown"], ["VIEW_FUSION.state().list", FUSION_A8]] },
+  // #75: picking a photograph stays on the tape. With Apollo 11 mounted an Apollo 8 frame opens nothing and the reel is
+  // kept; an Apollo 11 frame (the LM after undocking, situation 4) opens at its bracket's midpoint, clock stopped.
+  { name: "fusion-pick-stays", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1&tab=fusion",
+    steps: [HOLD(), { js: `VIEW_FUSION.pick("AS08-14-2383")` }, { expect: [TL("mounted"), "apollo11-asflown"] }, { expect: ["VIEW_FUSION.state().cur", null] },
+      { js: `document.querySelector('#flist .fprow[data-frame="AS11-44-6574"]').click()` }, { frames: 3 }],
+    expect: [[TL("mounted"), "apollo11-asflown"], ["VIEW_FUSION.state().cur", "AS11-44-6574"], [TL("scene"), 4], [TL("get"), 361556.5],
+      [TL("playing"), false], ["VIEW_FUSION.state().list", FUSION_A11]] },
+  // #75: a photo= link mounts the photograph's reel first, a fresh run (Free-look, clock stopped), then opens it.
+  { name: "fusion-link-mounts", url: "photo=AS08-14-2384&space=tabbed",
+    steps: [{ frames: 3 }],
+    expect: [["VIEW_FUSION.state().tab", "fusion"], [TL("mounted"), "apollo8-asflown"], [TL("mode"), "free"], [TL("playing"), false],
+      ["VIEW_FUSION.state().cur", "AS08-14-2384"], [TL("get"), 272949], ["VIEW_FUSION.state().list", FUSION_A8]] },
+  // #75: the photo events are entries of the reel's event list, marked PHOTO; picking one opens Fusion at it.
+  { name: "timeline-photo-event", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1",
+    steps: [HOLD(), { frames: 2 }, { expect: [`[...document.querySelectorAll("#tllist .tlphoto")].map(r => r.dataset.id)`, FUSION_A11] },
+      { expect: [`document.querySelector('#tllist .tlphoto[data-id="AS11-44-6667"] .tlk').textContent`, "PHOTO"] },
+      { js: `document.querySelector('#tllist .tlphoto[data-id="AS11-44-6667"]').click()` }, { frames: 3 }],
+    expect: [["VIEW_FUSION.state().tab", "fusion"], ["VIEW_FUSION.state().cur", "AS11-44-6667"], [TL("scene"), 6], [TL("get"), 487422], [TL("mounted"), "apollo11-asflown"]] },
+  // #75: the notebook's run sheet lists the photo events; picking one mounts the reel fresh and opens Fusion there.
+  { name: "run-sheet-photo-event", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1",
+    steps: [HOLD(), ...NB8_OPEN, { expect: [`[...document.querySelectorAll("#libmd .runsheet tr.rsphoto td.rsn button")].map(b => b.dataset.id)`, ["AS08-13-2329", "AS08-14-2383", "AS08-14-2384", "AS08-14-2392"]] },
+      { expect: [`document.querySelector("#libmd .runsheet tr.rsphoto td:nth-child(3)").textContent`, "PHOTO"] }, { frames: 2 },
+      { js: `document.querySelector('#libmd .runsheet button[data-id="AS08-14-2383"]').click()` }, { frames: 3 }],
+    expect: [[`document.getElementById("libr").classList.contains("open")`, false], ["VIEW_FUSION.state().tab", "fusion"], [TL("mounted"), "apollo8-asflown"],
+      ["VIEW_FUSION.state().cur", "AS08-14-2383"], [TL("get"), 272919.7], [TL("playing"), false]] },
+  // #75: the notebook's clipped print of AS08-14-2383 is the reel's photo event: its line opens Fusion at that moment,
+  // mounting Apollo 8 fresh from Apollo 11.
+  { name: "notebook-attach-fusion", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB8_OPEN, ...NB_TO("#libmd figure.nb-clip"),
+      { expect: [`document.querySelector("#libmd figure.nb-clip .nbfusion").textContent`, "OPEN AS08-14-2383 IN FUSION"] },
+      { expect: [`document.querySelector("#libmd figure.nb-clip img.nbmedia").className`, "nbmedia nbphoto"] },
+      { js: `document.querySelector("#libmd figure.nb-clip .nbfusion").click()` }, { frames: 3 }],
+    expect: [[`document.getElementById("libr").classList.contains("open")`, false], ["VIEW_FUSION.state().tab", "fusion"], [TL("mounted"), "apollo8-asflown"],
+      ["VIEW_FUSION.state().cur", "AS08-14-2383"], [TL("get"), 272919.7], [TL("playing"), false]] },
 
   // The CM station of the docked stack (Apollo 11 situation 8), cabin and walls on.
   { name: "cabin-cm", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=8&view=cm&cabin=1&walls=1&get=11:28:19",

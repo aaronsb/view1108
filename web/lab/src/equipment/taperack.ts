@@ -20,9 +20,12 @@
 // toward the operator's manuals (kit.ts tapeStrip; the operator's signage form, 2026-10-07: tape on the shelves, no wall
 // signs). The labels and their wording are ours.
 //
-// Below the playlists, a level of system tapes (#87; systapes.ts, all ours): props, not reels of the index, each case its
-// own colour with its name hand-lettered on the rim, under a SYSTEM TAPES strip. One pulls out like a reel, and a second
-// click asks the page for its modal, which only says it is a system tape and puts it back (LabHooks.ask "system").
+// Below the playlists, the system tapes (#87, #104; systapes.ts, all ours): props, not reels of the index. The site's own
+// (EXEC 8 SYSTEM (COPY), VIEW KERNEL) stand under a SYSTEM TAPES strip, then a set for each reel of the index under a
+// strip naming it (SYSTEM · APOLLO 11), each in a bay of its own, over the levels the reels leave. A set's cases are in
+// its reel's colours, each with its name and the reel hand-lettered on the rim; the site's, each its own colour. One
+// pulls out like a reel, and a second click asks the page for its modal, which only says it is a system tape and puts it
+// back (LabHooks.ask "system").
 //
 // Pulling (pullable.ts): a click at the close-up brings a reel 13 cm out of its row, and a click on another swaps
 // them. A second click on the pulled reel asks the page for the reel modal, LOAD NEW SIMULATION SCENARIO? (LabHooks.ask;
@@ -35,7 +38,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { BuildContext, Equipment, LabState, ReelInfo } from "../types";
 import { Parts, canvasTex, fontTex, marker, markerWidth, nameplate, paint, plastic, plateText, rng, satinMetal, sharedGeo, tapeStrip } from "./kit";
 import { Shelf, type Pullable } from "./pullable";
-import { SYSTEM_TAPES, type SystemTape } from "./systapes";
+import { REEL_COLOURS, systemTapes, type SystemTape } from "./systapes";
 
 import { BAYS, D, H, LEVELS, POST, T, W, bayX0, bayX1, BAY_W, filler, postX, rackLayout } from "./racklayout";
 
@@ -101,7 +104,7 @@ function labelledCase(title: string, lines: readonly string[], seed: number, tin
   const front = rimLabel(FRONT_ARC, FRONT_AT, (g, w, h) => {
     g.fillStyle = "#f4f1e6"; g.fillRect(0, 0, w, h);
     for (let k = 0; k < 6; k++) { g.fillStyle = `rgba(110,100,70,${0.03 + r() * 0.04})`; g.fillRect(r() * w, 0, 2 + r() * 6, h); }
-    const n = lines.length, px0 = h * (n > 1 ? 0.4 : 0.62);
+    const n = lines.length, px0 = h * (n > 2 ? 0.28 : n > 1 ? 0.4 : 0.62);
     lines.forEach((l, i) => {
       const px = px0 * Math.min(1, w * 0.88 / markerWidth(l, px0));
       marker(g, l, (w - markerWidth(l, px)) / 2, h * (i + 0.5) / n + 1, px, r);
@@ -173,11 +176,11 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
   object.add(deck); mine.push(rodGeo, deck);
 
   // The reels where the plan puts them (racklayout.ts); the anonymous reels on the levels with none of them (filler).
-  const r = rng(1919), plan = rackLayout(ctx.reels ?? [], SYSTEM_TAPES), reels: ReelPiece[] = [], systapes: SysTapePiece[] = [];
+  const r = rng(1919), plan = rackLayout(ctx.reels ?? [], systemTapes(ctx.reels ?? [])), reels: ReelPiece[] = [], systapes: SysTapePiece[] = [];
   if (plan.unplaced.length) console.warn(`tape rack: no room for ${plan.unplaced.length} reel(s): ${plan.unplaced.map(u => u.id).join(", ")}`);
   if (plan.unplacedTapes.length) console.warn(`tape rack: no room for ${plan.unplacedTapes.length} system tape(s)`);
   for (const { reel, level: l, x } of plan.slots) {
-    const p = reelPiece(reel, reel.kind === "playlist" ? 0x8a2b22 : 0x2f4a6b, mine);
+    const p = reelPiece(reel, REEL_COLOURS[reel.kind].tint, mine);
     p.object.position.set(x + T / 2, LEVELS[l], REEL_Z);
     object.add(p.object); reels.push(p);
   }

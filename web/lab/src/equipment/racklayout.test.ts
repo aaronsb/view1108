@@ -2,10 +2,11 @@
 // every reel shelved while there is room, none overlapping another or leaving its bay, every group with its strip, the
 // playlists never dropped, and today's four reels where the rack has always put them; the anonymous reels (filler) only
 // on levels with none of the index's reels, each bay of those filled within FILL's share, inside the bay and never
-// overlapping; with the system tapes (#87), their level below the playlists, the reels where they were, none lost.
+// overlapping; with the system tapes (#87, #104), the site's and a set for each reel in a bay of its own below the
+// playlists, the reels where they were, none lost; each set one tape for each of the six units that are not the drive.
 // Node, no three.js.
 import type { ReelInfo } from "../types";
-import { SYSTEM_TAPES, type SystemTape } from "./systapes";
+import { REEL_COLOURS, defaultSet, systemTapes, tapeOnUnit, type SystemTape } from "./systapes";
 import { BAY_W, BAYS, FILL, GAP, LEVELS, PER_BAY, SLOT, END0, END1, T, bayX0, bayX1, filler, rackLayout } from "./racklayout";
 
 let fails = 0;
@@ -69,29 +70,53 @@ function sound(name: string, reels: ReelInfo[], system: readonly SystemTape[] = 
   const n = LEVELS.length * BAYS * PER_BAY + 7, p = sound("too many", Array.from({ length: n }, (_, i) => scenario(`x${i}`, "APOLLO 12", 0)));
   ok(p.unplaced.length === 7, `too many: ${p.unplaced.length} unplaced`);
 }
-// Today's index with the system tapes (#87): their own level below the playlists, in bay B, labelled SYSTEM TAPES; the
-// reels where they were; one level of filler left.
+// Today's index with the system tapes (#87, #104): the site's two under SYSTEM TAPES and a set for each reel, each group in
+// a bay of its own below the playlists (level 4, then 5); the reels where they were.
 {
   const today = [scenario("apollo11-asflown", "APOLLO 11", Date.UTC(1969, 6, 16, 13, 32)), scenario("apollo8-asflown", "APOLLO 8", Date.UTC(1968, 11, 21, 12, 51)), playlist("demo"), playlist("tour")];
-  const p = sound("today + system", today, SYSTEM_TAPES), q = rackLayout(today);
-  ok(p.strips.map(s => `${s.label}@${s.level}${s.bay}`).join("|") === "APOLLO 8 · DEC 1968@01|APOLLO 11 · JUL 1969@11|DEMO / TOUR REELS@21|SYSTEM TAPES@31", `today + system: strips ${JSON.stringify(p.strips)}`);
-  ok(p.tapes.length === SYSTEM_TAPES.length && p.tapes.every(t => t.level === 3 && t.bay === 1), "today + system: tapes on level 4, bay B");
+  const sys = systemTapes(today), p = sound("today + system", today, sys), q = rackLayout(today);
+  ok(sys.length === 2 + 4 * 6, `today + system: ${sys.length} tapes`);
+  ok(p.strips.map(s => `${s.label}@${s.level}${s.bay}`).join("|") === "APOLLO 8 · DEC 1968@01|APOLLO 11 · JUL 1969@11|DEMO / TOUR REELS@21|SYSTEM TAPES@31|SYSTEM · APOLLO 8@30|SYSTEM · APOLLO 11@32|SYSTEM · DEMO@41|SYSTEM · TOUR@40", `today + system: strips ${JSON.stringify(p.strips)}`);
+  ok(p.tapes.length === sys.length && p.unplacedTapes.length === 0, "today + system: tapes lost");
+  ok(p.tapes.every(t => t.level >= 3), "today + system: tapes below the playlists");
+  // grouped by reel: each set alone in a bay
+  const cellOf = (t: { level: number; bay: number }) => `${t.level}:${t.bay}`;
+  for (const id of ["apollo8-asflown", "apollo11-asflown", "demo", "tour"]) {
+    const mine = p.tapes.filter(t => t.tape.reel === id);
+    ok(mine.length === 6 && new Set(mine.map(cellOf)).size === 1 && p.tapes.filter(t => cellOf(t) === cellOf(mine[0])).length === 6, `today + system: ${id} not alone in its bay`);
+    ok(mine.every(t => t.tape.label.endsWith(t.tape.reelName) && t.tape.lines[1] === t.tape.reelName), `today + system: ${id} labels`);
+  }
+  ok(p.tapes.filter(t => t.tape.reel === null).map(t => t.tape.id).join() === "exec8,kernel", "today + system: the site's tapes");
   ok(JSON.stringify(p.slots) === JSON.stringify(q.slots), "today + system: the reels moved");
-  ok(LEVELS.length - new Set([...p.slots, ...p.tapes].map(s => s.level)).size === 1, "today + system: one level of filler");
+  ok(LEVELS.length - new Set([...p.slots, ...p.tapes].map(s => s.level)).size === 0, "today + system: no level of filler left");
+  // the units: a set is one tape for each of the six units that are not the drive, in its reel's colours
+  for (const r of today) {
+    const set = sys.filter(t => t.reel === r.id), c = REEL_COLOURS[r.kind];
+    ok(set.map(t => t.unit).sort().join() === "60,61,62,64,65,66", `units: ${r.id}'s set ${set.map(t => t.unit)}`);
+    ok(set.every(t => t.tint === c.tint && t.flange === c.flange), `units: ${r.id}'s colours`);
+    for (let u = 60; u <= 66; u++) {
+      const t = tapeOnUnit(sys, today, u, r.id);
+      ok(u === 63 ? t === undefined : t?.reel === r.id && t.unit === u, `units: ${r.id} on unit ${u}`);
+    }
+  }
+  ok(defaultSet(today) === "demo" && tapeOnUnit(sys, today, 62, "")?.label === "EPHEMERIS · DEMO", "units: nothing mounted carries the demo's set");
+  ok(tapeOnUnit(sys, today, 62, "apollo11-asflown")?.label === "EPHEMERIS · APOLLO 11" && tapeOnUnit(sys, today, 65, "apollo8-asflown")?.label === "PLOT TAPE · APOLLO 8", "units: a mounted reel's set");
+  ok(new Set(sys.map(t => t.id)).size === sys.length && new Set(sys.map(t => t.volume).filter(Boolean)).size === 24, "units: ids and volume numbers distinct");
 }
 // 30 reels in 8 groups and the system tapes: more groups than levels, nothing lost or overlapping.
 {
   const reels: ReelInfo[] = [];
   for (let i = 0; i < 25; i++) reels.push(scenario(`s${i}`, `APOLLO ${7 + (i % 7)}`, Date.UTC(1968 + (i % 7), i % 12, 1)));
   for (let i = 0; i < 5; i++) reels.push(playlist(`p${i}`));
-  const p = sound("30 reels + system", reels, SYSTEM_TAPES);
-  ok(p.unplaced.length === 0 && p.unplacedTapes.length === 0, "30 reels + system: unplaced");
+  const p = sound("30 reels + system", reels, systemTapes(reels));
+  ok(p.unplaced.length === 0, "30 reels + system: unplaced reels");
 }
 // An overfull rack: the system tapes come last and are the ones reported.
 {
-  const n = LEVELS.length * BAYS * PER_BAY, p = sound("full + system", Array.from({ length: n }, (_, i) => scenario(`x${i}`, "APOLLO 12", 0)), SYSTEM_TAPES);
-  ok(p.unplaced.length === 0 && p.unplacedTapes.length === SYSTEM_TAPES.length, `full + system: ${p.unplacedTapes.length} tapes unplaced`);
+  const n = LEVELS.length * BAYS * PER_BAY, reels = Array.from({ length: n }, (_, i) => scenario(`x${i}`, "APOLLO 12", 0)), sys = systemTapes(reels);
+  const p = sound("full + system", reels, sys);
+  ok(p.unplaced.length === 0 && p.unplacedTapes.length === sys.length, `full + system: ${p.unplacedTapes.length} tapes unplaced`);
 }
 ok(PER_BAY >= 1 && PER_BAY * SLOT <= BAY_W, "slots per bay");
 if (fails) throw new Error(`racklayout: ${fails} failure(s)`);
-console.log(`racklayout: PASS (today's 4 reels, 30 reels in 8 groups, one mission of 30, an overfull rack; the system tapes with today's, 30 and a full rack; ${PER_BAY} slots a bay; filler on unlabelled levels only, ${FILL[0]}-${FILL[1]} of each bay, 3 seeds)`);
+console.log(`racklayout: PASS (today's 4 reels, 30 reels in 8 groups, one mission of 30, an overfull rack; the system tapes in sets by reel with today's, 30 and a full rack; ${PER_BAY} slots a bay; filler on unlabelled levels only, ${FILL[0]}-${FILL[1]} of each bay, 3 seeds)`);

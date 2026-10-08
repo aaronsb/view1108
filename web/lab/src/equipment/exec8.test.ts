@@ -6,6 +6,7 @@
 // PAGEWRITER; and the runs kept apart (PR #101 review): a remount 0.3, 1.2 and 4 s after a mount, the demo taken over
 // while GO is typed, X while a run opens, and a keyin queued behind another. Node, no three.js.
 import type { ReelInfo } from "../types";
+import { systemTapes } from "./systapes";
 import { COLS, Exec8, KEYINS, MSG_ROWS, ROWS, reelNumber, runIdFor, type ExecState } from "./exec8";
 
 let fails = 0;
@@ -25,6 +26,9 @@ const fits = (x: Exec8, what: string) => ok(x.screen().length === ROWS && x.scre
 // Ours: the run id and the reel number.
 ok(runIdFor("APOLLO 11") === "VIEW11" && runIdFor("APOLLO 8") === "VIEW08", "run ids");
 const r11 = reelNumber("apollo11-asflown", "APOLLO 11");
+// The plot tape on unit 65 for the reel, as the tape the unit carries is lettered (systapes.ts, #104).
+const p11 = systemTapes(REELS).find(t => t.reel === "apollo11-asflown" && t.unit === 65)!.volume;
+ok(/^P11\d{3}$/.test(p11), `plot tape volume ${p11}`);
 ok(/^V11\d{3}$/.test(r11) && r11 === reelNumber("apollo11-asflown", "APOLLO 11") && r11 !== reelNumber("apollo8-asflown", "APOLLO 11"), `reel number ${r11}`);
 
 // The demo playing: the idle EXEC, its status summary on the top two lines, nothing in the message area.
@@ -44,7 +48,7 @@ ok(/^V11\d{3}$/.test(r11) && r11 === reelNumber("apollo11-asflown", "APOLLO 11")
   x.step(0.05, page({ mounted: "apollo11-asflown", mode: "free", playing: false, reel: "EARTHRISE" }));
   const t = text(x);
   for (const want of ["RN 06/00 VIEW11", "VIEW11 @RUN VIEW11,69197,APOLLO", `VIEW11 @ASG,T VIEWTP,T,${r11}`, `LOAD ${r11} 06/03 VIEWTP VIEW11`,
-    "LOAD SCRTCH 06/05 PLTTAP VIEW11", "VIEW11 @XQT VIEW", "0 VIEW11* AWAITING PROFILE - WAIT"]) ok(t.includes(want), `seeded: "${want}"`);
+    `LOAD ${p11} 06/05 PLTTAP VIEW11`, "VIEW11 @XQT VIEW", "0 VIEW11* AWAITING PROFILE - WAIT"]) ok(t.includes(want), `seeded: "${want}"`);
   ok(x.run?.phase === "profile" && x.input === "", "seeded: waiting for GO, nothing being typed");
   fits(x, "seeded");
 }
@@ -77,7 +81,7 @@ const nothingOf = (x: Exec8, id: string, from: number) => liveLines(x).slice(fro
   ok(x.keys > 0, "mount: key clicks counted");
   run(x, 12, a11);
   ok(liveLines(x).join("|") === ["RN 06/00 VIEW11", "VIEW11 @RUN VIEW11,69197,APOLLO", `VIEW11 @ASG,T VIEWTP,T,${r11}`, `LOAD ${r11} 06/03 VIEWTP VIEW11`,
-    "VIEW11 @ASG,T PLTTAP,T,SCRTCH", "LOAD SCRTCH 06/05 PLTTAP VIEW11", "VIEW11 @XQT VIEW", "VIEW11* APOLLO 11 AS FLOWN - APOLLO 11", "0 VIEW11* AWAITING PROFILE - WAIT"].join("|"),
+    `VIEW11 @ASG,T PLTTAP,T,${p11}`, `LOAD ${p11} 06/05 PLTTAP VIEW11`, "VIEW11 @XQT VIEW", "VIEW11* APOLLO 11 AS FLOWN - APOLLO 11", "0 VIEW11* AWAITING PROFILE - WAIT"].join("|"),
     `mount: the run's lines in order after the history ("${liveLines(x).join("|")}")`);
   ok(x.run?.phase === "profile", "mount: waiting for GO while the clock is stopped");
   run(x, 4, { ...a11, playing: true });

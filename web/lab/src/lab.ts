@@ -304,6 +304,7 @@ export class Lab {
     // What opens: the binder's own (a mission notebook opens the library), else the station's; a shelf opens nothing,
     // and E or Enter there steps back, carrying what is out.
     const opens = piece?.equipment.opens || a.opens;
+    if (a.name === "console" && !binder && this.hooks.browse) { this.picking.clearHover(); this.hooks.browse(); return; }   // #74: the file browser, over the room
     if (isShelf(opens)) { this.back(); return; }
     const laid = this.laid;   // still the lab's to undo until the page takes it over at the end of the handover
     const go = () => { this.laid = null; this.hooks.arrive(opens, binder ?? a.name, a.name); };
@@ -476,9 +477,12 @@ export class Lab {
     const w = this.walk, s = this.hooks.state();
     return { locked: this.input.locked, at: this.at?.name ?? null, carried: this.carry.carried()?.name ?? null, walkup: this.walk.auto, line: this.lineEl.style.display === "none" ? null : this.lineEl.textContent, hover: this.picking.hover?.name ?? null, lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.check.probe ? "probe" : this.check.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
       asking: this.asking,
-      // what each tape unit's paper label names, west to east ("" undressed; #87)
-      tapes: this.room.placed.filter(p => p.equipment.anchors.tapeUnit !== undefined).map(p => (p.equipment.anchors.tapeLabel as (() => string) | undefined)?.() ?? ""),
+      // what each tape unit carries, west to east (#87, #104): the tape's label (the drive's: the reel it names), the reel
+      // whose colours it carries, its flange colour and its RUN and STOP lamps; `tapes` is the labels alone
+      units: this.room.placed.filter(p => p.equipment.anchors.tapeUnit !== undefined).map(p => (p.equipment.anchors.tapeInfo as () => unknown)()),
+      tapes: this.room.placed.filter(p => p.equipment.anchors.tapeUnit !== undefined).map(p => (p.equipment.anchors.tapeInfo as () => { label: string })().label),
       // the system tapes on the rack, by their labels (#87)
+      systapeIds: this.room.placed.filter(p => (p.equipment as { tape?: SystemTape }).tape).map(p => p.name),
       systapes: this.room.placed.map(p => (p.equipment as { tape?: SystemTape }).tape?.label).filter(Boolean),
       // the 1108 console's EXEC loop (#68): its screen's 16 lines, the PAGEWRITER's last lines, the run's phase, typing
       exec: (x => x ? { screen: x.screen(), paper: x.paper.slice(-20), run: x.run ? `${x.run.id} ${x.run.phase}` : null, busy: x.busy } : null)(
