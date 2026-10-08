@@ -133,7 +133,7 @@ C     RESTOMOD END
       DOUBLE PRECISION VB(5,MAXV)
       INTEGER NV, K
       DOUBLE PRECISION V(3), W(3), A(3), B(3)
-      INTEGER I, J, L, IS, IH, IA, IB, NS
+      INTEGER I, J, L, IS, IH, IA, IB, NS, IC, ICABN
 C     Solid edges.  Hidden when both faces are turned away, unless
 C     the camera is inside the solid.  Between two sides of a smooth
 C     solid (LSMO) only where it is the outline: one side turned
@@ -162,8 +162,11 @@ C         An outline model (MDHL = 0): every edge, nothing hidden.
           CALL MSEG(VB, NV, A, B)
    70   CONTINUE
    80 CONTINUE
-C     Free lines and face marks.
-   90 IF (MDX2(K) .LT. MDX1(K)) RETURN
+C     Free lines and face marks; a cabin's, the pieces its hidden
+C     lines leave (vmask.f CBCUT).
+   90 IC = ICABN(K)
+      IF (IC .GT. 0) GO TO 110
+      IF (MDX2(K) .LT. MDX1(K)) RETURN
       DO 100 J = MDX1(K), MDX2(K)
         DO 85 L = 0, 1
           DO 82 I = 1, 3
@@ -189,6 +192,22 @@ C     RESTOMOD END
         CALL MSEG(VB, NV, A, B)
   100 CONTINUE
       ISTYLE = 1
+      RETURN
+  110 ISTYLE = 1
+      IF (NCP(IC) .LT. 1) RETURN
+      DO 130 J = 1, NCP(IC)
+        DO 125 L = 0, 1
+          DO 122 I = 1, 3
+            V(I) = (CPL(I + 3 * L, J, IC) - MDBO(I,K)) * 1.0D-3
+  122     CONTINUE
+          CALL MXV(MDAT(1,1,K), V, W)
+          DO 124 I = 1, 3
+            IF (L .EQ. 0) A(I) = MDP(I,K) + W(I)
+            IF (L .EQ. 1) B(I) = MDP(I,K) + W(I)
+  124     CONTINUE
+  125   CONTINUE
+        CALL MSEG(VB, NV, A, B)
+  130 CONTINUE
       RETURN
       END
 C
