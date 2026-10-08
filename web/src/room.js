@@ -6,7 +6,11 @@
 // flies the camera to its close-up, and a click there shows that tab or overlay. The drive is the mounted reel's
 // STOP/START (drivePlay, player.js), used in place. The tape rack holds the site reel index (reels.js reelIndex, handed
 // over as hooks.reels): a reel pulled there and used on a tape unit is mounted through reelMount, the Reels group's
-// loadReel (#19). The Room button, or Esc (the one stack, esc.js), flies back out.
+// loadReel (#19). A second click on a pulled reel, or on a pulled mission notebook on the bookcase, asks a modal
+// (ask.js, roomAsk; the operator, 2026-10-07): LOAD NEW SIMULATION SCENARIO? mounts the reel through reelMount, LOAD
+// SIMULATION AND REVIEW NOTEBOOK? mounts it and opens the notebook, or only opens it (#29). The notebook viewer's "Load
+// this reel" comes back to the room with that reel out and carried (roomCarry). The Room button, or Esc (the one stack,
+// esc.js), flies back out.
 "use strict";
 const LAB = typeof VIEW_LAB !== "undefined" ? VIEW_LAB : null;
 const ROOM_KEY = "view1108.space";
@@ -57,10 +61,11 @@ const STATIONS = LAB ? LAB.stations : [];
 const roomStation = opens => STATIONS.find(s => s.opens === opens);
 const ROOM_OPENS = Object.fromEntries(STATIONS.filter(s => s.does !== "control").map(s => [s.name, s.opens]));
 const roomOver = opens => roomStation(opens)?.does === "overlay";
+const roomShelf = opens => roomStation(opens)?.does === "shelf";
 const roomBench = t => STATIONS.find(s => s.tabs.includes(t))?.opens === "workbench";   // a plot tab the workbench shows
 const roomTabOf = opens => roomOver(opens) ? tab : roomStation(opens).opens === "workbench" ? roomCanvasTab : roomStation(opens).tabs[0];
 const roomTermOf = t => (STATIONS.find(s => s.tabs.includes(t)) || roomStation("workbench")).name;
-const roomScreenEl = opens => opens === "source" ? $("srcws") : roomOver(opens) ? null : cv;
+const roomScreenEl = opens => opens === "source" ? $("srcws") : roomOver(opens) || roomShelf(opens) ? null : cv;   // a shelf has no screen
 // The printer's page: the listing (listing.js) on greenbar, open over the page; the room fades over it (page.css).
 // Its rect is the first sheet's column as far as it shows, as tall as the printer's 14 7/8 x 11 in sheet would be.
 let roomListing = false;
@@ -69,16 +74,40 @@ function roomListingOpen() {
   $("blroom").hidden = false;
 }
 function roomListingClose() { roomListing = false; $("blroom").hidden = true; listingClose(); $("list").style.visibility = ""; applyListing(); }
-// The library (library.js) opened from the bookcase: it has no screen to match (roomRect null), so the flight ends at
-// the close-up of the bookcase or binder and the room fades over the overlay.
+// The library (library.js) opened from the bookcase, one of its binders or a mission notebook: it has no screen to
+// match (roomRect null), so the flight ends at the close-up of the bookcase or binder and the room fades over the
+// overlay.
 let roomLibrary = false;
 function roomLibraryClose() { roomLibrary = false; $("blibroom").hidden = true; libraryClose(); }
+// The notebook viewer's "Load this reel" in the room: the room at the rack, with reel `id` out and carried to a tape
+// unit (its notebook half out on the bookcase), on the Esc stack as "pulled" (the lab's carryReel). From a page, the
+// room comes back in front of the rack; with the room already shown (the library left open as the window widened into
+// the room), the camera flies to the rack; while a flight or a crossfade runs, it waits for it.
+function roomCarry(id, tries = 0) {
+  roomLibraryClose();
+  if (roomBusy()) { if (tries < 40) setTimeout(() => roomCarry(id, tries + 1), 100); return; }
+  if (roomShown) { LAB.carry(id); LAB.setTarget("rack"); return; }
+  roomShowLab("rack");
+  LAB.carry(id);
+}
+// The lab asks about what was pulled (hooks.ask): the reel modal or the notebook modal; the answer goes back to the lab
+// (VIEW_LAB.answer), which puts it back, mounts its reel (reelMount: a fresh run, the clock stopped) or opens the
+// notebook. Esc is the put-back.
+function roomAsk(kind, id, title) {
+  const back = () => LAB.answer("back");
+  if (kind === "reel") askOpen("LOAD NEW SIMULATION SCENARIO?", [
+    { label: `LOAD ${title} AND EXEC`, primary: true, run: () => LAB.answer("load") },
+    { label: "PUT TAPE BACK", run: back }], back);
+  else askOpen("LOAD SIMULATION AND REVIEW NOTEBOOK?", [
+    { label: `LOAD ${title} AND OPEN NOTEBOOK`, primary: true, run: () => LAB.answer("loadread") },
+    { label: "READ NOTEBOOK ONLY", run: () => LAB.answer("read") },
+    { label: "PUT NOTEBOOK BACK", run: back }], back);
+}
 // Back to the room from a terminal's page or an overlay, standing in front of terminal `from`, unless a flight or a
 // crossfade is under way.
 function roomBack(from) { if (roomIn && !roomShown && !roomBusy()) roomShowLab(from); }
 function roomRect(opens) {
-  if (opens === "library") return null;
-  if (opens !== "listing") return roomScreenEl(opens).getBoundingClientRect();
+  if (opens !== "listing") return roomScreenEl(opens)?.getBoundingClientRect() ?? null;   // an overlay or a shelf: none
   const p = $("paper").getBoundingClientRect(), g = $("paper").querySelector(".pg").getBoundingClientRect();
   const x0 = Math.max(p.left, g.left), x1 = Math.min(p.right, g.right);
   return new DOMRect(x0, p.top, x1 - x0, (x1 - x0) * 11 / 14.875);
@@ -162,11 +191,11 @@ function roomApply() {
   const want = roomAvail && WIDE.matches && roomWant === "room";
   if (want && !roomIn) {
     const esc = (k, pop) => pop ? escPush(k, pop) : escDrop(k);
-    if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive, screenRect: roomScreenRect, leave: roomLeave, drive: drivePlay, esc, reels: reelIndex(), mount: reelMount })) { roomAvail = false; roomSync(); return; }
+    if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive, screenRect: roomScreenRect, leave: roomLeave, drive: drivePlay, esc, reels: reelIndex(), mount: reelMount, ask: roomAsk })) { roomAvail = false; roomSync(); return; }
     roomIn = true; escBase("room", () => { if (roomShown) LAB.home(); }); roomShowLab(null);
   } else if (!want && roomIn) {
     LAB.stop(); roomIn = roomShown = false; document.body.classList.remove("room"); resize();
-    for (const k of ["room", "terminal", "closeup", "pulled"]) escDrop(k);
+    askClose(); for (const k of ["room", "terminal", "closeup", "pulled"]) escDrop(k);
   }
   roomSync();
 }

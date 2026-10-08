@@ -183,6 +183,63 @@ def notebooks():
     return [(rid, nb) for rid, kind, src, uses in reels() for nb in [load(rid, kind, src, uses, sits)] if nb]
 
 
+# What a figure may hold (#29 slice d, reviews of PR #69; ours): an ALLOWLIST, the elements and attributes
+# tools/viewsvg.f90 writes (svg, g, line, circle, rect, text; their geometry, paint and font attributes), checked over
+# every golden render and figure. The page shows a figure as an <img> from a data: URL, but a reader may open it as a
+# page, so anything else is refused: a <! (doctype, entity, comment, CDATA) anywhere, a <? other than a leading XML
+# declaration, an element or attribute not on the list (a prefixed name among them: h:script, s:script, xlink:href
+# but to #...), an href to anything but a fragment, a style, url( or attributeName, a javascript: URL, an entity
+# other than the five XML ones and numeric references, and a tag the scanner cannot read whole. The same rule is
+# web/src/reelpkg.js reelSvgUnsafe, which the page applies when it unpacks a reel; the selftest runs both over every
+# figure and golden render, so a kernel that writes a new element fails loudly.
+SVG_ELEMENTS = {"svg", "g", "line", "circle", "rect", "text"}
+SVG_ATTRS = {"xmlns", "xmlns:xlink", "width", "height", "viewBox", "x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r",
+             "fill", "stroke", "stroke-width", "stroke-linecap", "stroke-dasharray", "font-family", "font-size",
+             "href", "xlink:href"}
+SVG_NS = {"xmlns": "http://www.w3.org/2000/svg", "xmlns:xlink": "http://www.w3.org/1999/xlink"}
+_TAG = re.compile(r"<([^<>]*)>")
+_ATTR = re.compile(r"""\s+([^\s=/<>"']+)\s*=\s*(?:"([^"<>]*)"|'([^'<>]*)')""")
+
+
+def svg_unsafe(text):
+    """Why the SVG text `text` may not be a figure (the allowlist above), or None."""
+    s = re.sub(r"^\s*<\?xml[^<>?]*\?>", "", text, count=1)
+    if "<!" in s:
+        return "a <! declaration (doctype, entity, comment or CDATA)"
+    if "<?" in s:
+        return "a <? processing instruction"
+    for bad in ("javascript:", "url("):   # style and attributeName are off the attribute list
+        if bad in s.lower():
+            return f"{bad!r}"
+    if re.search(r"&(?!(?:amp|lt|gt|quot|apos|#\d{1,7}|#x[0-9a-fA-F]{1,6});)", s):
+        return "an entity other than the XML ones"
+    rest = _TAG.sub("", s)
+    if "<" in rest or ">" in rest:
+        return "a tag the scanner cannot read whole"
+    for m in _TAG.finditer(s):
+        body = m.group(1)
+        t = re.match(r"\s*(/?)\s*([^\s/<>]+)", body)
+        if not t or t.group(2) not in SVG_ELEMENTS:
+            return f"an element not on the list ({(t.group(2) if t else body)[:40]!r})"
+        tail = body[t.end():]
+        if t.group(1):
+            if tail.strip():
+                return "a closing tag with attributes"
+            continue
+        left = _ATTR.sub("", tail).strip()
+        if left not in ("", "/"):
+            return f"a tag the scanner cannot read whole ({left[:40]!r})"
+        for a in _ATTR.finditer(tail):
+            name, val = a.group(1), a.group(2) if a.group(2) is not None else a.group(3)
+            if name not in SVG_ATTRS:
+                return f"an attribute not on the list ({name!r})"
+            if name in SVG_NS and val != SVG_NS[name]:
+                return f"a namespace not SVG's ({val[:40]!r})"
+            if name in ("href", "xlink:href") and not val.startswith("#"):
+                return "an href to anything but #..."
+    return None
+
+
 def sha(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
@@ -227,12 +284,31 @@ def render():
                                    env={**base, "VIEW_HDR": "1", "VIEW_REEL": reel, **env})
             if r.returncode:
                 fail(f"{rid} figure {name}", f"build/viewsvg exited {r.returncode} (see {out}.hdr)")
+            bad = svg_unsafe(pathlib.Path(f"{out}.svg").read_text(errors="replace"))
+            if bad:
+                fail(f"{rid} figure {name}", f"the render holds {bad}, which a figure may not")
             n += 1
         (FIGDIR / rid / "cases.json").write_text(json.dumps(stamp(nb), indent=1) + "\n")
     print(f"notebook: {n} figures rendered into build/figures/")
 
 
+def check_svgs(paths):
+    """Run the allowlist over SVG files and golden render captures (the SVG part, up to </svg>): print a line per
+    file refused and return their number."""
+    bad = 0
+    for p in paths:
+        t = pathlib.Path(p).read_text(errors="replace")
+        k = t.find("</svg>")
+        why = svg_unsafe(t[:k + 6] if k >= 0 else t)
+        if why:
+            print(f"{p}: {why}")
+            bad += 1
+    return bad
+
+
 def main():
+    if sys.argv[1:2] == ["check-svg"]:
+        sys.exit(1 if check_svgs(sys.argv[2:]) else 0)
     if sys.argv[1:] == ["render"]:
         render()
     elif sys.argv[1:] == ["list"]:
