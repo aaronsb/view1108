@@ -4,13 +4,13 @@
 # get_lo, get_hi: seconds, the bracket when only a range is known.
 # get_src: source of the time and its precision; "unverified" marks our research not yet checked against a primary source.
 # lens_mm: focal length. magazine: magazine number/letter. window_or_vehicle: where it was taken from, and by whom.
-# scene: our scene number that best fits, blank if none. needs: what the sim lacks to reproduce the frame.
+# sit: the situation that best fits, by its SITUATION card's ID in the photograph's mission's scenario reel (each reel numbers its own), blank if none. needs: what the sim lacks to reproduce the frame.
 # url: the scan we reduced (apollojournals.org AFJ/ALSJ). credit: NASA/JSC, public domain.
-frame	mission	get	get_lo	get_hi	get_src	lens_mm	magazine	window_or_vehicle	scene	needs	url	credit
-AS08-14-2383	8	272919.7			NASA SVS 4129 (75:48:39.7), ~0.1 s	250	14/B	CSM window 4 (right rendezvous), Anders	9	none; scene 9 pointing fitted to this frame	https://apollojournals.org/afj/ap08fj/photos/14-b/hr/as08-14-2383hr.jpg	NASA/JSC
-AS08-13-2329	8	272864			AFJ from SVS 4129 (75:47:44), ~1 s	250	13/E	CSM window 5, Anders	9	own pointing fit (black and white, first Earthrise frame)	https://apollojournals.org/afj/ap08fj/photos/13-e/hr/as08-13-2329hr.jpg	NASA/JSC
-AS08-14-2384	8	272949			AFJ (75:49:09), ~1 s	250	14/B	CSM window 4 (right rendezvous), Anders	9	own pointing fit	https://apollojournals.org/afj/ap08fj/photos/14-b/hr/as08-14-2384hr.jpg	NASA/JSC
-AS08-14-2392	8	294340	294000	294600	our estimate, unverified: AS08-14-2383 + 3 revs of ~7140 s (orbit 7, ~81:45)	80 (unverified, auction listing)	14/B	CSM, Borman	9	foreground spacecraft structure; own pointing fit	https://apollojournals.org/afj/ap08fj/photos/14-b/hr/as08-14-2392hr.jpg	NASA/JSC
+frame	mission	get	get_lo	get_hi	get_src	lens_mm	magazine	window_or_vehicle	sit	needs	url	credit
+AS08-14-2383	8	272919.7			NASA SVS 4129 (75:48:39.7), ~0.1 s	250	14/B	CSM window 4 (right rendezvous), Anders	1	none; the Apollo 8 Earthrise situation's pointing fitted to this frame	https://apollojournals.org/afj/ap08fj/photos/14-b/hr/as08-14-2383hr.jpg	NASA/JSC
+AS08-13-2329	8	272864			AFJ from SVS 4129 (75:47:44), ~1 s	250	13/E	CSM window 5, Anders	1	own pointing fit (black and white, first Earthrise frame)	https://apollojournals.org/afj/ap08fj/photos/13-e/hr/as08-13-2329hr.jpg	NASA/JSC
+AS08-14-2384	8	272949			AFJ (75:49:09), ~1 s	250	14/B	CSM window 4 (right rendezvous), Anders	1	own pointing fit	https://apollojournals.org/afj/ap08fj/photos/14-b/hr/as08-14-2384hr.jpg	NASA/JSC
+AS08-14-2392	8	294340	294000	294600	our estimate, unverified: AS08-14-2383 + 3 revs of ~7140 s (orbit 7, ~81:45)	80 (unverified, auction listing)	14/B	CSM, Borman	1	foreground spacecraft structure; own pointing fit	https://apollojournals.org/afj/ap08fj/photos/14-b/hr/as08-14-2392hr.jpg	NASA/JSC
 AS08-16-2593	8	16560			AFJ (~4:36:00; "evidence admittedly a little loose")	80	16/A	CSM window 5, Anders		whole-Earth view in translunar coast; fit GET from disc size	https://apollojournals.org/afj/ap08fj/photos/16-a/hr/as08-16-2593hr.jpg	NASA/JSC
 AS11-44-6550	11	311295			ALSJ Celestia estimate (~86:28:15), unverified	250	44/V	CSM (docked)	1	fit GET from the Earth's height over the horizon (Mare Smythii)	https://apollojournals.org/afj/ap11fj/photos/44-v/as11-44-6550.jpg	NASA/JSC
 AS11-44-6552	11	311295			ALSJ Celestia estimate (~86:28:15), unverified	250	44/V	CSM (docked)	1	fit GET from the Earth's height over the horizon (Mare Smythii)	https://apollojournals.org/afj/ap11fj/photos/44-v/as11-44-6552.jpg	NASA/JSC

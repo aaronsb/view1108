@@ -1,6 +1,8 @@
 // The playlist player (#18; docs/systems-model.md, section 3, Reel): plays the mounted playlist reel, LS.reel, from
-// its SHOT cards (data/reels/<id>/run.scn, generated into VIEW_NAMES.REELS; config.js REELS). Each shot names a
-// situation, an absolute g.e.t. law and its look; the player holds no shot list, situation or time of its own.
+// its SHOT cards (data/reels/<id>/run.scn, the playlist reel's page.json; config.js REELS). Each shot names a
+// situation (its scenario reel and id there, and the page's scene for it; a playlist may cross reels, and mounting
+// the shot's scene loads its reel's decks, loader.js mount), an absolute g.e.t. law and its look; the player holds no
+// shot list, situation or time of its own.
 // Attract is the demo reel and Tour another playlist reel: the page's modes "attract" and "tour" are their ALIASes.
 "use strict";
 const QP = k => { const m = new RegExp("[?&]" + k + "=([^&]+)").exec(location.search); return m ? m[1] : null; };
@@ -55,7 +57,7 @@ function reelStep(dt) {
   while (i < L.length - 1 && t >= L[i].dur) { t -= L[i].dur; i++; }
   const sh = L[i], u = t / sh.dur;
   if (i !== autoShot) {
-    autoShot = i; loadReel(P({ by: "shot", scene: sh.sit, lab: sh.lab, view: sh.view, target: sh.target, frame: sh.frame ? 1 : 0 }));
+    autoShot = i; loadReel(P({ by: "shot", scene: sh.scene, lab: sh.lab, view: sh.view, target: sh.target, frame: sh.frame ? 1 : 0 }));
     shotBase = sh.rule === "ERISE" ? (K.out_terise ? rd("out_terise") : NaN) : 0;   // NaN: a kernel without the export
     capName = sh.name; autoCap = !!sh.cap; syncUI();
   }

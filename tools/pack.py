@@ -1,20 +1,27 @@
 #!/usr/bin/env python3
-"""The reel packer (#26 slice 7): each scenario of data/missions/ as a reel package.
+"""The reel packer (#26 slice 7): each scenario of data/missions/ and each playlist of data/reels/ as a
+reel package.
 
-A reel is one .tar.gz (build/reels/<id>.reel.tar.gz, <id> = <mission folder>-<scenario file stem>),
-its members in this order: manifest.json, the mission's mission.scn, the scenario's .scn, each copied
-byte for byte (the kernel's card reader reads them, src/vdeck.f; tools/gen_data.py checks them), and
-page.json, the page's data for the scenario (its situations, its mission, range zero and SPAN cards, its
-timeline; #26 slice 7d), which tools/gen_data.py writes as build/page/<id>.json and this copies. The
-manifest names the kernel build the reel is for, by the SHA-256 of build/view.opt.wasm, and never
-carries code (#26, 2026-10-06 decision). Packages are reproducible: USTAR members with mtime 0,
+A reel is one .tar.gz (build/reels/<id>.reel.tar.gz), manifest.json first. A scenario reel (kind
+"scenario", <id> = <mission folder>-<scenario file stem>) then holds the mission's mission.scn and the
+scenario's .scn, each copied byte for byte (the kernel's card reader reads them, src/vdeck.f;
+tools/gen_data.py checks them), and page.json, the page's data for the scenario (its situations, its
+mission, range zero and SPAN cards, its timeline; #26 slice 7d). Each scenario reel numbers its own
+scenario and situations, and the page's kernel holds one at a time (#26 slice 7e). A playlist reel (kind
+"playlist", <id> its folder under data/reels/; #26 slice 7e) holds its run.scn, byte for byte (the
+kernel never reads it), and page.json, its REEL and SHOT cards as the playlist player reads them; its
+manifest's `uses` lists the scenario reels its shots name, in their order of first use. tools/gen_data.py
+writes each page.json as build/page/<id>.json and this copies it. The manifest names the kernel build the
+reel is for, by the SHA-256 of build/view.opt.wasm, and never carries code (#26, 2026-10-06 decision). Packages are reproducible: USTAR members with mtime 0,
 uid/gid 0, no user or group names, mode 0644, no directory entries; gzip with mtime 0 and no file
 name: the same bytes again for a given Python and zlib (the selftest packs twice and compares). Writes:
 
   build/reels/<id>.reel.tar.gz   the package
   build/reels/<id>/              its members, unpacked (for reading)
   build/reels/index.json         the reels in load order (missions by folder, then scenarios by file
-                                 name, as build/decks.txt): id, kind, title, mission, file, sha256
+                                 name, as build/decks/reels.txt; then the playlists by folder): id,
+                                 kind, title, mission (a scenario reel's), uses (a playlist's), file,
+                                 sha256
   build/reels.js                 VIEW_REELS: each package base64, in that order, for the page
                                  (tools/assemble.py embeds it; web/src/reelpkg.js unpacks it)
 
@@ -100,6 +107,33 @@ def main():
             index.append({"id": rid, "kind": "scenario", "title": title, "mission": mdir.name,
                           "file": f"{rid}.reel.tar.gz", "sha256": hashlib.sha256(pkg).hexdigest()})
             page.append({"id": rid, "b64": base64.b64encode(pkg).decode()})
+    scenarios = {r["id"] for r in index}
+    for rdeck in sorted((D / "reels").glob("*/run.scn")):
+        rid = rdeck.parent.name
+        if rid in scenarios:
+            sys.exit(f"pack.py: a playlist and a scenario reel both named {rid}")
+        pfile = pdir / f"{rid}.json"
+        if not pfile.is_file():
+            sys.exit(f"pack.py: no {pfile.relative_to(R)} (tools/gen_data.py writes it first)")
+        pbytes = pfile.read_bytes()
+        reel = json.loads(pbytes)
+        uses = list(dict.fromkeys(sh["reel"] for sh in reel["shots"]))
+        missing = [u for u in uses if u not in scenarios]
+        if missing:
+            sys.exit(f"pack.py: playlist {rid} uses {', '.join(missing)}, which is no scenario reel")
+        manifest = {"format": FORMAT, "id": rid, "kind": "playlist", "title": reel["title"], "kernel": kernel,
+                    "uses": uses,
+                    "contents": [{"path": "run.scn", "type": "playlist"}, {"path": "page.json", "type": "page"}]}
+        members = [("manifest.json", (json.dumps(manifest, indent=1) + "\n").encode()),
+                   ("run.scn", rdeck.read_bytes()), ("page.json", pbytes)]
+        pkg = tar_gz(members)
+        (rdir / f"{rid}.reel.tar.gz").write_bytes(pkg)
+        (rdir / rid).mkdir()
+        for name, data in members:
+            (rdir / rid / name).write_bytes(data)
+        index.append({"id": rid, "kind": "playlist", "title": reel["title"], "uses": uses,
+                      "file": f"{rid}.reel.tar.gz", "sha256": hashlib.sha256(pkg).hexdigest()})
+        page.append({"id": rid, "b64": base64.b64encode(pkg).decode()})
     (rdir / "index.json").write_text(json.dumps(index, indent=1) + "\n")
     (out / "reels.js").write_text("const VIEW_REELS = " + json.dumps(page) + ";\n")
     print(f"pack: {len(index)} reels ({', '.join(r['id'] for r in index)}), kernel {kernel['sha256'][:8]}")

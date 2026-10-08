@@ -14,9 +14,12 @@
 ! (tools/vdump.f: every scenario-specific COMMON table's used entries,
 ! doubles as hex bit patterns) to stdout instead and stops.
 ! The run decks come first, through the kernel's card reader
-! (src/vdeck.f): the paths in VIEW_DECK (separated by colons), else
-! those listed in build/decks.txt (tools/gen_data.py), in that order;
-! a deck error is printed to stderr with its file and line and stops
+! (src/vdeck.f): the paths in VIEW_DECK (separated by colons), else the
+! decks of the scenario reel VIEW_REEL names (its id; default the first
+! in build/decks/reels.txt), listed in build/decks/<id>.txt
+! (tools/gen_data.py), in that order: one reel at a time, each numbering
+! its own scenario and situations (#26 slice 7e).  SCENE is a situation
+! of that reel; a deck error is printed to stderr with its file and line and stops
 ! the run (exit 2).  With VIEW_DKSUM set, prints the run tables' hash
 ! total (CRDSUM, four numbers) to stdout and stops.  With VIEW_TAPEW
 ! set, writes the tape (the engine's, after VIEW_SIM, else the decks')
@@ -72,10 +75,15 @@ program viewsvg
     end subroutine crdsum
   end interface
   character(len=4096) :: decks
+  character(len=128) :: reel
   integer :: isum(4)
 
   call get_environment_variable('VIEW_DECK', decks)
-  if (len_trim(decks) == 0) call decklist('build/decks.txt', decks)
+  if (len_trim(decks) == 0) then
+    call get_environment_variable('VIEW_REEL', reel)
+    if (len_trim(reel) == 0) call firstln('build/decks/reels.txt', reel)
+    call decklist('build/decks/' // trim(reel) // '.txt', decks)
+  end if
   call loaddk(trim(decks))
   call get_environment_variable('VIEW_DKSUM', tv)
   if (len_trim(tv) > 0) then
@@ -193,6 +201,21 @@ program viewsvg
 
 contains
 
+  ! The first line of file fn (the first scenario reel's id).
+  subroutine firstln(fn, line)
+    character(len=*), intent(in) :: fn
+    character(len=*), intent(out) :: line
+    integer :: u, ios
+    line = ''
+    open (newunit=u, file=fn, status='old', action='read', iostat=ios)
+    if (ios == 0) read (u, '(a)', iostat=ios) line
+    if (ios /= 0 .or. len_trim(line) == 0) then
+      write (0, '(a,a,a)') 'viewsvg: no run decks: set VIEW_DECK or VIEW_REEL, or run tools/gen_data.py (', fn, ')'
+      stop 2
+    end if
+    close (u)
+  end subroutine firstln
+
   ! The deck paths listed one a line in file fn, joined by colons.
   subroutine decklist(fn, list)
     character(len=*), intent(in) :: fn
@@ -202,7 +225,7 @@ contains
     list = ''
     open (newunit=u, file=fn, status='old', action='read', iostat=ios)
     if (ios /= 0) then
-      write (0, '(a,a,a)') 'viewsvg: no run decks: set VIEW_DECK or run tools/gen_data.py (', fn, ')'
+      write (0, '(a,a,a)') 'viewsvg: no run decks: set VIEW_DECK, or VIEW_REEL to a reel of tools/gen_data.py''s (', fn, ')'
       stop 2
     end if
     do
