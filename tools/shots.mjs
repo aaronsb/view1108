@@ -51,6 +51,7 @@ const NB_ATTACH_FITS = `(pg => { const cs = getComputedStyle(pg), n = parseInt(c
 const NB_SHOWN = sel => `(r => (p => r.width > 0 && r.left >= p.left - 1 && r.right <= p.right + 1)(document.querySelector("#libmd .nbpages").getBoundingClientRect()))(document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect())`;
 const VISIBLE_ROWS = `[...document.querySelectorAll("#libmd .runsheet tbody tr")].filter(r => r.offsetParent !== null).length`;   // the run sheet's rows shown
 const ROOM_UP = { wait: `VIEW_LAB.running && ${LAB} && document.body.classList.contains("room")` };
+const PAGE_UP = `!document.body.classList.contains("room") && !document.getElementById("labhost").classList.contains("fading")`;
 const ROOM_STILL = { wait: `${LAB}.mode !== "flight" && !document.getElementById("labhost").classList.contains("fading") && ${LAB}.lit >= 0.999` };
 
 // A click on a placed piece of the room (VIEW_LAB.project: its screen, else its origin, client px; a reel case is
@@ -151,6 +152,7 @@ const SHOT_LIST = [
       { expect: [`${LAB}.units.every(u => u.set === "apollo11-asflown" && u.flange === ${REEL_FLANGE.scenario})`, true] },
       ROOM_CLICK("reel:apollo8-asflown"), { wait: `${LAB}.out["reel:apollo8-asflown"] === 1` }, { frames: 12 }, ROOM_CLICK("reel:apollo8-asflown"),
       { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button.primary" }, { wait: `${TL("mounted")} === "apollo8-asflown"` }, { frames: 3 },
+      AT("vector"), ...AT_ST("rack"), ROOM_STILL,   // #117: the exec flew to the vector terminal; back to the rack for the system tape
       { expect: [`${LAB}.tapes.filter((t, i) => i !== 3)`, SET_LABELS("APOLLO 8")] },
       ROOM_CLICK(SYS_LAST), { wait: `${LAB}.out[${SYS_EXPR}] === 1` }, { frames: 12 }, ROOM_CLICK(SYS_LAST), { wait: `!document.getElementById("ask").hidden` },
       { click: "#askbtns button.primary" }, { wait: `document.getElementById("ask").hidden && !${LAB}.out[${SYS_EXPR}]` },
@@ -436,6 +438,48 @@ const SHOT_LIST = [
       { wait: `!document.body.classList.contains("room") && !document.getElementById("labhost").classList.contains("fading")` }, { frames: 3 },
       { click: "#breels" }, { wait: `${LAB}.at === "rack" && ${LAB}.mode !== "flight"` }, ROOM_STILL, { frames: 3 }],
     expect: [[`${LAB}.at`, "rack"], [`document.body.classList.contains("room")`, true], [`document.getElementById("ask").hidden`, true], [TL("mounted"), "apollo11-asflown"]] },
+
+  // #117: the film effects by station, asserted as state (VIEW_FX, the page's effective values), not pictures. The shot's
+  // own jitter/dust/fps/bloom=0 overrides are dropped first so the defaults show. The live terminals (the 1558's workbench,
+  // the UNISCOPE) default to no film display and no effects, whatever reel plays; the microfilm recorder's Print tab has
+  // jitter and bloom (and dust, 16 fps) on; a toggle there holds until the viewer leaves that station, and the next visit
+  // has the defaults again; at a live terminal set to FILM the effects default off and still toggle.
+  { name: "room-station-effects", url: "space=room&reel=demo",
+    steps: [ROOM_UP, ROOM_STILL, { js: `VIEW_FX.dropUrl()` },
+      { expect: [`VIEW_FX.state().film`, false] },
+      ...["vector", "glass"].flatMap(st => [{ js: `VIEW_LAB.setTarget(${JSON.stringify(st)}, true)` }, { wait: `${PAGE_UP}`, timeout: 20000 }, { frames: 2 },
+        { expect: [`(s => [s.station, s.film, s.jitter, s.bloom, s.dust, s.fps])(VIEW_FX.state())`, [st, false, false, false, false, false]] },
+        { key: "Escape" }, { wait: `document.body.classList.contains("room") && !document.getElementById("labhost").classList.contains("fading")`, timeout: 20000 }]),
+      { js: `VIEW_LAB.setTarget("filmrecorder", true)` }, { wait: `${PAGE_UP}`, timeout: 20000 }, { frames: 2 },
+      { expect: [`(s => [s.station, s.film, s.jitter, s.bloom, s.dust, s.fps])(VIEW_FX.state())`, ["filmrecorder", true, true, true, true, true]] },
+      { js: `VIEW_FX.toggle("jitter")` }, { expect: [`(s => [s.jitter, s.bloom])(VIEW_FX.state())`, [false, true]] },
+      { key: "Escape" }, { wait: `document.body.classList.contains("room") && !document.getElementById("labhost").classList.contains("fading")`, timeout: 20000 },
+      { js: `VIEW_LAB.setTarget("filmrecorder", true)` }, { wait: `${PAGE_UP}`, timeout: 20000 }, { frames: 2 },
+      { expect: [`VIEW_FX.state().jitter`, true] },
+      { key: "Escape" }, { wait: `document.body.classList.contains("room") && !document.getElementById("labhost").classList.contains("fading")`, timeout: 20000 },
+      { js: `VIEW_LAB.setTarget("vector", true)` }, { wait: `${PAGE_UP}`, timeout: 20000 }, { frames: 2 },
+      { js: `VIEW_FX.film()` }, { expect: [`(s => [s.film, s.jitter, s.bloom])(VIEW_FX.state())`, [true, false, false]] },
+      { js: `VIEW_FX.toggle("bloom")` }, { frames: 2 }],
+    expect: [[`(s => [s.station, s.film, s.jitter, s.bloom])(VIEW_FX.state())`, ["vector", true, false, true]]] },
+
+  // #117: LOAD ... AND EXEC from the rack's modal mounts the reel, then the camera flies to the graphical (vector)
+  // terminal's close-up and holds there, instead of staying at the rack.
+  { name: "room-load-exec-flies", url: ROOM_URL("apollo11-asflown"),
+    steps: [ROOM_UP, ROOM_STILL, ...AT_ST("rack"), ROOM_STILL,
+      ROOM_CLICK("reel:apollo8-asflown"), { wait: `${LAB}.out["reel:apollo8-asflown"] === 1` }, { frames: 12 }, ROOM_CLICK("reel:apollo8-asflown"),
+      { wait: `!document.getElementById("ask").hidden` }, { click: "#askbtns button.primary" }, { wait: `${TL("mounted")} === "apollo8-asflown"` },
+      { wait: `${LAB}.at === "vector" && ${LAB}.mode === "hold"`, timeout: 30000 }, ROOM_STILL, { frames: 3 }],
+    expect: [[TL("mounted"), "apollo8-asflown"], [`${LAB}.at`, "vector"], [`${LAB}.mode`, "hold"], [`document.getElementById("ask").hidden`, true],
+      [`Object.keys(${LAB}.out)`, []]] },
+
+  // #117: stepping back from any close-up (Esc, back()) lands outside every footprint by the walker's body radius, in the
+  // room. Every terminal has a pose (the count is checked), and the pose is outside every footprint grown by the radius, and the spot before the walk's collision moves it (screen + 2 m out) is outside every footprint itself, so no step-back depends on being pushed out of a machine.
+  { name: "room-step-back-poses", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
+    steps: [ROOM_UP, ROOM_STILL, { frames: 3 }],
+    expect: [[`(sb => sb.poses.length >= 8 && sb.poses.length === VIEW_LAB.layout().terminals.length)(VIEW_LAB.stepBacks())`, true],
+      [`VIEW_LAB.stepBacks().poses.filter(p => VIEW_LAB.layout().footprints.some(f => Math.abs((p.x - f.x) * Math.cos(f.turn) - (p.z - f.z) * Math.sin(f.turn)) < f.hw + VIEW_LAB.stepBacks().radius - 1e-3 && Math.abs((p.x - f.x) * Math.sin(f.turn) + (p.z - f.z) * Math.cos(f.turn)) < f.hd + VIEW_LAB.stepBacks().radius - 1e-3)).map(p => p.name)`, []],
+      [`VIEW_LAB.stepBacks().poses.filter(p => VIEW_LAB.layout().footprints.some(f => Math.abs((p.raw.x - f.x) * Math.cos(f.turn) - (p.raw.z - f.z) * Math.sin(f.turn)) < f.hw && Math.abs((p.raw.x - f.x) * Math.sin(f.turn) + (p.raw.z - f.z) * Math.cos(f.turn)) < f.hd)).map(p => p.name)`, []],
+      [`VIEW_LAB.stepBacks().poses.every(p => Math.abs(p.x) <= 6.6 - 0.25 && Math.abs(p.z) <= 5.1 - 0.25)`, true]] },
 
   // The run sheet in the room: the Apollo 8 notebook from the bookcase, its Translunar injection picked: the viewer
   // closes onto the workbench's page with the reel mounted fresh at that time; Esc goes back to the room.
