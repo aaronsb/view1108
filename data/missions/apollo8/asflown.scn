@@ -375,8 +375,10 @@ BURNCUE IGN="Transearth injection ignition (SPS)" CUT="Transearth injection cuto
 * horizon falling 6.634 deg to the right, as measured on the scan
 * (2026-09-30; CLAUDE.md, scene 9).  Away from lunar orbit (no LUNAR leg
 * holds the g.e.t.: traj.f LUNIN) the camera looks forward 8 deg above the
-* Earth's horizon and the default target is the Earth: our choice, since no
-* Apollo 8 view survives (TN D-6853 printed p. 3).
+* Earth's horizon and the default target is the Earth; on the translunar and
+* transearth coasts (the CONIC legs: vview.f ECOAST) the window view with no
+* target aims at the Earth, in the field the viewer has (#65).  Our choices,
+* since no Apollo 8 view survives (TN D-6853 printed p. 3).
 SITUATION ID=1 NAME="APOLLO 8 EARTHRISE" TITLE="Apollo 8 Earthrise" GET=PHOTO FOV=12.72 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN SRC="SVS 4129 (AS08-14-2383 at 75:48:39.7); Apollo 8 Flight Journal day 4 orbit 4 (250 mm lens); the gate measured by us"
 RECIPE NAME=LOCALVERT BODY=MOON MODE=FORWARD AZ=EARTH ELEV=0 TURN=-0.9043,3.7599,-6.7873 OFFLEG=EARTH OFFELEV=8 SRC="TURN fitted by us to the ASU scan of AS08-14-2383; OFFLEG ours"
 VIEWS VIEW=WINDOW TARGET=MOON OFFTARGET=EARTH RIDES=CSM CM=ALWAYS LM=PLACED
