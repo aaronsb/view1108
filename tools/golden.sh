@@ -190,6 +190,10 @@ s8-ext-earth      | VIEW_VIEW=1 VIEW_TARGET=1    | apollo11-asflown | 8
 s8-tgt-lm         | VIEW_TARGET=5                | apollo11-asflown | 8
 s9-ext-def-earth  | VIEW_VIEW=1                  | apollo8-asflown  | 1 8000
 s2-ext-cmsep      | VIEW_VIEW=1 VIEW_LABLV=2     | apollo11-asflown | 2 701500
+s3-eoi-ext-csm    | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 709.33
+s3-eoi-ext-lm     | VIEW_VIEW=1 VIEW_TARGET=5    | apollo11-asflown | 3 709.33
+s3-eoi-ext-sivb   | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 709.33
+s3-eoi-tgt-lm     | VIEW_TARGET=5                | apollo11-asflown | 3 709.33
 EOF
 )
 

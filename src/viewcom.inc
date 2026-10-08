@@ -277,9 +277,15 @@ C     IVUSE the view this frame actually uses (VIEWPT).  ILEV the
 C     label level this frame applies (VFRAME): 0 none, 1 primary, 2
 C     secondary, 3 all; with ILABL 0 it is 3 if in_flags bit 0 is
 C     set, else 0.  IVBIT the vehicles in this frame's world (VPRES,
-C     hdr 21).
-      INTEGER IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT
-      COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT
+C     hdr 21).  ITGST the target's status this frame (VIEWPT, hdr 23):
+C     0 none asked (in_target 0) or none applies (the LM station, a
+C     FIXED situation), 1 aimed at a point of its own, 2 the vehicle
+C     the camera rides, 3 docked to or carried with another vehicle
+C     (its point is that vehicle's: aimed only from outside), 4 no
+C     point here (no state; the Sun from outside), 5 as 3, the LM in
+C     the SLA before the separation (SEP).
+      INTEGER IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST
+      COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST
 C
 C     /CSCN/ scene number (the situation, row ISCN of the situation
 C     tables), flags of this frame, init done.

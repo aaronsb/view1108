@@ -420,6 +420,9 @@ C     rides, so it cannot.
      &  .OR. IVUSE .EQ. 2))) HD(22) = HD(22) + 1.0D0
       IF (JSLM .EQ. 2 .OR. (JSLM .EQ. 1 .AND. (KLMPL() .NE. 0
      &  .OR. IVUSE .EQ. 3))) HD(22) = HD(22) + 2.0D0
+C     The target's status (VIEWPT, ITGST): the page says why a pick
+C     cannot be aimed from the window and looks from outside instead.
+      HD(23) = DBLE(ITGST)
 C     Text for the recorder's character generator.
       CALL TXALL(LB, NL, TB, NT, TC, NCH)
       RETURN

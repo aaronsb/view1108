@@ -33,8 +33,31 @@ let stMask = -1;
 function featTick() {
   if (!FEAT.view) return;
   const h = new Float64Array(buf(), K.hdr.value, 24), m = (h[21] & 4) ? h[21] & 3 : h[20] | 0;
+  if (FEAT.target) tgtTick(h[22] | 0);
   if (m === stMask) return; stMask = m;
   const b = document.querySelectorAll("#viewgrp button"); b[2].disabled = !(m & 1); b[3].disabled = !(m & 2);
+}
+// A vehicle the window cannot aim at (#70). hdr(23), the target's status (vview.f TGTPOS): 1 aimed at its own
+// point, 2 the vehicle the camera rides, 3 docked to or carried with another (at Earth orbit insertion the CSM, LM
+// and S-IVB are one stack: one point), 4 no position at this time, 5 as 3, the LM stowed in the SLA before the
+// separation. A vehicle picked from the window or the CM station that is 2, 3 or 5 is shown from outside instead (EXTERNAL, which flies round the point it shares); 4 stays
+// as it is. Either way the caption line says why while that target and view hold. A kernel without hdr(23) gives 0:
+// nothing changes. Going outside, a field wider than 40 deg (the external spans' field for a vehicle, Following) closes
+// to it, so the vehicle 40-60 m off is not lost in a window's wide field.
+const OUT_FOV = 40;
+const VEH_NAMES = { 4: "CSM", 5: "LM", 6: "S-IVB" };
+let tgtAsk = 0;      // a vehicle target just picked, until the next kernel frame reports its status
+let tgtWhy = null;   // { target, view, st, text }: the caption's note
+const tgtNote = () => tgtWhy && tgtWhy.target === LS.target && tgtWhy.view === LS.view ? tgtWhy.text : "";
+function tgtTick(st) {
+  if (tgtWhy && tgtWhy.st !== 2 && st === 1) tgtWhy = null;   // undocked or back in flight since: aimed now
+  if (!tgtAsk) return;
+  const t = tgtAsk, n = VEH_NAMES[t]; tgtAsk = 0;
+  if (t !== LS.target || !(st >= 2 && st <= 5)) { tgtWhy = null; return; }
+  const why = st === 2 ? `CAMERA RIDES THE ${n}` : st === 4 ? `${n}: NO POSITION AT THIS TIME` : st === 5 ? "LM INSIDE SLA" : t === 6 ? "S-IVB ATTACHED" : `${n} DOCKED`;
+  if (st === 4) { tgtWhy = { target: t, view: LS.view, st, text: why }; return; }
+  if (LS.view !== 1) loadReel(P({ view: 1, fov: LS.fov > OUT_FOV ? OUT_FOV : null }));
+  tgtWhy = { target: t, view: 1, st, text: why + ": VIEWING FROM OUTSIDE" };
 }
 // After boot, before the first scene.
 function featInit() {
@@ -61,7 +84,7 @@ function featInit() {
     if (i < 2) stFov = null;
     loadReel(P({ view: i, fov: f }));
   }; });
-  document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); tlManual(); loadReel(P({ target: i })); }; });
+  document.querySelectorAll("#targrp button").forEach((b, i) => { b.onclick = () => { leaveAttract(); tlManual(); tgtAsk = VEH_NAMES[i] ? i : 0; loadReel(P({ target: i })); }; });
 }
 function toggleCabin() { if (!FEAT.cabin) return; leaveAttract(); cabin = !cabin; syncUI(); }
 function toggleWalls() { if (!FEAT.walls) return; leaveAttract(); walls = !walls; syncUI(); }

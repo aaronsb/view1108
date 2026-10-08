@@ -12,7 +12,10 @@ C     or a local-vertical platform".  Pointing at a target and flying
 C     the camera around one are a third and fourth mode: ours.
 C       Window view (in_view 0) with a target: the reference boresight
 C         points from the scene's camera at the target; free-look
-C         yaw, pitch and roll are offsets from it.
+C         yaw, pitch and roll are offsets from it.  A target with no
+C         point of its own here (the camera's own vehicle, one docked
+C         to it or carried with it, one with no state) leaves the
+C         scene's aim; hdr 23 says which (TGTPOS), for the page.
 C       Stations (in_view 2, 3): the camera at the CM or LM eye, the
 C         cabin around it (STATCM, STATLM), its interior with in_flags
 C         bit 4 (CMINT, LMINT; the LM descent too, LDCAB).
@@ -23,7 +26,9 @@ C         turns the picture, the field of view zooms.  D is ours: 60 m
 C         for the CSM, the docked stack or the S-IVB, 40 m for the
 C         LM, 60,000 km for the Earth, 36,737 km (35,000 km up, as
 C         scene 6) for the Moon.  The Sun is a target only for the
-C         window view.
+C         window view.  A docked or carried vehicle is flown round at
+C         the point of the vehicle it is with; a target with no point
+C         gives way to the situation's subject, else the Earth.
 C     A situation with FIXED=YES (the Moon view's body-centred camera)
 C     keeps its own camera and ignores both.
 C=======================================================================
@@ -32,7 +37,9 @@ C-----------------------------------------------------------------------
 C     VIEWPT: apply the view and target to the camera: CG (geocentric,
 C     km) may move, BREF, UREF, RREF may turn, and placed models are
 C     carried along.  LOOKD = 1 if the camera axes are already set
-C     (external view), so VFRAME skips its free-look step.
+C     (external view), so VFRAME skips its free-look step.  ITGST, the
+C     target's status (hdr 23; see TGTPOS), is taken before anything
+C     is placed for the external view.
 C-----------------------------------------------------------------------
       SUBROUTINE VIEWPT(GET, PM, CG, YAW, PIT, ROL, LOOKD)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -43,8 +50,9 @@ C     RESTOMOD END
       INTEGER LOOKD
       DOUBLE PRECISION TG(3), D(3), DIST, DS(3), CG0(3), P(3), VDOT
       DOUBLE PRECISION C
-      INTEGER IT, IOK, I, KCSPL
+      INTEGER IT, IST, IOK, I, KCSPL
       LOOKD = 0
+      ITGST = 0
       IVUSE = IVIEW
 C     The situation's own view where in_view is 0 (JVW; the docked
 C     stack's is the external one).
@@ -66,19 +74,29 @@ C     The LM station keeps its window's own aim (its overlay is drawn in
 C     the reference frame, OVLPD).
       IF (IVUSE .EQ. 3) RETURN
       IF (IVUSE .NE. 1 .AND. IT .EQ. 0) RETURN
-C     The external view's default target is the situation's subject.
-      IF (IVUSE .EQ. 1 .AND. (IT .EQ. 0 .OR. IT .EQ. 3))
-     &  CALL TGTDEF(GET, IT)
+      IF (IT .NE. 0) CALL TGTPOS(GET, IT, PM, CG, TG, DIST, ITGST)
+      IF (IVUSE .EQ. 1) GO TO 5
+C     A window or the CM station aims only at a point of the target's
+C     own: not its own vehicle, nor one docked to it or carried with
+C     it, nor one with no state.
+      IF (ITGST .NE. 1) RETURN
+      GO TO 8
+C     External: a target with no point to fly round (no state, the
+C     Sun) gives way to the situation's subject, and that, where it
+C     has none either, to the Earth (ours), so the camera always
+C     leaves the eye before the CSM is placed around it.
+    5 IF (IT .EQ. 0 .OR. ITGST .EQ. 4) CALL TGTDEF(GET, IT)
+      CALL TGTPOS(GET, IT, PM, CG, TG, DIST, IST)
+      IF (IST .EQ. 4) IT = 1
 C     Seen from outside, a camera riding the CSM in its own view (JRID
 C     1: situations 1, 2, 3, 4, 7, 9) shows the CSM: its origin
 C     (CSMBLD) 1.2 m behind the eye along the reference boresight, its
 C     X axis along that boresight (ours); after CM/SM separation the
-C     CM alone.
-      IF (IVUSE .EQ. 1 .AND. KCSPL() .EQ. 0 .AND. JRID .EQ. 1)
-     &  CALL CSMCAM(GET)
-      CALL TGTPOS(GET, IT, PM, CG, TG, DIST, IOK)
-      IF (IOK .EQ. 0) RETURN
-      DO 10 I = 1, 3
+C     CM alone.  The target's point is then taken again: the CSM's is
+C     the top of the tunnel of the CSM placed here.
+      IF (KCSPL() .EQ. 0 .AND. JRID .EQ. 1) CALL CSMCAM(GET)
+      CALL TGTPOS(GET, IT, PM, CG, TG, DIST, IST)
+    8 DO 10 I = 1, 3
         CG0(I) = CG(I)
         D(I) = TG(I) - CG(I)
    10 CONTINUE
@@ -133,24 +151,32 @@ C     RESTOMOD END
       END
 C
 C-----------------------------------------------------------------------
-C     TGTPOS: target IT's geocentric position TG (km) and the external
-C     view's distance DIST (km).  IOK = 0 if the scene has no such
-C     target, or it is the camera itself in a window view.  Vehicles:
-C     the placed models (the CSM, KCSPL; the LM, KLMPL; the S-IVB), else
-C     the vehicle's state (VSTATE) where it has one and the camera
-C     does not ride it (IRIDE; the S-IVB with the CSM before the
-C     separation is the CSM's state, so not a target from it).
+C     TGTPOS: target IT's geocentric position TG (km), the external
+C     view's distance DIST (km) and its status IST (hdr 23, ITGST):
+C       1 a point of its own: a body, a placed model (the CSM, KCSPL;
+C         the LM, KLMPL; the S-IVB), or a vehicle's own state (VSTATE
+C         IOK 1);
+C       2 the vehicle the camera rides (IRIDE), unplaced;
+C       3 docked to or carried with another vehicle (VSTATE IOK 2: the
+C         LM docked, the S-IVB with the CSM before SEP or docked to the
+C         stack), TG that vehicle's point; in a window view also a
+C         point at the camera itself;
+C       4 no point here: no state, or the Sun from outside;
+C       5 as 3, the LM before the separation (SEP): stowed in the SLA
+C         on the S-IVB, docked to nothing yet.
+C     The caller aims at 1, and from outside at 3 and 5 too.
 C-----------------------------------------------------------------------
-      SUBROUTINE TGTPOS(GET, IT, PM, CG, TG, DIST, IOK)
+      SUBROUTINE TGTPOS(GET, IT, PM, CG, TG, DIST, IST)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION GET, PM(3), CG(3), TG(3), DIST, R(3), V(3)
-      DOUBLE PRECISION D, C(3), W(3)
-      INTEGER IT, IOK, I, KL, IRIDE, KC, KCSPL, KLMPL
-      IOK = 1
+      DOUBLE PRECISION D, C(3), W(3), EVGET
+      INTEGER IT, IST, I, IOK, KL, IRIDE, KC, KCSPL, KLMPL, IVEH
+      IST = 1
       DIST = 0.0D0
+      IVEH = 0
       DO 5 I = 1, 3
         TG(I) = 0.0D0
     5 CONTINUE
@@ -166,7 +192,7 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         DO 20 I = 1, 3
           TG(I) = CG(I) + 1.495978707D8 * SUNU(I)
    20   CONTINUE
-        IF (IVUSE .EQ. 1) IOK = 0
+        IF (IVUSE .EQ. 1) IST = 4
       ELSE IF (IT .EQ. 4) THEN
         DIST = 0.060D0
         KC = KCSPL()
@@ -176,12 +202,9 @@ C         The placed CSM (or CM): aim at the top of its tunnel.
             TG(I) = CG(I) + MDP(I,KC) + 3.2D-3 * MDAT(I,1,KC)
    30     CONTINUE
         ELSE IF (IRIDE() .NE. 1) THEN
-          CALL VSTATE(GET, 1, 1, R, V, IOK)
-          DO 35 I = 1, 3
-            TG(I) = R(I)
-   35     CONTINUE
+          IVEH = 1
         ELSE
-          IOK = 0
+          IST = 2
         END IF
       ELSE IF (IT .EQ. 5) THEN
         DIST = 0.040D0
@@ -191,12 +214,9 @@ C         The placed CSM (or CM): aim at the top of its tunnel.
             TG(I) = CG(I) + MDP(I,KL)
    50     CONTINUE
         ELSE IF (IRIDE() .NE. 2) THEN
-          CALL VSTATE(GET, 2, 1, R, V, IOK)
-          DO 55 I = 1, 3
-            TG(I) = R(I)
-   55     CONTINUE
+          IVEH = 2
         ELSE
-          IOK = 0
+          IST = 2
         END IF
       ELSE
         DIST = 0.060D0
@@ -211,23 +231,29 @@ C         (SIVST), half its 61.3 ft below the IU's top (SIVBMD).
             TG(I) = CG(I) + MDP(I,KSIV) + W(I)
    70     CONTINUE
         ELSE
-          CALL VSTATE(GET, 3, 1, R, V, IOK)
-C         Only while it flies on its own: with the CSM before SEP or
-C         docked to it, there is no separate S-IVB to aim at.
-          IF (IOK .NE. 1) IOK = 0
-          DO 75 I = 1, 3
-            TG(I) = R(I)
-   75     CONTINUE
+          IVEH = 3
         END IF
       END IF
 C     RESTOMOD END
-      IF (IOK .EQ. 0 .OR. IVUSE .EQ. 1) RETURN
+C     An unplaced vehicle: its state, its own (1), another's (3: the
+C     CSM's before SEP or docked; 5 the LM in the SLA), or none (4).
+      IF (IVEH .EQ. 0) GO TO 80
+      CALL VSTATE(GET, IVEH, 1, R, V, IOK)
+      IST = 4
+      IF (IOK .EQ. 1) IST = 1
+      IF (IOK .EQ. 2) IST = 3
+      IF (IVEH .EQ. 2 .AND. IST .EQ. 3 .AND. GET .LT. EVGET(KESEP))
+     &  IST = 5
+      DO 75 I = 1, 3
+        TG(I) = R(I)
+   75 CONTINUE
+   80 IF (IST .NE. 1 .OR. IVUSE .EQ. 1) RETURN
 C     A window view cannot aim at its own camera.
       D = 0.0D0
       DO 60 I = 1, 3
         D = D + (TG(I) - CG(I))**2
    60 CONTINUE
-      IF (D .LT. 1.0D-10) IOK = 0
+      IF (D .LT. 1.0D-10) IST = 3
       RETURN
       END
 C
