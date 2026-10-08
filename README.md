@@ -4,7 +4,7 @@
 
 [![Earthrise over the lunar limb, drawn live by the VIEW-1108 FORTRAN kernel](docs/media/earthrise.png)](https://aaronsb.github.io/view1108/)
 
-**[Run it in your browser →](https://aaronsb.github.io/view1108/)**
+**[Run it in your browser →](https://aaronsb.github.io/view1108/)** Chrome 80, Firefox 113, Safari 16.4 or later: the page unpacks its mission data with the browser's gzip `DecompressionStream`.
 
 In 1969 a FORTRAN program on a UNIVAC 1108 at NASA's Manned Spacecraft Center drew what the Apollo crews would see out their windows and through their optics: star fields for navigation, the Earth and Moon, the lunar surface through the LM's landing window. The frames went onto microfilm, and views were "incorporated into the Apollo flight-plan documents" (NASA TN D-6853, p. 10). We know of no surviving source code for it.
 
@@ -102,7 +102,8 @@ Probably, with changes: the fenced items above rewritten in FORTRAN V terms, and
 - **Stars:** the 37 Apollo navigation stars from the Apollo Guidance Computer's star table (Comanche055, via [chrislgarry/Apollo-11](https://github.com/chrislgarry/Apollo-11)), plus a catalog to visual magnitude 4.5 (XHIP via d3-celestial). TN D-6853 (p. 12) describes two alternative catalogs, 391 navigation stars or 1,078 stars to magnitude 4.5; we draw the 37 named stars and the magnitude-4.5 catalog together.
 - **Earth:** Natural Earth 1:110m coastlines.
 - **Moon:** craters from the IAU/USGS Gazetteer of Planetary Nomenclature, plus seeded small craters where the gazetteer is sparse.
-- **Trajectories:** low-precision Sun and Moon ephemerides and simple Kepler and circular orbits keyed to Apollo 11 event times. Not a precision tool.
+- **Missions:** one folder per mission in `data/missions/`, run decks of cards, each with its source. `tools/pack.py` packs each scenario (Apollo 11 as flown, Apollo 8 as flown) and each playlist (the demo and the tour, `data/reels/`) as a reel package, `.reel.tar.gz`, which the page embeds and unpacks at boot; a reel names the kernel build it runs on and carries no code. See [docs/systems-model.md](docs/systems-model.md), section 5.
+- **Trajectories:** low-precision Sun and Moon ephemerides and simple Kepler and circular orbits keyed to each mission's sourced event times (Apollo 11 and Apollo 8). Not a precision tool.
 
 ## Build
 
