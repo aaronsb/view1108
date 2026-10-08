@@ -54,18 +54,7 @@ fades the lab out and calls `hide()`; `leave(opens)` undoes what `screenRect` la
 
 ### Handover
 
-A flight into a terminal ends at its arrival pose: for the 1558 and the UNISCOPE `anchors.view`, the screen and the
-keyboard together from a little above and in front (`viewPose` in `kit.ts` fits their bounds), else the handover pose.
-Opening it eases over 0.5 s to the handover pose: the camera square to its screen, at the distance and offset where
-the picture's part of the screen (`anchors.screen`: a plane in the mesh's local XY facing +Z, `uvRect` the part in use) covers
-`screenRect(opens)` on the lab canvas: matched on height, centred. The vector screen carries `#cv` itself, so its
-edges land on the plot's own (within 0.1 px in the headless check); the page then crossfades over 250 ms
-(`ROOM_FADE` in `web/src/room.js`). Where the element is wider than the screen (the Source workspace on a wide window
-against the UNISCOPE's 2:1 face; 150 px a side at 2399 × 1101) the page also grows sideways out of the screen's rect
-during the crossfade (a `clip-path` inset from `info().mismatch`), and shrinks back into it before the room fades in.
-Back out, the page measures the same rect, the lab starts at that pose under it, fades in, holds for the fade, then
-flies back to stand 2 m out from the screen, facing it, walking. Flights take 1 s (smoothstep, with a slight rise
-mid-way); bloom eases out toward a screen so the last frame shows the plot as the page draws it.
+A flight into a terminal ends at its arrival pose: for the 1558 and the UNISCOPE `anchors.view`, the screen and the keyboard together from a little above and in front (`viewPose` in `kit.ts` fits their bounds), else the handover pose. Opening it eases over 0.5 s to the handover pose: the camera square to its screen, at the distance and offset where the picture's part of the screen (`anchors.screen`: a plane in the mesh's local XY facing +Z, `uvRect` the part in use) covers `screenRect(opens)` on the lab canvas: matched on height, centred. The vector screen carries `#cv` itself, so its edges land on the plot's own (within 0.1 px in the headless check); the page then crossfades over 250 ms (`ROOM_FADE` in `web/src/room.js`). Where the element is wider than the screen (the Source workspace on a wide window against the UNISCOPE's 2:1 face; 150 px a side at 2399 × 1101) the page also grows sideways out of the screen's rect during the crossfade (a `clip-path` inset from `info().mismatch`), and shrinks back into it before the room fades in. Back out, the page measures the same rect, the lab starts at that pose under it, fades in, holds for the fade, then flies back to stand 2 m out from the screen, facing it, walking. Flights take 1 s up to 2.5 m, then 0.08 s more per metre, at most 1.8 s (`flyS` in `lab.ts`: 1.7 s across the room; smoothstep, with a slight rise mid-way); bloom eases out toward a screen so the last frame shows the plot as the page draws it.
 
 ### Walking
 
@@ -201,15 +190,4 @@ two rows under three-point lighting, with a stand-in plot. The flags are `?view=
 `&q` for a three-quarter view), `&play` (a running page clock) and `&tape` (a `tape` event at load).
 `window.__gallery.budget` gives one frame's draw calls and triangles, without shadows.
 
-**The room** is `src/room/room.ts`, exporting `build(ctx: BuildContext): Room` with `object`, `placed`
-(`{ name, equipment }` for each piece it placed, `equipment.object.userData.placed` set to the name for picking),
-`footprints` (each floor-standing piece's own bounding box seen from above, placed and turned: what the plan's
-checks and walking use), `door`, `overview` (the zoomed-out `CameraPose`), `labels` (hover text by name), `air` (the
-dust's box), `update` and `dispose`. The page addresses the station table's names: `"vector"` (the 1558, which opens the workbench), `"glass"` (the UNISCOPE 100, which opens Source), `"filmrecorder"` (which opens Print), `"printer"` (the listing), `"library"` (the bookcase, which opens the library; its binders are `"binder:<id>"`) and `"drive"` (the middle tape unit, STOP/START; the lab gives it its `use`, `hooks.drive`). Their hover labels come from the same table.
-`src/room/shell.ts` builds the 9 m × 7 m × 2.75 m shell: one textured plane for the raised floor's 0.6 m tiles
-(`surfaces.ts`), an acoustic-tile ceiling, two instanced meshes for the 20 troffers, walls, a door in the south wall
-with an EXIT sign over it, and a wall clock. `room.ts` places by registry name, with options where a module takes
-them (`uniservo` `{ number, index, drive }`, `cpu` `{ lampPanel }`), and casts and receives shadows on everything it
-places. Nothing stands in the door's swing, its aisle runs clear 2 m into the room, and every machine's front has at
-least 0.9 m clear (the UNISCOPE's desk, beside the 1558, only on its chair side). A name the registry lacks becomes a
-grey stand-in box of its `FOOTPRINT`, so the room composes before every module exists.
+**The room** is `src/room/room.ts`, exporting `build(ctx: BuildContext): Room` with `object`, `placed` (`{ name, equipment }` for each piece it placed, `equipment.object.userData.placed` set to the name for picking), `footprints` (each floor-standing piece's own bounding box seen from above, placed and turned: what the plan's checks and walking use), `door`, `overview` (the zoomed-out `CameraPose`), `labels` (hover text by name), `air` (the dust's box), `update` and `dispose`. The page addresses the station table's names: `"vector"` (the 1558, which opens the workbench), `"glass"` (the UNISCOPE 100, which opens Source), `"filmrecorder"` (which opens Print), `"printer"` (the listing), `"library"` (the bookcase, which opens the library; its binders are `"binder:<id>"`) and `"drive"` (the middle tape unit, STOP/START; the lab gives it its `use`, `hooks.drive`). Their hover labels come from the same table. `src/room/shell.ts` builds the 13.2 m × 10.2 m × 2.75 m shell: one textured plane for the raised floor's 0.6 m tiles (`surfaces.ts`), an acoustic-tile ceiling, two instanced meshes for the 42 troffers, walls, a door in the south wall with an EXIT sign over it, and a wall clock. `room.ts` places by registry name, with options where a module takes them (`uniservo` `{ number, index, drive }`, `cpu` `{ lampPanel }`), and casts and receives shadows on everything it places. Nothing stands in the door's swing, its aisle runs clear 2 m into the room, and every machine's front has at least 0.9 m clear (the UNISCOPE's desk, beside the 1558, only on its chair side). The equipment stands in #21's zones (tape area, machine floor, operator consoles, output, library) with at least 1.2 m between them; `room.ts`'s header comment gives the map, and `LIBRARY` there the library zone on the north wall, with the floor kept clear for the reel rack (#19). A name the registry lacks becomes a grey stand-in box of its `FOOTPRINT`, so the room composes before every module exists.

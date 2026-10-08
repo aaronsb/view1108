@@ -37,7 +37,10 @@ import { Walk, type Terminal } from "./walk";
 import { stationNamed, stationOpening } from "./stations";
 import type { CameraPose, LabEvent, LabHooks, Opens, Placed, Quality, Room } from "./types";
 
-const FLY_S = 1.0;
+/** A flight's time, s, by the distance flown (m): 1 s up to 2.5 m, then slower per metre, at most 1.8 s (an 11 m
+ *  flight across the room takes 1.7 s). */
+const flyS = (d: number) => THREE.MathUtils.clamp(0.8 + 0.08 * d, 1.0, 1.8);
+const DUST_PER_M3 = 4;              // the dust motes' density
 const OPEN_S = 0.5;                 // the ease from a console's arrival pose to its handover pose, s
 const ARC_M = 0.12;                 // the flight's rise at its middle, metres per 2 m flown (at most one unit)
 const CLICK_PX = 5;
@@ -137,7 +140,7 @@ export class Lab {
     this.scene.add(this.room.object);
     markScreens(this.room.object);
     this.room.object.updateMatrixWorld(true);
-    if (this.room.air) { this.dust = new Dust({ box: this.room.air, count: 420, size: 0.006, opacity: 0.22 }); this.scene.add(this.dust.object); }
+    if (this.room.air) { this.dust = new Dust({ box: this.room.air, count: Math.round(DUST_PER_M3 * this.room.air.getSize(new THREE.Vector3()).toArray().reduce((a, b) => a * b, 1)), size: 0.006, opacity: 0.22 }); this.scene.add(this.dust.object); }
     this.home0 = shotOf(this.room.overview);
     this.sound = new RoomSound(this.room, this.camera, hooks.state, () => this.shown);
     const terminals: Terminal[] = this.room.placed.filter(p => (p.equipment.opens || p.equipment.use || p.name === "switch" || stationNamed(p.name)) && p.equipment.anchors.screen).map(p => {
@@ -565,8 +568,8 @@ export class Lab {
     return { position: this.camera.position.clone(), quaternion: this.camera.quaternion.clone(), fov: this.camera.fov, glow: this.glow };
   }
 
-  /** Fly to `to` over `dur` s; `free`: land walking there, else hold (at a terminal). */
-  private fly(to: Shot, delay = 0, free = false, done?: () => void, dur = FLY_S): void {
+  /** Fly to `to` over `dur` s (by default by the distance, flyS); `free`: land walking there, else hold (at a terminal). */
+  private fly(to: Shot, delay = 0, free = false, done?: () => void, dur = flyS(this.camera.position.distanceTo(to.position))): void {
     this.mode = "flight";
     this.flight = { from: this.current(), to, t0: performance.now(), delay, dur, free, done };
   }
