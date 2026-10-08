@@ -25,6 +25,11 @@
 #                              not only through a render.  The page's SPAN tables are in page/.
 #   render/*.txt               build/viewsvg's SVG on stdout and hdr(1..24) on stderr (VIEW_HDR) for
 #                              every case in CASES, its reel's decks loaded the same way (VIEW_REEL)
+#   render/nb-<reel>-<name>.txt  each scenario notebook figure (#29): the case of that name in the
+#                              figures block of reel <reel>'s notebook.md, rendered once by
+#                              tools/notebook.py into build/figures/<reel>/<name>.svg and .hdr, the
+#                              two files one after the other.  tools/pack.py packs that same .svg, so
+#                              a change that alters a figure fails the check and changes the package.
 #
 # The tape round trip (#26 slice 6), run by capture and check, writes no file into the capture:
 # for each case in TAPES the engine runs (VIEW_SIM), its tape is written as a deck (VIEW_TAPEW,
@@ -258,6 +263,7 @@ roundtrip() {
 capture() {
   local out=$1
   ./tools/build.sh native >/dev/null
+  python3 tools/notebook.py render >/dev/null
   rm -rf "$out"; mkdir -p "$out/render"
   for f in viewdata.f viewdims.inc vdvoc.f vdvoc.inc; do
     grep -Ev "$MASK" "src/$f" > "$out/$f"
@@ -291,7 +297,14 @@ capture() {
       build/viewsvg $args > "$out/render/$name.txt" 2>&1
     n=$((n + 1))
   done <<< "$CASES"
-  echo "golden: captured 6 tables, $(ls "$out/page" | wc -l) page.json, the run-table dumps ($(cat "$out"/tables-*.txt | wc -l) entries, $(ls "$out"/tables-*.txt | wc -l) reels) and $n renders into $out"
+  # The notebook figures, as tools/notebook.py rendered them (the one render tools/pack.py packs).
+  local nf=0 f
+  while read -r reel name; do
+    f=build/figures/$reel/$name
+    cat "$f.svg" "$f.hdr" > "$out/render/nb-$reel-$name.txt"
+    nf=$((nf + 1))
+  done < <(python3 tools/notebook.py list)
+  echo "golden: captured 6 tables, $(ls "$out/page" | wc -l) page.json, the run-table dumps ($(cat "$out"/tables-*.txt | wc -l) entries, $(ls "$out"/tables-*.txt | wc -l) reels), $n renders and $nf notebook figures into $out"
   roundtrip
 }
 

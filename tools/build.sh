@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Full build: Fortran -> LLVM IR (LFortran, one file at a time) -> wasm32 objects (clang)
 #             -> wasm (wasm-ld) -> optimised wasm (wasm-opt) -> JS fallback (wasm2js)
+#             -> native driver (gfortran) -> notebook figures -> reel packages
 #             -> single-file page (if the template exists) -> selftest.
 # Needs lfortran, clang, wasm-ld, wasm-opt, wasm2js, python3, node; npm for the optional machine room.
 # Set LF_BIN if the tools are not on PATH (e.g. LF_BIN=$HOME/lf/bin).
@@ -93,7 +94,11 @@ OBJS=""; for e in $DATA; do OBJS="$OBJS build/$e.o"; done; for e in $ELEMS; do O
 "${B}wasm-opt" -O3 --disable-nontrapping-float-to-int build/view.wasm -o build/view.opt.wasm
 "${B}wasm2js" -O2 build/view.opt.wasm -o build/view.wasm2js.mjs
 python3 tools/wrap_fallback.py build/view.wasm2js.mjs build/fallback.js
-# The reel packages (build/reels/), each naming this kernel build by its hash.
+# The native driver, then the scenario notebooks' figures with it (build/figures/, tools/notebook.py: the one render
+# the golden gate captures and the packer packs), then the reel packages (build/reels/), each naming this kernel
+# build by its hash.  A reel whose notebook names figures needs gfortran.
+if command -v gfortran >/dev/null; then native; python3 tools/notebook.py render
+else rm -rf build/figures; echo "no gfortran: no native driver and no notebook figures" >&2; fi
 python3 tools/pack.py
 
 # 4. The machine room (web/lab, TypeScript + three.js) -> build/lab.js, with the esbuild pinned in its
@@ -109,7 +114,6 @@ lab() {
 rm -f build/lab.js
 lab || { rm -f build/lab.js; echo "lab: not built; the page builds without the Room (see web/lab/README.md)" >&2; }
 
-# 5. Page (when the template is there), native driver, selftest.
+# 5. Page (when the template is there), selftest.
 if [ -f web/page.template.html ]; then python3 tools/photo_pack.py; python3 tools/assemble.py; fi
-if command -v gfortran >/dev/null; then native; fi
 node tools/selftest.mjs

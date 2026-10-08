@@ -526,12 +526,32 @@ if (W.sim_run && fs.existsSync(VSVG)) {
   const wrong = [];
   // Each member as data/ holds it: a scenario reel's mission.scn and scenario file from its mission folder, a playlist
   // reel's run.scn from data/reels/<id>/ (page.json, which gen_data writes, is checked above, "page data").
-  for (const r of reels) for (const [name, text] of r.files) {
-    if (name === 'page.json') continue;
-    const src = r.manifest.kind === 'playlist' ? path.join(R, 'data/reels', r.manifest.id, name)
-      : path.join(R, 'data/missions', r.manifest.mission.id, name);
-    if (!fs.existsSync(src) || fs.readFileSync(src, 'utf8') !== text) wrong.push(`${r.manifest.id}/${name} is not ${src}`);
+  // A notebook (#29) is notebook/notebook.md in the reel's source folder (a scenario reel's
+  // data/missions/<mission>/<scenario file stem>/, a playlist's data/reels/<id>/), each figure the render
+  // tools/notebook.py wrote into build/figures/<id>/ (the one the golden gate captures), and the reel's notebook and
+  // figures are tools/notebook.py's list for it, in order.
+  const nbList = execFileSync('python3', [path.join(R, 'tools/notebook.py'), 'list'], { cwd: R }).toString()
+    .split('\n').filter(Boolean).map(l => l.split(' '));
+  let nfig = 0;
+  for (const r of reels) {
+    const id = r.manifest.id;
+    const home = r.manifest.kind === 'playlist' ? path.join(R, 'data/reels', id)
+      : path.join(R, 'data/missions', r.manifest.mission.id);
+    for (const [name, text] of r.files) {
+      if (name === 'page.json') continue;
+      const src = name.startsWith('notebook/figures/') ? path.join(R, 'build/figures', id, name.slice(17))
+        : name.startsWith('notebook/') && r.manifest.kind === 'scenario'
+          ? path.join(home, id.slice(r.manifest.mission.id.length + 1), name) : path.join(home, name);
+      if (!fs.existsSync(src) || fs.readFileSync(src, 'utf8') !== text) wrong.push(`${id}/${name} is not ${src}`);
+    }
+    const want = nbList.filter(([rr]) => rr === id).map(([, n]) => n), have = r.notebook ? [...r.notebook.figures.keys()] : [];
+    nfig += have.length;
+    if (want.join() !== have.join() || (r.notebook !== null) !== fs.existsSync(path.join(R, 'build/reels', id, 'notebook')) ||
+        (r.notebook && r.notebook.text !== r.files.get('notebook/notebook.md')))
+      wrong.push(`${id}: notebook ${r.notebook ? 'with figures ' + have : 'none'}, not tools/notebook.py's ${want}`);
   }
+  const nbooks = reels.filter(r => r.notebook).map(r => r.manifest.id);
+  if (!nbooks.length) wrong.push('no reel carries a notebook');
   // The scenario reels, in their load order, are build/decks/reels.txt's, each reel's decks build/decks/<id>.txt's.
   const scen = reels.filter(r => r.manifest.kind === 'scenario');
   if (scen.map(r => r.manifest.id).join() !== REELS_IN.join()) wrong.push(`scenario reels ${scen.map(r => r.manifest.id)}, not ${REELS_IN}`);
@@ -568,23 +588,58 @@ if (W.sim_run && fs.existsSync(VSVG)) {
   // Bad packages made from the first reel's members by the packer's own tar_gz (craft MODE): reversed (the manifest
   // not first), the scenario deck dropped (listed but missing), an extra member (not listed), and the manifest's size
   // field set to -512 with its header checksum made right (the reader once looped on it).
-  const craft = mode => execFileSync('python3', ['-c', `import base64, gzip, io, sys, tarfile
+  // The notebook faults (#29), from the first reel with a notebook, its manifest edited to match: a figure without
+  // the notebook (notebook dropped), a figure the notebook names missing (its first figure dropped), a figure it does
+  // not name (one added), the notebook in the package but not listed, a figure whose file is not an SVG, one whose
+  // path is not notebook/figures/<name>.svg, and a second notebook.
+  const craft = (mode, b64 = VR[0].b64) => execFileSync('python3', ['-c', `import base64, gzip, io, json, sys, tarfile
 sys.path.insert(0, "tools"); import pack
 raw = gzip.decompress(base64.b64decode(sys.stdin.read()))
 t = tarfile.open(fileobj=io.BytesIO(raw))
 m = [(i.name, t.extractfile(i).read()) for i in t.getmembers()]
 mode = sys.argv[1]
+man = json.loads(m[0][1])
+figs = [e["path"] for e in man["contents"] if e["type"] == "figure"]
+def edit(drop=(), add=(), unlist=()):
+    man["contents"] = [e for e in man["contents"] if e["path"] not in drop and e["path"] not in unlist]
+    man["contents"] += [{"path": p, "type": ty} for p, ty, _ in add]
+    return [("manifest.json", json.dumps(man).encode())] + [x for x in m[1:] if x[0] not in drop] + [(p, b) for p, _, b in add]
+SVG = b'<svg xmlns="http://www.w3.org/2000/svg"></svg>\\n'
 if mode == "negsize":
     h = bytearray(raw)
     h[124:136] = b"-0000001000" + bytes(1)
     h[148:156] = b"        "
     h[148:156] = (b"%06o" % sum(h[:512])) + bytes(1) + b" "
     out = gzip.compress(bytes(h), mtime=0)
+elif mode.startswith("nb-"):
+    out = pack.tar_gz({
+        "nb-fig-alone": lambda: edit(drop=["notebook/notebook.md"]),
+        "nb-fig-missing": lambda: edit(drop=figs[:1]),
+        "nb-fig-unnamed": lambda: edit(add=[("notebook/figures/unnamed.svg", "figure", SVG)]),
+        "nb-unlisted": lambda: edit(unlist=["notebook/notebook.md"]),
+        "nb-not-svg": lambda: edit(drop=figs[:1], add=[(figs[0], "figure", b"GIF89a, not an SVG\\n")]),
+        "nb-not-svg-path": lambda: edit(add=[("notebook/figures/plate.png", "figure", SVG)]),
+        "nb-two": lambda: edit(add=[("notebook/notes.md", "notebook", b"# notes\\n")]),
+    }[mode]())
 else:
     out = pack.tar_gz({"reverse": m[::-1], "drop": m[:-1], "extra": m + [("extra.txt", b"x")]}[mode])
-sys.stdout.write(base64.b64encode(out).decode())`, mode], { cwd: R, input: VR[0].b64 }).toString();
+sys.stdout.write(base64.b64encode(out).decode())`, mode], { cwd: R, input: b64 }).toString();
   await refused('the manifest not first', craft('reverse'), /manifest\.json is not first/);
   await refused('a listed file missing', craft('drop'), /is listed but missing/);
+  const nbReel = VR.find(r => r.id === nbooks[0]);
+  if (nbReel) {
+    const nbRefused = async (what, mode, want) => {
+      try { await RP.readReel(craft(mode, nbReel.b64), sha, nbReel.id); wrong.push(`${what}: not refused`); }
+      catch (err) { if (!want.test(String(err.message))) wrong.push(`${what}: refused as "${err.message}"`); }
+    };
+    await nbRefused('a figure without a notebook', 'nb-fig-alone', /notebook\/figures\/\S+\.svg is a figure, and it holds no notebook$/);
+    await nbRefused('a named figure missing', 'nb-fig-missing', /its notebook names figures\/\S+\.svg, which it does not hold$/);
+    await nbRefused('a figure the notebook does not name', 'nb-fig-unnamed', /notebook\/figures\/unnamed\.svg is in it, and its notebook does not name it$/);
+    await nbRefused('the notebook not listed', 'nb-unlisted', /notebook\/notebook\.md is in it but not listed$/);
+    await nbRefused('a figure not an SVG', 'nb-not-svg', /notebook\/figures\/\S+\.svg is not an SVG document$/);
+    await nbRefused('a figure not at figures/<name>.svg', 'nb-not-svg-path', /notebook\/figures\/plate\.png is a figure, not notebook\/figures\/<name>\.svg$/);
+    await nbRefused('two notebooks', 'nb-two', /it lists 2 notebooks, not one$/);
+  }
   await refused('a member not listed', craft('extra'), /extra\.txt is in it but not listed/);
   await refused('a negative size field', craft('negsize'), /does not unpack: manifest\.json: bad size/);
   try { await RP.readReel(VR[0].b64, sha, 'other-id'); wrong.push('another id: not refused'); }
@@ -596,7 +651,8 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode], { cwd: R, input: VR[0]
   if (pageSha !== sha || reels.some(r => r.manifest.kernel.sha256 !== pageSha))
     wrong.push(`the page's KERNEL_SHA ${pageSha} is not the wasm's ${sha.slice(0, 8)} or a manifest's`);
   console.log(`packages: ${reels.length} reels (${reels.map(r => `${r.manifest.id} ${r.manifest.kind}`).join(', ')}), ${ndecks} decks; ` +
-    `hash totals ${sumsR.join(', ')}  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/, packed twice the same, refusals hold'}`);
+    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, 7 notebook faults` +
+    `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/ and build/figures/, packed twice the same, refusals hold'}`);
   if (wrong.length) ok = false;
 }
 // A situation's defaults are its deck's whatever source the last frame drew from (vdrive.f VINIT reads the replay for

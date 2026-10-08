@@ -40,6 +40,29 @@ function untar(t) {
 // build `sha`, is a scenario reel listing at least one run deck (type "scn") or a playlist reel listing its run.scn
 // (type "playlist") and the scenario reels it uses, its other members are exactly the files it lists, once each, and
 // it lists one page.json (type "page") that parses. page is that page.json's object.
+// A reel may carry a scenario notebook (#29; tools/notebook.py, tools/pack.py): at most one member of type "notebook",
+// at notebook/notebook.md, and members of type "figure", each notebook/figures/<name>.svg, an SVG document. A figure
+// needs the notebook, every figure the notebook's text names (a Markdown image figures/<name>.svg outside fenced
+// blocks, reelFigureRefs) must be in the reel and every figure in the reel must be named; otherwise the reel is
+// refused. The result then carries notebook: {text, figures: Map(name -> SVG text)} in the manifest's order, else
+// notebook is null. Readers before these types load such a reel and ignore the notebook (no format change; ours).
+const REEL_FIGURE = /^notebook\/figures\/([a-z0-9][a-z0-9-]*)\.svg$/;
+// The figure names a notebook's text names, in order of first use: its Markdown images outside fenced blocks
+// (tools/notebook.py refs reads them the same way and refuses any other image path when it packs).
+function reelFigureRefs(md) {
+  const out = [];
+  let fence = false;
+  for (const ln of md.split("\n")) {
+    if (ln.startsWith("```")) { fence = !fence; continue; }
+    if (fence) continue;
+    for (const m of ln.matchAll(/!\[[^\]]*\]\(([^)\s]*)[^)]*\)/g)) {
+      const f = /^figures\/([a-z0-9][a-z0-9-]*)\.svg$/.exec(m[1]);
+      const n = f ? f[1] : m[1];
+      if (!out.includes(n)) out.push(n);
+    }
+  }
+  return out;
+}
 async function readReel(b64, sha, id) {
   const no = why => new Error(`REEL ${id}: ${why}`);
   let bytes, files;
@@ -75,7 +98,25 @@ async function readReel(b64, sha, id) {
   if (pages.length !== 1) throw no(`it lists ${pages.length} page.json, not one`);
   let page;
   try { page = JSON.parse(text.get(pages[0].path)); } catch (e) { throw no(`${pages[0].path}: ${e.message}`); }
-  return { manifest, files: text, page };
+  const books = c.filter(e => e.type === "notebook"), figs = c.filter(e => e.type === "figure");
+  if (books.length > 1) throw no(`it lists ${books.length} notebooks, not one`);
+  if (books.length && books[0].path !== "notebook/notebook.md") throw no(`its notebook is ${books[0].path}, not notebook/notebook.md`);
+  if (figs.length && !books.length) throw no(`${figs[0].path} is a figure, and it holds no notebook`);
+  let notebook = null;
+  if (books.length) {
+    const figures = new Map();
+    for (const e of figs) {
+      const m = REEL_FIGURE.exec(e.path), svg = text.get(e.path);
+      if (!m) throw no(`${e.path} is a figure, not notebook/figures/<name>.svg`);
+      if (!/^\s*(<\?xml[^>]*\?>\s*)?<svg[\s>]/.test(svg) || !/<\/svg>\s*$/.test(svg)) throw no(`${e.path} is not an SVG document`);
+      figures.set(m[1], svg);
+    }
+    const md = text.get(books[0].path), refs = reelFigureRefs(md);
+    for (const n of refs) if (!figures.has(n)) throw no(`its notebook names ${/^[a-z0-9][a-z0-9-]*$/.test(n) ? `figures/${n}.svg` : n}, which it does not hold`);
+    for (const n of figures.keys()) if (!refs.includes(n)) throw no(`notebook/figures/${n}.svg is in it, and its notebook does not name it`);
+    notebook = { text: md, figures };
+  }
+  return { manifest, files: text, page, notebook };
 }
 // A reel's run decks, in its manifest's order: [[path, text]], each path "<reel id>/<file>".
 const reelDecks = r => r.manifest.contents.filter(c => c.type === "scn").map(c => [`${r.manifest.id}/${c.path}`, r.files.get(c.path)]);
