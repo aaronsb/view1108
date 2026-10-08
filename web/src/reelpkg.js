@@ -49,36 +49,43 @@ function untar(t) {
 const REEL_FIGURE = /^notebook\/figures\/([a-z0-9][a-z0-9-]*)\.svg$/;
 // What a figure may hold (ours; reviews of PR #69): an ALLOWLIST, the same as tools/notebook.py svg_unsafe (render and
 // pack): the elements and attributes tools/viewsvg.f90 writes. Refused: a <! anywhere (doctype, entity, comment,
-// CDATA), a <? but a leading XML declaration, an element or attribute not on the list (prefixed names among them), a
-// namespace not SVG's, an href but to #..., url( or javascript:, an entity but the XML five and numeric references,
-// and a tag the scanner cannot read whole. The viewer shows figures as <img> from data: URLs; this keeps a figure
-// inert even when a reader opens it as a page.
+// CDATA), a <? but a leading XML declaration (after at most a byte order mark), an element or attribute not on the
+// list (prefixed names among them), a namespace not SVG's, an href but to #..., url( or javascript:, an entity but
+// the XML five and numeric references, and a tag the scanner cannot read whole. Whitespace is XML's: space, tab, CR,
+// LF. The scan is linear (#79): each tag is read once, left to right, by anchored (sticky) patterns whose parts cannot
+// trade characters, so a tag of 200K spaces costs what its length costs. The viewer shows figures as <img> from
+// data: URLs; this keeps a figure inert even when a reader opens it as a page.
 const REEL_SVG_ELEMENTS = new Set(["svg", "g", "line", "circle", "rect", "text"]);
 const REEL_SVG_ATTRS = new Set(["xmlns", "xmlns:xlink", "width", "height", "viewBox", "x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r",
   "fill", "stroke", "stroke-width", "stroke-linecap", "stroke-dasharray", "font-family", "font-size", "href", "xlink:href"]);
 const REEL_SVG_NS = { "xmlns": "http://www.w3.org/2000/svg", "xmlns:xlink": "http://www.w3.org/1999/xlink" };
+// A tag's body (between < and >): its head (a / for a closing tag, then the element's name), its attributes, one at a
+// time, and its end (whitespace, and in an opening tag one /).
+const REEL_SVG_HEAD = /[ \t\r\n]*(?:(\/)[ \t\r\n]*)?([^ \t\r\n/<>]+)/y;
+const REEL_SVG_ATTR = /[ \t\r\n]+([^ \t\r\n=/<>"']+)[ \t\r\n]*=[ \t\r\n]*(?:"([^"<>]*)"|'([^'<>]*)')/y;
+const REEL_SVG_END = /[ \t\r\n]*(?:\/[ \t\r\n]*)?$/y, REEL_SVG_WS = /[ \t\r\n]*$/y;
 /** Why SVG text `text` may not be a figure, or null. */
 function reelSvgUnsafe(text) {
-  const s = String(text).replace(/^\s*<\?xml[^<>?]*\?>/, ""), TAG = /<([^<>]*)>/g, ATTR = /\s+([^\s=/<>"']+)\s*=\s*(?:"([^"<>]*)"|'([^'<>]*)')/g;
+  const s = String(text).replace(/^\uFEFF?[ \t\r\n]*<\?xml[^<>?]*\?>/, ""), TAG = /<([^<>]*)>/g;
+  const at = (re, body, k) => { re.lastIndex = k; return re.exec(body); };
   if (s.includes("<!")) return "a <! declaration (doctype, entity, comment or CDATA)";
   if (s.includes("<?")) return "a <? processing instruction";
   for (const bad of ["javascript:", "url("]) if (s.toLowerCase().includes(bad)) return `'${bad}'`;
-  if (/&(?!(?:amp|lt|gt|quot|apos|#\d{1,7}|#x[0-9a-fA-F]{1,6});)/.test(s)) return "an entity other than the XML ones";
+  if (/&(?!(?:amp|lt|gt|quot|apos|#[0-9]{1,7}|#x[0-9a-fA-F]{1,6});)/.test(s)) return "an entity other than the XML ones";
   const rest = s.replace(TAG, "");
   if (rest.includes("<") || rest.includes(">")) return "a tag the scanner cannot read whole";
   for (const m of s.matchAll(TAG)) {
-    const body = m[1], t = /^\s*(\/?)\s*([^\s/<>]+)/.exec(body);
+    const body = m[1], t = at(REEL_SVG_HEAD, body, 0);
     if (!t || !REEL_SVG_ELEMENTS.has(t[2])) return `an element not on the list ('${(t ? t[2] : body).slice(0, 40)}')`;
-    const tail = body.slice(t[0].length);
-    if (t[1]) { if (tail.trim()) return "a closing tag with attributes"; continue; }
-    const left = tail.replace(ATTR, "").trim();
-    if (left !== "" && left !== "/") return `a tag the scanner cannot read whole ('${left.slice(0, 40)}')`;
-    for (const a of tail.matchAll(ATTR)) {
+    let k = t[0].length;
+    if (t[1]) { if (!at(REEL_SVG_WS, body, k)) return "a closing tag with attributes"; continue; }
+    for (let a; (a = at(REEL_SVG_ATTR, body, k)); k += a[0].length) {
       const name = a[1], val = a[2] ?? a[3];
       if (!REEL_SVG_ATTRS.has(name)) return `an attribute not on the list ('${name}')`;
       if (name in REEL_SVG_NS && val !== REEL_SVG_NS[name]) return `a namespace not SVG's ('${val.slice(0, 40)}')`;
       if ((name === "href" || name === "xlink:href") && !val.startsWith("#")) return "an href to anything but #...";
     }
+    if (!at(REEL_SVG_END, body, k)) return `a tag the scanner cannot read whole ('${body.slice(k).replace(/^[ \t\r\n]+/, "").slice(0, 40)}')`;
   }
   return null;
 }

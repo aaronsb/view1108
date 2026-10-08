@@ -228,23 +228,31 @@ def notebooks():
 # tools/viewsvg.f90 writes (svg, g, line, circle, rect, text; their geometry, paint and font attributes), checked over
 # every golden render and figure. The page shows a figure as an <img> from a data: URL, but a reader may open it as a
 # page, so anything else is refused: a <! (doctype, entity, comment, CDATA) anywhere, a <? other than a leading XML
-# declaration, an element or attribute not on the list (a prefixed name among them: h:script, s:script, xlink:href
-# but to #...), an href to anything but a fragment, a style, url( or attributeName, a javascript: URL, an entity
-# other than the five XML ones and numeric references, and a tag the scanner cannot read whole. The same rule is
-# web/src/reelpkg.js reelSvgUnsafe, which the page applies when it unpacks a reel; the selftest runs both over every
-# figure and golden render, so a kernel that writes a new element fails loudly.
+# declaration (after at most a byte order mark, which the page's TextDecoder drops), an element or attribute not on
+# the list (a prefixed name among them: h:script, s:script, xlink:href but to #...), an href to anything but a
+# fragment, a style, url( or attributeName, a javascript: URL, an entity other than the five XML ones and numeric
+# references, and a tag the scanner cannot read whole. Whitespace is XML's: space, tab, CR, LF. The scan is linear
+# (#79): each tag is read once, left to right, by patterns anchored where the last one ended, whose parts cannot
+# trade characters, so a tag of 200K spaces costs what its length costs. The same rule is web/src/reelpkg.js
+# reelSvgUnsafe, which the page applies when it unpacks a reel; the selftest runs both over every figure and golden
+# render, so a kernel that writes a new element fails loudly, and times both on hostile tags.
 SVG_ELEMENTS = {"svg", "g", "line", "circle", "rect", "text"}
 SVG_ATTRS = {"xmlns", "xmlns:xlink", "width", "height", "viewBox", "x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r",
              "fill", "stroke", "stroke-width", "stroke-linecap", "stroke-dasharray", "font-family", "font-size",
              "href", "xlink:href"}
 SVG_NS = {"xmlns": "http://www.w3.org/2000/svg", "xmlns:xlink": "http://www.w3.org/1999/xlink"}
 _TAG = re.compile(r"<([^<>]*)>")
-_ATTR = re.compile(r"""\s+([^\s=/<>"']+)\s*=\s*(?:"([^"<>]*)"|'([^'<>]*)')""")
+# A tag's body (between < and >): its head (a / for a closing tag, then the element's name), its attributes, one at a
+# time, and its end (whitespace, and in an opening tag one /).
+_HEAD = re.compile(r"[ \t\r\n]*(?:(/)[ \t\r\n]*)?([^ \t\r\n/<>]+)")
+_ATTR = re.compile(r"""[ \t\r\n]+([^ \t\r\n=/<>"']+)[ \t\r\n]*=[ \t\r\n]*(?:"([^"<>]*)"|'([^'<>]*)')""")
+_END = re.compile(r"[ \t\r\n]*(?:/[ \t\r\n]*)?")
+_WS = re.compile(r"[ \t\r\n]*")
 
 
 def svg_unsafe(text):
     """Why the SVG text `text` may not be a figure (the allowlist above), or None."""
-    s = re.sub(r"^\s*<\?xml[^<>?]*\?>", "", text, count=1)
+    s = re.sub(r"^\ufeff?[ \t\r\n]*<\?xml[^<>?]*\?>", "", text, count=1)
     if "<!" in s:
         return "a <! declaration (doctype, entity, comment or CDATA)"
     if "<?" in s:
@@ -252,25 +260,23 @@ def svg_unsafe(text):
     for bad in ("javascript:", "url("):   # style and attributeName are off the attribute list
         if bad in s.lower():
             return f"{bad!r}"
-    if re.search(r"&(?!(?:amp|lt|gt|quot|apos|#\d{1,7}|#x[0-9a-fA-F]{1,6});)", s):
+    if re.search(r"&(?!(?:amp|lt|gt|quot|apos|#[0-9]{1,7}|#x[0-9a-fA-F]{1,6});)", s):
         return "an entity other than the XML ones"
     rest = _TAG.sub("", s)
     if "<" in rest or ">" in rest:
         return "a tag the scanner cannot read whole"
     for m in _TAG.finditer(s):
         body = m.group(1)
-        t = re.match(r"\s*(/?)\s*([^\s/<>]+)", body)
+        t = _HEAD.match(body)
         if not t or t.group(2) not in SVG_ELEMENTS:
             return f"an element not on the list ({(t.group(2) if t else body)[:40]!r})"
-        tail = body[t.end():]
+        k = t.end()
         if t.group(1):
-            if tail.strip():
+            if not _WS.fullmatch(body, k):
                 return "a closing tag with attributes"
             continue
-        left = _ATTR.sub("", tail).strip()
-        if left not in ("", "/"):
-            return f"a tag the scanner cannot read whole ({left[:40]!r})"
-        for a in _ATTR.finditer(tail):
+        while a := _ATTR.match(body, k):
+            k = a.end()
             name, val = a.group(1), a.group(2) if a.group(2) is not None else a.group(3)
             if name not in SVG_ATTRS:
                 return f"an attribute not on the list ({name!r})"
@@ -278,6 +284,9 @@ def svg_unsafe(text):
                 return f"a namespace not SVG's ({val[:40]!r})"
             if name in ("href", "xlink:href") and not val.startswith("#"):
                 return "an href to anything but #..."
+        if not _END.fullmatch(body, k):
+            left = body[k:].lstrip(" \t\r\n")[:40]
+            return f"a tag the scanner cannot read whole ({left!r})"
     return None
 
 

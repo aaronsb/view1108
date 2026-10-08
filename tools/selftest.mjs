@@ -540,7 +540,7 @@ if (W.sim_run && fs.existsSync(VSVG)) {
   const nbOut = cmd => execFileSync('python3', [path.join(R, 'tools/notebook.py'), cmd], { cwd: R }).toString()
     .split('\n').filter(Boolean).map(l => l.split(' '));
   const nbRefs = nbOut('golden-refs'), nbList = [...nbOut('list'), ...nbRefs];
-  let nfig = 0, nSvgBad = 0, nSvgOk = 0;
+  let nfig = 0, nSvgBad = 0, nSvgOk = 0, nSvgSlow = 0;
   for (const r of reels) {
     const id = r.manifest.id;
     const home = r.manifest.kind === 'playlist' ? path.join(R, 'data/reels', id)
@@ -702,6 +702,28 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
     const okSvg = `<?xml version="1.0"?>\n<svg ${W3} width="8" height="8" viewBox="0 0 8 8"><g stroke="white" xlink:href="#a"><line x1="0" y1="0" x2="1" y2="1" stroke-dasharray="6 5"/></g><g fill="#9cf" font-family="monospace" font-size="11"><text x="1" y="2">1:2 &amp; &#60;</text></g></svg>\n`;
     const okPy = execFileSync('python3', ['-c', 'import sys; sys.path.insert(0, "tools"); import notebook; print(notebook.svg_unsafe(sys.argv[1]))', okSvg], { cwd: R }).toString().trim();
     if (okPy !== 'None' || RP.reelSvgUnsafe(okSvg) !== null) wrong.push(`the allowlist refuses viewsvg's own shapes: ${okPy} / ${RP.reelSvgUnsafe(okSvg)}`);
+    // Hostile tags (#79): both judge each within 200 ms, and the same way (true: accepted). 200K spaces took the old
+    // scan 15-30 s in the page and minutes in Python. A byte order mark may lead the XML declaration (the page's
+    // TextDecoder drops it before the check), nowhere else.
+    const SP = ' '.repeat(200000), SVG_SLOW = {
+      '200K spaces before a name': [`<svg ${W3}><${SP}></svg>\n`, false],
+      '200K spaces in a tag': [`<svg ${W3}><rect${SP}/></svg>\n`, true],
+      '200K spaces and a stray character': [`<svg ${W3}><rect x="1"${SP}q/></svg>\n`, false],
+      '200K spaces in a closing tag': [`<svg ${W3}><g></g${SP}x></svg>\n`, false],
+      'a byte order mark before the declaration': [`\ufeff<?xml version="1.0"?>\n<svg ${W3}></svg>\n`, true],
+      'a byte order mark after whitespace': [` \ufeff<?xml version="1.0"?>\n<svg ${W3}></svg>\n`, false],
+    };
+    const pySlow = JSON.parse(execFileSync('python3', ['-c', `import json, sys, time; sys.path.insert(0, "tools"); import notebook
+out = []
+for t in json.load(sys.stdin):
+    t0 = time.perf_counter(); why = notebook.svg_unsafe(t); out.append([why, (time.perf_counter() - t0) * 1000])
+print(json.dumps(out))`], { cwd: R, input: JSON.stringify(Object.values(SVG_SLOW).map(v => v[0])) }).toString());
+    Object.entries(SVG_SLOW).forEach(([what, [svg, ok]], i) => {
+      const t0 = performance.now(), js = RP.reelSvgUnsafe(svg), ms = performance.now() - t0, [py, pms] = pySlow[i];
+      if ((js === null) !== ok || (py === null) !== ok) wrong.push(`a figure with ${what}: the page says ${js}, tools/notebook.py ${py}`);
+      if (ms > 200 || pms > 200) wrong.push(`a figure with ${what}: ${ms.toFixed(0)} ms in the page, ${pms.toFixed(0)} ms in tools/notebook.py`);
+    });
+    nSvgSlow = Object.keys(SVG_SLOW).length;
     // Every figure and every golden render (when build/golden is there) passes both: a kernel that writes a new element
     // or attribute fails here, loudly, not in a reader's browser.
     const svgFiles = [...fs.readdirSync(path.join(R, 'build/figures')).flatMap(d => fs.statSync(path.join(R, 'build/figures', d)).isDirectory()
@@ -803,7 +825,7 @@ pack.quickviews("apollo11-asflown", pathlib.Path(sys.argv[1]), pack.listing("apo
   if (pageSha !== sha || reels.some(r => r.manifest.kernel.sha256 !== pageSha))
     wrong.push(`the page's KERNEL_SHA ${pageSha} is not the wasm's ${sha.slice(0, 8)} or a manifest's`);
   console.log(`packages: ${reels.length} reels (${reels.map(r => `${r.manifest.id} ${r.manifest.kind}`).join(', ')}), ${ndecks} decks; ` +
-    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, ${13 + nSvgBad} notebook faults (${nSvgBad} unsafe figures), the figure allowlist over ${nSvgOk} figures and golden renders, a stale render` +
+    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, ${13 + nSvgBad} notebook faults (${nSvgBad} unsafe figures), ${nSvgSlow} hostile figures timed, the figure allowlist over ${nSvgOk} figures and golden renders, a stale render` +
     `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/ and build/figures/, packed twice the same, refusals hold'}`);
   if (wrong.length) ok = false;
 }
