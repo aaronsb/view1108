@@ -13,7 +13,7 @@ const LINKED = s => [HOLD(), { expect: [`(d => d >= 0 && d < 300)(VIEW_TL.state(
 const LAB = "VIEW_LAB.info()";
 // The LINK button's URL (link.js linkURL), and no old key in it (docs/modes.md, Link parameters: the old keys, #22).
 const LINK = "VIEW_FUSION.state().link";
-const NO_OLD = /^(?!.*[?&](?:src|lab|scene)=)(?!.*[?&]labels=[01](&|$))(?!.*space=tabbed)(?!.*mode=(?:attract|tour))/;
+const NO_OLD = /^(?!.*[?&](?:src|lab|scene)=)(?!.*[?&]labels=[01](&|$))(?!.*space=tiled)(?!.*mode=(?:attract|tour))/;
 // Fusion's lists (#75): each reel's photo events, data/photos.tsv's rows with a situation, in the table's order.
 const FUSION_A8 = ["AS08-14-2383", "AS08-13-2329", "AS08-14-2384", "AS08-14-2392"];
 const FUSION_A11 = ["AS11-44-6550", "AS11-44-6552", "AS11-44-6574", "AS11-44-6581", "AS11-44-6667"];
@@ -395,12 +395,12 @@ const SHOT_LIST = [
 
   // #22, the link's keys (docs/modes.md, Link parameters). Each old key or value still lands where it did, and the
   // LINK button (VIEW_FUSION.state().link) writes it back in the canonical key: scene=9 is Apollo 8's Earthrise;
-  // space=tabbed the plain page (Tabbed); src=sim the engine's trajectory (traj), src=<unit> a code location (code);
+  // space=tiled the plain page (Tabbed); src=sim the engine's trajectory (traj), src=<unit> a code location (code);
   // lab=N a label level and labels=0|1 off or all (labels by name); mode=attract and mode=tour their playlist reels.
   { name: "link-scene-alias", url: "mode=free&space=tabbed&scene=9",
     steps: [HOLD(), { frames: 2 }],
     expect: [[TL("mounted"), "apollo8-asflown"], [TL("scene"), 9], [LINK, /scn=apollo8-asflown&sit=APOLLO%208%20EARTHRISE/], [LINK, NO_OLD]] },
-  { name: "link-alias-space-tiled", url: "mode=free&space=tabbed&scn=apollo11-asflown&sit=1",
+  { name: "link-alias-space-tiled", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1",
     steps: [HOLD(), { frames: 2 }],
     expect: [[`document.body.classList.contains("room")`, false], ["!!window.VIEW_LAB && VIEW_LAB.running", false],
       [`document.getElementById("btiled").classList.contains("on")`, true], [`document.getElementById("btiled").textContent`, "Tabbed"],
