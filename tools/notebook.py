@@ -183,6 +183,27 @@ def notebooks():
     return [(rid, nb) for rid, kind, src, uses in reels() for nb in [load(rid, kind, src, uses, sits)] if nb]
 
 
+# What a figure may not hold (#29 slice d, review of PR #69; ours): the page shows a figure as an <img> from a data: URL,
+# but a reader may open it as a page, so a figure is refused if it holds a script, an event handler attribute, a
+# foreignObject, a javascript: URL, or a link (href, xlink:href) to anything but a fragment of itself. The same rule
+# is web/src/reelpkg.js REEL_SVG_UNSAFE, which the page applies when it unpacks a reel.
+SVG_UNSAFE = [
+    (re.compile(r"<\s*script", re.I), "a <script>"),
+    (re.compile(r"[\s/\"']on[a-z]+\s*=", re.I), "an on... event attribute"),
+    (re.compile(r"<\s*foreignObject", re.I), "a <foreignObject>"),
+    (re.compile(r"javascript\s*:", re.I), "a javascript: URL"),
+    (re.compile(r"""\bhref\s*=\s*(?!["']#)""", re.I), "an href to anything but #..."),
+]
+
+
+def svg_unsafe(text):
+    """Why the SVG text `text` may not be a figure (SVG_UNSAFE), or None."""
+    for rx, why in SVG_UNSAFE:
+        if rx.search(text):
+            return why
+    return None
+
+
 def sha(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
@@ -227,6 +248,9 @@ def render():
                                    env={**base, "VIEW_HDR": "1", "VIEW_REEL": reel, **env})
             if r.returncode:
                 fail(f"{rid} figure {name}", f"build/viewsvg exited {r.returncode} (see {out}.hdr)")
+            bad = svg_unsafe(pathlib.Path(f"{out}.svg").read_text(errors="replace"))
+            if bad:
+                fail(f"{rid} figure {name}", f"the render holds {bad}, which a figure may not")
             n += 1
         (FIGDIR / rid / "cases.json").write_text(json.dumps(stamp(nb), indent=1) + "\n")
     print(f"notebook: {n} figures rendered into build/figures/")

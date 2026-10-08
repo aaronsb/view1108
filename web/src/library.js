@@ -2,7 +2,7 @@
 // listed beside the browser's own PDF viewer in an iframe, and after them the reels' scenario notebooks (#29: each
 // REEL_LIB reel that carries notebook/notebook.md), shown by the notebook viewer (notebook.js) in place of the iframe,
 // with "Load this reel". Opened from Source's [ LIBRARY ], from the Reels group's "Read the notebook" (reels.js) or, in
-// the room, from the bookcase or one of its binders, or a notebook binder on the tape rack (room.js). On a narrow screen
+// the room, from the bookcase, one of its binders, or a mission notebook there through its modal (room.js). On a narrow screen
 // the list carries only the documents' links, since built-in PDF viewers in iframes are unreliable on phones, and a
 // notebook takes the overlay with a List button back. Where the PDFs are not beside the page (opened from file://, or
 // a 404), the viewer gives way to the document's source URL. An id "nb-<reel id>" names a notebook.
@@ -13,7 +13,6 @@ if (!LIB.length) fetch("library/library.json").then(r => r.ok ? r.json() : []).t
 let libCur = null;   // what is shown: a document of LIB, or a notebook { id: "nb-<reel id>", reel }
 const libHere = new Map();   // file -> Promise<boolean>: is the PDF served beside the page
 const libPath = d => "library/" + d.file;
-let libBlobs = [];   // the shown notebook's figure URLs, revoked when it goes
 function libServed(d) {
   if (location.protocol === "file:") return Promise.resolve(false);
   if (!libHere.has(d.file)) libHere.set(d.file, fetch(libPath(d), { method: "HEAD" }).then(r => r.ok && /pdf/.test(r.headers.get("content-type") || ""), () => false));
@@ -45,19 +44,27 @@ function libList() {
     libServed(d).then(ok => { if (!ok) open.href = d.source; });
     links.append(open, " ", src); li.appendChild(links); ul.appendChild(li);
   }
-  if (nbs.length) ul.appendChild(libSection("SCENARIO NOTEBOOKS"));
+  if (nbs.length) ul.appendChild(libSection("MISSION NOTEBOOKS"));
   for (const n of nbs) ul.appendChild(libRow(n.id, n.reel.manifest.title, n.title, `${n.reel.notebook.figures.size} figures · our notes, rendered by this kernel`));
   if (libCur) libShow(libCur.id);
 }
-// The shown notebook's figure URLs go (and the viewer is emptied).
-function libFigFree() { for (const u of libBlobs) URL.revokeObjectURL(u); libBlobs = []; $("libmd").textContent = ""; }
+// The notebook viewer emptied.
+function libMdClear() { $("libmd").textContent = ""; }
+// A figure's image URL: data:image/svg+xml;base64 of its SVG (a data: document has an opaque origin, so a figure opened
+// as a page cannot reach the site's storage; review of PR #69). reelpkg.js has already refused a figure with script.
+function libFigUrl(svg) {
+  const b = new TextEncoder().encode(svg);
+  let bin = "";
+  for (let k = 0; k < b.length; k += 0x8000) bin += String.fromCharCode.apply(null, b.subarray(k, k + 0x8000));
+  return "data:image/svg+xml;base64," + btoa(bin);
+}
 // The viewer as a document's (PDF) or a notebook's: which of the iframe and the article shows, and the buttons.
 function libMode(md) {
   $("libr").classList.toggle("md", md);
   $("libmd").hidden = !md; $("blibload").hidden = !md; $("bliblist").hidden = !md;
   $("libnew").hidden = $("libsrc").hidden = md;
   if (md) { $("libframe").hidden = true; $("libframe").removeAttribute("src"); $("libnote").hidden = true; }
-  else libFigFree();
+  else libMdClear();
 }
 function libShow(id) {
   if (id && id.startsWith("nb-")) { libShowNb(id); return; }
@@ -80,24 +87,25 @@ function libShow(id) {
     note.appendChild(a);
   });
 }
-// A reel's notebook in the viewer: its text built by notebook.js, each figure an <img> from a blob: URL of the reel's
-// own SVG bytes (never inlined: an <img> runs no SVG script), revoked when another is shown or the library closes.
+// A reel's notebook in the viewer: its text built by notebook.js, each figure an <img> from a data: URL of the reel's
+// own SVG (never inlined). A text the renderer refuses (too long) or fails on is shown as plain text.
 function libShowNb(id) {
   const n = libNotebooks().find(x => x.id === id);
   if (!n) { libShow(LIB[0]?.id); return; }
   if (libCur?.id === id && $("libmd").childNodes.length) { libMode(true); return; }
-  libFigFree(); libMode(true);
+  libMdClear(); libMode(true);
   libCur = { id, reel: n.reel };
   document.querySelectorAll("#liblist .librow").forEach(b => b.classList.toggle("on", b.dataset.id === id));
   document.querySelector("#liblist .librow.on")?.scrollIntoView({ block: "nearest" });
   $("libtitle").textContent = `${n.reel.manifest.title} — scenario notebook (ours), carried in the reel`;
-  const figs = n.reel.notebook.figures, urls = new Map();
-  const fig = name => {
-    if (!figs.has(name)) return null;
-    if (!urls.has(name)) { const u = URL.createObjectURL(new Blob([figs.get(name)], { type: "image/svg+xml" })); urls.set(name, u); libBlobs.push(u); }
-    return urls.get(name);
-  };
-  $("libmd").replaceChildren(nbBuild(nbParse(n.reel.notebook.text), document, fig));
+  const figs = n.reel.notebook.figures, fig = name => figs.has(name) ? libFigUrl(figs.get(name)) : null;
+  try { $("libmd").replaceChildren(nbBuild(nbParse(n.reel.notebook.text), document, fig)); }
+  catch (e) {
+    const pre = document.createElement("pre");
+    pre.textContent = n.reel.notebook.text;
+    $("libmd").replaceChildren(pre);
+    console.warn(`notebook ${id}: shown as text (${e.message})`);
+  }
   $("libmd").scrollTop = 0;
 }
 /** Open the library, with document `id` or notebook "nb-<reel id>" (else the last one shown, else the first). Open, it
@@ -108,7 +116,7 @@ function libraryOpen(id) {
   escPush("library", libraryClose);
   libShow(id || libCur?.id);
 }
-function libraryClose() { $("libr").classList.remove("open"); escDrop("library"); libFigFree(); }
+function libraryClose() { $("libr").classList.remove("open"); escDrop("library"); libMdClear(); }
 const libraryIsOpen = () => $("libr").classList.contains("open");
 // "Load this reel": in the room the viewer closes and the reel is out at the rack, carried to a drive (room.js
 // roomCarry); in Tabbed it is mounted at once (reels.js reelMount) and the library closes over the loaded reel.

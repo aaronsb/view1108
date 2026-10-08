@@ -10,62 +10,81 @@
 //   because the notebooks' own text sends the reader to "the case of its name in the figures block at the end".
 //   Inline: `code`, **strong**, *em* and _em_, [text](href), ![alt](figures/<name>.svg), <https://...> and bare
 //   http(s) URLs, backslash escapes; anything else (raw HTML among it) stays text.
-//   Links: only http: and https: (opened in a new tab, rel noopener noreferrer) and in-page #anchors become links;
-//   any other href (javascript:, data:, a relative path) is dropped and its text kept. Images: only figures/<name>.svg,
-//   which the viewer shows as <img> from a blob: URL of the reel's own SVG bytes (an <img> runs no SVG script); any
-//   other image is its alt text.
+//   Links: only absolute http: and https: URLs become links (a new tab, rel noopener noreferrer); any other href
+//   (javascript:, data:, //host, a relative path, a #fragment: the viewer gives its headings no ids) is dropped and
+//   its text kept. Images: only figures/<name>.svg, which the viewer shows as <img> from a data: URL of the reel's own
+//   SVG (a data: document has an opaque origin, so even a figure opened as a page cannot reach the site; reelpkg.js
+//   also refuses a figure holding script, handlers, foreignObject or outside links); any other image is its alt text.
+//   Limits (review of PR #69): a text over NB_MAX characters is refused (nbParse throws; the viewer shows it as plain
+//   text), quotes and lists nest at most NB_DEPTH deep and emphasis at most NB_IDEPTH (deeper is text), and every
+//   pattern is bounded or memoised so a hostile text parses in time linear in its length.
 "use strict";
 /** The elements the builder may make. */
 const NB_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6", "p", "em", "strong", "code", "pre", "ul", "ol", "li", "a",
   "blockquote", "table", "thead", "tbody", "tr", "th", "td", "hr", "img", "figure", "figcaption", "section"]);
 const NB_FIG = /^figures\/([a-z0-9][a-z0-9-]*)\.svg$/;
-/** A link's target if it may be one: an absolute http(s) URL, or an in-page #anchor; else null. */
+const NB_MAX = 262144, NB_DEPTH = 8, NB_IDEPTH = 12;
+/** A link's target if it may be one: an absolute http(s) URL; else null. */
 function nbHref(h) {
-  const s = String(h || "").trim();
-  if (/^#[A-Za-z0-9_-]+$/.test(s)) return s;
-  if (!/^https?:\/\//i.test(s) || /[\s<>"'`\\\u0000-\u001f]/.test(s)) return null;
+  const s = String(h || "");
+  if (!/^https?:\/\/[^/\s]/i.test(s) || /[\s<>"'`\\\u0000-\u001f]/.test(s)) return null;
   try { const u = new URL(s); return u.protocol === "http:" || u.protocol === "https:" ? u.href : null; } catch (e) { return null; }
 }
-/** Inline Markdown to a list of strings and nodes. */
-function nbInline(s) {
-  const out = [];
+// Sticky patterns, tried at a position without copying the rest of the line; each bounded so an unclosed one fails fast.
+const NB_RX = {
+  code: /(`{1,8})([^`\n]{1,4000}?)\1(?!`)/y,
+  img: /!\[([^\]\n]{0,1000})\]\(([^()\s]{0,2000})(?:\s+"[^"\n]{0,500}")?\)/y,
+  link: /\[((?:[^\]\\\n]|\\.){0,1000})\]\(([^()\s]{0,2000})(?:\s+"[^"\n]{0,500}")?\)/y,
+  auto: /<(https?:\/\/[^\s<>]{1,2000})>/iy,
+  bare: /https?:\/\/[^\s<>"]{0,2000}[^\s<>".,;:!?)\]'*_]/iy,
+};
+const nbAt = (rx, s, i) => { rx.lastIndex = i; return rx.exec(s); };
+/** Inline Markdown to a list of strings and nodes (`depth`: how deep in emphasis). */
+function nbInline(s, depth = 0) {
+  const out = [], none = new Set();   // `none`: delimiters with no closer anywhere after where one was last sought
+  // The next "]" at or after i (Infinity: none), kept as i moves on, so an opener with no "]" within reach fails at
+  // once rather than scanning its bound again.
+  let close = -1;
+  const nextClose = i => { if (close < i) { const k = s.indexOf("]", i); close = k < 0 ? Infinity : k; } return close; };
   let buf = "";
   const text = t => { buf += t; }, flush = () => { if (buf) out.push(buf); buf = ""; };
   const push = n => { flush(); out.push(n); };
   let i = 0;
   while (i < s.length) {
-    const c = s[i], rest = s.slice(i);
+    const c = s[i];
     let m;
     if (c === "\\" && i + 1 < s.length && /[\\`*_{}[\]()#+\-.!|<>~]/.test(s[i + 1])) { text(s[i + 1]); i += 2; continue; }
-    if (c === "`" && (m = /^(`+)([^]*?[^`])\1(?!`)/.exec(rest))) { push({ t: "code", c: [m[2].replace(/^ (.*) $/, "$1")] }); i += m[0].length; continue; }
-    if (c === "!" && (m = /^!\[([^\]]*)\]\(([^)\s]*)(?:\s+"[^"]*")?\)/.exec(rest))) {
+    if (c === "`" && (m = nbAt(NB_RX.code, s, i))) { push({ t: "code", c: [m[2].replace(/^ (.*) $/, "$1")] }); i += m[0].length; continue; }
+    if (c === "!" && s[i + 1] === "[" && nextClose(i) - i <= 1002 && (m = nbAt(NB_RX.img, s, i))) {
       const f = NB_FIG.exec(m[2]);
       push(f ? { t: "img", fig: f[1], alt: m[1] } : m[1]);
       i += m[0].length; continue;
     }
-    if (c === "[" && (m = /^\[((?:[^\]\\]|\\.)*)\]\(([^)\s]*)(?:\s+"[^"]*")?\)/.exec(rest))) {
-      const href = nbHref(m[2]), kids = nbInline(m[1]);
+    if (c === "[" && nextClose(i) - i <= 2001 && (m = nbAt(NB_RX.link, s, i))) {
+      const href = nbHref(m[2]), kids = depth < NB_IDEPTH ? nbInline(m[1], depth + 1) : [m[1]];
       if (href) push({ t: "a", href, c: kids }); else { flush(); out.push(...kids); }
       i += m[0].length; continue;
     }
-    if (c === "<" && (m = /^<(https?:\/\/[^\s<>]+)>/i.exec(rest))) {
+    if (c === "<" && (m = nbAt(NB_RX.auto, s, i))) {
       const href = nbHref(m[1]);
       push(href ? { t: "a", href, c: [m[1]] } : m[0]); i += m[0].length; continue;
     }
-    if ((c === "h" || c === "H") && !/\w$/.test(s.slice(0, i)) && (m = /^https?:\/\/[^\s<>"]*[^\s<>".,;:!?)\]'*_]/i.exec(rest))) {
+    if ((c === "h" || c === "H") && !/\w/.test(s[i - 1] || "") && (m = nbAt(NB_RX.bare, s, i))) {
       const href = nbHref(m[0]);
       push(href ? { t: "a", href, c: [m[0]] } : m[0]); i += m[0].length; continue;
     }
-    if ((c === "*" || c === "_") && !/\s/.test(s[i + (s[i + 1] === c ? 2 : 1)] || " ")) {
-      // Emphasis: ** or * (or __, _ at a word's edge), closed by the same run not after a space.
+    if ((c === "*" || c === "_") && depth < NB_IDEPTH && !/\s/.test(s[i + (s[i + 1] === c ? 2 : 1)] || " ")) {
+      // Emphasis: ** or * (or __, _ at a word's edge), closed by the same run not after a space. Whether a place closes
+      // depends on that place only, so once a search finds no closer, none is sought again for that delimiter.
       const two = s[i + 1] === c, d = two ? c + c : c, from = i + d.length;
       if (c === "_" && /\w/.test(s[i - 1] || "")) { text(c); i++; continue; }
-      let j = from, end = -1;
-      while ((j = s.indexOf(d, j)) >= 0) {
-        if (j > from && !/\s/.test(s[j - 1]) && (two || s[j + 1] !== c) && (c !== "_" || !/\w/.test(s[j + d.length] || ""))) { end = j; break; }
-        j += d.length;
+      let end = -1;
+      if (!none.has(d)) {
+        for (let j = from; (j = s.indexOf(d, j)) >= 0; j += d.length)
+          if (j > from && !/\s/.test(s[j - 1]) && (two || s[j + 1] !== c) && (c !== "_" || !/\w/.test(s[j + d.length] || ""))) { end = j; break; }
+        if (end < 0) none.add(d);
       }
-      if (end > 0) { push({ t: two ? "strong" : "em", c: nbInline(s.slice(from, end)) }); i = end + d.length; continue; }
+      if (end > 0) { push({ t: two ? "strong" : "em", c: nbInline(s.slice(from, end), depth + 1) }); i = end + d.length; continue; }
     }
     text(c); i++;
   }
@@ -75,17 +94,30 @@ function nbInline(s) {
 const NB_LI = /^( *)([-*+]|\d{1,9}[.)]) +(.*)$/;
 const NB_TROW = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
 const nbCells = ln => ln.trim().replace(/^\|/, "").replace(/(^|[^\\])\|$/, "$1").split(/(?<!\\)\|/).map(x => x.trim());
-/** Block Markdown to a list of nodes; `figs` collects the figures fence's rows (the top level passes one). */
-function nbBlocks(lines, figs) {
+/** An ATX heading line: [level, text], or null. Linear: no pattern backtracks over the trailing spaces. */
+function nbHeading(ln) {
+  const m = /^ {0,3}(#{1,6})(?: |$)/.exec(ln);
+  if (!m) return null;
+  let t = ln.slice(m[0].length).trim();
+  const k = t.search(/(?:^| )#+$/);
+  if (k >= 0) t = t.slice(0, k).trim();
+  return [m[1].length, t];
+}
+/** A thematic break: three or more of one of - * _, with spaces between. */
+const nbHr = ln => { const t = ln.replace(/ /g, ""); return /^ {0,3}\S/.test(ln) && t.length >= 3 && /^([-*_])\1+$/.test(t); };
+/** Block Markdown to a list of nodes; `figs` collects the figures fence's rows (the top level passes one); `depth`:
+ *  how deep in quotes and lists (at NB_DEPTH a quote or list is read as a paragraph). */
+function nbBlocks(lines, figs, depth = 0) {
   const out = [];
   let i = 0;
   const blank = l => !l.trim();
-  const starts = l => /^ {0,3}(#{1,6} |```|> ?|([-*_])( *\2){2,} *$)/.test(l) || NB_LI.test(l);
+  const starts = l => /^ {0,3}(#{1,6}( |$)|```|>)/.test(l) || nbHr(l) || NB_LI.test(l);
+  const deep = depth >= NB_DEPTH;
   while (i < lines.length) {
     const ln = lines[i];
     let m;
     if (blank(ln)) { i++; continue; }
-    if ((m = /^ {0,3}```\s*([\w-]*).*$/.exec(ln))) {
+    if ((m = /^ {0,3}```\s*([\w-]*)/.exec(ln))) {
       const body = [];
       for (i++; i < lines.length && !/^ {0,3}```\s*$/.test(lines[i]); i++) body.push(lines[i]);
       i++;
@@ -93,18 +125,19 @@ function nbBlocks(lines, figs) {
       else out.push({ t: "pre", c: [{ t: "code", c: [body.join("\n")] }] });
       continue;
     }
-    if ((m = /^ {0,3}(#{1,6}) +(.*?)(?: +#+)? *$/.exec(ln))) { out.push({ t: "h" + m[1].length, c: nbInline(m[2]) }); i++; continue; }
-    if (/^ {0,3}([-*_])( *\1){2,} *$/.test(ln)) { out.push({ t: "hr" }); i++; continue; }
-    if (/^ {0,3}> ?/.test(ln)) {
+    const h = nbHeading(ln);
+    if (h) { out.push({ t: "h" + h[0], c: nbInline(h[1]) }); i++; continue; }
+    if (nbHr(ln)) { out.push({ t: "hr" }); i++; continue; }
+    if (!deep && /^ {0,3}>/.test(ln)) {
       const body = [];
-      for (; i < lines.length && !blank(lines[i]) && (/^ {0,3}> ?/.test(lines[i]) || body.length); i++) {
-        if (!/^ {0,3}> ?/.test(lines[i]) && starts(lines[i])) break;
+      for (; i < lines.length && !blank(lines[i]) && (/^ {0,3}>/.test(lines[i]) || body.length); i++) {
+        if (!/^ {0,3}>/.test(lines[i]) && starts(lines[i])) break;
         body.push(lines[i].replace(/^ {0,3}> ?/, ""));
       }
-      out.push({ t: "blockquote", c: nbBlocks(body) });
+      out.push({ t: "blockquote", c: nbBlocks(body, null, depth + 1) });
       continue;
     }
-    if ((m = NB_LI.exec(ln))) {
+    if (!deep && (m = NB_LI.exec(ln))) {
       const base = m[1].length, ordered = /\d/.test(m[2]), items = [];
       while (i < lines.length) {
         const im = NB_LI.exec(lines[i]);
@@ -118,7 +151,7 @@ function nbBlocks(lines, figs) {
           else if (!starts(l)) body.push(l.trim());
           else break;
         }
-        const kids = nbBlocks(body);
+        const kids = nbBlocks(body, null, depth + 1);
         items.push({ t: "li", c: kids.length === 1 && kids[0].t === "p" ? kids[0].c : kids });
       }
       out.push({ t: ordered ? "ol" : "ul", c: items });
@@ -141,9 +174,12 @@ function nbBlocks(lines, figs) {
   }
   return out;
 }
-/** A notebook's text as a tree: its blocks, then the figures fence's cases as a section, if it has one. */
+/** A notebook's text as a tree: its blocks, then the figures fence's cases as a section, if it has one. Throws for a
+ *  text over NB_MAX characters. */
 function nbParse(md) {
-  const figs = [], out = nbBlocks(String(md).replace(/\r\n?/g, "\n").split("\n"), figs);
+  const s = String(md);
+  if (s.length > NB_MAX) throw new Error(`notebook: ${s.length} characters, more than ${NB_MAX}`);
+  const figs = [], out = nbBlocks(s.replace(/\r\n?/g, "\n").split("\n"), figs);
   if (figs.length > 1) out.push({ t: "section", c: [
     { t: "h2", c: ["Figures, as rendered"] },
     { t: "p", c: ["The case each figure was drawn at by the native driver (tools/notebook.py; ours): its name, environment, reel and viewsvg arguments."] },
@@ -154,11 +190,14 @@ function nbParse(md) {
   ] });
   return out;
 }
-/** A notebook's title: its first heading's text. */
+/** A notebook's title: its first heading's text (within its first NB_MAX characters). */
 function nbTitle(md) {
-  const m = /^ {0,3}#{1,6} +(.*?)(?: +#+)? *$/m.exec(String(md));
   const flat = n => typeof n === "string" ? n : (n.c || []).map(flat).join("");
-  return m ? nbInline(m[1]).map(flat).join("") : "";
+  for (const ln of String(md).slice(0, NB_MAX).split("\n")) {
+    const h = nbHeading(ln);
+    if (h) return nbInline(h[1]).map(flat).join("");
+  }
+  return "";
 }
 /** Build the tree with `doc` (the document) into a fragment. `fig(name)` gives a figure's image URL (null: none, and
  *  the alt text stands in). Elements only from NB_TAGS; strings only as text nodes; attributes only href (checked
@@ -178,10 +217,7 @@ function nbBuild(nodes, doc, fig) {
     const href = n.t === "a" ? nbHref(n.href) : null;
     if (n.t === "a" && !href) { for (const k of n.c || []) add(parent, k); return; }
     const el = doc.createElement(n.t);
-    if (href) {
-      el.setAttribute("href", href);
-      if (href[0] !== "#") { el.setAttribute("target", "_blank"); el.setAttribute("rel", "noopener noreferrer"); }
-    }
+    if (href) { el.setAttribute("href", href); el.setAttribute("target", "_blank"); el.setAttribute("rel", "noopener noreferrer"); }
     if (n.t === "section") el.setAttribute("class", "nbcases");
     for (const k of n.c || []) add(el, k);
     parent.appendChild(el);

@@ -47,6 +47,11 @@ function untar(t) {
 // under notebook/; otherwise the reel is refused. The result then carries notebook: {text, figures: Map(name -> SVG text)} in the manifest's order, else
 // notebook is null. Readers before these types load such a reel and ignore the notebook (no format change; ours).
 const REEL_FIGURE = /^notebook\/figures\/([a-z0-9][a-z0-9-]*)\.svg$/;
+// What a figure may not hold (ours; tools/notebook.py SVG_UNSAFE, the same rule at render and pack): a script, an event
+// handler attribute, a foreignObject, a javascript: URL, or an href or xlink:href to anything but a fragment of itself.
+// The viewer shows figures as <img> from data: URLs; this keeps a figure inert even when a reader opens it as a page.
+const REEL_SVG_UNSAFE = [[/<\s*script/i, "a <script>"], [/[\s/"']on[a-z]+\s*=/i, "an on... event attribute"],
+  [/<\s*foreignObject/i, "a <foreignObject>"], [/javascript\s*:/i, "a javascript: URL"], [/\bhref\s*=\s*(?!["']#)/i, "an href to anything but #..."]];
 // The figure names a notebook's text names, in order of first use: its Markdown images outside fenced blocks. The
 // text names no other image: every "![" opens an inline image ![alt](figures/<name>.svg), alt text without "]", and
 // an HTML <img> or a reference definition ("[r]: ...", which reference-style images need) is refused (thrown). The
@@ -118,6 +123,8 @@ async function readReel(b64, sha, id) {
       const m = REEL_FIGURE.exec(e.path), svg = text.get(e.path);
       if (!m) throw no(`${e.path} is a figure, not notebook/figures/<name>.svg`);
       if (!/^\s*(<\?xml[^>]*\?>\s*)?<svg[\s>]/.test(svg) || !/<\/svg>\s*$/.test(svg)) throw no(`${e.path} is not an SVG document`);
+      const bad = REEL_SVG_UNSAFE.find(([rx]) => rx.test(svg));
+      if (bad) throw no(`${e.path} holds ${bad[1]}, which a figure may not`);
       figures.set(m[1], svg);
     }
     const md = text.get(books[0].path);

@@ -619,6 +619,7 @@ elif mode.startswith("nb-"):
         "nb-fig-unnamed": lambda: edit(add=[("notebook/figures/unnamed.svg", "figure", SVG)]),
         "nb-unlisted": lambda: edit(unlist=["notebook/notebook.md"]),
         "nb-not-svg": lambda: edit(drop=figs[:1], add=[(figs[0], "figure", b"GIF89a, not an SVG\\n")]),
+        "nb-fig-unsafe": lambda: edit(drop=figs[:1], add=[(figs[0], "figure", sys.argv[2].encode())]),
         "nb-not-svg-path": lambda: edit(add=[("notebook/figures/plate.png", "figure", SVG)]),
         "nb-two": lambda: edit(add=[("notebook/notes.md", "notebook", b"# notes\\n")]),
         "nb-other-type": lambda: edit(add=[("notebook/plate.txt", "image", b"x\\n")]),
@@ -658,6 +659,25 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
       catch (err) { msg = String(err.stderr); }
       if (!py.test(msg)) wrong.push(`tools/notebook.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
     }
+    // A figure that could act when opened as a page (review of PR #69): a script, an event handler, a foreignObject, a
+    // javascript: URL, an href to anything but a fragment. The reader refuses each, and tools/notebook.py svg_unsafe
+    // (render and pack) names each: the two agree.
+    const W3 = 'xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"';
+    const SVG_BAD = {
+      'a <script>': [`<svg ${W3}><script>alert(document.domain)</script></svg>\n`, /holds a <script>/],
+      'an onload attribute': [`<svg ${W3} onload="alert(1)"><rect/></svg>\n`, /holds an on\.\.\. event attribute/],
+      'a <foreignObject>': [`<svg ${W3}><foreignObject><div>x</div></foreignObject></svg>\n`, /holds a <foreignObject>/],
+      'a javascript: URL': [`<svg ${W3}><a href="javascript:alert(1)"><text>x</text></a></svg>\n`, /holds (a javascript: URL|an href)/],
+      'an xlink:href elsewhere': [`<svg ${W3}><use xlink:href="https://evil.example/x.svg#a"/></svg>\n`, /holds an href to anything but #/],
+    };
+    for (const [what, [svg, js]] of Object.entries(SVG_BAD)) {
+      await nbRefused(`a figure with ${what}`, 'nb-fig-unsafe', js, svg);
+      const py = execFileSync('python3', ['-c', 'import sys; sys.path.insert(0, "tools"); import notebook; print(notebook.svg_unsafe(sys.argv[1]))', svg], { cwd: R }).toString().trim();
+      if (py === 'None') wrong.push(`tools/notebook.py svg_unsafe passes a figure with ${what}`);
+    }
+    const okFig = execFileSync('python3', ['-c', 'import sys; sys.path.insert(0, "tools"); import notebook; print(notebook.svg_unsafe(sys.argv[1]))',
+      `<svg ${W3}><defs><g id="a"/></defs><use xlink:href="#a"/></svg>`], { cwd: R }).toString().trim();
+    if (okFig !== 'None') wrong.push(`tools/notebook.py svg_unsafe refuses a fragment link: ${okFig}`);
     // A stale render is not packed: tools/notebook.py stale finds nothing today and names a changed case (its GET).
     const st = execFileSync('python3', ['-c', `import sys; sys.path.insert(0, "tools"); import notebook as nb
 for rid, n in nb.notebooks():
@@ -678,7 +698,7 @@ for rid, n in nb.notebooks():
   if (pageSha !== sha || reels.some(r => r.manifest.kernel.sha256 !== pageSha))
     wrong.push(`the page's KERNEL_SHA ${pageSha} is not the wasm's ${sha.slice(0, 8)} or a manifest's`);
   console.log(`packages: ${reels.length} reels (${reels.map(r => `${r.manifest.id} ${r.manifest.kind}`).join(', ')}), ${ndecks} decks; ` +
-    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, 13 notebook faults, a stale render` +
+    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, 18 notebook faults (5 unsafe figures), a stale render` +
     `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/ and build/figures/, packed twice the same, refusals hold'}`);
   if (wrong.length) ok = false;
 }
@@ -731,15 +751,15 @@ if (W.sim_run) {
   // Build `md` with figures `names`; returns the elements, the text and the problems found.
   const built = (md, names) => {
     const els = [], texts = [], bad = [];
-    const root = NB.nbBuild(NB.nbParse(md), fakeDoc(), n => names.includes(n) ? `blob:selftest/${n}` : null);
+    const root = NB.nbBuild(NB.nbParse(md), fakeDoc(), n => names.includes(n) ? `data:image/svg+xml;base64,${n}` : null);
     walk(root, n => {
       if (n.text !== undefined) { texts.push(n.text); return; }
       els.push(n);
       for (const [k, v] of Object.entries(n.attrs)) {
         if (!ATTRS.has(k)) bad.push(`attribute ${k}`);
-        if (k === 'href' && !/^(https?:\/\/|#)/.test(v)) bad.push(`href ${v}`);
-        if (k === 'src' && !/^blob:selftest\/[a-z0-9-]+$/.test(v)) bad.push(`src ${v}`);
-        if (/javascript:|data:/i.test(v) && k !== 'alt') bad.push(`${k} ${v}`);
+        if (k === 'href' && !/^https?:\/\/[^/]/.test(v)) bad.push(`href ${v}`);
+        if (k === 'src' && !/^data:image\/svg\+xml;base64,[a-z0-9-]+$/.test(v)) bad.push(`src ${v}`);
+        if (/javascript:|vbscript:/i.test(v) || (k !== 'src' && /data:/i.test(v))) bad.push(`${k} ${v}`);
       }
       if (n.tag === 'a' && /^https?:/.test(n.attrs.href) && (n.attrs.target !== '_blank' || !/noopener/.test(n.attrs.rel || ''))) bad.push(`a link without target/rel: ${n.attrs.href}`);
     });
@@ -749,7 +769,7 @@ if (W.sim_run) {
   for (const r of reels.filter(r => r.notebook)) {
     nb++;
     const id = r.manifest.id, names = [...r.notebook.figures.keys()], b = built(r.notebook.text, names);
-    const imgs = b.els.filter(e => e.tag === 'img').map(e => e.attrs.src.slice(14));
+    const imgs = b.els.filter(e => e.tag === 'img').map(e => e.attrs.src.slice(26));
     nimg += imgs.length;
     if (imgs.join() !== RF(r.notebook.text).join()) wrong.push(`${id}: figures ${imgs}, not ${RF(r.notebook.text)}`);
     if (b.bad.length) wrong.push(`${id}: ${b.bad.join(', ')}`);
@@ -763,6 +783,8 @@ if (W.sim_run) {
     '# T <script>alert(1)</script>', '', 'Para <img src=x onerror=alert(1)> and <b onclick="x()">b</b> **<i>s</i>**.', '',
     '[js](javascript:alert(1)) [JS](JaVaScRiPt:alert(1)) [tab](java\tscript:alert(1)) [data](data:text/html,<script>x</script>)',
     '[rel](../secret.html) [quote](https://a.example/"onmouseover="x) <javascript:alert(1)> [ok](https://ok.example/p?q=1)', '',
+    '[ent](&#x6a;avascript:alert(1)) [sp]( javascript:alert(1)) [vb](vbscript:msgbox(1)) [proto](//evil.example/x) [angle](<javascript:x>)',
+    '[title](javascript:alert(1) "t") [frag](#libr) [hs](https:evil.example) [titled](https://ok.example/p?q=1 "a title")', '',
     '![i](javascript:alert(1)) ![j](figures/../x.svg) ![k](figures/real.svg) ![l](https://x.example/a.svg)', '',
     '> <svg onload=alert(1)>', '', '- <iframe src=x></iframe>', '', '| a | <script> |', '|---|---|', '| [x](javascript:y) | `<b>` |',
     '', '```html', '<script>alert(2)</script>', '```', '', '```figures', '# name | args', 'real | 1', '```',
@@ -771,14 +793,29 @@ if (W.sim_run) {
   const tags = [...new Set(e.els.map(x => x.tag))].filter(t => t !== '#frag').sort();
   const links = e.els.filter(x => x.tag === 'a').map(x => x.attrs.href), imgs = e.els.filter(x => x.tag === 'img').map(x => x.attrs.src);
   if (e.bad.length) wrong.push(`crafted: ${e.bad.join(', ')}`);
-  if (links.join() !== 'https://ok.example/p?q=1') wrong.push(`crafted: links ${links}`);
-  if (imgs.join() !== 'blob:selftest/real') wrong.push(`crafted: images ${imgs}`);
+  if (links.join() !== 'https://ok.example/p?q=1,https://ok.example/p?q=1') wrong.push(`crafted: links ${links}`);
+  if (imgs.join() !== 'data:image/svg+xml;base64,real') wrong.push(`crafted: images ${imgs}`);
+  // Hostile shapes, each parsed within a time bound and without throwing: a deep quote nest, unmatched emphasis, image
+  // openers, a heading trailed by spaces (nbTitle too), a deep list; and a text over NB_MAX is refused, not parsed.
+  const HOSTILE = { 'a 20 KB quote nest': '> '.repeat(10000) + 'x', 'unmatched emphasis, 120 KB': '*a '.repeat(40000),
+    'image openers, 80 KB': '!['.repeat(40000), 'image openers and one "]"': '!['.repeat(40000) + '](x)', 'a heading and 20 K spaces': '# h' + ' '.repeat(20000) + 'x',
+    'a deep list': Array.from({ length: 400 }, (_, k) => ' '.repeat(2 * k) + '- x').join('\n'),
+    'backticks, 80 KB': '`a'.repeat(40000), 'link openers, 80 KB': '[a]('.repeat(16000) };
+  let slow = 0;
+  for (const [what, t] of Object.entries(HOSTILE)) {
+    const t0 = performance.now();
+    try { built(t, []); NB.nbTitle(t); } catch (err) { wrong.push(`${what}: threw ${err.message}`); }
+    const ms = performance.now() - t0; slow = Math.max(slow, ms);
+    if (ms > 400) wrong.push(`${what}: ${ms.toFixed(0)} ms`);
+  }
+  try { NB.nbParse('x'.repeat(300000)); wrong.push('a 300 KB text: not refused'); } catch (err) { if (!/more than/.test(err.message)) wrong.push(`a 300 KB text: ${err.message}`); }
   if (!['<script>alert(1)</script>', 'onerror=alert(1)', '<svg onload=alert(1)>', '<iframe src=x></iframe>', '<script>alert(2)</script>'].every(t => e.text.includes(t)))
     wrong.push('crafted: the tags are not kept as text');
   if (tags.some(t => !NB.NB_TAGS.has(t))) wrong.push(`crafted: elements ${tags}`);
   console.log(`notebook: ${nb} notebooks rendered, ${nimg} figures as <img> from figure URLs; a crafted text (script, img onerror, ` +
-    `javascript:/data:/relative links and images, raw HTML in a quote, list, table and fence)  ` +
-    `${wrong.length ? 'WRONG: ' + wrong.join('; ') : `inert: elements ${tags.join(' ')}, one https link, one figure`}`);
+    `javascript:/vbscript:/data:/entity/spaced/protocol-relative/angle/titled/#fragment/relative links and images, raw HTML in a quote, list, table and fence); ` +
+    `${Object.keys(HOSTILE).length} hostile shapes, slowest ${slow.toFixed(0)} ms, and an over-long text refused  ` +
+    `${wrong.length ? 'WRONG: ' + wrong.join('; ') : `inert: elements ${tags.join(' ')}, https links only, one figure`}`);
   if (wrong.length) ok = false;
 }
 console.log(ok ? 'PASS' : 'FAIL'); process.exit(ok ? 0 : 1);
