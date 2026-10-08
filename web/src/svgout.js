@@ -27,7 +27,8 @@ function svgFrame(kind) {
     `<title>VIEW-1108 ${LS.scn} situation ${H[6] | 0} g.e.t. ${getStr(H[0])} ${paper ? (kind === "clear" ? "positive clear" : "positive") : "negative"}</title>`,
     `<desc>inputs: reel ${LS.scn} situation ${H[6] | 0} in_get ${rd("in_get")} in_yaw ${rd("in_yaw")} in_pitch ${rd("in_pitch")} in_roll ${rd("in_roll")} in_fov ${rd("in_fov")} in_flags ${fl}</desc>`,
     ...(kind === "clear" ? [] : [`<rect id="film" width="${Wd}" height="${Hd}" fill="${bg}"/>`]),
-    `<clipPath id="plotbox"><rect x="${n2(fr ? b.x - 2 : 0)}" y="${n2(b.y - 2)}" width="${n2(fr ? b.s + 4 : Wd)}" height="${n2(b.s + 4)}"/></clipPath>`,
+    // the plot box's clip outline in <defs>: never painted (loose, a viewer could fill it black, the default fill)
+    `<defs><clipPath id="plotbox"><rect x="${n2(fr ? b.x - 2 : 0)}" y="${n2(b.y - 2)}" width="${n2(fr ? b.s + 4 : Wd)}" height="${n2(b.s + 4)}"/></clipPath></defs>`,
     `<g fill="none" stroke="${fg}" stroke-width="${lw}" stroke-linecap="round" stroke-linejoin="round">`];
   // vectors: one path per run of one style, in kernel order
   out.push(`<g id="vectors" clip-path="url(#plotbox)">`);
