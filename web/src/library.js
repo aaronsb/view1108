@@ -45,18 +45,19 @@ function libList() {
     links.append(open, " ", src); li.appendChild(links); ul.appendChild(li);
   }
   if (nbs.length) ul.appendChild(libSection("MISSION NOTEBOOKS"));
-  for (const n of nbs) ul.appendChild(libRow(n.id, n.reel.manifest.title, n.title, `${n.reel.notebook.figures.size} figures · our notes, rendered by this kernel`));
+  for (const n of nbs) ul.appendChild(libRow(n.id, n.reel.manifest.title, n.title, `${n.reel.notebook.figures.size} figures${n.reel.notebook.media.size ? `, ${n.reel.notebook.media.size} photograph${n.reel.notebook.media.size > 1 ? "s" : ""}` : ""} · our notes, rendered by this kernel`));
   if (libCur) libShow(libCur.id);
 }
 // The notebook viewer emptied.
 function libMdClear() { $("libmd").textContent = ""; }
 // A figure's image URL: data:image/svg+xml;base64 of its SVG (a data: document has an opaque origin, so a figure opened
 // as a page cannot reach the site's storage; review of PR #69). reelpkg.js has already refused a figure with script.
-function libFigUrl(svg) {
-  const b = new TextEncoder().encode(svg);
+const libFigUrl = svg => libDataUrl("image/svg+xml", new TextEncoder().encode(svg));
+// A data: URL of `bytes` as `type` (a figure's SVG, a notebook photograph's JPEG or PNG, reelpkg.js readReel).
+function libDataUrl(type, b) {
   let bin = "";
   for (let k = 0; k < b.length; k += 0x8000) bin += String.fromCharCode.apply(null, b.subarray(k, k + 0x8000));
-  return "data:image/svg+xml;base64," + btoa(bin);
+  return `data:${type};base64,` + btoa(bin);
 }
 // The viewer as a document's (PDF) or a notebook's: which of the iframe and the article shows, and the buttons.
 function libMode(md) {
@@ -100,8 +101,9 @@ function libShowNb(id) {
   document.querySelector("#liblist .librow.on")?.scrollIntoView({ block: "nearest" });
   $("libtitle").textContent = `${n.reel.manifest.title} — scenario notebook (ours), carried in the reel`;
   const figs = n.reel.notebook.figures, fig = name => figs.has(name) ? libFigUrl(figs.get(name)) : null;
+  const pics = n.reel.notebook.media, media = file => pics.has(file) ? libDataUrl(pics.get(file).type, pics.get(file).bytes) : null;
   let body;
-  try { body = nbBuild(nbParse(n.reel.notebook.text), document, fig); }
+  try { body = nbBuild(nbParse(n.reel.notebook.text), document, fig, media); }
   catch (e) {
     body = document.createElement("pre");
     body.textContent = n.reel.notebook.text;

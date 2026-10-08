@@ -4,6 +4,13 @@ This notebook is ours, written for VIEW-1108's reconstruction of Apollo 8 as flo
 
 Each figure is our own render of this reel, made by the kernel at the case of its name in the figures block at the end. The reel has one situation, 1 APOLLO 8 EARTHRISE; its times, field, fitted camera and sources are on its cards in the reel's deck (`asflown.scn`) and are not repeated here. Away from lunar orbit the situation's camera falls back to a view above the Earth's horizon (the deck says how), so the figures for the other phases use the CM station view or an Earth target, as the reel's follow track does (its SPAN cards).
 
+```finding
+date: 2026-10-08
+cite: TN D-6853, printed p. 3
+
+How the views reached their readers. The principal output was microfilm, but "numerical data, as well as crude printer-plot images of the data, may be requested", which "provide for a quick-look evaluation before the microfilm frames are received", and "for most uses, the microfilm frames are printed on standard sheets of paper". The prints in this binder stand for such sheets: a render taped in with the film finish is our picture of a frame printed off the film recorder, not a copy of one.
+```
+
 ## Translunar injection
 
 The report puts TLI beside LOI: "in addition to the basic LOI objective, it was recognized that attitude information associated with translunar injection (TLI) was equally desirable for similar reasons", and "a method was sought to enable the crewmen to obtain information needed to support a go/no-go decision for TLI based on out-the-window determination of attitude relative to the crew optical alinement sight and the Earth horizon (or features)" (TN D-6853, p. 2), because "multiple TLI ignition opportunities precluded ground-dependent monitoring and evaluation techniques" (p. 3).
@@ -16,7 +23,13 @@ The format is the Apollo 11 note's: the CM left rendezvous window "superimposed 
 
 Lunar orbit insertion is where the program's full-scale development started: "Analytical work on an acceptable method for providing an out-the-window attitude check for the Apollo 8 lunar orbit insertion (LOI) maneuver prompted the original full-scale program-development effort" (TN D-6853, p. 2). The report gives the difficulties. "The LOI maneuver is performed behind the Moon, in a heads-down attitude, with the spacecraft gimbal angles referenced to another inertial attitude (with no obvious visible correlation)", and "because of terminator movement across the Moon during the monthly launch window, the surface of the Moon is not always visible at LOI ignition" (p. 2). The answer was a picture: "This view demonstrated for the first time that the information available to the crewmen could support an onboard go/no-go decision for LOI simply by verifying that the lunar horizon, as viewed from the window, was near a reference mark on the window" (p. 2).
 
-![Our render: the CM station at LOI ignition in the same format, the lunar horizon across the frame just below the X-axis x, craters with their catalogue numbers, named stars and the Sun above](figures/loi-cm.svg)
+```attach
+source: figures/loi-cm.svg
+style: plate
+finish: photo
+
+Our render: the CM station at LOI ignition in the same format, the lunar horizon across the frame just below the X-axis x, craters with their catalogue numbers, named stars and the Sun above.
+```
 
 The station looks where the situation's lunar-orbit camera points, not along the burn attitude, and the reconstruction draws no reference mark on the window; the horizon's place in the frame is ours. The labels on the lunar surface are the native driver's crater kind and catalogue index, which the page letters by name.
 
@@ -26,7 +39,23 @@ NASA's Scientific Visualization Studio has reconstructed "the moment when the cr
 
 ![Our render: the situation's fitted camera at the time of AS08-13-2329, the Earth's disc partly risen above the lunar horizon](figures/earthrise-first.svg)
 
-![Our render: the situation at its default, the moment of AS08-14-2383, the Earth clear of the horizon with its night side hatched](figures/earthrise.svg)
+```attach
+source: golden=s9-default
+style: tape
+finish: film
+
+Our render: the situation at its default, the moment of AS08-14-2383, the Earth clear of the horizon with its night side hatched (the golden case s9-default, as a frame off the film recorder).
+```
+
+```attach
+source: media/as08-14-2383.jpg
+style: clip
+finish: photo
+credit: NASA
+cite: https://images.nasa.gov/details/as08-14-2383 (its medium file, reduced by us)
+
+The photograph AS08-14-2383, clipped beside our render of its moment: "The rising Earth is about five degrees above the lunar horizon" (NASA's description).
+```
 
 The first figure's time is our arithmetic from those frame numbers; the same arithmetic puts AS08-14-2383 within 0.1 s of the situation's own time. The situation's camera is fitted to AS08-14-2383 alone. The crew took AS08-13-2329 while the spacecraft rolled (SVS 4129), so the first figure keeps the fitted aim and shows only where the Earth stood a minute earlier, not that photograph's framing.
 
@@ -47,6 +76,7 @@ The report lists TEI and the entry phase among the Apollo 8 maneuver views (TN D
 - C. T. Hyle and A. N. Lunde, *Apollo Experience Report: The Application of a Computerized Visualization Capability to Lunar Missions*, NASA TN D-6853, June 1972 (`reference/TN-D-6853_Hyle_Lunde_1972.pdf`; printed pages).
 - A. N. Lunde, *Revision 1 to Views from the CM and LM During the Flight of Apollo 11 (Mission G)*, MSC Internal Note 69-FM-197, 3 July 1969, NASA-TM-X-69921, N74-71189 (`reference/MSC-IN-69-FM-197_Apollo11_views.pdf`; printed pages).
 - NASA Scientific Visualization Studio, *Earthrise: The 45th Anniversary*, ID 4129, 20 December 2013, https://svs.gsfc.nasa.gov/4129.
+- AS08-14-2383, NASA Image and Video Library, https://images.nasa.gov/details/as08-14-2383 (NASA; public domain). The clipped print is its file https://images-assets.nasa.gov/image/as08-14-2383/as08-14-2383~medium.jpg, reduced by us.
 
 ```figures
 # name          | environment   | reel            | viewsvg arguments (situation GET yaw pitch roll fov flags); or name | golden=<case of tools/golden.sh>
