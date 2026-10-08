@@ -596,7 +596,7 @@ The selftest's `notebook:` line (#29 slice d) runs the library's notebook viewer
 
 `make shots` (`tools/shoot.mjs`) runs every shot of the committed list `tools/shots.mjs` in headless Chromium against the built page and writes `build/shots/<name>.png`, one `PASS` or `FAIL` line per shot; it exits non-zero when any check fails. `make shots ONLY=<name|glob>[,...]` (or `node tools/shoot.mjs --only …`) runs some, `make shots LIST=1` lists them. Every shot checks that the WebAssembly kernel runs (not the wasm2js fallback), that the page logged no console error or uncaught exception and that `#err` is empty, so the `boot` shot is the headless boot gate. Agents use it instead of ad-hoc drivers, and add a shot for any new visible behaviour, in the same change.
 
-A shot is a few lines: a name, the link parameters, steps through the page's `?debug` hooks (`VIEW_TL`, `VIEW_FUSION`, `VIEW_LAB`, keys, clicks) and waits, and checks on state:
+A shot is a few lines: a name, the link parameters, steps through the page's `?debug` hooks (`VIEW_TL`, `VIEW_FUSION`, `VIEW_LAB`, keys, clicks, a viewport resize `{ vp: [w, h] }` to narrow the window out of the room and back) and waits, and checks on state:
 
 ```js
 { name: "cabin-cm", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=8&view=cm&cabin=1&walls=1&get=11:28:19",

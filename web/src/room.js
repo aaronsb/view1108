@@ -207,6 +207,7 @@ function roomApply() {
     roomIn = true; escBase("room", () => { if (roomShown) LAB.home(); }); roomShowLab(null);
   } else if (!want && roomIn) {
     LAB.stop(); roomIn = roomShown = false; document.body.classList.remove("room"); resize();
+    roomLibrary = false; $("blibroom").hidden = true;   // a library left open is Tabbed's now, with no station to go back to
     askClose(); for (const k of ["room", "terminal", "closeup", "pulled"]) escDrop(k);
   }
   roomSync();
@@ -215,7 +216,7 @@ function roomChoose(v) {
   if (roomBusy()) return;
   if (v === "room" && roomShown && LAB.back()) return;   // at a terminal's close-up: step back out
   roomWant = v; try { localStorage.setItem(ROOM_KEY, v); } catch (e) { /* ignore */ }
-  if (v === "room" && roomIn && !roomShown) roomShowLab(roomLibrary ? roomLibFrom : roomTermOf(tab));
+  if (v === "room" && roomIn && !roomShown) roomShowLab(roomLibrary && libraryIsOpen() ? roomLibFrom : roomTermOf(tab));
   else roomApply();
 }
 $("bspace").onclick = () => roomChoose("room");

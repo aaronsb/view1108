@@ -167,8 +167,9 @@ export const SHOTS = [
       { js: `document.querySelector('#libmd .runsheet button[data-id="translunar-injection"]').click()` },
       { expect: [`document.getElementById("libr").classList.contains("open")`, false] }, { expect: [TL("mounted"), "apollo8-asflown"] },
       { expect: [TL("get"), 10565.51] }, { expect: [TL("playing"), false] }, { expect: [`document.body.dataset.tab`, "review"] },
-      { frames: 3 }, { key: "Escape" }, { wait: `document.body.classList.contains("room")` }],
-    expect: [[`document.body.classList.contains("room")`, true], [TL("mounted"), "apollo8-asflown"]] },
+      { frames: 3 }, { key: "Escape" }, { wait: `document.body.classList.contains("room")` }, ROOM_STILL, { frames: 10 }, ROOM_STILL],
+    expect: [[`document.body.classList.contains("room")`, true], [TL("mounted"), "apollo8-asflown"],
+      [`${LAB}.at`, null], [`${LAB}.mode`, "free"], [`VIEW_ESC()`, ["room"]]] },
 
   // The scene= link of #22 still opens what it did: scene=9 is Apollo 8's Earthrise.
   { name: "link-scene-alias", url: "mode=free&space=tiled&scene=9",
@@ -205,4 +206,18 @@ export const SHOTS = [
       { wait: `document.body.classList.contains("room")`, timeout: 5000 }, ROOM_STILL, { frames: 10 }, ROOM_STILL, { frames: 3 }],
     expect: [[`${LAB}.at`, null], [`${LAB}.mode`, "free"], [NEAREST, "vector"], [`VIEW_ESC()`, ["room"]],
       [`document.getElementById("libr").classList.contains("open")`, false], [TL("mounted"), "apollo11-asflown"]] },
+  // A notebook opened at the rack, the window narrowed out of the room, Tabbed's Load this reel, widened back, the
+  // workbench opened: the tab bar's Room goes back in front of the workbench, not to the rack (PR #88 review: no
+  // stale library origin once the room was left).
+  { name: "room-book-left-room", url: ROOM_URL("apollo8-asflown"),
+    steps: [ROOM_UP, HOLD(), ROOM_STILL, ...BOOK_OPEN.rack.flat(), LIB_UP,
+      { vp: [900, 800] }, { wait: `!VIEW_LAB.running` }, { click: "#blibload" },
+      { wait: `!document.getElementById("libr").classList.contains("open") && VIEW_TL.state().mounted === "apollo11-asflown"`, timeout: 5000 },
+      { vp: [1280, 800] }, ROOM_UP, ROOM_STILL,
+      { js: `VIEW_LAB.setTarget("vector", true)` },
+      { wait: `!document.body.classList.contains("room") && !document.getElementById("labhost").classList.contains("fading")`, timeout: 20000 },
+      { click: "#bspace" },
+      { wait: `document.body.classList.contains("room")`, timeout: 5000 }, ROOM_STILL, { frames: 10 }, ROOM_STILL, { frames: 3 }],
+    expect: [[`${LAB}.at`, null], [`${LAB}.mode`, "free"], [NEAREST, "vector"], [`VIEW_ESC()`, ["room"]],
+      [`document.getElementById("blibroom").hidden`, true]] },
 ];

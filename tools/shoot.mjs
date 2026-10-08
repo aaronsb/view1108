@@ -37,6 +37,7 @@
 //               { key: "Escape" }     a key press (key names as KeyboardEvent.key: Escape, Enter, " ", "a", ...)
 //               { click: "#sel" }     a left click at the centre of the first element the selector matches;
 //               { click: [x, y] }     or at client px
+//               { vp: [w, h] }        the viewport resized, CSS px (a window narrowed or widened mid-shot)
 //   expect    after the steps and two more frames: [expr] (truthy) or [expr, want]: want a RegExp (tested against
 //             String(value)) or a value (compared as JSON)
 //   allow     RegExps of console errors this shot accepts
@@ -277,6 +278,8 @@ async function runShot(cdp, base, shot, ctx) {
         await S("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
         await S("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
         await S("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+      } else if (st.vp !== undefined) {
+        await S("Emulation.setDeviceMetricsOverride", { width: st.vp[0], height: st.vp[1], deviceScaleFactor: 1, mobile: false });
       } else throw new Error(`unknown step ${JSON.stringify(st)}`);
     }
     await evaluate(FRAMES(2));
