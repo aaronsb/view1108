@@ -57,16 +57,16 @@ Situation 4 follows the film clip's third shot. Its LM stands off farther than t
 
 The report calls "the production of detailed preflight views for the crucial lunar descent and landing phases" "perhaps the most important application of this program", and says the results "were promising, not only because of the uniqueness of these descent views, but because the Apollo 11 crewmen had elected to begin the descent with the LM windows face down. In that attitude, the lunar terrain was visible, and the view of the terrain could be used to evaluate ignition-time errors and burn progress. Subsequently, the LM was yawed in the direction of the Earth to a forward-facing direction for final descent and landing" (TN D-6853, pp. 4 and 7). The mission report confirms the use: the descent "was initiated in a face-down attitude to permit the crew to make time marks on selected landmarks", and "a landing-point-designator sighting on the crater Maskelyne W was approximately 3 seconds early" (Apollo 11 Mission Report, p. 5-4).
 
-The note warned that after the yaw "the crew loses sight of the moon until about 444 seconds into the PDI burn", and that once the horizon was in the front windows "very few craters are visible because of the flatness of the approach area to landing site 2" (MSC IN 69-FM-197, p. 15). The window outlines, "the lunar landing-point designator (LPD) and overhead docking scribe" were taken from engineering drawings of the LM windows into the program (TN D-6853, p. 7), and one of the report's closing uses is "confirmation of trajectory progress during lunar descent and ascent through observed crater movement across the landing-point designator" (p. 11). The note drew the ascent through the same windows, and a copy of one of its pages is tipped in after this one.
+The note warned that after the yaw "the crew loses sight of the moon until about 444 seconds into the PDI burn", and that once the horizon was in the front windows "very few craters are visible because of the flatness of the approach area to landing site 2" (MSC IN 69-FM-197, p. 15). The window outlines, "the lunar landing-point designator (LPD) and overhead docking scribe" were taken from engineering drawings of the LM windows into the program (TN D-6853, p. 7), and one of the report's closing uses is "confirmation of trajectory progress during lunar descent and ascent through observed crater movement across the landing-point designator" (p. 11). The note drew the ascent through the same windows, and a copy of one of its figures is tipped in after this one.
 
 ```attach
 source: media/in-69-fm-197-p152.png
 style: insert
 finish: copy
 credit: NASA
-cite: MSC IN 69-FM-197, printed p. 152 (PDF p. 170), figure 6.3.1-1(f); NTRS 19740073250; our grey reduction of the page image reference/report_pages/pdfpage-170.png
+cite: MSC IN 69-FM-197, printed p. 152 (PDF p. 170), figure 6.3.1-1(f); NTRS 19740073250; our grey crop of the page image reference/report_pages/pdfpage-170.png to the figure and its caption, reduced
 
-A page of the Apollo 11 note: "2 minutes 40 seconds into ascent burn", the LM's front windows in a 170° field and its docking window in a 100° field, the LPD scale in the front windows, stars and craters named.
+From a page of the Apollo 11 note: "2 minutes 40 seconds into ascent burn", the LM's front windows in a 170° field and its docking window in a 100° field, the LPD scale in the front windows, stars and craters named.
 ```
 
 ![Our render: the commander's left front window and LPD scale early in the reconstructed approach, the horizon low in the window, the DPS BURN record and secondary labels](figures/descent.svg)

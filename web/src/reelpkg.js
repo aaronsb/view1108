@@ -109,26 +109,32 @@ const REEL_STYLES = ["plate", "clip", "tape", "insert"], REEL_FINISHES = ["photo
 const REEL_MEDIA = /^notebook\/media\/([a-z0-9][a-z0-9-]*\.(jpg|png))$/, REEL_MEDIA_NAME = /^[a-z0-9][a-z0-9-]*\.(jpg|png)$/;
 const REEL_MEDIA_MAGIC = { jpg: [0xff, 0xd8, 0xff], png: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] };
 const REEL_MEDIA_TYPE = { jpg: "image/jpeg", png: "image/png" }, REEL_MEDIA_MAX = 262144;
+/** `s` without leading and trailing spaces and tabs, and nothing else (tools/notebook.py strips the same two, so the
+ *  page and the packer agree on what is blank); a loop, linear on any run of them. */
+function reelTrim(s, more = "") {
+  const ws = c => c === " " || c === "\t" || more.includes(c);
+  let a = 0, b = s.length;
+  while (a < b && ws(s[a])) a++;
+  while (b > a && ws(s[b - 1])) b--;
+  return s.slice(a, b);
+}
 /** A `finding` or `attach` block's lines, checked: {key: value, ..., body: its text}; throws why not. */
 function reelSlip(kind, lines) {
   const f = {}, no = why => { throw new Error(`${kind}: ${why}`); };
   let k = 0;
-  for (; k < lines.length && lines[k].trim(); k++) {
+  for (; k < lines.length && reelTrim(lines[k]); k++) {
     const m = /^([a-z]+):([^\n]*)$/.exec(lines[k]);
     if (!m) no(`${JSON.stringify(lines[k].trim().slice(0, 60))} is not a 'key: value' header line (a blank line ends them)`);
-    let a = 0, b = m[2].length;   // the value, spaces and tabs trimmed (a loop: linear on any run of them)
-    while (a < b && (m[2][a] === " " || m[2][a] === "\t")) a++;
-    while (b > a && (m[2][b - 1] === " " || m[2][b - 1] === "\t")) b--;
-    const val = m[2].slice(a, b);
+    const val = reelTrim(m[2]);
     if (!REEL_SLIP_KEYS[kind].includes(m[1])) no(`no key '${m[1]}' (its keys: ${REEL_SLIP_KEYS[kind].join(", ")})`);
     if (m[1] in f) no(`${m[1]} given twice`);
     if (!val) no(`${m[1]} is empty`);
     f[m[1]] = val;
   }
-  const body = lines.slice(k).join("\n").trim();
+  const body = reelTrim(lines.slice(k).join("\n"), "\n");
   if (kind === "finding") {
     for (const key of ["date", "cite"]) if (!(key in f)) no(`no ${key} (a finding carries the date it was added and its source)`);
-    const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f.date), t = new Date(0);
+    const d = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(f.date), t = new Date(0);
     if (d) t.setUTCFullYear(+d[1], +d[2] - 1, +d[3]);
     if (!d || +d[1] < 1 || t.getUTCFullYear() !== +d[1] || t.getUTCMonth() !== +d[2] - 1 || t.getUTCDate() !== +d[3])
       no(`date '${f.date}' is not a YYYY-MM-DD date`);
@@ -156,8 +162,8 @@ function reelSlips(md) {
   let fence = null, cur = null;
   for (const ln of String(md).split("\n")) {
     if (fence === null && ln.startsWith("```")) {
-      fence = ln.slice(3).trim();
-      if (fence in REEL_SLIP_KEYS) out.push(cur = [fence, []]);
+      fence = reelTrim(ln.slice(3));
+      if (Object.hasOwn(REEL_SLIP_KEYS, fence)) out.push(cur = [fence, []]);
     } else if (fence !== null && ln.startsWith("```")) { fence = null; cur = null; }
     else if (cur) cur[1].push(ln);
   }
@@ -178,11 +184,11 @@ function reelGoldenRows(md) {
   const rows = [];
   let fence = null;
   for (const ln of String(md).split("\n")) {
-    if (fence === null && ln.startsWith("```")) fence = ln.slice(3).trim();
+    if (fence === null && ln.startsWith("```")) fence = reelTrim(ln.slice(3));
     else if (fence !== null && ln.startsWith("```")) fence = null;
     else if (fence === "figures") {
-      const f = ln.split("|").map(x => x.trim());
-      if (f.length === 2 && f[1].startsWith("golden=") && !ln.trimStart().startsWith("#")) rows.push([f[0], f[1].slice(7)]);
+      const f = ln.split("|").map(x => reelTrim(x));
+      if (f.length === 2 && f[1].startsWith("golden=") && !reelTrim(ln).startsWith("#")) rows.push([f[0], f[1].slice(7)]);
     }
   }
   return rows;
@@ -194,10 +200,11 @@ function reelGoldenRows(md) {
 // as tools/notebook.py refs and load, which apply them when it packs.
 function reelFigureRefs(md) {
   const out = [], img = /!\[[^\]]*\]\(([^)\s]*)[^)]*\)/g, slips = reelSlips(md), rows = reelGoldenRows(md);
+  for (const [k, [, gc]] of rows.entries()) if (rows.findIndex(r => r[1] === gc) !== k) throw new Error(`its figures block names golden=${gc} twice`);
   let fence = false, k = 0;
   for (const ln of md.split("\n")) {
     if (ln.startsWith("```")) {
-      if (!fence && ln.slice(3).trim() in REEL_SLIP_KEYS) {
+      if (!fence && Object.hasOwn(REEL_SLIP_KEYS, reelTrim(ln.slice(3)))) {
         const [kind, f] = slips[k++], n = kind === "attach" ? reelAttachFigure(f.source, rows) : null;
         if (n && !out.includes(n)) out.push(n);
       }

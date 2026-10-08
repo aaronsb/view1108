@@ -14,8 +14,8 @@
 //   http(s) URLs, backslash escapes; anything else (raw HTML among it) stays text.
 //   Links: only absolute http: and https: URLs become links (a new tab, rel noopener noreferrer); any other href
 //   (javascript:, data:, //host, a relative path, a #fragment: the viewer gives its headings no ids) is dropped and
-//   its text kept. Images: only figures/<name>.svg (and an attach's photograph, a JPEG or PNG the reel carries, the same
-//   way), which the viewer shows as <img> from a data: URL of the reel's own SVG (a data: document has an opaque origin, so even a figure opened as a page cannot reach the site; reelpkg.js
+//   its text kept. Images: only figures/<name>.svg, which the viewer shows as <img> from a data: URL of the reel's own SVG
+//   (an attach's photograph, a JPEG or PNG the reel carries, likewise from a data: URL of its own bytes) (a data: document has an opaque origin, so even a figure opened as a page cannot reach the site; reelpkg.js
 //   also refuses a figure holding script, handlers, foreignObject or outside links); any other image is its alt text.
 //   Limits (review of PR #69): a text over NB_MAX characters is refused (nbParse throws; the viewer shows it as plain
 //   text), quotes and lists nest at most NB_DEPTH deep and emphasis at most NB_IDEPTH (deeper is text), and every
@@ -153,7 +153,7 @@ function nbBlocks(lines, top, depth = 0) {
       const body = [];
       for (i++; i < lines.length && !/^ {0,3}```\s*$/.test(lines[i]); i++) body.push(lines[i]);
       i++;
-      const info = ln.startsWith("```") ? ln.slice(3).trim() : null, slip = top && (info === "finding" || info === "attach") ? nbSlip(info, body, top) : null;
+      const info = ln.startsWith("```") ? reelTrim(ln.slice(3)) : null, slip = top && (info === "finding" || info === "attach") ? nbSlip(info, body, top) : null;
       if (m[1] === "figures" && top) top.figs.push(...body.filter(l => l.trim()).map(l => l.replace(/^#\s*/, "").split("|").map(x => x.trim())));
       else if (slip) out.push(slip);
       else out.push({ t: "pre", c: [{ t: "code", c: [body.join("\n")] }] });

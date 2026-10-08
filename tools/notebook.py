@@ -116,7 +116,7 @@ def prose(text, where="notebook.md", slips=None):
     lines, blocks, fence = [], [], None
     for n, ln in enumerate(text.split("\n"), 1):
         if fence is None and ln.startswith("```"):
-            fence = ln[3:].strip()
+            fence = ln[3:].strip(" \t")
             if fence == "figures":
                 blocks.append([])
             if fence in SLIP_KEYS and slips is not None:
@@ -139,7 +139,7 @@ def slip(kind, lines, where):
     """A `finding` or `attach` block's lines, checked (the module's docstring): {key: value, ..., "body": its text}. The
     same rules as web/src/reelpkg.js reelSlip."""
     f, k = {}, 0
-    while k < len(lines) and lines[k].strip():
+    while k < len(lines) and lines[k].strip(" \t"):
         m = re.fullmatch(r"([a-z]+):(.*)", lines[k])
         if not m:
             fail(where, f"{kind}: {lines[k].strip()[:60]!r} is not a 'key: value' header line (a blank line ends them)")
@@ -152,12 +152,12 @@ def slip(kind, lines, where):
             fail(where, f"{kind}: {key} is empty")
         f[key] = val
         k += 1
-    body = "\n".join(lines[k:]).strip()
+    body = "\n".join(lines[k:]).strip(" \t\n")
     if kind == "finding":
         for key in ("date", "cite"):
             if key not in f:
                 fail(where, f"finding: no {key} (a finding carries the date it was added and its source)")
-        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", f["date"]) or not _date_ok(f["date"]):
+        if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", f["date"]) or not _date_ok(f["date"]):
             fail(where, f"finding: date {f['date']!r} is not a YYYY-MM-DD date")
         if not body:
             fail(where, "finding: no text after its header")
@@ -252,7 +252,7 @@ def load(rid, kind, src, uses, sits=None):
             fail(where, f"media/{p.name}: {len(b)} bytes, more than {MEDIA_MAX}")
         media[p.name] = b
     if not (nd / "notebook.md").is_file():
-        fail(where, "missing (notebook/ holds nothing else)")
+        fail(where, "missing (notebook/ holds no notebook.md)")
     raw = (nd / "notebook.md").read_bytes()
     try:
         text = raw.decode("utf-8")
@@ -264,9 +264,9 @@ def load(rid, kind, src, uses, sits=None):
     sits = scenes() if sits is None else sits
     cases, golden = [], {}
     for ln in blocks[0] if blocks else []:
-        if not ln.strip() or ln.lstrip().startswith("#"):
+        if not ln.strip(" \t") or ln.strip(" \t").startswith("#"):
             continue
-        f = [x.strip() for x in ln.split("|")]
+        f = [x.strip(" \t") for x in ln.split("|")]
         if len(f) == 2 and f[1].startswith("golden="):
             # A golden case's render as the figure (#29; ours): the case of that name in tools/golden.sh's CASES,
             # drawn from this notebook's own reel (a playlist's: one it uses). One render, one check: its capture is
@@ -276,6 +276,8 @@ def load(rid, kind, src, uses, sits=None):
                 fail(where, f"figure case {name!r}: a name is [a-z0-9][a-z0-9-]*")
             if any(c[0] == name for c in cases):
                 fail(where, f"figure case {name}: named twice")
+            if gc in golden.values():
+                fail(where, f"figure case {name}: golden={gc} has a row already (one figure a golden case)")
             g = golden_cases().get(gc)
             if not g:
                 fail(where, f"figure case {name}: golden={gc}: no such case in tools/golden.sh's CASES")

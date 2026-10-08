@@ -30,8 +30,11 @@ const NB8_OPEN = [{ js: `document.getElementById("blib").click()` },
 const NB_TO = sel => [{ js: `(() => { const pg = document.querySelector("#libmd .nbpages"), el = document.querySelector(${JSON.stringify(sel)}), nx = document.querySelector("#libmd .nbnext");
   for (let k = 0; k < 60 && el.getBoundingClientRect().left >= pg.getBoundingClientRect().right - 1 && !nx.disabled; k++) nx.click(); })()` },
   { wait: `[...document.querySelectorAll("#libmd img")].every(i => i.complete && i.naturalWidth > 0)` }, { frames: 2 }];
+// Every attachment no wider than one column of the binder's pages (on a phone, one page).
+const NB_ATTACH_FITS = `(pg => { const cs = getComputedStyle(pg), n = parseInt(cs.columnCount, 10), w = (pg.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - (n - 1) * parseFloat(cs.columnGap)) / n;
+  const fs = [...pg.querySelectorAll("figure.nbattach")]; return fs.length > 0 && fs.every(f => f.getBoundingClientRect().width <= w + 1); })(document.querySelector("#libmd .nbpages"))`;
 const NB_SHOWN = sel => `(r => (p => r.width > 0 && r.left >= p.left - 1 && r.right <= p.right + 1)(document.querySelector("#libmd .nbpages").getBoundingClientRect()))(document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect())`;
-const VISIBLE_ROWS =`[...document.querySelectorAll("#libmd .runsheet tbody tr")].filter(r => r.offsetParent !== null).length`;   // the run sheet's rows shown
+const VISIBLE_ROWS = `[...document.querySelectorAll("#libmd .runsheet tbody tr")].filter(r => r.offsetParent !== null).length`;   // the run sheet's rows shown
 const ROOM_UP = { wait: `VIEW_LAB.running && ${LAB} && document.body.classList.contains("room")` };
 const ROOM_STILL = { wait: `${LAB}.mode !== "flight" && !document.getElementById("labhost").classList.contains("fading") && ${LAB}.lit >= 0.999` };
 
@@ -292,17 +295,27 @@ export const SHOTS = [
       [`document.querySelector("#libmd figure.nb-tape").className`, "nbattach nb-tape nb-film"], [`document.querySelectorAll("#libmd figure.nb-tape .nbtape").length`, 4],
       [`document.querySelector("#libmd figure.nb-clip").className`, "nbattach nb-clip nb-photo"],
       [`(i => i.naturalWidth + "x" + i.naturalHeight + " " + i.src.slice(0, 23))(document.querySelector("#libmd figure.nb-clip img.nbmedia"))`, "800x800 data:image/jpeg;base64,"]] },
-  // An insert, a sheet of its own tipped in: a page of MSC IN 69-FM-197 (a media member, PNG) with the copy finish, in
-  // Apollo 11's notebook; on the facing page our late-descent render as a plate with the film finish.
-  { name: "notebook-attach-insert", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+  // An insert, a sheet of its own tipped in: a figure of MSC IN 69-FM-197 (a media member, PNG) with the copy finish, in
+  // Apollo 11's notebook; on the facing page the descent section's first figure.
+  { name: "notebook-attach-insert", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1",
     steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB_OPEN, ...NB_TO("#libmd figure.nb-insert")],
     expect: [[NB_SHOWN("#libmd figure.nb-insert")], [`document.querySelector("#libmd figure.nb-insert").className`, "nbattach nb-insert nb-copy"],
       [`(i => i.naturalWidth + " " + i.src.slice(0, 22))(document.querySelector("#libmd figure.nb-insert img.nbmedia"))`, "1100 data:image/png;base64,"],
       [`(f => Math.abs(f.getBoundingClientRect().height - (f.parentElement.clientHeight - parseFloat(getComputedStyle(f.parentElement).paddingTop) - parseFloat(getComputedStyle(f.parentElement).paddingBottom))) < 2)(document.querySelector("#libmd figure.nb-insert"))`]] },
-  { name: "notebook-attach-plate-film", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+  // The late-descent render as a plate with the film finish (Apollo 11).
+  { name: "notebook-attach-plate-film", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1",
     steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB_OPEN, ...NB_TO("#libmd figure.nb-film")],
     expect: [[NB_SHOWN("#libmd figure.nb-film")], [`document.querySelector("#libmd figure.nb-film").className`, "nbattach nb-plate nb-film"],
       [`document.querySelector("#libmd figure.nb-film figcaption strong").textContent`, "PLATE 1."]] },
+  // On a phone (390x844, one page) the attachments take the column: the clipped photograph and the taped render each the
+  // column's width (most of it), every attachment within it; and Apollo 11's insert, whole on its page.
+  { name: "notebook-attach-phone", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1", viewport: [390, 844],
+    steps: [HOLD(), ...NB8_OPEN, ...NB_TO("#libmd figure.nb-clip")],
+    expect: [[NB_COLS, "1"], [NB_SHOWN("#libmd figure.nb-clip")], [NB_ATTACH_FITS], [NO_HSCROLL],
+      [`(i => (pg => i.getBoundingClientRect().width >= 0.7 * (pg.clientWidth - parseFloat(getComputedStyle(pg).paddingLeft) - parseFloat(getComputedStyle(pg).paddingRight)))(document.querySelector("#libmd .nbpages")))(document.querySelector("#libmd figure.nb-clip img.nbmedia"))`]] },
+  { name: "notebook-attach-phone-insert", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1", viewport: [390, 844],
+    steps: [HOLD(), ...NB_OPEN, ...NB_TO("#libmd figure.nb-insert")],
+    expect: [[NB_COLS, "1"], [NB_SHOWN("#libmd figure.nb-insert")], [NB_ATTACH_FITS], [NO_HSCROLL]] },
   // DARK shows attachments plainly: the photograph and its credit, no clip, tape or finish.
   { name: "notebook-dark-attach", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1&notebook=dark",
     steps: [HOLD(), ...NB8_OPEN, { js: `document.querySelector("#libmd figure.nb-clip").scrollIntoView({ block: "center" })` },

@@ -416,6 +416,8 @@ button.librow.on .libm { color:var(--fg); }
 #libmd.light .nb-tape .nbprint img.nbfig, #libmd.light .nb-tape .nbprint img.nbmedia { max-height:calc(var(--ph) * .3); }
 @container (max-width:460px) {
   #libmd.light figure.nb-clip, #libmd.light figure.nb-tape { display:block; width:auto; margin-left:0 !important; }
+  #libmd.light .nb-clip .nbprint img.nbfig, #libmd.light .nb-clip .nbprint img.nbmedia,
+  #libmd.light .nb-tape .nbprint img.nbfig, #libmd.light .nb-tape .nbprint img.nbmedia { max-height:calc(var(--ph) * .46); }
 }
 /* clip: the print askew under a paper clip at its top. */
 #libmd.light .nb-clip .nbprint { transform:rotate(-1.8deg); margin-top:14px; }
@@ -440,6 +442,9 @@ button.librow.on .libm { color:var(--fg); }
   box-shadow:0 0 0 1px #d2d0c5, 2px 3px 6px rgba(0,0,0,.2); transform:translate(3px, 2px); }
 #libmd.light .nb-insert .nbprint { align-self:center; }
 #libmd.light .nb-insert .nbprint img.nbfig, #libmd.light .nb-insert .nbprint img.nbmedia { max-height:calc(var(--ph) * .62); }
+@container (max-width:460px) {
+  #libmd.light figure.nb-insert { padding:1em .5em .8em calc(var(--hx) + 1em); font-size:.9em; }
+}
 #libmd.light table { border-collapse:collapse; width:100%; font-size:.9em; }
 #libmd.light th, #libmd.light td { border:0; border-bottom:1px solid #9b978a; padding:1px 4px; text-align:left; vertical-align:top; color:var(--ink); }
 #libmd.light th { font-weight:700; border-bottom-color:var(--ink); }

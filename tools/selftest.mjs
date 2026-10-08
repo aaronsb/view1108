@@ -641,7 +641,9 @@ elif mode.startswith("nb-"):
                                 add=[("notebook/notebook.md", "notebook", dict(m)["notebook/notebook.md"] + sys.argv[2].encode())]),
         "nb-media": lambda: edit(drop=["notebook/notebook.md"],
                                  add=[("notebook/notebook.md", "notebook", dict(m)["notebook/notebook.md"] + json.loads(sys.argv[2])["text"].encode())] +
-                                     [(p, "media", base64.b64decode(b)) for p, b in json.loads(sys.argv[2])["files"]]),
+                                     [(p, "media", base64.b64decode(b) + bytes(pad)) for p, b, pad in json.loads(sys.argv[2])["files"]]),
+        "nb-media-alone": lambda: edit(drop=["notebook/notebook.md", *figs],
+                                       add=[(p, "media", base64.b64decode(b) + bytes(pad)) for p, b, pad in json.loads(sys.argv[2])["files"]]),
     }[mode]())
 elif mode == "page":
     out = pack.tar_gz([(n, sys.argv[2].encode() if n == "page.json" else b) for n, b in m])
@@ -679,38 +681,67 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
       if (!py.test(msg)) wrong.push(`tools/notebook.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
     }
     // Findings, attachments and photographs (#29 slice g): each fault refused by the page's reader (the first notebook
-    // reel, its notebook gaining the block and the package the member) and by tools/notebook.py load (a scratch
-    // notebook/ holding a one-figure notebook, the block and the file): the two agree. A photograph is raster by its
-    // own bytes: an SVG under media/, an SVG named .png; one no attach names; an attach naming none; a bad style, a bad
-    // finish; a finding without a date or a source; a photograph's attach without its credit.
+    // reel, its notebook gaining the text and the package the members) and by tools/notebook.py load (a scratch
+    // notebook/ holding a one-figure notebook, the text, any rows added to its figures block, and the files): the two
+    // agree, one fault for every rule. A photograph: an SVG under media/, an SVG named .png, JPEG bytes named .png, one
+    // over 256 KB, one no attach names, one without a notebook; an attach naming a missing photograph, a golden=<case>
+    // without a row, two rows of one golden case, a bad style, a bad finish, a photograph without its credit; a header
+    // key unknown, given twice or empty, a line of a C0 control after a header; a finding without its date or source,
+    // with a date not on the calendar or not in ASCII digits.
     const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('not really a PNG body')]).toString('base64');
+    const JPG = Buffer.concat([Buffer.from('ffd8ffe0', 'hex'), Buffer.from('not really a JPEG body')]).toString('base64');
     const SVGB = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>\n`).toString('base64');
-    const att = (src, extra = '') => `\n\`\`\`attach\nsource: ${src}\nstyle: clip\nfinish: photo\ncredit: NASA\ncite: a test\n${extra}\nA caption.\n\`\`\`\n`;
+    const att = (src, extra = '') => `\n\`\`\`attach\nsource: ${src}\nstyle: clip\nfinish: photo\ncredit: NASA\ncite: a test\n${extra ? extra + '\n' : ''}\nA caption.\n\`\`\`\n`;
+    const fnd = (head, body = 'A finding.') => `\n\`\`\`finding\n${head}\n\n${body}\n\`\`\`\n`;
     const MEDIA_BAD = {
       'an SVG under media/': [{ files: [['x.svg', SVGB]], text: att('media/x.svg') }, /notebook\/media\/x\.svg is media, not notebook\/media\/<name>\.jpg or \.png/, /media\/x\.svg: a media file is media\/<name>\.jpg or \.png/],
       'an SVG named .png': [{ files: [['fake.png', SVGB]], text: att('media/fake.png') }, /notebook\/media\/fake\.png is not a PNG file/, /media\/fake\.png: not a PNG file/],
+      'JPEG bytes named .png': [{ files: [['swap.png', JPG]], text: att('media/swap.png') }, /notebook\/media\/swap\.png is not a PNG file/, /media\/swap\.png: not a PNG file/],
+      'a photograph over 256 KB': [{ files: [['big.png', PNG, 262144]], text: att('media/big.png') }, /notebook\/media\/big\.png: 262173 bytes, more than 262144$/, /media\/big\.png: 262173 bytes, more than 262144/],
       'a photograph no attach names': [{ files: [['extra.png', PNG]], text: '' }, /notebook\/media\/extra\.png is in it, and no attach names it$/, /media\/extra\.png is in notebook\/media\/, and no attach names it/],
+      'a photograph without a notebook': [{ files: [['p.png', PNG]], text: '', alone: true }, /notebook\/media\/\S+ is media, and it holds no notebook$/, /missing \(notebook\/ holds no notebook\.md\)/],
       'an attach naming a missing photograph': [{ files: [], text: att('media/missing.jpg') }, /an attach names media\/missing\.jpg, which it does not hold$/, /an attach names media\/missing\.jpg, which notebook\/media\/ does not hold/],
+      'an attach of a golden case without a row': [{ files: [], text: att('golden=s9-default') }, /an attach names golden=s9-default, and the figures block has no row 'name \| golden=s9-default'$/, /an attach names golden=s9-default, and the figures block has no row 'name \| golden=s9-default'/],
+      'two rows of one golden case': [{ files: [], text: '\n```figures\ntwice | golden=s7-default\n```\n', rows: 'twice | golden=s7-default\n', pytext: '' }, /its figures block names golden=s7-default twice$/, /figure case twice: golden=s7-default has a row already/],
       'an attach with a bad style': [{ files: [], text: '\n```attach\nsource: figures/tli-cm.svg\nstyle: pinned\nfinish: photo\n\nA caption.\n```\n' }, /attach: style 'pinned' is not one of plate, clip, tape, insert$/, /attach: style 'pinned' is not one of plate, clip, tape, insert/],
       'an attach with a bad finish': [{ files: [], text: '\n```attach\nsource: figures/tli-cm.svg\nstyle: tape\nfinish: gloss\n\nA caption.\n```\n' }, /attach: finish 'gloss' is not one of photo, film, copy$/, /attach: finish 'gloss' is not one of photo, film, copy/],
-      'a finding without a date': [{ files: [], text: '\n```finding\ncite: TN D-6853, printed p. 3\n\nA finding.\n```\n' }, /finding: no date \(/, /finding: no date \(/],
-      'a finding without a source': [{ files: [], text: '\n```finding\ndate: 2026-10-08\n\nA finding.\n```\n' }, /finding: no cite \(/, /finding: no cite \(/],
       'a photograph without a credit': [{ files: [['p.png', PNG]], text: '\n```attach\nsource: media/p.png\nstyle: tape\nfinish: copy\ncite: a test\n\nA caption.\n```\n' }, /attach: source media\/p\.png is a photograph and has no credit$/, /attach: source media\/p\.png is a photograph and has no credit/],
+      'an unknown header key': [{ files: [['p.png', PNG]], text: att('media/p.png', 'onclick: alert(1)') }, /attach: no key 'onclick' \(its keys: /, /attach: no key 'onclick' \(its keys: /],
+      'a header key given twice': [{ files: [['p.png', PNG]], text: att('media/p.png', 'style: tape') }, /attach: style given twice$/, /attach: style given twice/],
+      'an empty header value': [{ files: [], text: fnd('date: 2026-10-08\ncite:') }, /finding: cite is empty$/, /finding: cite is empty/],
+      'a C0 control line after a header': [{ files: [], text: fnd('date: 2026-10-08\ncite: c\n\x1f') }, /finding: .* is not a 'key: value' header line/, /finding: .* is not a 'key: value' header line/],
+      'a finding without a date': [{ files: [], text: fnd('cite: TN D-6853, printed p. 3') }, /finding: no date \(/, /finding: no date \(/],
+      'a finding without a source': [{ files: [], text: fnd('date: 2026-10-08') }, /finding: no cite \(/, /finding: no cite \(/],
+      'a date not on the calendar': [{ files: [], text: fnd('date: 2026-02-30\ncite: c') }, /finding: date '2026-02-30' is not a YYYY-MM-DD date$/, /finding: date '2026-02-30' is not a YYYY-MM-DD date/],
+      'a date in other digits': [{ files: [], text: fnd('date: ٢٠٢٦-10-08\ncite: c') }, /finding: date '.*' is not a YYYY-MM-DD date$/, /finding: date '.*' is not a YYYY-MM-DD date/],
     };
+    // The same readers accept what they agree is no finding or attach: a fence whose info string is a name an object
+    // inherits, and one whose info string is `finding` and a C0 control (only spaces and tabs are trimmed).
+    const PARITY_OK = { 'a ```toString fence': '\n```toString\nx = 1\n```\n', 'a ```constructor fence': '\n```constructor\n```\n',
+      'a ```finding\\x1f fence': '\n```finding\x1f\ndate: nonsense\n```\n' };
     const tmpm = fs.mkdtempSync(path.join(R, 'build/media-fault-'));
-    for (const [what, [arg, js, py]] of Object.entries(MEDIA_BAD)) {
-      await nbRefused(`a notebook with ${what}`, 'nb-media', js, JSON.stringify({ text: arg.text, files: arg.files.map(([n, b]) => [`notebook/media/${n}`, b]) }));
+    const pyLoad = arg => {
       fs.rmSync(path.join(tmpm, 'notebook'), { recursive: true, force: true });
       fs.mkdirSync(path.join(tmpm, 'notebook/media'), { recursive: true });
-      fs.writeFileSync(path.join(tmpm, 'notebook/notebook.md'), `# t\n\n![a](figures/tli-cm.svg)\n\n\`\`\`figures\ntli-cm | golden=s7-default\n\`\`\`\n${arg.text}`);
-      for (const [n, b] of arg.files) fs.writeFileSync(path.join(tmpm, 'notebook/media', n), Buffer.from(b, 'base64'));
-      let msg = '';
-      try { execFileSync('python3', ['-c', 'import pathlib, sys; sys.path.insert(0, "tools"); import notebook; notebook.load("apollo11-asflown", "scenario", pathlib.Path(sys.argv[1]), None)', tmpm], { cwd: R, stdio: 'pipe' }); }
-      catch (err) { msg = String(err.stderr); }
+      if (!arg.alone) fs.writeFileSync(path.join(tmpm, 'notebook/notebook.md'), `# t\n\n![a](figures/tli-cm.svg)${arg.rows ? '\n\n![b](figures/twice.svg)' : ''}\n\n\`\`\`figures\ntli-cm | golden=s7-default\n${arg.rows || ''}\`\`\`\n${arg.pytext ?? arg.text}`);
+      for (const [n, b, pad = 0] of arg.files) fs.writeFileSync(path.join(tmpm, 'notebook/media', n), Buffer.concat([Buffer.from(b, 'base64'), Buffer.alloc(pad)]));
+      try { execFileSync('python3', ['-c', 'import pathlib, sys; sys.path.insert(0, "tools"); import notebook; notebook.load("apollo11-asflown", "scenario", pathlib.Path(sys.argv[1]), None)', tmpm], { cwd: R, stdio: 'pipe' }); return ''; }
+      catch (err) { return String(err.stderr) || 'refused'; }
+    };
+    const jsArg = arg => JSON.stringify({ text: arg.text, files: arg.files.map(([n, b, pad = 0]) => [`notebook/media/${n}`, b, pad]) });
+    for (const [what, [arg, js, py]] of Object.entries(MEDIA_BAD)) {
+      await nbRefused(`a notebook with ${what}`, arg.alone ? 'nb-media-alone' : 'nb-media', js, jsArg(arg));
+      const msg = pyLoad(arg);
       if (!py.test(msg)) wrong.push(`tools/notebook.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
     }
+    for (const [what, text] of Object.entries(PARITY_OK)) {
+      try { await RP.readReel(craft('nb-media', nbReel.b64, jsArg({ text, files: [] })), sha, nbReel.id); }
+      catch (err) { wrong.push(`the page refuses a notebook with ${what}: ${err.message}`); }
+      const msg = pyLoad({ text, files: [] });
+      if (msg) wrong.push(`tools/notebook.py refuses a notebook with ${what}: ${msg.trim()}`);
+    }
     fs.rmSync(tmpm, { recursive: true, force: true });
-    nMediaBad = Object.keys(MEDIA_BAD).length;
+    nMediaBad = Object.keys(MEDIA_BAD).length + Object.keys(PARITY_OK).length;
     // A figure that could act when opened as a page (reviews of PR #69): the allowlist (reelpkg.js reelSvgUnsafe,
     // tools/notebook.py svg_unsafe at render and pack) refuses each of these, the bypasses of a blocklist among them;
     // the reader refuses the package and the Python names it: the two agree.
@@ -872,7 +903,7 @@ pack.quickviews("apollo11-asflown", pathlib.Path(sys.argv[1]), pack.listing("apo
   if (pageSha !== sha || reels.some(r => r.manifest.kernel.sha256 !== pageSha))
     wrong.push(`the page's KERNEL_SHA ${pageSha} is not the wasm's ${sha.slice(0, 8)} or a manifest's`);
   console.log(`packages: ${reels.length} reels (${reels.map(r => `${r.manifest.id} ${r.manifest.kind}`).join(', ')}), ${ndecks} decks; ` +
-    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, ${nmedia} photographs, ${13 + nSvgBad + nMediaBad} notebook faults (${nSvgBad} unsafe figures, ${nMediaBad} findings, attachments and photographs), ${nSvgSlow} hostile figures timed, the figure allowlist over ${nSvgOk} figures and golden renders, a stale render` +
+    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, ${nmedia} photographs, ${13 + nSvgBad + nMediaBad} notebook faults (${nSvgBad} unsafe figures, ${nMediaBad} findings, attachments and photographs, parity cases among them), ${nSvgSlow} hostile figures timed, the figure allowlist over ${nSvgOk} figures and golden renders, a stale render` +
     `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/ and build/figures/, packed twice the same, refusals hold'}`);
   if (wrong.length) ok = false;
 }
