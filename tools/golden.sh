@@ -313,8 +313,10 @@ capture() {
     nf=$((nf + 1))
   done < <(python3 tools/notebook.py list)
   # A figure that is a golden case's render (a notebook's `name | golden=<case>` row; #29 slice f) has no nb-*
-  # capture: the case's own covers it.  It must be that case drawn again, its SVG and hdr byte for byte (the case's
-  # capture holds the two streams interleaved, so the case is redrawn here with them apart).
+  # capture: the case's own covers the frame.  What this adds: the figure the reel package carries
+  # (build/reels/<reel>/notebook/figures/<name>.svg, as the last build packed it) must be that case drawn now, byte
+  # for byte, so a package built before the frame changed fails here; and the .hdr notebook.py rendered above must be
+  # the case's too (the case's capture holds the two streams interleaved, so the case is redrawn with them apart).
   local ng=0 gc genv gargs
   while read -r reel name gc; do
     f=build/figures/$reel/$name
@@ -323,8 +325,11 @@ capture() {
     env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP \
       -u VIEW_DECK -u VIEW_DKSUM VIEW_HDR=1 VIEW_REEL=$reel $genv \
       build/viewsvg $gargs > "$out/ref.svg" 2> "$out/ref.hdr"
-    if ! cmp -s "$out/ref.svg" "$f.svg" || ! cmp -s "$out/ref.hdr" "$f.hdr"; then
-      echo "golden: $reel figure $name is not golden case $gc's render (tools/notebook.py render)" >&2; exit 1
+    if ! cmp -s "$out/ref.svg" "build/reels/$reel/notebook/figures/$name.svg"; then
+      echo "golden: $reel's packed figure $name is not golden case $gc's render (rebuild: tools/build.sh packs it)" >&2; exit 1
+    fi
+    if ! cmp -s "$out/ref.hdr" "$f.hdr"; then
+      echo "golden: $reel figure $name's hdr is not golden case $gc's (tools/notebook.py render)" >&2; exit 1
     fi
     ng=$((ng + 1))
   done < <(python3 tools/notebook.py golden-refs)

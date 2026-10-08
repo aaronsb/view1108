@@ -25,7 +25,8 @@ A row may instead be `name | golden=<case>` (#29 slice f; ours): the figure is t
 tools/golden.sh's CASES, which must be drawn from the notebook's own reel (a playlist's: a reel it uses), so a figure
 that one golden case already draws has one render and one check. It is rendered with the case's environment, reel and
 arguments into the same build/figures/ file and packed like any figure, but golden.sh captures no nb-* case for it:
-the golden case's capture covers it, and capture and check redraw the case and require the figure to equal it.
+the golden case's capture covers the frame, and capture and check draw the case again and require the figure the reel
+package carries (build/reels/<id>/notebook/figures/<name>.svg) to equal it, so a stale package fails.
 
 Lines starting with # and blank lines in the block are skipped. Every figure the text names has a case, every case
 is named in the text, and the text names no other image: outside fenced blocks every "![" must open an inline image
@@ -155,7 +156,7 @@ def load(rid, kind, src, uses, sits=None):
         if len(f) == 2 and f[1].startswith("golden="):
             # A golden case's render as the figure (#29; ours): the case of that name in tools/golden.sh's CASES,
             # drawn from this notebook's own reel (a playlist's: one it uses). One render, one check: its capture is
-            # the golden case's, and the figure must equal that case drawn again (golden.sh, capture and check).
+            # the golden case's, and the packed figure must equal that case drawn again (golden.sh, capture and check).
             name, gc = f[0], f[1][len("golden="):]
             if not NAME.match(name):
                 fail(where, f"figure case {name!r}: a name is [a-z0-9][a-z0-9-]*")
