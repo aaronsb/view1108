@@ -38,7 +38,12 @@ import { PLATE_FONT } from "./equipment/kit";
 import { replayUTC } from "./equipment/console4009";
 import { Walk, type Terminal } from "./walk";
 import { isShelf, stationNamed, stationOpening } from "./stations";
-import type { CameraPose, LabEvent, LabHooks, Opens, Placed, Quality, ReelInfo, Room } from "./types";
+import { Carry } from "./carry";
+import { Input } from "./input";
+import { Picking } from "./picking";
+import { QualityCheck } from "./quality";
+import { anchorShot, matchShot, shotOf, type Mismatch, type Shot } from "./shot";
+import type { CameraPose, LabEvent, LabHooks, Opens, Placed, Quality, Room } from "./types";
 
 /** A flight's time, s, by the distance flown (m): 1 s up to 2.5 m, then slower per metre, at most 1.8 s (an 11 m
  *  flight across the room takes 1.7 s). */
@@ -46,34 +51,13 @@ const flyS = (d: number) => THREE.MathUtils.clamp(0.8 + 0.08 * d, 1.0, 1.8);
 const DUST_PER_M3 = 4;              // the dust motes' density
 const OPEN_S = 0.5;                 // the ease from a console's arrival pose to its handover pose, s
 const ARC_M = 0.12;                 // the flight's rise at its middle, metres per 2 m flown (at most one unit)
-const CLICK_PX = 5;
-const MOUNT_MS = 400;               // after a mount, a tape unit's own use (the drive's STOP/START) waits this long
-const LOOK_DEG = 0.12;              // turn per mouse count while the pointer is locked, deg
-const ESC_MS = 250;                 // an Esc this soon after the lock went is the one that released it
-const WHEEL_M = 0.0018;             // metres stepped per wheel pixel
-/** Keys the walk leaves to the page while the room is shown (modifier chords pass too). */
-const PASS = /^(Escape|Tab|F\d+|m|M)$/;
-// Auto quality. A software rasteriser starts low; a GPU starts high and is checked twice each time the room is shown:
-// the probe, the median frame time over the first frames (after `skip`; `frames` of them, or as many as fit in
-// `budget` ms) above `ms`, then the watch, the mean over the next `span` ms of frames above `ms`. Either drops to
-// low for good (the indicator says "slow"). ?labprobe=<ms> starts high on any renderer and makes every frame take
-// <ms> to the checks: the test hook for the decision path.
-const PROBE = { skip: 4, frames: 24, budget: 1500, ms: 24 };
-const WATCH = { span: 2000, ms: 22 };
 // The room's preferences, remembered: the quality tier, the lights, walk-up auto-entry ("1" on; off by default, #20).
 const QKEY = "view1108.labq", LKEY = "view1108.lights", WKEY = "view1108.walkup";
 const ease = (t: number) => t * t * (3 - 2 * t);
 const D2R = Math.PI / 180;
 
-/** A camera state: position, orientation, vertical field of view (deg), and how much bloom it wants (0..1). */
-interface Shot { position: THREE.Vector3; quaternion: THREE.Quaternion; fov: number; glow: number }
 interface Flight { from: Shot; to: Shot; t0: number; delay: number; dur: number; free: boolean; done?: () => void }
 type Mode = "free" | "flight" | "hold";
-
-function shotOf(p: CameraPose, glow = 1): Shot {
-  const m = new THREE.Matrix4().lookAt(p.position, p.target, new THREE.Vector3(0, 1, 0));
-  return { position: p.position.clone(), quaternion: new THREE.Quaternion().setFromRotationMatrix(m), fov: p.fov, glow };
-}
 
 export class Lab {
   private renderer: THREE.WebGLRenderer;
@@ -87,48 +71,35 @@ export class Lab {
   private vectorTex: THREE.CanvasTexture;
   private quality: Quality = "high";
   private qForced: Quality | null = null;
-  private probe: number[] | null = null;
-  private watch: { n: number; sum: number } | null = null;
+  private check: QualityCheck;
   private slow = false;            // an auto check found this machine too slow for high
-  private fakeMs: number | null = null;
   private home0: Shot;
   private mode: Mode = "free";
   private flight: Flight | null = null;
   private glow = 1;
   private walk: Walk;
-  private drag: { id: number; x: number; y: number; yaw: number; pitch: number; t: number; moved: boolean } | null = null;
-  private pinch = new Map<number, { x: number; y: number }>();
-  private pinchD = 0;
-  private hover: Placed | null = null;
-  private pointer: { x: number; y: number } | null = null;
-  private lifted = new Map<THREE.Mesh, [THREE.Material | THREE.Material[], THREE.Material | THREE.Material[]]>();
-  /** When a carried reel was last mounted (performance.now()), for MOUNT_MS. */
-  private mountT = -Infinity;
+  private carry: Carry;
+  private input: Input;
+  private picking: Picking;
   private labelEl: HTMLDivElement;
   private crossEl: HTMLDivElement;
   private lineEl: HTMLDivElement;
   private atEl: HTMLDivElement;
   private walkEl: HTMLButtonElement;
-  /** The viewer has looked, stepped or clicked: the top line drops its instructions. */
-  private engaged = false;
   /** The terminal the camera has arrived at and holds, not yet opened. */
   private at: { name: string; opens: Opens } | null = null;
   /** What the page laid out for a flight (screenRect) and has not been told to leave: set at take-off, so a flight
    *  replaced or ended before it lands still undoes it. */
   private laid: Opens | null = null;
-  private locked = false;
-  private lockFailed = false;
-  private unlockT = -Infinity;
   private qualEl: HTMLButtonElement;
   private raf = 0;
   private last = 0;
   private frameNo = -1;
   private shown = false;
   private ro: ResizeObserver;
-  private ray = new THREE.Raycaster();
   private size = { w: 1, h: 1 };
   /** The last handover: the screen's projected rect against the page's, CSS px. */
-  mismatch: { name: string; dx0: number; dy0: number; dx1: number; dy1: number } | null = null;
+  mismatch: Mismatch | null = null;
   stats = { calls: 0, triangles: 0 };
 
   constructor(private host: HTMLElement, private hooks: LabHooks) {
@@ -165,13 +136,13 @@ export class Lab {
     this.walk.setFrom(this.home0.position, this.home0.quaternion);
 
     const qs = new URLSearchParams(location.search), q = qs.get("labq"), fake = parseFloat(qs.get("labprobe") ?? "");
-    if (fake > 0) this.fakeMs = fake;
+    this.check = new QualityCheck(fake > 0 ? fake : null);
     let stored: string | null = null;
     try { stored = localStorage.getItem(QKEY); } catch { /* storage unavailable */ }
     this.qForced = q === "low" || q === "high" ? q : stored === "low" || stored === "high" ? stored : null;
     const gl = this.renderer.getContext(), dbg = gl.getExtension("WEBGL_debug_renderer_info");
     const soft = /swiftshader|llvmpipe|software/i.test(String(gl.getParameter(dbg ? dbg.UNMASKED_RENDERER_WEBGL : gl.RENDERER)));
-    this.quality = this.qForced ?? (soft && this.fakeMs === null ? "low" : "high");
+    this.quality = this.qForced ?? (soft && this.check.fakeMs === null ? "low" : "high");
     let lights: string | null = null;
     try { lights = localStorage.getItem(LKEY); } catch { /* storage unavailable */ }
     this.lighting = new Lighting(this.renderer, this.scene, this.quality, k => this.room.tubes?.(k), this.room.glows ?? [], lights !== "0");
@@ -179,14 +150,7 @@ export class Lab {
     const sw = this.room.placed.find(p => p.name === "switch");
     if (sw) sw.equipment.use = () => this.lights(!this.lighting.on);
     for (const p of this.room.placed) if (stationNamed(p.name)?.does === "control") p.equipment.use = () => this.hooks.drive?.();
-    // Every tape unit mounts a reel carried from the rack; without one, the drive is still STOP/START and the others
-    // do nothing (and are not picked).
-    for (const p of this.room.placed) if (p.equipment.anchors.tapeUnit !== undefined) {
-      const own = p.equipment.use;
-      // A double click mounts with its first click; its second must not then stop the clock (MOUNT_MS).
-      p.equipment.use = () => { const r = this.carried(); if (r) this.mount(r); else if (performance.now() - this.mountT > MOUNT_MS) own?.(); };
-      p.equipment.usable = () => !!own || !!this.carried();
-    }
+    this.carry = new Carry(this.room, hooks, { clearHover: () => this.picking.clearHover(), lockUI: () => this.lockUI() });
     this.dust?.light(this.lighting.lit, this.room.glows ?? []);
 
     this.labelEl = document.createElement("div");
@@ -215,24 +179,23 @@ export class Lab {
     this.atEl = document.createElement("div");
     this.atEl.style.cssText = `position:absolute;left:50%;bottom:14px;transform:translateX(-50%);pointer-events:none;display:none;padding:3px 10px 2px;font:10px/1.5 ${PLATE_FONT};letter-spacing:.12em;text-transform:uppercase;color:#d6f5dc;background:rgba(4,10,6,.82);border:1px solid #3d5c45;border-radius:3px;white-space:nowrap;z-index:2`;
     host.append(this.labelEl, prefsEl, this.crossEl, this.lineEl, this.atEl);
+    this.picking = new Picking({
+      renderer: this.renderer, camera: this.camera, host, labelEl: this.labelEl, room: this.room, carry: this.carry,
+      active: () => this.mode === "free" || !!this.at, at: () => !!this.at,
+    });
     this.applyQuality();
 
     this.setShot(this.home0);
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(host);
     this.resize();
-    c.addEventListener("pointerdown", this.onDown);
-    c.addEventListener("pointermove", this.onMove);
-    c.addEventListener("pointerup", this.onUp);
-    c.addEventListener("pointercancel", this.onUp);
-    c.addEventListener("pointerleave", this.onLeave);
-    c.addEventListener("wheel", this.onWheel, { passive: false });
-    window.addEventListener("keydown", this.onKeyCapture, true);
-    window.addEventListener("keyup", this.onKeyCapture, true);
-    window.addEventListener("blur", this.onBlur);
-    document.addEventListener("pointerlockchange", this.onLockChange);
-    document.addEventListener("pointerlockerror", this.onLockError);
-    document.addEventListener("mousemove", this.onLook);
+    this.input = new Input({
+      canvas: c, camera: this.camera, walk: this.walk,
+      shown: () => this.shown, mode: () => this.mode, at: () => this.at, hover: () => this.picking.hover,
+      hit: (x, y) => this.picking.hit(x, y), use: p => this.use(p), open: b => this.open(b), back: () => this.back(),
+      pulledOut: () => this.carry.pulledOut(), clearHover: () => this.picking.clearHover(), lockUI: () => this.lockUI(),
+      toggleLights: () => { this.lights(!this.lighting.on); },
+    });
   }
 
   /** Show the room. With `from`, the camera starts at that terminal: with `rect` (the page element's client rect)
@@ -241,7 +204,7 @@ export class Lab {
   show(from?: string, rect?: DOMRect | null, holdMs = 0): void {
     this.shown = true; this.setAt(null);
     this.resize();
-    this.flight = null; this.clearHover();
+    this.flight = null; this.picking.clearHover();
     for (const p of this.room.placed) p.equipment.select?.(false);
     this.renderer.shadowMap.needsUpdate = true;   // the static shadow map (lighting.ts)
     const s = from ? (rect && this.matchShot(from, rect)) || this.anchorShot(from) : null;
@@ -250,7 +213,7 @@ export class Lab {
       this.fly(this.standBack(from!) ?? this.home0, holdMs, true);
     } else { this.walk.setFrom(this.home0.position, this.home0.quaternion); this.setShot(this.home0); this.mode = "free"; }
     this.draw();
-    this.probe = this.qForced || this.slow || this.quality === "low" ? null : []; this.watch = null;
+    this.check.start(!(this.qForced || this.slow || this.quality === "low"));
     if (!this.raf) { this.last = 0; this.raf = requestAnimationFrame(this.tick); }
     this.lockUI();
   }
@@ -258,8 +221,8 @@ export class Lab {
   /** Stop rendering; the canvas keeps its last picture. */
   hide(): void {
     this.drop(true);
-    this.shown = false; this.flight = null; this.clearHover(); this.walk.clearKeys();
-    this.unlock(); this.lockUI(); this.line();
+    this.shown = false; this.flight = null; this.picking.clearHover(); this.walk.clearKeys();
+    this.input.unlock(); this.lockUI(); this.line();
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
   }
@@ -267,7 +230,7 @@ export class Lab {
   /** Fly to a placed equipment (null: the overview). A terminal ends at its arrival pose and holds there until it is
    *  opened (open()); with `open` (a tab picked on the page) it flies straight to the handover pose and opens. */
   setTarget(name: string | null, open = false): boolean {
-    this.clearHover();
+    this.picking.clearHover();
     if (open && this.at?.name === name) { this.open(); return true; }
     if (name === null) { this.drop(true); this.fly(this.home0, 0, true); return true; }
     const p = this.room.placed.find(q => q.name === name);
@@ -281,10 +244,10 @@ export class Lab {
     if (prev && prev !== lay) this.hooks.leave?.(prev);
     if (!s) return false;
     if (this.at) this.setAt(null);
-    this.unlock();
+    this.input.unlock();
     this.walk.disarm(name); this.walk.clearKeys();
     for (const q of this.room.placed) q.equipment.select?.(q === p);
-    if (this.carried()) this.pulledOut();   // a reel flown to comes out, and one carried stays out: Esc puts it back
+    if (this.carry.carried()) this.carry.pulledOut();   // a reel flown to comes out, and one carried stays out: Esc puts it back
     this.fly(s, 0, false, () => {
       this.mode = "hold";
       if (!opens) return;
@@ -298,7 +261,7 @@ export class Lab {
   back(): boolean {
     const a = this.at;
     if (!a || this.mode !== "hold") return false;
-    this.drop(true); this.clearHover();
+    this.drop(true); this.picking.clearHover();
     for (const p of this.room.placed) p.equipment.select?.(false);
     this.fly(this.standBack(a.name) ?? this.home0, 0, true);
     return true;
@@ -316,7 +279,7 @@ export class Lab {
     let s: Shot | null = null;
     if (binder) for (const q of this.room.placed) q.equipment.select?.(q.name === binder);
     else { const rect = this.hooks.screenRect?.(a.opens) ?? null; s = rect && this.matchShot(a.name, rect); }
-    this.drop(false); this.clearHover(); this.laid = laid;
+    this.drop(false); this.picking.clearHover(); this.laid = laid;
     if (s && (s.position.distanceTo(this.camera.position) > 1e-3 || s.quaternion.angleTo(this.camera.quaternion) > 1e-3)) this.fly(s, 0, false, go, OPEN_S);
     else { if (s) { this.setShot(s); this.draw(); } go(); }
   }
@@ -335,31 +298,7 @@ export class Lab {
   private setAt(a: { name: string; opens: Opens } | null): void {
     this.at = a;
     if (a) this.hooks.esc?.("closeup", () => { this.back(); });
-    else { this.hooks.esc?.("closeup", null); if (!this.carried()) this.hooks.esc?.("pulled", null); }
-    this.lockUI();
-  }
-
-  /** The reel pulled at the tape rack and carried from it, if any. */
-  private carried(): Placed | undefined {
-    return this.room.placed.find(p => p.equipment.carried?.());
-  }
-
-  /** A carried reel used on a tape unit: the page mounts it (loadReel), and it goes back on the rack. */
-  private mount(reel: Placed): void {
-    this.mountT = performance.now();
-    reel.equipment.putBack?.();
-    this.hooks.esc?.("pulled", null);
-    this.hooks.mount?.(reel.name.replace(/^reel:/, ""));
-    this.clearHover(); this.lockUI();
-  }
-
-  /** At a close-up something was pulled out (a binder, a reel): on the Esc stack as "pulled", Esc puts it back. */
-  private pulledOut(): void {
-    this.hooks.esc?.("pulled", () => {
-      for (const p of this.room.placed) if (p.equipment.putBack?.()) break;
-      if (this.carried()) this.pulledOut(); else this.hooks.esc?.("pulled", null);   // a binder went back; the reel next
-      this.lockUI();
-    });
+    else { this.hooks.esc?.("closeup", null); if (!this.carry.carried()) this.hooks.esc?.("pulled", null); }
     this.lockUI();
   }
 
@@ -367,8 +306,7 @@ export class Lab {
    *  still locked, so release it). True when this Esc is the lock's and nothing else should take it. */
   escLock(): boolean {
     if (!this.shown) return false;
-    if (this.locked) { this.unlock(); return true; }
-    return performance.now() - this.unlockT < ESC_MS;
+    return this.input.escLock();
   }
 
   /** The room's bottom Esc: walking, and walked or turned away from the overview, go back to it. */
@@ -398,9 +336,9 @@ export class Lab {
     const s = this.hooks.state(), fine = matchMedia("(any-pointer: fine)").matches;
     // In Beam the clock follows the trace, not the drive (until Beam honours LabState.playing): no drive state.
     const beam = s.mode === "beam", parts = [s.reel || "-", beam ? "beam trace" : s.playing ? "running" : "stopped"];
-    if (!this.engaged) parts.push(fine && !this.lockFailed ? "click to look" : "drag to look", "WASD to walk", "click a terminal");
-    const r = this.carried();
-    if (r) parts.push(`reel out: ${this.reelTitle(r)} · a tape unit mounts it`);
+    if (!this.input.engaged) parts.push(fine && !this.input.lockFailed ? "click to look" : "drag to look", "WASD to walk", "click a terminal");
+    const r = this.carry.carried();
+    if (r) parts.push(`reel out: ${this.carry.reelTitle(r)} · a tape unit mounts it`);
     else if (!beam) parts.push(`drive: ${s.playing ? "stop" : "start"}`);
     const t = parts.join(" · ");
     if (el.textContent !== t) el.textContent = t;
@@ -477,7 +415,7 @@ export class Lab {
 
   get info() {
     const w = this.walk, s = this.hooks.state();
-    return { locked: this.locked, at: this.at?.name ?? null, carried: this.carried()?.name ?? null, walkup: this.walk.auto, line: this.lineEl.style.display === "none" ? null : this.lineEl.textContent, hover: this.hover?.name ?? null, lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.probe ? "probe" : this.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
+    return { locked: this.input.locked, at: this.at?.name ?? null, carried: this.carry.carried()?.name ?? null, walkup: this.walk.auto, line: this.lineEl.style.display === "none" ? null : this.lineEl.textContent, hover: this.picking.hover?.name ?? null, lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.check.probe ? "probe" : this.check.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
       walk: { x: w.pos.x, z: w.pos.y, yaw: w.yaw / D2R, pitch: w.pitch / D2R, near: w.near?.name ?? null },
       // what the lab reads of the page's loaded state, and the UTC its clocks show (console4009.ts replayUTC)
       loaded: { mode: s.mode, situation: s.situation, scenario: s.scenario, mission: s.mission, get: s.get, tab: s.tab, reel: s.reel, mounted: s.mounted, playing: s.playing }, clock: new Date(replayUTC(s)).toISOString() };
@@ -487,15 +425,10 @@ export class Lab {
     this.hide();
     this.sound.dispose();
     this.ro.disconnect();
-    window.removeEventListener("keydown", this.onKeyCapture, true);
-    window.removeEventListener("keyup", this.onKeyCapture, true);
-    window.removeEventListener("blur", this.onBlur);
-    document.removeEventListener("pointerlockchange", this.onLockChange);
-    document.removeEventListener("pointerlockerror", this.onLockError);
-    document.removeEventListener("mousemove", this.onLook);
+    this.input.dispose();
     for (const p of this.room.placed) p.equipment.dispose?.();
     this.room.dispose?.();
-    for (const [, [base, lift]] of this.lifted) for (const x of [lift].flat()) if (![base].flat().includes(x)) x.dispose();
+    this.picking.dispose();
     this.dust?.dispose();
     this.post?.dispose();
     this.lighting.dispose();
@@ -512,7 +445,7 @@ export class Lab {
   private tick = (now: number) => {
     this.raf = requestAnimationFrame(this.tick);
     const raw = this.last ? (now - this.last) / 1000 : 0, dt = Math.min(0.1, raw);
-    if ((this.probe || this.watch) && this.last) this.sample(now - this.last);
+    if (this.check.running && this.last && this.check.sample(now - this.last)) this.tooSlow();
     this.last = now;
     const s = this.hooks.state();
     if (s.frameNo !== this.frameNo) { this.frameNo = s.frameNo; this.vectorTex.needsUpdate = true; }
@@ -524,9 +457,9 @@ export class Lab {
     let landed: (() => void) | undefined;
     if (this.flight) landed = this.stepFlight(now);
     else if (this.mode === "free") { this.walk.update(Math.min(0.25, raw)); if (this.mode === "free") this.applyWalk(); }
-    if ((this.mode === "free" || this.at) && !this.drag) {
-      if (this.locked) { const r = this.renderer.domElement.getBoundingClientRect(); this.pick(r.left + r.width / 2, r.top + r.height / 2); }
-      else if (this.pointer) this.pick(this.pointer.x, this.pointer.y);
+    if ((this.mode === "free" || this.at) && !this.input.drag) {
+      if (this.input.locked) { const r = this.renderer.domElement.getBoundingClientRect(); this.picking.pick(r.left + r.width / 2, r.top + r.height / 2); }
+      else if (this.input.pointer) this.picking.pick(this.input.pointer.x, this.input.pointer.y);
     }
     this.hint();
     this.line();
@@ -544,24 +477,6 @@ export class Lab {
 
   // ---- quality ----
 
-  private sample(ms: number): void {
-    ms = this.fakeMs ?? ms;
-    const p = this.probe, w = this.watch;
-    if (p) {
-      p.push(ms);
-      const s = p.slice(PROBE.skip);
-      if (s.length < PROBE.frames && s.reduce((a, b) => a + b, 0) < PROBE.budget) return;
-      this.probe = null;
-      if (s.sort((a, b) => a - b)[s.length >> 1] > PROBE.ms) this.tooSlow();
-      else this.watch = { n: 0, sum: 0 };
-    } else if (w) {
-      w.n++; w.sum += ms;
-      if (w.sum < WATCH.span) return;
-      this.watch = null;
-      if (w.sum / w.n > WATCH.ms) this.tooSlow();
-    }
-  }
-
   private tooSlow(): void {
     if (this.quality !== "high" || this.qForced) return;
     this.slow = true;
@@ -569,7 +484,7 @@ export class Lab {
   }
 
   private setQuality(q: Quality, remember: boolean): void {
-    if (remember) { this.qForced = q; this.probe = this.watch = null; try { localStorage.setItem(QKEY, q); } catch { /* ignore */ } }
+    if (remember) { this.qForced = q; this.check.start(false); try { localStorage.setItem(QKEY, q); } catch { /* ignore */ } }
     if (q === this.quality) { this.applyQuality(); return; }
     this.quality = q;
     this.lighting.set(q);
@@ -646,275 +561,43 @@ export class Lab {
   private hint(): void {
     const t = this.mode === "free" ? this.walk.near : null;
     if (!t) { if (this.labelEl.dataset.hint) { this.labelEl.style.display = "none"; delete this.labelEl.dataset.hint; } return; }
-    if (this.hover) return;
+    if (this.picking.hover) return;
     const v = t.screen.clone().project(this.camera), r = this.renderer.domElement.getBoundingClientRect(), hr = this.host.getBoundingClientRect();
     const p = this.room.placed.find(q => q.name === t.name);
-    this.labelEl.textContent = `${p ? this.nameOf(p) : t.name} · ${t.name === "switch" ? "press E or L" : t.use || !this.walk.auto ? "press E" : "approach or press E"}`;
+    this.labelEl.textContent = `${p ? this.picking.nameOf(p) : t.name} · ${t.name === "switch" ? "press E or L" : t.use || !this.walk.auto ? "press E" : "approach or press E"}`;
     this.labelEl.style.left = `${r.left - hr.left + (v.x + 1) / 2 * r.width}px`;
     this.labelEl.style.top = `${r.top - hr.top + (1 - v.y) / 2 * r.height + 24}px`;
     this.labelEl.style.display = "block"; this.labelEl.dataset.hint = t.name;
   }
 
-  /** A placed equipment's own pose (anchors.camera, the zoom-in; or anchors.view, a console's arrival) in room
-   *  coordinates. */
   private anchorShot(name: string, which: "camera" | "view" = "camera"): Shot | null {
-    const p = this.room.placed.find(q => q.name === name), c = p?.equipment.anchors[which];
-    if (!p || !c) return null;
-    const m = p.equipment.object.matrixWorld;
-    return shotOf({ position: c.position.clone().applyMatrix4(m), target: c.target.clone().applyMatrix4(m), fov: c.fov }, 0);
+    return anchorShot(this.room.placed.find(q => q.name === name), which);
   }
 
-  /** The pose square to the equipment's screen at which the picture's part of it (uvRect; the screen mesh a plane
-   *  in its local XY facing +Z, UVs running across its bounds) spans `rect`'s height (its width, with `fit`) on the
-   *  lab canvas, centred on it. Where the rect is wider than the screen the page widens from the screen's rect
-   *  (`mismatch`; room.js). */
   private matchShot(name: string, rect: DOMRect): Shot | null {
-    const p = this.room.placed.find(q => q.name === name), sc = p?.equipment.anchors.screen;
-    if (!p || !sc || rect.width < 2 || rect.height < 2) return null;
-    const cr = this.renderer.domElement.getBoundingClientRect();
-    if (cr.width < 2 || cr.height < 2) return null;
-    const g = sc.mesh.geometry;
-    if (!g.boundingBox) g.computeBoundingBox();
-    const b = g.boundingBox!, [u0, v0, u1, v1] = sc.uvRect, z = b.max.z;
-    const at = (u: number, v: number) => new THREE.Vector3(b.min.x + u * (b.max.x - b.min.x), b.min.y + v * (b.max.y - b.min.y), z).applyMatrix4(sc.mesh.matrixWorld);
-    const p00 = at(u0, v0), p10 = at(u1, v0), p01 = at(u0, v1), p11 = at(u1, v1);
-    const R = p10.clone().sub(p00), U = p01.clone().sub(p00);
-    const w = R.length(), h = U.length();
-    R.normalize(); U.normalize();
-    const Nn = new THREE.Vector3().crossVectors(R, U).normalize();
-    U.crossVectors(Nn, R);   // square the frame if the mesh is sheared
-    const C = p00.clone().add(p10).add(p01).add(p11).multiplyScalar(0.25);
-    const fov = p.equipment.anchors.camera?.fov ?? 35, tn = Math.tan(fov / 2 * D2R);
-    const d = sc.fit === "width" ? w * cr.height / (2 * tn * rect.width) : h * cr.height / (2 * tn * rect.height);
-    const k = 2 * d * tn / cr.height;   // metres per CSS px at the screen
-    const ox = rect.left + rect.width / 2 - (cr.left + cr.width / 2), oy = (cr.top + cr.height / 2) - (rect.top + rect.height / 2);
-    const position = C.clone().addScaledVector(Nn, d).addScaledVector(R, -ox * k).addScaledVector(U, -oy * k);
-    const quaternion = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(R, U, Nn));
-    // Check: project the picture's corners from there.
-    const cam = this.camera.clone(); cam.position.copy(position); cam.quaternion.copy(quaternion); cam.fov = fov;
-    cam.updateProjectionMatrix(); cam.updateMatrixWorld();
-    const px = (v: THREE.Vector3) => { const s = v.clone().project(cam); return { x: cr.left + (s.x + 1) / 2 * cr.width, y: cr.top + (1 - s.y) / 2 * cr.height }; };
-    const a = px(p01), c = px(p10);
-    this.mismatch = { name, dx0: a.x - rect.left, dy0: a.y - rect.top, dx1: c.x - rect.right, dy1: c.y - rect.bottom };
-    return { position, quaternion, fov, glow: 0 };
+    const m = matchShot(this.room.placed.find(q => q.name === name), rect, this.renderer.domElement.getBoundingClientRect(), this.camera);
+    if (m) this.mismatch = m.mismatch;
+    return m && m.shot;
   }
-
-  // ---- input ----
-
-  private onDown = (e: PointerEvent) => {
-    if (this.locked) { if (e.button === 0 && this.hover) this.use(this.hover); return; }   // the crosshair's target
-    if (e.pointerType === "touch") {
-      this.pinch.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (this.pinch.size === 2) { const [a, b] = [...this.pinch.values()]; this.pinchD = Math.hypot(a.x - b.x, a.y - b.y); this.drag = null; return; }
-    }
-    if (e.button !== 0) return;
-    this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, yaw: this.walk.yaw, pitch: this.walk.pitch, t: performance.now(), moved: false };
-    this.renderer.domElement.setPointerCapture(e.pointerId);
-  };
-
-  private onMove = (e: PointerEvent) => {
-    if (this.locked) return;   // onLook turns
-    const r = this.renderer.domElement.getBoundingClientRect();
-    this.pointer = { x: e.clientX, y: e.clientY };
-    if (this.pinch.has(e.pointerId)) {
-      this.pinch.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (this.pinch.size === 2) {
-        const [a, b] = [...this.pinch.values()], dd = Math.hypot(a.x - b.x, a.y - b.y);
-        if (this.mode === "free") this.walk.nudge((dd - this.pinchD) * 0.006);
-        this.pinchD = dd;
-        return;
-      }
-    }
-    const g = this.drag;
-    if (!g || g.id !== e.pointerId || this.mode !== "free") return;
-    const dx = e.clientX - g.x, dy = e.clientY - g.y;
-    if (!g.moved && Math.hypot(dx, dy) < CLICK_PX) return;
-    if (!g.moved) { g.moved = true; this.engaged = true; this.clearHover(); }
-    const radPx = this.camera.fov * D2R / r.height;   // mouselook as in a first-person game: drag right looks right, drag down looks down
-    this.walk.turn(g.yaw - dx * radPx - this.walk.yaw, g.pitch - dy * radPx - this.walk.pitch);
-  };
-
-  private onUp = (e: PointerEvent) => {
-    this.pinch.delete(e.pointerId);
-    const g = this.drag;
-    if (!g || g.id !== e.pointerId) return;
-    this.drag = null;
-    if (g.moved || e.type !== "pointerup") return;
-    // At a close-up a click on the machine opens it; on a shelf a click on a book pulls it out, again opens it. A click
-    // on anything else (the bookcase's own frame, the room, another machine) steps back into the room.
-    if (this.at) {
-      if (Math.hypot(e.clientX - g.x, e.clientY - g.y) >= CLICK_PX) return;
-      const p = this.hit(e.clientX, e.clientY);
-      if (p?.equipment.pull) { if (p.equipment.pull()) this.open(p.name); else this.pulledOut(); }
-      else if (p && p.name === this.at.name && this.at.opens !== "library") this.open();
-      else this.back();
-      return;
-    }
-    if (this.mode !== "free") return;
-    const p = this.hit(e.clientX, e.clientY);
-    if (p) this.use(p);
-    else if (e.pointerType === "mouse") this.lock();
-    this.engaged = true;
-  };
-
-  // ---- pointer lock ----
-
-  private lock(): void {
-    const c = this.renderer.domElement;
-    if (this.locked || !c.requestPointerLock) return;
-    const fail = () => { this.lockFailed = true; this.lockUI(); };
-    // Raw counts where the browser has them (no OS acceleration), else the plain lock; either may refuse.
-    const plain = () => { try { Promise.resolve(c.requestPointerLock()).catch(fail); } catch { fail(); } };
-    try { Promise.resolve(c.requestPointerLock({ unadjustedMovement: true })).catch(plain); } catch { plain(); }
-  }
-
-  private unlock(): void {
-    if (document.pointerLockElement === this.renderer.domElement) document.exitPointerLock();
-  }
-
-  private onLockChange = () => {
-    const on = document.pointerLockElement === this.renderer.domElement;
-    // A lock granted after a flight took off (asked for just before it) would leave the camera locked at a close-up.
-    if (on && this.mode !== "free") { this.unlock(); return; }
-    if (on === this.locked) return;
-    this.locked = on; this.drag = null; this.pointer = null; this.clearHover();
-    if (on) { this.engaged = true; this.lockFailed = false; } else this.unlockT = performance.now();
-    this.lockUI();
-  };
-
-  private onLockError = () => { if (!this.locked) { this.lockFailed = true; this.lockUI(); } };
-
-  /** Locked: mouse right looks right, mouse down looks down. */
-  private onLook = (e: MouseEvent) => {
-    if (!this.locked || this.mode !== "free") return;
-    const k = LOOK_DEG * D2R;
-    this.walk.turn(-e.movementX * k, -e.movementY * k);
-  };
 
   /** The crosshair while locked; at a close-up, the line on how to go on (the station's, or the shelf's own). */
   private lockUI(): void {
-    this.crossEl.style.display = this.shown && this.locked ? "block" : "none";
+    this.crossEl.style.display = this.shown && this.input.locked ? "block" : "none";
     this.atEl.style.display = this.shown && this.at ? "block" : "none";
     const at = this.at && this.room.placed.find(q => q.name === this.at!.name);
     if (this.at) this.atEl.textContent = `${at?.equipment.hint?.() ?? stationOpening(this.at.opens)?.at ?? ""} · Esc to step back`;
   }
 
-  private onLeave = () => { this.pointer = null; this.clearHover(); };
-
-  private onWheel = (e: WheelEvent) => {
-    e.preventDefault();
-    if (this.mode === "free") this.walk.nudge(-e.deltaY * (e.deltaMode === 1 ? 28 : 1) * WHEEL_M);
-  };
-
-  /** While the room is shown its keys are the walk's (and E/Enter for a terminal in range); the page gets none but
-   *  PASS and modifier chords, so its plot keys cannot act behind the room. Esc is PASS: the page's stack has it. */
-  private onKeyCapture = (e: KeyboardEvent) => {
-    if (!this.shown) return;
-    if (e.type === "keyup") { this.walk.key(e.key, false, e.shiftKey); return; }
-    if (this.at && this.mode === "hold" && !e.ctrlKey && !e.metaKey && !e.altKey) {   // at a close-up
-      const k = e.key;
-      if (this.walk.key(k, true, e.shiftKey)) { e.stopImmediatePropagation(); e.preventDefault(); this.back(); return; }
-      if (k === "e" || k === "E" || k === "Enter") { e.stopImmediatePropagation(); e.preventDefault(); this.open(); return; }
-    }
-    if (e.ctrlKey || e.metaKey || e.altKey || PASS.test(e.key)) return;
-    e.stopPropagation();
-    if (this.mode !== "free") return;
-    if (this.walk.key(e.key, true, e.shiftKey)) { e.preventDefault(); this.engaged = true; }
-    else if ((e.key === "e" || e.key === "E" || e.key === "Enter") && (this.locked && this.hover ? this.use(this.hover) : this.walk.enter())) e.preventDefault();
-    else if (e.key === "l" || e.key === "L") { e.preventDefault(); this.lights(!this.lighting.on); }
-    else if (e.key === " ") e.preventDefault();
-  };
-
-  private onBlur = () => this.walk.clearKeys();
-
   // ---- hover and picking ----
-
-  /** The placed equipment under (x, y) that opens something, if any. */
-  private hit(x: number, y: number): Placed | null {
-    const r = this.renderer.domElement.getBoundingClientRect();
-    this.ray.setFromCamera(new THREE.Vector2((x - r.left) / r.width * 2 - 1, -((y - r.top) / r.height) * 2 + 1), this.camera);
-    for (const h of this.ray.intersectObject(this.room.object, true)) {
-      let o: THREE.Object3D | null = h.object;
-      while (o && o.userData.placed === undefined) o = o.parent;
-      if (!o) continue;   // the shell
-      const p = this.room.placed.find(q => q.name === o!.userData.placed);
-      return p && (p.equipment.opens || p.equipment.use || p.equipment.inert) && p.equipment.usable?.() !== false ? p : null;
-    }
-    return null;
-  }
-
-  /** Hover: lift and name the machine under (x, y). */
-  private pick(x: number, y: number): void {
-    if (this.mode !== "free" && !this.at) return;
-    let p = this.hit(x, y);
-    if (this.at && !p?.equipment.pull) p = null;   // at a close-up only what pulls out
-    this.renderer.domElement.style.cursor = p || this.at ? "pointer" : "";
-    if (p !== this.hover) { this.clearHover(); if (p) this.lift(p, true); this.hover = p; }
-    const label = p && this.nameOf(p);
-    if (label) {
-      const hr = this.host.getBoundingClientRect();
-      this.labelEl.textContent = label;
-      this.labelEl.style.left = `${x - hr.left + 14}px`; this.labelEl.style.top = `${y - hr.top + 16}px`;
-      this.labelEl.style.display = "block";
-    } else this.labelEl.style.display = "none";
-  }
 
   /** Use a machine: flip it in place (the switch), follow its link (the door; out of pointer lock first, so the new
    *  tab is not opened under a captured mouse), or fly into it. */
   private use(p: Placed): true {
     if (p.equipment.inert) return true;   // a prop: named on hover, nothing to do
-    if (p.equipment.anchors.href) this.unlock();
+    if (p.equipment.anchors.href) this.input.unlock();
     if (p.equipment.use) p.equipment.use(); else this.setTarget(p.name);
     return true;
   }
-
-  /** A placed piece's name for hover and the walk's line: its label, and its state where it has one (the drive), or
-   *  for a tape unit while a reel is carried, what using it does. */
-  private nameOf(p: Placed): string {
-    const r = p.equipment.anchors.tapeUnit !== undefined && this.carried();
-    return [this.room.labels?.[p.name], r ? `click to mount ${this.reelTitle(r)}` : p.equipment.status?.()].filter(Boolean).join(" · ");
-  }
-
-  /** A reel piece's title (taperack.ts ReelPiece). */
-  private reelTitle(p: Placed): string {
-    return (p.equipment as { reel?: ReelInfo }).reel?.title ?? p.name;
-  }
-
-  private clearHover(): void {
-    if (this.hover) this.lift(this.hover, false);
-    this.hover = null; this.labelEl.style.display = "none";
-    this.renderer.domElement.style.cursor = "";
-  }
-
-  /** Hover highlight: a slight emissive lift on the equipment's lit surfaces (clones, so shared materials stay). */
-  private lift(p: Placed, on: boolean): void {
-    const up = (base: THREE.Material): THREE.Material | null => {
-      if (!(base as THREE.MeshStandardMaterial).isMeshStandardMaterial) return null;
-      const u = base.clone() as THREE.MeshStandardMaterial;
-      u.emissive = (base as THREE.MeshStandardMaterial).emissive.clone().add(new THREE.Color(0x1c2a20));
-      return u;
-    };
-    p.equipment.object.traverse(o => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      let pair = this.lifted.get(m);
-      if (!pair) {
-        const base = m.material;
-        if (Array.isArray(base)) {   // a mesh with groups (a reel's case): each lit material lifted, the rest kept
-          const ups = base.map(b => up(b));
-          if (ups.every(u => !u)) return;
-          pair = [base, ups.map((u, i) => u ?? base[i])];
-        } else {
-          const u = up(base);
-          if (!u) return;
-          pair = [base, u];
-        }
-        this.lifted.set(m, pair);
-      }
-      m.material = on ? pair[1] : pair[0];
-    });
-  }
-
 
   private resize(): void {
     const w = this.host.clientWidth, h = this.host.clientHeight;
