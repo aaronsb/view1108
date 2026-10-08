@@ -15,7 +15,10 @@ writes each page.json as build/page/<id>.json and this copies it. A reel with a 
 notebook/notebook.md in data/missions/<mission>/<scenario file stem>/ or data/reels/<id>/, tools/notebook.py) also
 holds notebook/notebook.md, byte for byte (type "notebook"), and each figure it names as notebook/figures/<name>.svg
 (type "figure"), the SVG tools/notebook.py rendered into build/figures/<id>/<name>.svg, the same file the golden gate
-captures (tools/golden.sh, case nb-<id>-<name>); tools/build.sh renders the figures before it packs. The manifest names the kernel build the
+captures (tools/golden.sh, case nb-<id>-<name>); tools/build.sh renders the figures before it packs. The reel's
+photographs, media/<name>.jpg or .png in its source folder (raster only, each named by an attach block or a photo
+event; #29 slice g, #75; tools/notebook.py reel_media), are packed byte for byte as media/<name>.jpg or .png (type
+"media"), and a scenario reel's photo events (data/photos.tsv, tools/photos.py) as its page.json `photos`. The manifest names the kernel build the
 reel is for, by the SHA-256 of build/view.opt.wasm, and never carries code (#26, 2026-10-06 decision). Packages are reproducible: USTAR members with mtime 0,
 uid/gid 0, no user or group names, mode 0644, no directory entries; gzip with mtime 0 and no file
 name: the same bytes again for a given Python and zlib (the selftest packs twice and compares). Writes:
@@ -43,6 +46,7 @@ second reel carrying its own copy of mission.scn.
 import base64, gzip, hashlib, io, json, os, pathlib, re, shutil, subprocess, sys, tarfile
 
 import notebook
+import photos
 
 R = pathlib.Path(__file__).resolve().parent.parent
 D = R / "data"
@@ -71,12 +75,16 @@ def tar_gz(members):
     return out.getvalue()
 
 
-def notebook_members(rid, kind, src, uses, sits):
-    """The reel's notebook members and their manifest entries: ([(name, bytes)], [entry]), both empty without a
-    notebook. Each figure is build/figures/<rid>/<name>.svg as tools/notebook.py rendered it."""
-    nb = notebook.load(rid, kind, src, uses, sits)
+def notebook_members(rid, kind, src, uses, sits, photo_media=()):
+    """The reel's notebook and media members and their manifest entries: ([(name, bytes)], [entry]), both empty
+    without either. Each figure is build/figures/<rid>/<name>.svg as tools/notebook.py rendered it; `photo_media`, the
+    media files the reel's photo events name."""
+    nb = notebook.load(rid, kind, src, uses, sits, photo_media)
     if not nb:
-        return [], []
+        # No notebook: the reel's photographs are its photo events' alone.
+        media = notebook.reel_media(src)
+        notebook.media_unnamed(src, media, set(photo_media))
+        return media_members(rid, media)
     why = notebook.stale(rid, nb)
     if why:
         sys.exit(f"pack.py: {rid}: build/figures/{rid}/ is stale: {why} (tools/notebook.py render)")
@@ -93,6 +101,20 @@ def notebook_members(rid, kind, src, uses, sits):
             sys.exit(f"pack.py: {rid}: {fig.relative_to(R)} holds {bad}, which a figure may not (tools/notebook.py svg_unsafe, the allowlist)")
         members.append((path, fig.read_bytes()))
         entries.append({"path": path, "type": "figure"})
+    m, e = media_members(rid, nb["media"])
+    return members + m, entries + e
+
+
+def media_members(rid, media):
+    """The reel's photographs (#29 slice g, #75): each file of media/, raster only and named by an attach or a photo
+    event (tools/notebook.py checks both), byte for byte as media/<file>."""
+    members, entries = [], []
+    for name, data in media.items():
+        path = f"media/{name}"
+        if len(path) > 100:
+            sys.exit(f"pack.py: {rid}: {path}: a member name longer than 100 characters (USTAR)")
+        members.append((path, data))
+        entries.append({"path": path, "type": "media"})
     return members, entries
 
 
@@ -106,10 +128,14 @@ def notebook_members(rid, kind, src, uses, sits):
 #   {"kind": "event", "id": <the row's name as a slug; a name the timeline repeats adds @ and the row's g.e.t.,
 #    [-]h:mm:ss[.hh], e.g. midcourse-correction-ignition@26:44:58.64>, "name": <the row's name>, "get": s,
 #    "tl": <its KIND=>}
+#   {"kind": "photo", "id": <its frame>, "name": <its frame>, "get": s, "sit": <its situation's id>}  (#75: a photo
+#    event, page.json `photos`, tools/photos.py; its g.e.t. its own, else its bracket's midpoint, else the bracket's
+#    start: tools/photos.py event_get)
 # A situation's g.e.t. is its page.json `get` or, where its card's rule is the kernel's own (ERISE: the Earthrise
-# search, src/traj.f ERFIND), hdr(1) of build/viewsvg at its defaults: the time view_init gives the page. #75 adds a
-# third kind, "photo". Picking a situation entry applies the situation's own view; an event entry moves the time.
-LIST_KINDS = ("situation", "event")
+# search, src/traj.f ERFIND), hdr(1) of build/viewsvg at its defaults: the time view_init gives the page. At one g.e.t.
+# situations come first, then events, then photo events, each in its own order. Picking a situation entry applies the
+# situation's own view; an event entry moves the time; a photo entry opens Fusion at the photograph (web/src/fusion.js).
+LIST_KINDS = ("situation", "event", "photo")
 
 
 def slug(name):
@@ -198,12 +224,15 @@ def listing(rid, page):
         base = slug(name)
         rows.append({"kind": "event", "id": base if count[base] == 1 else f"{base}@{get_tag(g)}", "name": name,
                      "get": g, "tl": kind})
-    every = sits + rows
+    shots = [{"kind": "photo", "id": p["frame"], "name": p["frame"], "get": photos.event_get(p), "sit": p["sit"]}
+             for p in page.get("photos", [])]
+    every = sits + rows + shots
     ids = [e["id"] for e in every]
     dup = sorted({i for i in ids if ids.count(i) > 1})
     if dup:
         sys.exit(f"pack.py: {rid}: listing ids {', '.join(dup)} name two entries")
-    return [every[k] for k in sorted(range(len(every)), key=lambda k: (every[k]["get"], k >= len(sits), k))]
+    rank = {k: n for n, k in enumerate(LIST_KINDS)}
+    return [every[k] for k in sorted(range(len(every)), key=lambda k: (every[k]["get"], rank[every[k]["kind"]], k))]
 
 
 # Quick views (#73; ours): the page's keys 1-9 for a scenario reel, each a shortcut to one entry of its listing (a
@@ -235,9 +264,10 @@ def quickviews(rid, src, entries):
     return dict(sorted(out.items()))
 
 
-def page_bytes(rid, src, pbytes):
-    """A scenario reel's packed page.json: gen_data's, with its listing and quick views added."""
-    page = json.loads(pbytes)
+def page_bytes(rid, src, pbytes, events):
+    """A scenario reel's packed page.json: gen_data's, with its photo events (`events`, tools/photos.py), listing and
+    quick views added."""
+    page = {**json.loads(pbytes), "photos": events}
     entries = listing(rid, page)
     return (json.dumps({**page, "listing": entries, "quickviews": quickviews(rid, src, entries)}) + "\n").encode()
 
@@ -272,6 +302,7 @@ def main():
     rdir.mkdir(parents=True)
     index, page = [], []
     sits = notebook.scenes()
+    scenario_ids = {rid for rid, kind, *_ in notebook.reels() if kind == "scenario"}
     for mdir in sorted(p for p in (D / "missions").iterdir() if p.is_dir()):
         mfile = mdir / "mission.scn"
         mtext = mfile.read_bytes()
@@ -288,14 +319,18 @@ def main():
             if not pfile.is_file():
                 sys.exit(f"pack.py: no {pfile.relative_to(R)} (tools/gen_data.py writes it first)")
             title = f"{mname} {card_name(stext.decode('utf-8'), 'SCENARIO')}"
-            nbm, nbe = notebook_members(rid, "scenario", mdir / sfile.stem, None, sits)
+            pbytes = pfile.read_bytes()
+            events = photos.events(rid, {s["id"] for s in json.loads(pbytes)["situations"]},
+                                   notebook.reel_media(mdir / sfile.stem), scenario_ids)
+            nbm, nbe = notebook_members(rid, "scenario", mdir / sfile.stem, None, sits,
+                                        {p["media"][len("media/"):] for p in events})
             manifest = {"format": FORMAT, "id": rid, "kind": "scenario", "title": title,
                         "mission": {"id": mdir.name, "name": mname}, "kernel": kernel,
                         "contents": [{"path": "mission.scn", "type": "scn"},
                                      {"path": sfile.name, "type": "scn"},
                                      {"path": "page.json", "type": "page"}, *nbe]}
             members = [("manifest.json", (json.dumps(manifest, indent=1) + "\n").encode()),
-                       ("mission.scn", mtext), (sfile.name, stext), ("page.json", page_bytes(rid, mdir / sfile.stem, pfile.read_bytes())), *nbm]
+                       ("mission.scn", mtext), (sfile.name, stext), ("page.json", page_bytes(rid, mdir / sfile.stem, pbytes, events)), *nbm]
             pkg = tar_gz(members)
             (rdir / f"{rid}.reel.tar.gz").write_bytes(pkg)
             write_members(rdir, rid, members)

@@ -80,12 +80,9 @@ C     DPAD: the scenario's launch pad (its PAD card) as a small boxed
 C     X, the mark the Moon view gives the Apollo 11 landing site
 C     (DMOON6), and its name (LB kind 9) beside it.  A modern
 C     addition (ours), drawn only with a label level set (in_lablv
-C     1-3; DEARTH).  The coastlines are geodetic latitudes placed on
-C     a sphere and turned with the Earth (MEF, VFRAME), so the pad
-C     goes on the same footing: a geocentric latitude is made
-C     geodetic first, TAN(GD) = TAN(GC) / (1 - F)**2, F the flattening
-C     STATEV uses.  Hidden on the Earth's far side and behind the
-C     Moon or a placed model (ISVIS mode 1).
+C     1-3; DEARTH), at the pad's place on the drawn Earth (PADEF).
+C     Hidden on the Earth's far side and behind the Moon or a placed
+C     model (ISVIS mode 1).
 C-----------------------------------------------------------------------
       SUBROUTINE DPAD(VB, NV, LB, NL)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -94,9 +91,61 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION VB(5,MAXV), LB(4,MAXL)
       INTEGER NV, NL
-      DOUBLE PRECISION F, FI, LA, U(3), Q(3), P(3), X, Y, W
+      DOUBLE PRECISION U(3), EN(3), Q(3), P(3), X, Y, W, H, D, R(3)
+      DOUBLE PRECISION C(3), AT(3,3)
       INTEGER I, IOK, ISVIS
+      CALL PADEF(U, EN, IOK)
+      IF (IOK .EQ. 0) RETURN
+      CALL MXV(MEF, U, Q)
+      DO 10 I = 1, 3
+        P(I) = EPOS(I) + RE * Q(I)
+   10 CONTINUE
+C     Where the launch complex is placed (vdrive.f PADPL) it stands for
+C     the mark: the name alone, 20 ft above the umbilical tower's top,
+C     on the complex's own foot (PADAX; ours).
+      IF (MDON(KPAD) .EQ. 0) GO TO 20
+      DO 12 I = 1, 3
+        C(I) = -EPOS(I)
+   12 CONTINUE
+      CALL PADAX(C, AT, R, IOK)
+      H = (MNDH + MLPED + MLBH + LUTH + 20.0D0) * 0.3048D-3
+      D = LUTZ * 0.3048D-3
+      DO 15 I = 1, 3
+        P(I) = R(I) + H * AT(I,1) - D * AT(I,3)
+   15 CONTINUE
+   20 CONTINUE
+      IF (P(1)*CB(1) + P(2)*CB(2) + P(3)*CB(3) .LE. 0.0D0) RETURN
+      IVMODE = 1
+      IF (ISVIS(P) .EQ. 0) GO TO 90
+      CALL PROJ(P, X, Y, IOK)
+      IF (IOK .EQ. 0) GO TO 90
+      W = 0.012D0 * FOVH
+      IF (MDON(KPAD) .EQ. 0) CALL BOXX(VB, NV, X, Y, W)
+      IF (ILEV .GE. 1) CALL LABEL(LB, NL, X + W, Y + W, 9, 0)
+   90 IVMODE = 0
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     PADEF: the scenario's launch pad (its PAD card) on the drawn
+C     Earth, Earth fixed: U the unit vector up to it, EN the unit
+C     vector north there; IOK 0 if the scenario has no pad.  The
+C     coastlines are geodetic latitudes placed on a sphere and turned
+C     with the Earth (MEF, VFRAME), so the pad goes on the same
+C     footing: a geocentric latitude is made geodetic first, TAN(GD) =
+C     TAN(GC) / (1 - F)**2, F the flattening STATEV uses.  DPAD's mark
+C     and the launch complex (vdrive.f PADAX) stand there.
+C-----------------------------------------------------------------------
+      SUBROUTINE PADEF(U, EN, IOK)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION U(3), EN(3), F, FI, LA
+      INTEGER IOK
+      IOK = 0
       IF (PADCH(8 * (ISN - 1) + 1) .EQ. 0) RETURN
+      IOK = 1
       F = 1.0D0 / 298.257D0
       FI = SNPLA(ISN) * DR
       IF (SNPGC(ISN) .EQ. 1) FI = DATAN(DTAN(FI) / (1.0D0 - F)**2)
@@ -104,18 +153,8 @@ C     RESTOMOD END
       U(1) = DCOS(FI) * DCOS(LA)
       U(2) = DCOS(FI) * DSIN(LA)
       U(3) = DSIN(FI)
-      CALL MXV(MEF, U, Q)
-      DO 10 I = 1, 3
-        P(I) = EPOS(I) + RE * Q(I)
-   10 CONTINUE
-      IF (P(1)*CB(1) + P(2)*CB(2) + P(3)*CB(3) .LE. 0.0D0) RETURN
-      IVMODE = 1
-      IF (ISVIS(P) .EQ. 0) GO TO 90
-      CALL PROJ(P, X, Y, IOK)
-      IF (IOK .EQ. 0) GO TO 90
-      W = 0.012D0 * FOVH
-      CALL BOXX(VB, NV, X, Y, W)
-      IF (ILEV .GE. 1) CALL LABEL(LB, NL, X + W, Y + W, 9, 0)
-   90 IVMODE = 0
+      EN(1) = -DSIN(FI) * DCOS(LA)
+      EN(2) = -DSIN(FI) * DSIN(LA)
+      EN(3) = DCOS(FI)
       RETURN
       END

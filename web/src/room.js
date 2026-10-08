@@ -7,7 +7,7 @@
 // STOP/START (drivePlay, player.js), used in place. The tape rack holds the site reel index (reels.js reelIndex, handed
 // over as hooks.reels): a reel pulled there and used on a tape unit is mounted through reelMount, Tabbed's reel list's
 // loadReel (#19). A second click on a pulled reel, or on a pulled mission notebook on the bookcase, asks a modal
-// (ask.js, roomAsk; the operator, 2026-10-07): LOAD NEW SIMULATION SCENARIO? mounts the reel through reelMount, LOAD
+// (ask.js, roomAsk; the operator, 2026-10-07): LOAD NEW SIMULATION SCENARIO? mounts the reel through reelMount and flies to the vector terminal's close-up (#117), LOAD
 // SIMULATION AND REVIEW NOTEBOOK? mounts it and opens the notebook, or only opens it (#29). The notebook viewer's "Load
 // this reel" comes back to the room with that reel out and carried (roomCarry). The Room button, or Esc (the one stack,
 // esc.js), flies back out.
@@ -17,10 +17,10 @@ const ROOM_KEY = "view1108.space";
 let roomAvail = !!LAB && LAB.supported() && !BARE;   // BARE covers ?still too
 let roomPref = "room";   // the viewer's stored choice; Room unless they chose Tiled
 try { const v = localStorage.getItem(ROOM_KEY); if (v === "room" || v === "tiled") roomPref = v; } catch (e) { /* storage unavailable */ }
-// A link naming a view (a tab, mode, situation (scn, sit or scene), code location or photograph) opens on that view: Tiled for this visit,
-// unless it says ?space= itself.
-const roomDeep = ["tab", "mode", "scn", "sit", "scene", "code", "photo"].some(k => UP.has(k));
-let roomWant = UP.get("space") === "room" || UP.get("space") === "tiled" ? UP.get("space") : roomDeep ? "tiled" : roomPref;   // ?space= for this visit only
+// A link naming a view (a tab, mode or reel, mission or situation (scn, sit or scene), code location or photograph) opens on that view:
+// Tabbed for this visit, unless it says ?space= itself (room or tabbed; "tiled" is Tabbed's stored name, #22).
+const roomDeep = ["tab", "mode", "reel", "mission", "scn", "sit", "scene", "code", "photo"].some(k => UP.has(k));
+let roomWant = UP.get("space") === "room" ? "room" : UP.get("space") === "tabbed" || roomDeep ? "tiled" : roomPref;   // ?space= for this visit only
 let roomIn = false;      // the lab is running (Room, on a wide screen)
 let roomShown = false;   // the lab is on screen and the page hidden
 let roomCanvasTab = "review";   // the plot tab the vector terminal opens (Review, Simulate or Fusion)
@@ -105,7 +105,7 @@ function roomToRack(then = () => {}, close = false, tries = 0) {
 function roomAsk(kind, id, title) {
   const back = () => LAB.answer("back");
   if (kind === "reel") askOpen("LOAD NEW SIMULATION SCENARIO?", [
-    { label: `LOAD ${title} AND EXEC`, primary: true, run: () => LAB.answer("load") },
+    { label: `LOAD ${title} AND EXEC`, primary: true, run: () => { LAB.answer("load"); LAB.setTarget("vector"); } },   // #117: mounted, then to the graphical terminal that draws the run
     { label: "PUT TAPE BACK", run: back }], back);
   else if (kind === "system") askOpen(`${title} · SYSTEM TAPE — NOT A SIMULATION SCENARIO`, [   // #87: a prop on the rack
     { label: "PUT TAPE BACK", primary: true, run: back }], back);
@@ -204,13 +204,16 @@ function roomArrive(opens, name = "", from = name) {
 function roomApply() {
   const want = roomAvail && WIDE.matches && roomWant === "room";
   if (want && !roomIn) {
+    // Overlays Tabbed left open (the library or the listing, which the tab bar's Room does not close; a modal) are not
+    // the room's: they would stay over it, with no station to go back to (#90).
+    roomLibraryClose(); roomListingClose(); askClose(); tapesClose();
     const esc = (k, pop) => pop ? escPush(k, pop) : escDrop(k);
-    if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive, screenRect: roomScreenRect, leave: roomLeave, drive: drivePlay, esc, reels: reelIndex(), mount: reelMount, ask: roomAsk })) { roomAvail = false; roomSync(); return; }
+    if (!LAB.start($("labhost"), { screens: { vector: cv }, state: labState, arrive: roomArrive, screenRect: roomScreenRect, leave: roomLeave, drive: drivePlay, esc, reels: reelIndex(), mount: reelMount, ask: roomAsk, browse: tapesOpen })) { roomAvail = false; roomSync(); return; }
     roomIn = true; escBase("room", () => { if (roomShown) LAB.home(); }); roomShowLab(null);
   } else if (!want && roomIn) {
     LAB.stop(); roomIn = roomShown = false; document.body.classList.remove("room"); resize();
     roomLibrary = false; $("blibroom").hidden = true;   // a library left open is Tabbed's now, with no station to go back to
-    askClose(); for (const k of ["room", "terminal", "closeup", "pulled"]) escDrop(k);
+    askClose(); tapesClose(); for (const k of ["room", "terminal", "closeup", "pulled"]) escDrop(k);
   }
   roomSync();
 }

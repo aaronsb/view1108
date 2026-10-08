@@ -51,6 +51,7 @@ import { QualityCheck } from "./quality";
 import { anchorShot, matchShot, shotOf, type Mismatch, type Shot } from "./shot";
 import type { LabEvent, LabHooks, Opens, Placed, Quality, ReelInfo, Room } from "./types";
 import type { SystemTape } from "./equipment/systapes";
+import type { Exec8 } from "./equipment/exec8";
 
 /** A flight's time, s, by the distance flown (m): 1 s up to 2.5 m, then slower per metre, at most 1.8 s (an 11 m
  *  flight across the room takes 1.7 s). */
@@ -192,7 +193,7 @@ export class Lab {
     host.append(this.labelEl, prefsEl, this.crossEl, this.lineEl, this.atEl);
     this.picking = new Picking({
       renderer: this.renderer, camera: this.camera, host, labelEl: this.labelEl, room: this.room, carry: this.carry,
-      active: () => this.mode === "free" || !!this.at, at: () => !!this.at,
+      active: () => this.mode === "free" || !!this.at, at: () => !!this.at, atName: () => this.at?.name ?? null,
     });
     this.applyQuality();
 
@@ -303,6 +304,7 @@ export class Lab {
     // What opens: the binder's own (a mission notebook opens the library), else the station's; a shelf opens nothing,
     // and E or Enter there steps back, carrying what is out.
     const opens = piece?.equipment.opens || a.opens;
+    if (a.name === "console" && !binder && this.hooks.browse) { this.picking.clearHover(); this.hooks.browse(); return; }   // #74: the file browser, over the room
     if (isShelf(opens)) { this.back(); return; }
     const laid = this.laid;   // still the lab's to undo until the page takes it over at the end of the handover
     const go = () => { this.laid = null; this.hooks.arrive(opens, binder ?? a.name, a.name); };
@@ -463,6 +465,11 @@ export class Lab {
     return { footprints: this.room.footprints ?? [], door: this.room.door ?? null, terminals };
   }
 
+  /** Where each terminal's close-up steps back to (back(): Walk.standBack), for tests (#117): the pose, and the spot before the walk's collision pushes it out, must lie outside every footprint. */
+  get stepBacks() {
+    return this.walk.terminals.map(t => { const p = this.walk.standBack(t), r = this.walk.standBackRaw(t); return { name: t.name, x: p.x, z: p.y, raw: { x: r.x, z: r.y } }; });
+  }
+
   /** Stand at (x, z) looking `yaw` degrees left of north and `pitch` up, walking: for tests. */
   stand(x: number, z: number, yaw: number, pitch = 0): void {
     this.flight = null; this.mode = "free";
@@ -475,10 +482,16 @@ export class Lab {
     const w = this.walk, s = this.hooks.state();
     return { locked: this.input.locked, at: this.at?.name ?? null, carried: this.carry.carried()?.name ?? null, walkup: this.walk.auto, line: this.lineEl.style.display === "none" ? null : this.lineEl.textContent, hover: this.picking.hover?.name ?? null, lights: this.lighting.on, lit: this.lighting.lit, quality: this.quality, forced: this.qForced, slow: this.slow, checking: this.check.probe ? "probe" : this.check.watch ? "watch" : null, mode: this.mode, ...this.stats, mismatch: this.mismatch, sound: this.sound.info,
       asking: this.asking,
-      // what each tape unit's paper label names, west to east ("" undressed; #87)
-      tapes: this.room.placed.filter(p => p.equipment.anchors.tapeUnit !== undefined).map(p => (p.equipment.anchors.tapeLabel as (() => string) | undefined)?.() ?? ""),
+      // what each tape unit carries, west to east (#87, #104): the tape's label (the drive's: the reel it names), the reel
+      // whose colours it carries, its flange colour and its RUN and STOP lamps; `tapes` is the labels alone
+      units: this.room.placed.filter(p => p.equipment.anchors.tapeUnit !== undefined).map(p => (p.equipment.anchors.tapeInfo as () => unknown)()),
+      tapes: this.room.placed.filter(p => p.equipment.anchors.tapeUnit !== undefined).map(p => (p.equipment.anchors.tapeInfo as () => { label: string })().label),
       // the system tapes on the rack, by their labels (#87)
+      systapeIds: this.room.placed.filter(p => (p.equipment as { tape?: SystemTape }).tape).map(p => p.name),
       systapes: this.room.placed.map(p => (p.equipment as { tape?: SystemTape }).tape?.label).filter(Boolean),
+      // the 1108 console's EXEC loop (#68): its screen's 16 lines, the PAGEWRITER's last lines, the run's phase, typing
+      exec: (x => x ? { screen: x.screen(), paper: x.paper.slice(-20), run: x.run ? `${x.run.id} ${x.run.phase}` : null, busy: x.busy } : null)(
+        this.room.placed.find(p => p.name === "console")?.equipment.anchors.exec as Exec8 | undefined),
       walk: { x: w.pos.x, z: w.pos.y, yaw: w.yaw / D2R, pitch: w.pitch / D2R, near: w.near?.name ?? null },
       // what is out on a shelf, by placed name: 1 out, HALF (pullable.ts) half out beside its partner
       out: Object.fromEntries(this.room.placed.flatMap(p => { const o = p.equipment.out?.() ?? 0; return o ? [[p.name, o]] : []; })),

@@ -5,6 +5,7 @@
 //
 //   node tools/shoot.mjs                 every shot
 //   node tools/shoot.mjs --only 'room-*' the shots whose name matches (a name or a glob; comma-separated for several)
+//   node tools/shoot.mjs --area pad,room  the shots of those areas (tools/areas.tsv; a slice for iteration, #119)
 //   node tools/shoot.mjs --list          the shots' names and URLs, nothing run
 //
 // How: the page is served from web/ by a small static server inside this process (127.0.0.1, a free port), and
@@ -45,7 +46,7 @@
 //   timeout   ms for the whole shot (default SHOT_TIMEOUT); a shot that overruns fails and its page is closed
 // Every shot also checks that the WebAssembly kernel runs (not the wasm2js fallback), that the page logged no console
 // error or uncaught exception, and that #err is empty. Chromium gone mid-run ends the run with exit 2.
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -61,11 +62,12 @@ const CHROMIUM = process.env.CHROMIUM || "chromium";
 
 // ---- arguments ----
 const argv = process.argv.slice(2);
-let only = null, list = false;
+let only = null, list = false, area = null;
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === "--list") list = true;
   else if (argv[i] === "--only" && i + 1 < argv.length) only = argv[++i];
   else if (argv[i].startsWith("--only=")) only = argv[i].slice(7);
+  else if (argv[i] === "--area" && i + 1 < argv.length) area = argv[++i];
   else { console.error(`shoot: unknown argument ${argv[i]} (--only <name|glob>[,...], --list)`); process.exit(2); }
 }
 const glob = g => new RegExp("^" + g.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".") + "$");
@@ -75,11 +77,14 @@ for (const s of SHOTS) {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(s.name) || names.has(s.name)) { console.error(`shoot: bad or repeated shot name ${s.name}`); process.exit(2); }
   names.add(s.name);
 }
-const chosen = SHOTS.filter(s => !pats || pats.some(p => p.test(s.name)));
+// --area: the shots whose area (tools/areas.tsv, via tools/affected.py) is one of those named; a shot with no area is in no slice.
+const inArea = area ? new Set(spawnSync("python3", [path.join(R, "tools", "affected.py"), "filter", "shots", area],
+  { input: SHOTS.map(s => s.name).join("\n") + "\n", encoding: "utf8" }).stdout.split("\n")) : null;
+const chosen = SHOTS.filter(s => (!pats || pats.some(p => p.test(s.name))) && (!inArea || inArea.has(s.name)));
 const DET = effects => effects ? "debug&labq=low" : "debug&labq=low&jitter=0&dust=0&fps=0&hz=steady&labdust=0&labmotion=0";
 const query = s => DET(s.effects) +(s.url ? "&" + s.url.replace(/^[?&]/, "") : "");
 if (list) { for (const s of SHOTS) console.log(`${s.name.padEnd(28)} ${PAGE}?${query(s)}`); process.exit(0); }
-if (!chosen.length) { console.error(`shoot: no shot matches ${only}`); process.exit(2); }
+if (!chosen.length) { console.error(`shoot: no shot matches ${only ?? area}`); process.exit(2); }
 if (!fs.existsSync(path.join(WEB, PAGE))) { console.error(`shoot: web/${PAGE} is missing (run make build)`); process.exit(2); }
 
 // ---- cleanup: the profile and the server, on any exit ----

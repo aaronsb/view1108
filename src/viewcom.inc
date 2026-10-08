@@ -19,6 +19,67 @@ C     X-Z plane, and the LPD scale's plot constant LPDK; both fitted
 C     to the film's LPD marks (llpd.f).
       PARAMETER (LPDDN=30.2D0, LPDK=49.8D0)
 C     RESTOMOD END
+C     The launch vehicle's stages as the Apollo 11 press kit gives them
+C     (models.f SIVBMD, LVSTK; the S-IVB's state point, SIVPL, S7SIV,
+C     TGTPOS): S-IVB height SIVBH ft and IU height SIUH ft ("THIRD
+C     STAGE (S-IVB) ... HEIGHT 58.3 FEET", "INSTRUMENT UNIT ... HEIGHT
+C     3 FEET", printed p. 109); both SLVD in across (the S-IVB "21 feet
+C     8 inches in diameter", the IU a cylinder "21 feet 8 inches in
+C     diameter", printed p. 113; the SLA "260 inches diameter at the
+C     base", printed p. 88); the SLA "a truncated cone 28 feet long"
+C     (SLAH ft) tapering to "154 inches at the forward end at the
+C     service module mating line" (SLATD in; printed p. 88).  The same
+C     page-109 table: the S-IC "DIAMETER-33 FEET", "HEIGHT 138 FEET"
+C     (SICH ft) and the S-II "DIAMETER-33 FEET", "HEIGHT 81.5 FEET"
+C     (SIIH ft), both SICD in across (models.f LVSIC, LVSII).  The
+C     S-II/S-IVB interstage, the taper from SICD to SLVD, SIIIS ft
+C     long, is ours: no source we hold gives its length (the same
+C     table lists its weight, 8,081 lb, but no height; p. 110 too), and we count
+C     it inside the S-II's SIIH, so the stack's height is unchanged.
+C     The launch escape system (models.f LESBLD) by the Apollo Operations
+C     Handbook's spacecraft stations (SM2A-03-Block II-(1), Fig. 1-2,
+C     p. 1-5), in inches: the LES-CM separation plane at CM station
+C     LESXC (LES station 0), the tower to LES station LESTW, the skirt
+C     to LESSK, the motor to LESMO, the tip at LESTP; "33 feet tall,
+C     four feet in diameter at the base" (LESBD in; press kit, printed
+C     p. 86).
+      DOUBLE PRECISION SIVBH, SIUH, SLVD, SLAH, SLATD, SICH, SIIH, SICD
+      DOUBLE PRECISION SIIIS
+      DOUBLE PRECISION LESXC, LESTW, LESSK, LESMO, LESTP, LESBD
+C     RESTOMOD BEGIN: real-valued PARAMETERs (as above)
+      PARAMETER (SIVBH=58.3D0, SIUH=3.0D0, SLVD=260.0D0)
+      PARAMETER (SLAH=28.0D0, SLATD=154.0D0)
+      PARAMETER (SICH=138.0D0, SIIH=81.5D0, SICD=396.0D0)
+      PARAMETER (SIIIS=18.0D0)
+      PARAMETER (LESXC=83.476D0, LESTW=118.3D0, LESSK=138.0D0)
+      PARAMETER (LESMO=363.7D0, LESTP=400.762D0, LESBD=48.0D0)
+C     RESTOMOD END
+C     Launch Complex 39, Pad A and the mobile launcher (mpad.f PADBLD,
+C     ARMBLD; vdrive.f PADPL, ASCPL; #97), in feet, from the press kit's
+C     Launch Complex 39 pages: "The top of the pad stands some 48 feet
+C     above sea level" (MNDH, the mound's height above the drawn
+C     sphere; printed p. 168), "the five percent ramp which leads to
+C     the launch pad" (MNDG, the mound's slope all round, ours; printed
+C     p. 166); "The launcher base is a two-story steel structure, 25
+C     feet high, 160 feet long, and 135 feet wide.  It is positioned on
+C     six steel pedestals 22 feet high ... at the launch pad" (MLBH,
+C     MLBL, MLBW, MLPED); "The umbilical tower, extending 398 feet above
+C     the launch platform, is mounted on one end of the launcher base.
+C     A hammerhead crane at the top has a hook height of 376 feet above
+C     the deck with a traverse radius of 85 feet from the center of the
+C     tower" (LUTH, LUTCR; printed p. 164); "The Apollo access arm
+C     (service arm 9), located at the 320-foot level above the launcher
+C     base" (ARM9H; printed p. 165).  Ours: the hardstand's top MNDT ft
+C     square, the tower LUTW ft square with its centre LUTZ ft from the
+C     vehicle's axis, its base flared to LUTFW ft square over LUTFH ft.
+      DOUBLE PRECISION MNDH, MNDG, MNDT, MLBH, MLBL, MLBW, MLPED
+      DOUBLE PRECISION LUTH, LUTCR, LUTW, LUTZ, LUTFW, LUTFH, ARM9H
+C     RESTOMOD BEGIN: real-valued PARAMETERs (as above)
+      PARAMETER (MNDH=48.0D0, MNDG=0.05D0, MNDT=400.0D0)
+      PARAMETER (MLBH=25.0D0, MLBL=160.0D0, MLBW=135.0D0, MLPED=22.0D0)
+      PARAMETER (LUTH=398.0D0, LUTCR=85.0D0, LUTW=40.0D0, LUTZ=57.0D0)
+      PARAMETER (LUTFW=46.0D0, LUTFH=30.0D0, ARM9H=320.0D0)
+C     RESTOMOD END
 C     RESTOMOD BEGIN: 60000x5 DP buffer is 600K words, core 262,144
 C     (docs/univac-1108.md); VIEW would stream vectors to plot tape.
 C     Also the parenthesised PARAMETER list (FORTRAN 77, 1978).
@@ -27,23 +88,37 @@ C     Also the parenthesised PARAMETER list (FORTRAN 77, 1978).
       PARAMETER (MAXT=300, MAXTC=6000)
 C     RESTOMOD END
       INTEGER MSOL, MVX, MFC, MED, MXL, MMOD, KLMD, KLMS, KSIV, KCSM
-      INTEGER KCMC, KCMI, KLMI, KLMA, KCMO
+      INTEGER KCMC, KCMI, KLMI, KLMA, KCMO, KSTK
 C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
 C     (1978); FORTRAN V wrote PARAMETER I = 2 (UP-4046 Rev 3, sec.
-C     10.4.1).  And 120 solids (the LM's RCS clusters are 20 a model,
-C     in three LM models; the CSM's quads 20 more) make /CLM/ and
-C     /CLMI/ about 176K words (our count: 1,294 words a solid, 21,000
-C     for the free lines, 2 words a DP number), two thirds of the
-C     1108's 262,144 (docs/univac-1108.md).
-      PARAMETER (MSOL=120, MVX=48, MFC=26, MED=72, MXL=1500, MMOD=10)
+C     10.4.1).  And 160 solids (the LM's RCS clusters are 20 a model,
+C     in three LM models; the CSM's quads 20 more; the launch vehicle's
+C     stages, the escape system and the launch complex 36 more, #97)
+C     make /CLM/ and /CLMI/ about 228K words (our count: 1,294 words a
+C     solid, 21,000 for the free lines, 2 words a DP number), 87
+C     percent of the 1108's 262,144 (docs/univac-1108.md).  24 models.
+C     A full table refuses and counts (NMODX, NSOLX, NXLX; MODBEG,
+C     MKPRS, MKFRU, MKWDG, XLINE), and the selftest's model tables
+C     line fails on a refusal or a table at its maximum.
+      PARAMETER (MSOL=160, MVX=48, MFC=26, MED=72, MXL=1500, MMOD=24)
 C     RESTOMOD END
 C     Model numbers (MLIB): LM gear down, LM gear stowed with docking
 C     aids, S-IVB with IU and SLA ring, CSM, CM cabin (window), CM
 C     interior, LM interior (in_flags bit 4), LM ascent stage alone
-C     (after lunar lift-off), CM alone (after CM/SM separation).
+C     (after lunar lift-off), CM alone (after CM/SM separation), the
+C     launch stack behind the CSM before separation: S-IVB, IU and
+C     the closed SLA (LVSTK); and (#97) the launch complex (PADBLD:
+C     the pad's mound, the mobile launcher's base and its umbilical
+C     tower), the tower's service arms 1-8 swung out to the vehicle and
+C     swung back and the access arm out, parked and back (mpad.f
+C     ARMBLD), the S-II, the S-IC (LVSII, LVSIC) and the
+C     launch escape system (LESBLD).
+      INTEGER KPAD, KARE, KARR, KSII, KSIC, KLES, KA9E, KA9P, KA9R
 C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)
       PARAMETER (KLMD=1, KLMS=2, KSIV=3, KCSM=4, KCMC=5, KCMI=6,
-     &           KLMI=7, KLMA=8, KCMO=9)
+     &           KLMI=7, KLMA=8, KCMO=9, KSTK=10, KPAD=11, KARE=12,
+     &           KARR=13, KSII=14, KSIC=15, KLES=16, KA9E=17, KA9P=18,
+     &           KA9R=19)
 C
 C     Tables loaded by BLOCK DATA VIEWBD (viewdata.f)
 C     RESTOMOD BEGIN: post-1969 data: Natural Earth coast (2009),
@@ -283,9 +358,29 @@ C     FIXED situation), 1 aimed at a point of its own, 2 the vehicle
 C     the camera rides, 3 docked to or carried with another vehicle
 C     (its point is that vehicle's: aimed only from outside), 4 no
 C     point here (no state; the Sun from outside), 5 as 3, the LM in
-C     the SLA before the separation (SEP).
-      INTEGER IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST
-      COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST
+C     the SLA before the separation (SEP).  ISLA 1 if this frame is
+C     the LM station inside the closed SLA before SEP (STATLM, #70
+C     option C): nothing outside is drawn, and the frame says why.
+      INTEGER IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST, ISLA
+      COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST,
+     &               ISLA
+C
+C     RESTOMOD BEGIN: a moved eye is ours (#72, #31); VIEW drew from
+C     fixed design-eye points (CMEYE, LDEYE), TN D-6853 printed p. 3
+C     /CEYE/ the eye offset (vview.f EYCLMP).  EYOI the offset asked
+C     (in_eyeo, VSETEY); EYOF the one this frame uses, clamped: in a
+C     crew station body metres from the design eye, inside the cabin's
+C     walls; in the external view the orbit centre's offset from the
+C     target along the target's reference axes (right, up, boresight
+C     before free-look), in units of the camera's distance, each in
+C     -1..1.  EYAT the axes of that frame (columns, EQ), EYAX the
+C     camera's right, up and boresight in it (columns; VFRAME), IEYK
+C     the kind: 0 none (a window view, the offset unused), 1 the
+C     external view, 2 the CM station, 3 the LM station.
+      DOUBLE PRECISION EYOI(3), EYOF(3), EYAT(3,3), EYAX(3,3)
+      INTEGER IEYK
+      COMMON /CEYE/ EYOI, EYOF, EYAT, EYAX, IEYK
+C     RESTOMOD END
 C
 C     /CSCN/ scene number (the situation, row ISCN of the situation
 C     tables), flags of this frame, init done.
@@ -386,6 +481,12 @@ C     solid, 0 if the table was full; LXOK the same for XLINE.  Code
 C     that marks the solid or line just built tests them first.
       INTEGER LBOK, LXOK
       COMMON /CMOK/ LBOK, LXOK
+C     /CMODX/ the model table's refusals since MLIB began: models past
+C     MMOD (MODBEG), solids past MSOL, free lines past MXL.  LHGA1,
+C     LHGA2: the CSM's high-gain antenna, its free lines in CSMBLD
+C     (MDRAW leaves them out while the launch stack is placed).
+      INTEGER NMODX, NSOLX, NXLX, LHGA1, LHGA2
+      COMMON /CMODX/ NMODX, NSOLX, NXLX, LHGA1, LHGA2
       COMMON /CMOD/ MDAT, MDP, MDBO
 C
 C     /CWIN/ the cabin windows, for the window mask (vmask.f): window

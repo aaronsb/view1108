@@ -7,12 +7,14 @@
 // Tabs, the room and its terminals only read LS: choosing what is shown never loads anything.
 //
 // params: a URLSearchParams, or anything with get(k) and has(k); P() makes one from an object. The keys are the URL's
-// (docs/modes.md): reel, mode, scn, sit, scene, get, utc, fov, yaw, pitch, roll, rate, bspeed, labels, lab, view, target,
-// cabin, walls, frame, hidden, photo. reel names a playlist reel (config.js REELS); mode=attract and mode=tour, the
-// demo and tour reels' ALIASes, mount them too. scn and sit name a situation (scenario reel, situation id or name) and
-// only a link reads them (reelpkg.js sceneOfLink); everywhere else scene is the page's handle for a situation (config.js
-// sitOf), which a link's scene=N still is for old links (#22). One more, `by`, names the page's own callers whose rule
-// differs from a viewer's pick; openLink sets it to "url" and never passes the URL's own:
+// (docs/modes.md, urlkeys.js): reel, mode, mission, scn, sit, scene, get, utc, fov, yaw, pitch, roll, rate, bspeed,
+// labels, view, target, cabin, walls, frame, hidden, photo. reel names a playlist reel (config.js REELS); mode=attract
+// and mode=tour, the demo and tour reels' ALIASes, still mount them for old links (#22). mission, scn and sit name a
+// situation (a mission's first scenario reel, a scenario reel, a situation id or name) and only a link reads them
+// (reelpkg.js sceneOfLink); everywhere else scene is the page's handle for a situation (config.js sitOf), which a
+// link's scene=N still is for old links (#22). labels is a level by name (views.js LAB_LEVELS).
+// One more, `by`, names the page's own callers whose rule differs from a viewer's pick; openLink sets it to "url"
+// and never passes the URL's own:
 //   url     a link: the reel or mode (default the demo reel, Attract), its situation, time, look, labels and display flags (loadLink)
 //   phase   Live's phase changed: the phase's situation, the time and look kept, the field its own, aimed at the body
 //   shot    the playlist player's shot changed: its situation at its defaults, with its view, labels and frame, and
@@ -36,6 +38,9 @@ const pNum = (p, k) => { if (!p.has(k) || p.get(k).trim() === "") return null; c
 const pFlag = (p, k) => p.get(k) === "1" ? true : p.get(k) === "0" ? false : null;
 // The mode params ask for: a playlist reel's (reel=, by id) or mode=; null for neither.
 const pMode = p => { const r = REELS[(p.get("reel") || "").toLowerCase()]; return r ? r.alias : modes().includes(p.get("mode")) ? p.get("mode") : null; };
+const pLabels = p => { const i = LAB_LEVELS.indexOf((p.get("labels") || "").toLowerCase()); return i >= 0 ? i : null; };
+// A link's mission (mission=apollo8, or its name, APOLLO 8, in any case and spacing): its first scenario reel in load order.
+const missionReel = m => { const n = v => String(v).toLowerCase().replace(/[^a-z0-9]/g, ""); return m === null ? null : Object.keys(SCNS).find(id => n(SCNS[id].mission) === n(m)) ?? null; };
 const pPick = (p, k, names) => { const v = p.get(k); if (v === null) return null; const i = names.indexOf(v.toLowerCase()); return i >= 0 ? i : /^\d$/.test(v) && +v < names.length ? +v : null; };
 // get or utc, read after the situation is mounted: a utc is converted with its scenario's range zero.
 const pGet = (p, keys = ["get", "utc"]) => { let g = null; for (const k of keys) if (p.has(k)) { const v = parseGet(p.get(k)); if (v !== null && isFinite(v)) g = v; } return g; };
@@ -114,7 +119,8 @@ function loadLive(p, scn) {
 function loadLink(p) {
   const md = pMode(p) || REELS[DEFAULT_REEL].alias;
   if (reelOfMode(md)) { enterMode(md); return; }
-  const sc = pNum(p, "scene"), scn = sceneOfLink(SITS, p.get("scn"), p.get("sit"), sc === null ? null : Math.round(sc)) ?? 1;
+  const sc = pNum(p, "scene"), reel = p.get("scn") ?? missionReel(p.get("mission"));
+  const scn = sceneOfLink(SITS, reel, p.get("sit"), sc === null ? null : Math.round(sc)) ?? 1;
   const other = sitOf(scn).reel !== LIVE_SCN;   // another scenario's situation: Live follows its own, so it opens in Free-look
   if (md === "free" || md === "beam" || other) {
     pickSituation(scn); const g = pGet(p); if (g !== null) LS.get = g;
@@ -125,8 +131,7 @@ function loadLink(p) {
   const y = pNum(p, "yaw"); if (y !== null) LS.yaw = y;
   const pt = pNum(p, "pitch"); if (pt !== null) LS.pitch = Math.max(-90, Math.min(90, pt));
   const rl = pNum(p, "roll"); if (rl !== null) LS.roll = rl;
-  if (pFlag(p, "labels") !== null) LS.labLv = pFlag(p, "labels") ? 3 : 0;
-  const lb = pNum(p, "lab"); if (lb !== null && lb >= 0 && lb <= 3) LS.labLv = FEAT.lablv ? Math.round(lb) : lb ? 3 : 0;
+  const lb = pLabels(p); if (lb !== null) LS.labLv = FEAT.lablv ? lb : lb ? 3 : 0;
   const v = pPick(p, "view", VIEWS), t = pPick(p, "target", TARGETS);
   if (FEAT.view && v !== null) LS.view = v;
   if (FEAT.target && t !== null) LS.target = t;
@@ -170,7 +175,7 @@ function loadPhase(s) {
 // names one; the shot then drives the time and look through track() (player.js reelStep).
 function loadShot(p) {
   mount(+p.get("scene"));
-  LS.labLv = pNum(p, "lab"); LS.view = pNum(p, "view"); frame = pFlag(p, "frame");
+  LS.labLv = pLabels(p); LS.view = pNum(p, "view"); frame = pFlag(p, "frame");
   if (p.has("target")) LS.target = pNum(p, "target");
 }
 // Following: the span's situation with the span's view and target where the kernel has them, and its field where it
@@ -189,15 +194,24 @@ function loadEvent(g) {
   livePin = null;
   if (LS.mode === "live") LS.get = clampLive(g); else LS.get = LS.get0 = g;
 }
-// A crew photograph (Fusion): its situation in the window view, its g.e.t. held, the fitted pointing, the lens's
-// field, in Free-look; a link's own get, fov, yaw, pitch and roll then apply.
+// A crew photograph (Fusion; #75): a photo event of the mounted tape (config.js PHOTOS, the reels' own), its situation
+// in the window view, its g.e.t. held, the fitted pointing, the lens's field, in Free-look; a link's own get, fov, yaw,
+// pitch and roll then apply. A pick (the Fusion list, a photo entry of the event list or the run sheet, a quick-view
+// key, a notebook's print) stays on the tape: a photograph the mounted reel does not carry is not opened. A link
+// (by=url) names any reel's photograph: when its reel is not the one mounted it is mounted first, a fresh run
+// (loadMount, as the rack mounts it), and the photograph opened on it.
 function loadPhoto(p) {
-  const i = PHOTOS.findIndex(x => x.frame === p.get("photo") && x.img && photoScene(x));
+  const frame = p.get("photo");
+  let i = PHOTOS.findIndex(x => x.frame === frame && x.reel === LS.scn);
+  if (i < 0 && p.get("by") === "url") {
+    i = PHOTOS.findIndex(x => x.frame === frame);
+    if (i >= 0) loadMount(SITS.find(s => s.reel === PHOTOS[i].reel).scene);
+  }
   if (i < 0) return;
   if (auto() || LS.mode === "beam") enterMode("free");
   const ph = PHOTOS[i];
   LS.view = 0; LS.target = 0;
-  pickSituation(photoScene(ph));
+  pickSituation(ph.scene);
   const cam0 = [LS.yaw, LS.pitch, LS.roll], c = fFit(ph).cam;
   LS.yaw += c[0]; LS.pitch += c[1]; LS.roll += c[2];
   LS.get = LS.get0 = photoGet(ph); LS.playing = false;

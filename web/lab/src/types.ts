@@ -77,6 +77,9 @@ export interface LabHooks {
    *  ("notebook") or on a pulled system tape ("system", #87: `id` the tape's, not a reel of the index): the page shows
    *  its modal for `id` (title `title`) and answers through VIEW_LAB.answer. */
   ask?(kind: "reel" | "notebook" | "system", id: string, title: string): void;
+  /** The operator console's second stage (#74): E, Enter or a click on the console at its close-up opens the tape file
+   *  browser, a page overlay over the room, which the page puts on the Esc stack (Esc returns to the console seat). */
+  browse?(): void;
 }
 
 /** A camera pose: where the eye is, what it looks at, its vertical field of view (deg). */
@@ -115,6 +118,11 @@ export interface Equipment {
   /** Something on a shelf at a close-up (equipment/pullable.ts): a click pulls it out (and puts the last one back);
    *  true when it was already out and opens, so the lab opens it under its placed name. */
   pull?(): boolean;
+  /** Something used in place at its station's close-up (`pressAt`), and only there (a note in the operator's notebook at
+   *  the 1108 console: a click keys it in, #68). Elsewhere it is part of its station: walking, a click on it flies there. */
+  press?(): void;
+  /** The placed name of the station at whose close-up `press` works. */
+  pressAt?: string;
   /** It is out and opens: E or Enter at the close-up opens it. */
   pulled?(): boolean;
   /** It is out and stays out after the close-up, carried to where it is used (a reel pulled at the tape rack, until a

@@ -32,10 +32,12 @@ C       Core:  ephem.f (time, Sun, Moon), traj.f (trajectory legs,
 C              the replay), sim.f (the engine), tape.f (the tape it
 C              writes), vsrc.f (the state source: replay or tape),
 C              vview.f (camera target and external view),
+C              veye.f (the moved eye: its offset, clamp and axes),
 C              pen.f (projection, clipping, visibility, vectors),
 C              vmask.f (the outside cut to the cabin's windows),
 C              vtext.f (text records), vmath.f (vectors, matrices),
-C              models.f (spacecraft model library), vdeck.f, vdkscn.f,
+C              models.f, mpad.f (spacecraft model library; mpad.f the
+C              launch complex), vdeck.f, vdkscn.f,
 C              vdksit.f, vdkfld.f, vdktap.f, vdksum.f (the card
 C              reader: run decks and tapes into the tables)
 C       Layers, one per drawable, all called as
@@ -146,6 +148,8 @@ C       mid-frame.
         E(3) = -PM(3) - R(3)
         CALL VUNIT(R)
         CALL VUNIT(V)
+C       The horizontal as SCNCAM takes it (VORTH; #80).
+        CALL VORTH(R, V)
         CALL VCRS(V, R, S)
         X = VDOT(E, V)
         Y = VDOT(E, S)
@@ -252,8 +256,7 @@ C     RESTOMOD END
       INTEGER NT, TC(MAXTC), NCH
       DOUBLE PRECISION PM(3), CG(3), CV(3), RB, RNG, D1, D2, D3, D4
       DOUBLE PRECISION PB(3), RR, VNRM, VDOT, RHO, RC(3), RL(3), VX(3)
-      INTEGER I, IREF, IWIN, IOK, J, LOOKD, KLMPL, KCSPL
-      DOUBLE PRECISION MR1(3,3), MR2(3,3)
+      INTEGER I, IREF, IWIN, IOK, J, LOOKD, KLMPL, KCSPL, LMEX
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (INITD .NE. 1 .OR. ISCN .EQ. 0) THEN
@@ -266,6 +269,8 @@ C     RESTOMOD END
       DO 10 I = 1, 24
         HD(I) = 0.0D0
    10 CONTINUE
+C     RESTOMOD: the moved eye is ours (veye.f; #72)
+      CALL EYCLR
       IF (ISCN .GE. 1) GO TO 12
       NT = 0
       NCH = 0
@@ -300,14 +305,7 @@ C     World at this GET.
       CALL MOONRT(GET, MMF)
 C     Earth fixed to J2000: GMST about the pole of date, then the
 C     precession back to J2000 (PRECM).
-      CALL ROTZ(GMST, MR1)
-      CALL PRECM(TCEN, MR2)
-      DO 18 I = 1, 3
-        DO 17 J = 1, 3
-          MEF(I,J) = MR2(1,I) * MR1(1,J) + MR2(2,I) * MR1(2,J)
-     &             + MR2(3,I) * MR1(3,J)
-   17   CONTINUE
-   18 CONTINUE
+      CALL MEFAT(GET, MEF)
 C
 C     Camera position CG (geocentric), velocity CV relative to the
 C     reference body IREF, window code IWIN, reference attitude.
@@ -317,7 +315,7 @@ C     reference body IREF, window code IWIN, reference attitude.
 C     Spacecraft models first: they hide stars and bodies.
       CALL SCNMOD(GET, PM, CG)
 C     The camera target and the external view (vview.f).
-      CALL VIEWPT(GET, PM, CG, YAW, PIT, ROL, LOOKD)
+      CALL VIEWPT(GET, PM, CG, CV, IREF, YAW, PIT, ROL, LOOKD)
       DO 20 I = 1, 3
         EPOS(I) = -CG(I)
         MPOS(I) = PM(I) - CG(I)
@@ -336,6 +334,9 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         CALL LOOK(YAW, PIT, ROL)
       END IF
 C     RESTOMOD END
+C     RESTOMOD: the moved eye is ours (veye.f; #72): the camera's axes
+C     in the eye offset's frame, for the page
+      CALL EYAXES
       CALL MTXV(MMF, CB, CBMF)
 C
       ISTYLE = 1
@@ -411,15 +412,17 @@ C     The vehicles in this frame's world (VPRES): 1 CSM, 2 LM, 4 S-IVB.
 C     The crew stations this situation offers (its VIEWS card; STATCM,
 C     STATLM): 1 the CM, 2 the LM, each always or where that vehicle
 C     is placed (in a station the camera's own vehicle is not placed,
-C     the camera being inside it), and 4 always, so the page can tell
-C     this from a kernel without HD(22).  The page enables its station
+C     the camera being inside it), the LM also wherever it exists
+C     (LMEX: a state of its own or the CSM's, docked or stowed in the
+C     SLA; #70 option C), and 4 always, so the page can tell this
+C     from a kernel without HD(22).  The page enables its station
 C     buttons from these; HD(21) leaves out the vehicle the camera
 C     rides, so it cannot.
       HD(22) = 4.0D0
       IF (JSCM .EQ. 2 .OR. (JSCM .EQ. 1 .AND. (KCSPL() .NE. 0
      &  .OR. IVUSE .EQ. 2))) HD(22) = HD(22) + 1.0D0
-      IF (JSLM .EQ. 2 .OR. (JSLM .EQ. 1 .AND. (KLMPL() .NE. 0
-     &  .OR. IVUSE .EQ. 3))) HD(22) = HD(22) + 2.0D0
+      IF (JSLM .EQ. 2 .OR. (JSLM .EQ. 1 .AND. LMEX(GET) .EQ. 1))
+     &  HD(22) = HD(22) + 2.0D0
 C     The target's status (VIEWPT, ITGST): the page says why a pick
 C     cannot be aimed from the window and looks from outside instead.
       HD(23) = DBLE(ITGST)
@@ -469,6 +472,10 @@ C       LOCALVERT about the Moon: the CSM in lunar orbit.
    10   CONTINUE
         CALL VUNIT(RU)
         CALL VUNIT(VU)
+C       The horizontal: the velocity's direction made square to the
+C       radius (VORTH), so the frame below is orthonormal off a
+C       circular leg too (the engine's tape; #80).
+        CALL VORTH(RU, VU)
         IF (JMOD .EQ. 1) THEN
 C         FORWARD along the orbit, turned AZOFF in azimuth, down to
 C         the horizon by the dip angle.
@@ -516,6 +523,13 @@ C       fallback).  FORWARD, boresight ELV deg above the horizon.
    70   CONTINUE
         CALL VUNIT(RU)
         CALL VUNIT(VU)
+C       The horizontal, as about the Moon (VORTH; #80, #65): off a
+C       circular orbit the velocity is not square to the radius (on
+C       the ascent; after TLI its direction is 0.86 along the radius
+C       at 4:00, and -0.98 at 120 h on Apollo 8's transearth coast),
+C       and a boresight and up built from it unchanged were short and
+C       near parallel, and the frame drawn from them empty.
+        CALL VORTH(RU, VU)
         DIP = DACOS(RE / VNRM(R)) - ELV * DR
         CD = DCOS(DIP)
         SD = DSIN(DIP)
@@ -732,11 +746,20 @@ C     stage from TPF (terminal phase finalize) on, braking to the CSM,
 C     turns its +X, the docking tunnel's axis, toward the CSM.
 C-----------------------------------------------------------------------
       SUBROUTINE VEHPL(GET, PM, CG)
+      DOUBLE PRECISION GET, PM(3), CG(3)
+      CALL VEHPLD(GET, PM, CG, 5.0D0)
+      RETURN
+      END
+C
+C     VEHPLD: VEHPL within DMAX km of the camera (VEHPL's 5 km; the LM
+C     station's LMSTPL places it at any range).
+      SUBROUTINE VEHPLD(GET, PM, CG, DMAX)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION GET, PM(3), CG(3), LP(3), V(3), AT(3,3), BO(3)
+      DOUBLE PRECISION GET, PM(3), CG(3), DMAX, LP(3), V(3), AT(3,3)
+      DOUBLE PRECISION BO(3)
       DOUBLE PRECISION RL(3), RC(3), VC(3), TL, TF, C, VDOT, VNRM
       DOUBLE PRECISION EVGET
       INTEGER IOK, I, J, K, KLMPL
@@ -748,7 +771,7 @@ C     RESTOMOD END
      &  RETURN
       CALL LMREL(GET, PM, CG, LP, V, IOK)
       IF (IOK .EQ. 0) RETURN
-      IF (VNRM(LP) .GT. 5.0D0) RETURN
+      IF (VNRM(LP) .GT. DMAX) RETURN
 C     Up: from the Moon's centre to the LM.
       DO 10 I = 1, 3
         AT(I,1) = CG(I) + LP(I) - PM(I)
@@ -795,8 +818,8 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION GET, CG(3), R(3), V(3), LP(3), BO(3), D, VNRM
       DOUBLE PRECISION EVGET
-      INTEGER IOK, I, J, KLMPL
-      IF (MDON(KSIV) .EQ. 1) RETURN
+      INTEGER IOK, I, J, KLMPL, KSIVPL
+      IF (KSIVPL() .NE. 0) RETURN
       CALL VSTATE(GET, 3, 1, R, V, IOK)
       IF (IOK .NE. 1) RETURN
       DO 10 I = 1, 3
@@ -808,7 +831,7 @@ C     RESTOMOD END
       CALL S7ATT
       ISRCU = J
 C     The state's point: the stage's centre (S7SIV).
-      CALL SETV(BO, -0.5D0 * (58.3D0 + 3.0D0) * 0.3048D0, 0.0D0,
+      CALL SETV(BO, -0.5D0 * (SIVBH + SIUH) * 0.3048D0, 0.0D0,
      &          0.0D0)
       CALL MPLACE(KSIV, S7AT, LP, BO)
       IF (GET .GE. EVGET(KEEJC) .OR. KLMPL() .NE. 0) RETURN
@@ -819,6 +842,243 @@ C     The LM's tunnel top 1.5 + 4.51 m above the IU's top (S7POSE).
    20 CONTINUE
       CALL SETV(BO, 4.51D0, 0.0D0, 0.0D0)
       CALL MPLACE(KLMS, S7AT, LP, BO)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     LVPL: the launch stack (KSTK: S-IVB, IU and the closed SLA, the
+C     LM hidden in it) behind the placed CSM before the separation
+C     (the scenario's SEP event), in the CSM's attitude, the SLA's top
+C     at the SM's aft end ("the forward end at the service module
+C     mating line", Apollo 11 press kit, printed p. 88; SMAFT).  Not
+C     where the situation places an S-IVB or an LM of its own (the
+C     docking, the docked stack), nor without a SEP event (ours).
+C     Below it the S-II (KSII) to the scenario's SIISEP event and the
+C     S-IC (KSIC) to its SICSEP event, and on the CM the launch escape
+C     system (KLES) to its LESJET event (#97): each only where the
+C     scenario has that event.  The CSM must be placed (KCSM, CSMCAM);
+C     after CM/SM separation there is no stack.
+C-----------------------------------------------------------------------
+      SUBROUTINE LVPL(GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, V(3), W(3), P(3), BO(3), AT(3,3), TS
+      DOUBLE PRECISION EVGET, SMAFT
+      INTEGER I, J, KSIVPL, KLMPL
+      IF (MDON(KCSM) .EQ. 0 .OR. KSIVPL() .NE. 0) RETURN
+      IF (KLMPL() .NE. 0) RETURN
+      TS = EVGET(KESEP)
+      IF (TS .LT. 0.0D0 .OR. GET .GE. TS) RETURN
+C     The SM's aft end on the CSM's axis, camera relative, km.
+      DO 10 I = 1, 3
+        V(I) = -MDBO(I,KCSM) * 1.0D-3
+        DO 5 J = 1, 3
+          AT(I,J) = MDAT(I,J,KCSM)
+    5   CONTINUE
+   10 CONTINUE
+      V(1) = V(1) + SMAFT() * 1.0D-3
+      CALL MXV(AT, V, W)
+      DO 20 I = 1, 3
+        P(I) = MDP(I,KCSM) + W(I)
+   20 CONTINUE
+      CALL SETV(BO, SLAH * 0.3048D0, 0.0D0, 0.0D0)
+      CALL MPLACE(KSTK, AT, P, BO)
+      TS = EVGET(KESII)
+      IF (TS .GE. 0.0D0 .AND. GET .LT. TS) CALL MPLACE(KSII, AT, P, BO)
+      TS = EVGET(KESIC)
+      IF (TS .GE. 0.0D0 .AND. GET .LT. TS) CALL MPLACE(KSIC, AT, P, BO)
+      TS = EVGET(KELES)
+      IF (TS .GE. 0.0D0 .AND. GET .LT. TS) CALL MPLACE(KLES, AT,
+     &  MDP(1,KCSM), MDBO(1,KCSM))
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     PADAX: the launch complex's axes AT (EQ; PADBLD's body frame) and
+C     the foot of the pad P0 (camera relative, km; the camera at
+C     geocentric CG) at this frame's time.  Axes from the pad's place
+C     on the drawn Earth (learth.f PADEF, where DPAD marks it): X up,
+C     -Z north, toward the umbilical tower (ours: no source we hold
+C     says which side of the vehicle the tower stood), Y = Z x X; the
+C     vehicle on the pad has the same axes, so the CM's side hatch
+C     (CSMBLD, -Z) faces the tower's access arm.  The foot is under
+C     PADEF's place, where the scenario's ascent table stands the CSM
+C     before lift-off (TABRV takes the table's low rows onto the same
+C     geodetic footing, #105), at the radius of the CSM's state at the
+C     LIFTOFF event less the stack's height PADHC, so the stack on the
+C     pad and the CSM's own state agree and the vehicle rises from the
+C     pad along the table (ASCPL).  The table's lift-off altitude
+C     (0.032 n mi, SP-4029 p. 103) being less than the stack's height,
+C     the foot lies about 70 m inside the drawn sphere (ours).  Without
+C     a LIFTOFF event or a state there, the foot is on the sphere.  IOK
+C     0 if the scenario has no pad.
+C-----------------------------------------------------------------------
+      SUBROUTINE PADAX(CG, AT, P0, IOK)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION CG(3), AT(3,3), P0(3), U(3), EN(3), W(3)
+      DOUBLE PRECISION R0(3), V0(3), TL, HC, EVGET, PADHC, VDOT
+      INTEGER IOK, I, J, I0
+      CALL PADEF(U, EN, IOK)
+      IF (IOK .EQ. 0) RETURN
+      CALL MXV(MEF, U, AT(1,1))
+      CALL MXV(MEF, EN, W)
+      DO 10 I = 1, 3
+        AT(I,3) = -W(I)
+        P0(I) = RE * AT(I,1) - CG(I)
+   10 CONTINUE
+      CALL VCRS(AT(1,3), AT(1,1), AT(1,2))
+      TL = EVGET(KELFO)
+      IF (TL .LT. 0.0D0) RETURN
+      J = ISRCU
+      CALL VSTATE(TL, 1, 1, R0, V0, I0)
+      ISRCU = J
+      IF (I0 .NE. 1) RETURN
+      HC = DSQRT(VDOT(R0, R0)) - PADHC() * 1.0D-3
+      DO 20 I = 1, 3
+        P0(I) = HC * AT(I,1) - CG(I)
+   20 CONTINUE
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     PADPL: the launch complex (KPAD: the pad, the mobile launcher and
+C     its umbilical tower; #97) fixed to the turning Earth at the pad
+C     (PADAX), with the tower's service arms: arms 1 to 8 swung out to
+C     the vehicle (KARE) before the scenario's LIFTOFF event and swung
+C     back (KARR) from it (ours: "The remaining five arms are set to
+C     swing back at vehicle first motion", the others earlier, Apollo
+C     11 press kit, printed p. 164); arm 9, the Apollo access arm, at
+C     the spacecraft (KA9E) to T-43 minutes, "moved to a parked
+C     position, 12 degrees from the spacecraft, at about T-43 minutes"
+C     (KA9P) and "fully retracted at the T-5 minute mark" (KA9R;
+C     printed p. 165), the count's T- taken as g.e.t. before range zero
+C     (ours).  Placed with the CSM drawn around an external view's
+C     camera (CSMCAM), where the scenario has a pad and a LIFTOFF
+C     event, before its S-II/S-IVB separation (SIISEP; without one,
+C     before lift-off) and within 500 km of the camera (ours: past that
+C     it is under a hundredth of a degree across).
+C-----------------------------------------------------------------------
+      SUBROUTINE PADPL(GET, CG)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, CG(3), AT(3,3), P0(3), Z(3), TL, TE, EVGET
+      DOUBLE PRECISION VNRM
+      INTEGER IOK, K
+      TL = EVGET(KELFO)
+      IF (TL .LT. 0.0D0) RETURN
+      TE = EVGET(KESII)
+      IF (TE .LT. 0.0D0) TE = TL
+      IF (GET .GE. TE) RETURN
+      CALL PADAX(CG, AT, P0, IOK)
+      IF (IOK .EQ. 0 .OR. VNRM(P0) .GT. 500.0D0) RETURN
+      CALL SETV(Z, 0.0D0, 0.0D0, 0.0D0)
+      CALL MPLACE(KPAD, AT, P0, Z)
+      K = KARE
+      IF (GET .GE. TL) K = KARR
+      CALL MPLACE(K, AT, P0, Z)
+      K = KA9E
+      IF (GET .GE. -2580.0D0) K = KA9P
+      IF (GET .GE. -300.0D0) K = KA9R
+      CALL MPLACE(K, AT, P0, Z)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     ASCPL: where CSMCAM places the CSM from the pad to the S-II/S-IVB
+C     separation (#97): its axes AT and its origin P (camera relative,
+C     km; the camera at geocentric CG); IOK 0 outside that span, or
+C     where the scenario has no pad or no LIFTOFF event.
+C       Before lift-off (LIFTOFF) on the pad, in the launch complex's
+C       axes, PADHC above the foot of the pad (PADAX): where the
+C       ascent table stands it.
+C       After it at its state, its X axis along the velocity relative
+C       to the turning Earth, with the pad's up added at 50 m/s (ours:
+C       no attitude for the ascent is held), so it lifts off upright
+C       and turns over with its flight path; Z from the pad's (no roll
+C       programme; ours).
+C     After the S-II/S-IVB separation (SIISEP), the stack is the one
+C     #70 draws behind the CSM, around the camera (CSMCAM), so the
+C     attitude steps there by a few degrees.
+C-----------------------------------------------------------------------
+      SUBROUTINE ASCPL(GET, CG, AT, P, IOK)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, CG(3), AT(3,3), P(3)
+      DOUBLE PRECISION PA(3,3), P0(3), R(3), V(3), D(3), OM(3), HC
+      DOUBLE PRECISION TL, TE, C, OMG, EVGET, PADHC, VDOT
+      INTEGER IOK, I, J, I1
+      IOK = 0
+      TL = EVGET(KELFO)
+      TE = EVGET(KESII)
+      IF (TL .LT. 0.0D0) RETURN
+      IF (GET .GE. TL .AND. (TE .LT. 0.0D0 .OR. GET .GE. TE)) RETURN
+      CALL PADAX(CG, PA, P0, I)
+      IF (I .EQ. 0) RETURN
+      IF (GET .GE. TL) GO TO 20
+      HC = PADHC() * 1.0D-3
+      DO 10 I = 1, 3
+        P(I) = P0(I) + HC * PA(I,1)
+        DO 5 J = 1, 3
+          AT(I,J) = PA(I,J)
+    5   CONTINUE
+   10 CONTINUE
+      IOK = 1
+      RETURN
+C     The CSM's state now (the camera's source kept).
+   20 J = ISRCU
+      CALL VSTATE(GET, 1, 1, R, V, I1)
+      ISRCU = J
+      IF (I1 .NE. 1) RETURN
+C     The velocity relative to the Earth, turning about its pole of
+C     date (MEF's third column), with the pad's up at 50 m/s.
+      OMG = 360.98564736629D0 * DR / 86400.0D0
+      DO 30 I = 1, 3
+        P(I) = R(I) - CG(I)
+        OM(I) = OMG * MEF(I,3)
+   30 CONTINUE
+      CALL VCRS(OM, R, D)
+      DO 35 I = 1, 3
+        AT(I,1) = V(I) - D(I) + 0.05D0 * PA(I,1)
+   35 CONTINUE
+      CALL VUNIT(AT(1,1))
+      C = VDOT(PA(1,3), AT(1,1))
+      DO 40 I = 1, 3
+        AT(I,3) = PA(I,3) - C * AT(I,1)
+   40 CONTINUE
+      CALL VUNIT(AT(1,3))
+      CALL VCRS(AT(1,3), AT(1,1), AT(1,2))
+      IOK = 1
+      RETURN
+      END
+C
+C     MEFAT: the Earth-fixed to J2000 matrix M at GET (VFRAME's MEF for
+C     its frame): GMST about the pole of date, then the IAU 1976
+C     precession back to J2000 (PRECM).
+      SUBROUTINE MEFAT(GET, M)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, M(3,3), R1(3,3), R2(3,3), GMSTAT
+      INTEGER I, J
+      CALL ROTZ(GMSTAT(GET), R1)
+      CALL PRECM((TJD0 + GET / 86400.0D0 - 2451545.0D0) / 36525.0D0,
+     &           R2)
+      DO 20 I = 1, 3
+        DO 10 J = 1, 3
+          M(I,J) = R2(1,I) * R1(1,J) + R2(2,I) * R1(2,J)
+     &           + R2(3,I) * R1(3,J)
+   10   CONTINUE
+   20 CONTINUE
       RETURN
       END
 C
@@ -990,7 +1250,7 @@ C     RESTOMOD END
       DOUBLE PRECISION RNG, P(3), D
       INTEGER I
       D = (RNG * 0.3048D0 + 2.0D0 + 1.5D0 + 4.51D0
-     &  + 0.5D0 * (58.3D0 + 3.0D0) * 0.3048D0) * 1.0D-3
+     &  + 0.5D0 * (SIVBH + SIUH) * 0.3048D0) * 1.0D-3
       DO 10 I = 1, 3
         P(I) = -D * S7AT(I,1) + 0.72D-3 * S7AT(I,2)
    10 CONTINUE

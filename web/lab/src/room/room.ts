@@ -11,7 +11,7 @@
 //   across a walkway to the 4009, so the overview sees its window and, past its south end, the whole run; the low
 //   power distribution cabinet on the south wall.
 // - Operator consoles, the middle: the 4009 facing the tapes, its chair between; east of it the 1558 graphic
-//   console turned toward the viewer, its stool at its left, with its 1557 controller behind it, and the desk with
+//   console turned toward the viewer, its stool at its left, with its 1557 controller between it and the 4009, and the desk with
 //   the UNISCOPE 100.
 // - Output, the east wall and the south-east: the microfilm recorder, downstream of the computer as the film was,
 //   then the printer; the card reader on the south wall.
@@ -34,6 +34,8 @@ import { batch } from "./batch";
 import type { Binder, NotebookBinder, Prop } from "../equipment/bookcase";
 import type { ReelPiece, SysTapePiece } from "../equipment/taperack";
 import type { Pullable, Shelf } from "../equipment/pullable";
+import type { NotePiece } from "../equipment/opnotebook";
+import { KEYINS } from "../equipment/exec8";
 
 /** A builder with the options some modules take (a tape drive's number, the CPU cabinet with the lamp panel). */
 type Builder = (ctx: BuildContext, opts?: Record<string, unknown>) => Equipment;
@@ -100,7 +102,10 @@ export function build(ctx: BuildContext): Room {
   for (let i = 0; i < 5; i++) place("cpu", [-wW + 0.48, 0, -0.4 + i * 0.82], E, undefined, { lampPanel: i === 2 });
   // The operator's chair at the 4009's seat (its keyboard end), facing it; without the anchor, centred in front of it.
   // The console stands far enough south that the chair leaves the tape units' 0.9 m aisle.
-  const op = place("console4009", [-0.8, 0, -1.3], N);
+  const op = place("console4009", [-0.8, 0, -1.3], N, "console");
+  // The operator's notebook on its desk (#68): each note a piece of its own, keyed in at the console's close-up.
+  const notes = op.anchors.notes as NotePiece[];
+  for (const p of notes) { p.object.userData.placed = `note:${p.keyin}`; placed.push({ name: p.object.userData.placed, equipment: p }); }
   const seat = op.anchors.seat as { position: THREE.Vector3; yaw: number } | undefined;
   const seatAt = op.object.localToWorld(seat?.position.clone() ?? new THREE.Vector3(0, 0, 0.86));
   place("chair", [seatAt.x, 0, seatAt.z], N + (seat?.yaw ?? Math.PI));
@@ -120,8 +125,10 @@ export function build(ctx: BuildContext): Room {
   // turned toward the keyboard (ours).
   const stool = vector.object.localToWorld(new THREE.Vector3(-0.62, 0, 0.92)), keys = vector.object.localToWorld(new THREE.Vector3(0, 0, 0.5));
   place("chair", [stool.x, 0, stool.z], Math.atan2(keys.x - stool.x, keys.z - stool.z), undefined, { tall: true });
-  // The 1557 that drives the 1558, behind it, its front to the 1558's back.
-  place("controller1557", [2.2, 0, -2.75], S);
+  // The 1557 that drives the 1558, east of the operator console and north-west of the 1558 (#117; ours: its place), off
+  // the tape rack's step-back path (the rack's close-up steps back to (2.0, -2.65), which it used to stand on); the
+  // layout check (shots: room-step-back-poses) keeps every close-up's step-back clear of the footprints.
+  place("controller1557", [1.45, 0, -2.0], S);
   place("filmrecorder", [wW - 0.47, 0, 1.5], W, "filmrecorder");
   place("printer", [wW - FOOTPRINT.printer[2] / 2 - 0.03, 0, 3.6], W, "printer");
   place("cardreader", [2.8, 0, nW - 0.37], N);
@@ -231,6 +238,7 @@ export function build(ctx: BuildContext): Room {
       ...Object.fromEntries(reels.map(p => [`reel:${p.reel.id}`, `${p.reel.title} — ${p.reel.kind} reel`])),
       ...Object.fromEntries(systapes.map(p => [`systape:${p.tape.id}`, `${p.tape.label} — system tape`])),
       fastrand: "UNIVAC FASTRAND II — drum mass storage",
+      ...Object.fromEntries(KEYINS.map(k => [`note:${k.id}`, `${k.form} — ${k.note.toLowerCase()} · click to key it in`])),
       ...Object.fromEntries(notebooks.map(b => [`binder:nb-${b.reel.id}`, b.reel.notebook ?? b.reel.title])),
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
       ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },

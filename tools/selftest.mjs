@@ -64,7 +64,7 @@ for (const K of [W, F]) for (const r of [...REELS_IN].reverse()) use(K, r);
 const f64 = (K, name, n) => Array.from(new Float64Array(K.memory.buffer, K[name].value, n));
 const i32 = (K, name) => new Int32Array(K.memory.buffer, K[name].value, 1)[0];
 // One frame of situation s ({reel, id}, a row of SIT below) in K, its reel's decks loaded first.
-function run(K, s, flags = 3, view = 0, target = 0, lablv = 0, get = null) {
+function run(K, s, flags = 3, view = 0, target = 0, lablv = 0, get = null, eye = [0, 0, 0]) {
   use(K, s.reel);
   K.view_init(s.id);
   new Int32Array(K.memory.buffer, K.in_flags.value, 1)[0] = flags;
@@ -74,6 +74,7 @@ function run(K, s, flags = 3, view = 0, target = 0, lablv = 0, get = null) {
   }
   if (K.in_lablv) new Int32Array(K.memory.buffer, K.in_lablv.value, 1)[0] = lablv;
   if (get !== null) new Float64Array(K.memory.buffer, K.in_get.value, 1)[0] = get;
+  if (K.in_eyeo) new Float64Array(K.memory.buffer, K.in_eyeo.value, 3).set(eye);
   K.view_frame();
   const nvec = i32(K, 'nvec'), nstar = i32(K, 'nstar'), nlab = i32(K, 'nlab');
   const ntxt = i32(K, 'ntxt'), nchr = i32(K, 'nchr');
@@ -81,7 +82,9 @@ function run(K, s, flags = 3, view = 0, target = 0, lablv = 0, get = null) {
            lbuf: f64(K, 'lbuf', 4 * nlab),
            tbuf: f64(K, 'tbuf', 4 * ntxt),
            tchr: Array.from(new Int32Array(K.memory.buffer, K.tchr.value, nchr)),
-           init: f64(K, 'in_get', 1)[0] };
+           init: f64(K, 'in_get', 1)[0],
+           eye: K.in_eyeo ? f64(K, 'in_eyeo', 3) : null, eyek: K.out_eyek ? i32(K, 'out_eyek') : 0,
+           eyax: K.out_eyax ? f64(K, 'out_eyax', 9) : null };
 }
 // The page's data (#26 slices 7d, 7e): the reel packages the page embeds (build/reels.js, tools/pack.py), unpacked by
 // the page's own reader and read by its own reelPages (web/src/reelpkg.js): the situations, each with its reel, its id
@@ -146,6 +149,26 @@ if (W.in_view) {
     }
   console.log(`cabins: ${n} frames  ${same ? 'identical' : 'DIFFER'}  ${more} with interior lines`);
   if (!same || more === 0) ok = false;
+}
+// The moved eye (in_eyeo, #72): every scene external and from both stations, cabin and walls on, with an offset;
+// wasm and the fallback must agree (frame, the offset written back, its kind and the camera's axes), the stations and
+// External must take it (out_eyek) and move the picture, and an offset far outside the CM's walls must come back
+// clamped inside them.
+if (W.in_eyeo) {
+  let same = true, n = 0, moved = 0, took = 0;
+  for (const scene of SCENES)
+    for (const [v, e] of [[1, [0.2, 0.1, -0.3]], [2, [0.1, -0.2, 0.05]], [3, [0.05, 0.1, -0.1]]]) {
+      const z = run(W, scene, 3 | 16 | 32, v, 0), a = run(W, scene, 3 | 16 | 32, v, 0, 0, null, e), b = run(F, scene, 3 | 16 | 32, v, 0, 0, null, e); n++;
+      if (!(a.nvec === b.nvec && maxdiff(a.hdr, b.hdr) === 0 && maxdiff(a.vbuf, b.vbuf) === 0 &&
+            maxdiff(a.eye, b.eye) === 0 && a.eyek === b.eyek && maxdiff(a.eyax, b.eyax) === 0)) same = false;
+      if (a.eyek === v) took++;
+      if (a.nvec !== z.nvec || maxdiff(a.vbuf, z.vbuf) !== 0) moved++;
+    }
+  const cm = SIT.find(s => s.stations.cm === 'ALWAYS') || SIT[0], c = run(W, cm, 3 | 16, 2, 0, 0, null, [0, 9, 0]);
+  const ey = [0.0254 * 27.7 + c.eye[0], -0.0254 * 24.5 + c.eye[1], -0.0254 * 33.8 + c.eye[2]];
+  const wall = 1.777 + (0.754 - 1.777) * (ey[0] - 0.051) / (1.626 - 0.051), clamped = c.eyek === 2 && Math.hypot(ey[1], ey[2]) <= wall - 0.15 + 1e-9 && c.eye[1] > 0;
+  console.log(`moved eye: ${n} frames  ${same ? 'identical' : 'DIFFER'}  ${took} took the offset, ${moved} moved  ${clamped ? 'clamped inside the CM wall' : 'NOT CLAMPED'}`);
+  if (!same || took === 0 || moved === 0 || !clamped) ok = false;
 }
 // Window mask (in_flags bit 5): with the cabin (bit 4) in the CM and LM stations, the outside only
 // through the windows. Wasm and the fallback must agree; bit 5 without bit 4 changes nothing; a
@@ -237,13 +260,13 @@ const A11_ZERO = Date.UTC(1969, 6, 16, 13, 32, 0);   // Apollo 11's range zero, 
 {
   const bad = [], scenes = JSON.parse(fs.readFileSync(path.join(R, 'build/scenes.json'), 'utf8'));
   for (const r of reels) {
-    // A scenario reel's page.json is gen_data's with the two keys tools/pack.py adds (its listing and quick views,
+    // A scenario reel's page.json is gen_data's with the three keys tools/pack.py adds (its photo events, listing and quick views,
     // checked under "listing:" below); a playlist's is gen_data's byte for byte.
     const id = r.manifest.id, f = path.join(R, 'build/page', id + '.json');
     const packed = r.files.get('page.json'), gen = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
-    const strip = t => { const j = JSON.parse(t); delete j.listing; delete j.quickviews; return JSON.stringify(j); };
-    if (gen === null || (r.manifest.kind === 'scenario' ? strip(packed) !== JSON.stringify(JSON.parse(gen)) || !('listing' in JSON.parse(packed)) : packed !== gen))
-      bad.push(`${id}: page.json is not ${f}${r.manifest.kind === 'scenario' ? ' with its listing and quick views' : ''}`);
+    const strip = t => { const j = JSON.parse(t); delete j.photos; delete j.listing; delete j.quickviews; return JSON.stringify(j); };
+    if (gen === null || (r.manifest.kind === 'scenario' ? strip(packed) !== JSON.stringify(JSON.parse(gen)) || !('listing' in JSON.parse(packed)) || !('photos' in JSON.parse(packed)) : packed !== gen))
+      bad.push(`${id}: page.json is not ${f}${r.manifest.kind === 'scenario' ? ' with its photo events, listing and quick views' : ''}`);
     if (r.manifest.kind !== 'scenario') continue;
     const want = (scenes.reels.find(x => x.id === id) || { scenes: [] }).scenes;
     if (r.page.scenario.id !== 1 || r.page.situations.map(s => s.id).join() !== want.join() || want[0] !== 1)
@@ -259,14 +282,15 @@ const A11_ZERO = Date.UTC(1969, 6, 16, 13, 32, 0);   // Apollo 11's range zero, 
   const md = [path.join(R, 'README.md'), ...fs.readdirSync(path.join(R, 'docs'), { recursive: true })
     .filter(f => f.endsWith('.md')).map(f => path.join(R, 'docs', f))];
   const old = [...new Set(md.flatMap(f => [...fs.readFileSync(f, 'utf8').matchAll(/[?&]scene=(\d+)/g)].map(m => +m[1])))].sort((x, y) => x - y);
-  const oneNumbering = scenes.reels.flatMap(x => x.scenes.map(id => [x.id, id]));   // [reel, id] for scene 1, 2, ...
+  const legacy = [...Array(8)].map((_, k) => ['apollo11-asflown', k + 1]).concat([['apollo8-asflown', 1]]);   // the old links' scene=1..9, frozen
   for (const n of old) {
-    const sc = RP.sceneOfLink(SIT, null, null, n), s = SIT[sc - 1] || {}, w = oneNumbering[n - 1] || [];
-    if (!(sc === n && s.reel === w[0] && s.id === w[1])) bad.push(`scene=${n} opens ${s.reel}/${s.id}, not ${w.join('/')}`);
+    const sc = RP.sceneOfLink(SIT, null, null, n), s = SIT[sc - 1] || {}, w = legacy[n - 1] || [];
+    if (!(s.reel === w[0] && s.id === w[1])) bad.push(`scene=${n} opens ${s.reel}/${s.id}, not ${w.join('/')}`);
     if (RP.sceneOfLink(SIT, s.reel, String(s.id), null) !== sc || RP.sceneOfLink(SIT, s.reel, s.name.toLowerCase(), null) !== sc)
       bad.push(`scn=${s.reel}&sit=${s.id} (or its name) does not open scene ${sc}`);
   }
   if (!old.length) bad.push('no scene=N link in docs/ or README.md');
+  if (RP.sceneOfLink(SIT, null, null, 10) !== null) bad.push('scene=10 opens a situation: no old link has it');
   const nine = SIT[RP.sceneOfLink(SIT, null, null, 9) - 1] || {};
   if (!(nine.name === 'APOLLO 8 EARTHRISE' && nine.id === 1 && nine.reel === 'apollo8-asflown')) bad.push(`scene=9 opens ${nine.reel}/${nine.id}`);
   try { RP.reelPages([{ manifest: { id: 'nopage' }, page: null }]); bad.push('a reel without page.json: not refused'); }
@@ -281,6 +305,115 @@ const A11_ZERO = Date.UTC(1969, 6, 16, 13, 32, 0);   // Apollo 11's range zero, 
   }
   console.log(`page data: ${reels.length} reels' page.json, ${SIT.length} situations; old links scene=${old.join(',')} ` +
     `open the same (reel, situation)  ${bad.length ? 'WRONG: ' + bad.join('; ') : 'ok'}`);
+  if (bad.length) ok = false;
+}
+// The link's keys (#22): web/src/urlkeys.js against docs/modes.md's Link parameters (its key, switch and old-key
+// tables) and against the page: every key the page and the room read (through UP, a loader param, any variable made
+// from new URLSearchParams( or canonUrl(, single or double quotes, get, getAll or has; a regex on location.search; QP)
+// is a key or switch of the table, or an old key the loader reads (scene, a playlist's mode), and every key and switch
+// is read somewhere; only the files that read the link now may touch location.search or new URLSearchParams( (a new
+// reader must be looked at); the LINK button (link.js linkURL) writes keys only; canonUrl reads each old key or value
+// as its canonical one, a canonical value given beside it winning, else the first old one, and leaves the rest alone;
+// the loader's old modes are the playlist reels' ALIASes; and the README points to the table instead of keeping one.
+// Eight planted faults must each be found.
+{
+  const UK = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/urlkeys.js'), 'utf8') +
+    '\n({ URL_KEYS, URL_SWITCHES, URL_ALIASES, canonUrl })', vm.createContext({ URLSearchParams }));
+  const ticks = c => [...c.matchAll(/`([^`]*)`/g)].map(m => m[1]);
+  // The docs' three tables: rows under a header whose first cell is Key, Switch or Old.
+  const tables = md => {
+    const sec = md.slice(md.indexOf('## Link parameters\n')), end = sec.indexOf('\n## ', 4), t = { Key: [], Switch: [], Old: [] };
+    let cur = null;
+    for (const line of (end < 0 ? sec : sec.slice(0, end)).split('\n')) {
+      const cells = line.startsWith('|') ? line.split('|').slice(1, -1).map(c => c.trim()) : null;
+      if (!cells) { cur = null; continue; }
+      if (cells[0] in t) { cur = cells[0]; continue; }
+      if (cur && !/^-+$/.test(cells[0])) t[cur].push(cells);
+    }
+    return { keys: t.Key.flatMap(c => ticks(c[0])), switches: t.Switch.flatMap(c => ticks(c[0])),
+      old: t.Old.map(c => [ticks(c[0])[0], ticks(c[1]).join('&')]) };
+  };
+  // The keys a source reads. Receivers: UP, p (the loader's params), qs, and any variable assigned from
+  // new URLSearchParams( or canonUrl(; a list of keys counts where it is the loop of a read (for (const k of [...]) ...
+  // UP.get(k)), the keys of .some(k => UP.has(k)) or pGet's default keys.
+  const Q = `["']`;
+  const readKeys = src => {
+    const out = new Set(), recv = new Set(['UP', 'p', 'qs']);
+    for (const m of src.matchAll(/\b(?:const|let|var)\s+(\w+)\s*=\s*(?:new URLSearchParams|canonUrl)\(/g)) recv.add(m[1]);
+    for (const m of src.matchAll(/,\s*(\w+)\s*=\s*(?:new URLSearchParams|canonUrl)\(/g)) recv.add(m[1]);
+    const rxs = [new RegExp(`(?:\\b(?:${[...recv].join('|')})|URLSearchParams\\([^()]*\\))\\.(?:get|getAll|has)\\(${Q}(\\w+)${Q}\\)`, 'g'),
+      new RegExp(`\\bp(?:Num|Flag|Pick)\\(p, ${Q}(\\w+)${Q}`, 'g'), new RegExp(`\\bQP\\(${Q}(\\w+)${Q}\\)`, 'g'), /\[\?&\](\w+)(?:=|\\b)/g];
+    for (const rx of rxs) for (const m of src.matchAll(rx)) out.add(m[1]);
+    for (const m of src.matchAll(/(for \(const k of |keys = )?\[((?:["']\w+["'],?\s*)+)\]([^\n]*)/g))
+      if (m[1] === 'keys = ' || (m[1] && /\.(?:get|getAll|has)\(k\)|pNum\(p, k\)|QP\(k\)/.test(m[3])) || /^\.some\(k => \w+\.has\(k\)\)/.test(m[3]))
+        for (const k of m[2].match(/\w+/g)) out.add(k);
+    return out;
+  };
+  // The files that read the link now; any other that touches location.search or new URLSearchParams( fails.
+  const READERS = { search: ['web/src/config.js', 'web/src/kernel.js', 'web/src/player.js', 'web/src/main.js', 'web/lab/src/lab.ts'],
+    usp: ['web/src/config.js', 'web/src/link.js', 'web/src/loader.js', 'web/src/urlkeys.js', 'web/lab/src/lab.ts'] };
+  const files = [...fs.readdirSync(path.join(R, 'web/src')).filter(f => f.endsWith('.js')).map(f => path.join('web/src', f)),
+    ...fs.readdirSync(path.join(R, 'web/lab/src'), { recursive: true }).filter(f => f.endsWith('.ts') && !f.endsWith('.test.ts') && f !== 'gallery.ts')
+      .map(f => path.join('web/lab/src', f))];
+  const SRC = Object.fromEntries(files.map(f => [f, fs.readFileSync(path.join(R, f), 'utf8')]));
+  const LINKJS = SRC['web/src/link.js'];
+  const oldStr = ([k, v, ck, cv]) => `${v === null ? k : k + '=' + v}>${cv === null || typeof cv === 'function' ? ck : ck + '=' + cv}`;
+  const check = (md, readme, src, linkjs) => {
+    const bad = [], d = tables(md), K = UK.URL_KEYS, S = UK.URL_SWITCHES;
+    const same = (what, a, b) => { if (a.join() !== b.join()) bad.push(`${what}: docs ${a.join(',')} / urlkeys.js ${b.join(',')}`); };
+    same('keys', d.keys, K); same('switches', d.switches, S);
+    same('old keys', d.old.map(x => x.join('>')), UK.URL_ALIASES.map(oldStr));
+    const late = new Set(UK.URL_ALIASES.filter(a => a[4] === 'loader').map(a => a[0])), internal = new Set(['by']), seen = new Set();
+    for (const [f, t] of Object.entries(src)) {
+      if (/location\.search/.test(t) && !READERS.search.includes(f)) bad.push(`${f} reads location.search, not a known reader`);
+      if (/new URLSearchParams\(/.test(t) && !READERS.usp.includes(f)) bad.push(`${f} makes a URLSearchParams, not a known reader`);
+      for (const k of readKeys(t)) {
+        seen.add(k);
+        if (!K.includes(k) && !S.includes(k) && !late.has(k) && !internal.has(k)) bad.push(`${f} reads ${k}, which the table lacks`);
+      }
+    }
+    for (const k of [...K, ...S]) if (!seen.has(k)) bad.push(`${k}: in the table, read nowhere`);
+    const body = linkjs.slice(linkjs.indexOf('function linkURL'), linkjs.indexOf('function copyLink'));
+    for (const m of body.matchAll(/\badd\(["'](\w+)["']/g)) if (!K.includes(m[1])) bad.push(`the LINK button writes ${m[1]}`);
+    const rd = readme.slice(readme.indexOf('## Link parameters'), readme.indexOf('\n## ', readme.indexOf('## Link parameters') + 4));
+    if (!rd.includes('(docs/modes.md#link-parameters)') || /^\|/m.test(rd)) bad.push('README: no pointer to docs/modes.md#link-parameters, or a table of its own');
+    return bad;
+  };
+  const MD = fs.readFileSync(path.join(R, 'docs/modes.md'), 'utf8'), README = fs.readFileSync(path.join(R, 'README.md'), 'utf8');
+  const bad = check(MD, README, SRC, LINKJS);
+  // canonUrl: each old key or value alone; lab= as the loader read it before #22 (a number 0-3, rounded); a canonical
+  // value beside an old one (it wins, either order); old ones together (the first wins); the same key twice; keys that
+  // are not old, untouched.
+  const cu = q => UK.canonUrl(new URLSearchParams(q)).toString();
+  const CASES = [['space=tiled', 'space=tabbed'], ['src=replay', 'traj=replay'], ['src=sim', 'traj=sim'], ['src=pen.f:120', 'code=pen.f%3A120'],
+    ['src=', 'code='], ['labels=0', 'labels=off'], ['labels=1', 'labels=all'],
+    ['lab=0', 'labels=off'], ['lab=1', 'labels=primary'], ['lab=2', 'labels=secondary'], ['lab=3', 'labels=all'],
+    ['lab=1.0', 'labels=primary'], ['lab=01', 'labels=primary'], ['lab=2.6', 'labels=all'], ['lab=4', ''], ['lab=x', ''], ['lab=', ''],
+    ['src=sim&traj=replay', 'traj=replay'], ['traj=replay&src=sim', 'traj=replay'], ['src=PROJ&code=VFRAME', 'code=VFRAME'],
+    ['lab=3&labels=primary', 'labels=primary'], ['labels=primary&lab=3', 'labels=primary'], ['lab=2&labels=all', 'labels=all'],
+    ['space=tiled&space=room', 'space=room'], ['labels=all&labels=0', 'labels=all'],
+    ['labels=0&lab=3', 'labels=off'], ['lab=2&labels=1', 'labels=secondary'], ['lab=2&lab=1', 'labels=secondary'], ['lab=9&lab=1', 'labels=primary'],
+    ['labels=primary&labels=all', 'labels=primary&labels=all'], ['src=sim&src=PROJ', 'traj=sim&code=PROJ'],
+    ['mode=attract&scene=9&space=room&labels=primary', 'mode=attract&scene=9&space=room&labels=primary'], ['view=cm&labq=low', 'view=cm&labq=low']];
+  for (const [q, want] of CASES) if (cu(q) !== want) bad.push(`canonUrl ${q}: ${cu(q)}, not ${want}`);
+  for (const a of UK.URL_ALIASES.filter(a => a[4] === 'url'))
+    if (!CASES.some(([q]) => new RegExp(`(^|&)${a[0]}=${a[1] === null ? '' : a[1] + '(&|$)'}`).test(q))) bad.push(`canonUrl: no case for ${oldStr(a)}`);
+  for (const [k, v, , cv] of UK.URL_ALIASES.filter(a => a[4] === 'loader')) if (k === 'mode' && !(LISTS[cv] && LISTS[cv].alias === v)) bad.push(`mode=${v}: not reel ${cv}'s ALIAS`);
+  if (UK.URL_ALIASES.some(a => !['url', 'loader'].includes(a[4]))) bad.push('an old key read by neither canonUrl nor the loader');
+  // Planted faults, each of which the check must find.
+  const plants = [
+    ['a key missing from the table', check(MD.replace(/^\| `hz` .*\n/m, ''), README, SRC, LINKJS)],
+    ['an old key missing from the table', check(MD.replace(/^\| `space=tiled` .*\n/m, ''), README, SRC, LINKJS)],
+    ['a key read that the table lacks', check(MD, README, { ...SRC, 'web/src/x.js': 'const z = UP.get("zoom");' }, LINKJS)],
+    ['a single-quoted getAll the table lacks', check(MD, README, { ...SRC, 'web/src/x.js': "const z = UP.getAll('zoom');" }, LINKJS)],
+    ['a read through another variable', check(MD, README, { ...SRC, 'web/src/config.js': SRC['web/src/config.js'] + '\nconst sp = new URLSearchParams(location.search), z = sp.get("zoom");' }, LINKJS)],
+    ['a new reader of location.search', check(MD, README, { ...SRC, 'web/src/x.js': 'const z = /[?&]debug\\b/.test(location.search);' }, LINKJS)],
+    ['the LINK button writing an old key', check(MD, README, SRC, LINKJS.replace('add("traj", "sim")', 'add("src", "sim")'))],
+    ['a README table', check(MD, README.replace('## Link parameters\n', '## Link parameters\n\n| `mode` | `live` | x |\n'), SRC, LINKJS)]];
+  const missed = plants.filter(([, b]) => !b.length).map(([w]) => w);
+  for (const w of missed) bad.push(`planted ${w}: not found`);
+  console.log(`url keys: ${UK.URL_KEYS.length} keys, ${UK.URL_SWITCHES.length} switches, ${UK.URL_ALIASES.length} old keys and values against docs/modes.md ` +
+    `and ${files.length} sources; canonUrl ${CASES.length} cases; ${plants.length} planted faults  ${bad.length ? 'WRONG: ' + bad.join('; ') : 'the same, each fault found'}`);
   if (bad.length) ok = false;
 }
 // The playlist reels (#18, packed as reels in #26 slice 7e; data/reels/*/run.scn): every shot's situation exists in the
@@ -540,7 +673,7 @@ if (W.sim_run && fs.existsSync(VSVG)) {
   const nbOut = cmd => execFileSync('python3', [path.join(R, 'tools/notebook.py'), cmd], { cwd: R }).toString()
     .split('\n').filter(Boolean).map(l => l.split(' '));
   const nbRefs = nbOut('golden-refs'), nbList = [...nbOut('list'), ...nbRefs];
-  let nfig = 0, nSvgBad = 0, nSvgOk = 0;
+  let nfig = 0, nSvgBad = 0, nSvgOk = 0, nSvgSlow = 0, nmedia = 0, nMediaBad = 0;
   for (const r of reels) {
     const id = r.manifest.id;
     const home = r.manifest.kind === 'playlist' ? path.join(R, 'data/reels', id)
@@ -552,6 +685,14 @@ if (W.sim_run && fs.existsSync(VSVG)) {
           ? path.join(home, id.slice(r.manifest.mission.id.length + 1), name) : path.join(home, name);
       if (!fs.existsSync(src) || fs.readFileSync(src, 'utf8') !== text) wrong.push(`${id}/${name} is not ${src}`);
     }
+    // Its photographs (#29 slice g, #75), byte for byte as media/ in its source folder holds them, and the same Map as
+    // its notebook's.
+    for (const [name, m] of r.media) {
+      const src = path.join(r.manifest.kind === 'playlist' ? home : path.join(home, id.slice(r.manifest.mission.id.length + 1)), 'media', name);
+      if (!fs.existsSync(src) || !fs.readFileSync(src).equals(Buffer.from(m.bytes))) wrong.push(`${id}/media/${name} is not ${src}`);
+      nmedia++;
+    }
+    if (r.notebook && r.notebook.media !== r.media) wrong.push(`${id}: its notebook's photographs are not the reel's`);
     const want = nbList.filter(([rr]) => rr === id).map(([, n]) => n), have = r.notebook ? [...r.notebook.figures.keys()] : [];
     nfig += have.length;
     if ([...want].sort().join() !== [...have].sort().join() || (r.notebook !== null) !== fs.existsSync(path.join(R, 'build/reels', id, 'notebook')) ||
@@ -633,6 +774,11 @@ elif mode.startswith("nb-"):
         "nb-other-type": lambda: edit(add=[("notebook/plate.txt", "image", b"x\\n")]),
         "nb-text": lambda: edit(drop=["notebook/notebook.md"],
                                 add=[("notebook/notebook.md", "notebook", dict(m)["notebook/notebook.md"] + sys.argv[2].encode())]),
+        "nb-media": lambda: edit(drop=["notebook/notebook.md"],
+                                 add=[("notebook/notebook.md", "notebook", dict(m)["notebook/notebook.md"] + json.loads(sys.argv[2])["text"].encode())] +
+                                     [(p, "media", base64.b64decode(b) + bytes(pad)) for p, b, pad in json.loads(sys.argv[2])["files"]]),
+        "nb-media-alone": lambda: edit(drop=["notebook/notebook.md", *figs],
+                                       add=[(p, "media", base64.b64decode(b) + bytes(pad)) for p, b, pad in json.loads(sys.argv[2])["files"]]),
     }[mode]())
 elif mode == "page":
     out = pack.tar_gz([(n, sys.argv[2].encode() if n == "page.json" else b) for n, b in m])
@@ -669,6 +815,75 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
       catch (err) { msg = String(err.stderr); }
       if (!py.test(msg)) wrong.push(`tools/notebook.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
     }
+    // Findings, attachments and photographs (#29 slice g): each fault refused by the page's reader (the first notebook
+    // reel, its notebook gaining the text and the package the members) and by tools/notebook.py load (a scratch
+    // notebook/ holding a one-figure notebook, the text, any rows added to its figures block, and the files): the two
+    // agree, one fault for every rule. A photograph: an SVG under media/, an SVG named .png, JPEG bytes named .png, one
+    // over 256 KB, one no attach names, one in a reel whose notebook is gone (no attach, no photo event names it, #75);
+    // an attach naming a missing photograph, a golden=<case>
+    // without a row, two rows of one golden case, a bad style, a bad finish, a photograph without its credit; a header
+    // key unknown, given twice or empty, a line of a C0 control after a header; a finding without its date or source,
+    // with a date not on the calendar or not in ASCII digits.
+    const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('not really a PNG body')]).toString('base64');
+    const JPG = Buffer.concat([Buffer.from('ffd8ffe0', 'hex'), Buffer.from('not really a JPEG body')]).toString('base64');
+    const SVGB = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>\n`).toString('base64');
+    const att = (src, extra = '') => `\n\`\`\`attach\nsource: ${src}\nstyle: clip\nfinish: photo\ncredit: NASA\ncite: a test\n${extra ? extra + '\n' : ''}\nA caption.\n\`\`\`\n`;
+    const fnd = (head, body = 'A finding.') => `\n\`\`\`finding\n${head}\n\n${body}\n\`\`\`\n`;
+    const MEDIA_BAD = {
+      'an SVG under media/': [{ files: [['x.svg', SVGB]], text: att('media/x.svg') }, /: media\/x\.svg is media, not media\/<name>\.jpg or \.png/, /media\/x\.svg: a media file is media\/<name>\.jpg or \.png/],
+      'an SVG named .png': [{ files: [['fake.png', SVGB]], text: att('media/fake.png') }, /: media\/fake\.png is not a PNG file/, /media\/fake\.png: not a PNG file/],
+      'JPEG bytes named .png': [{ files: [['swap.png', JPG]], text: att('media/swap.png') }, /: media\/swap\.png is not a PNG file/, /media\/swap\.png: not a PNG file/],
+      'a photograph over 256 KB': [{ files: [['big.png', PNG, 262144]], text: att('media/big.png') }, /: media\/big\.png: 262173 bytes, more than 262144$/, /media\/big\.png: 262173 bytes, more than 262144/],
+      'a photograph no attach names': [{ files: [['extra.png', PNG]], text: '' }, /: media\/extra\.png is in it, and no attach or photograph names it$/, /media\/extra\.png is in media\/, and no attach or photograph names it/],
+      'a photograph in a reel without its notebook': [{ files: [['p.png', PNG]], text: '', alone: true }, /: media\/\S+ is in it, and no attach or photograph names it$/, /media\/p\.png is in media\/, and no attach or photograph names it/],
+      'an attach naming a missing photograph': [{ files: [], text: att('media/missing.jpg') }, /an attach names media\/missing\.jpg, which it does not hold$/, /an attach names media\/missing\.jpg, which the reel's media\/ does not hold/],
+      'an attach of a golden case without a row': [{ files: [], text: att('golden=s9-default') }, /an attach names golden=s9-default, and the figures block has no row 'name \| golden=s9-default'$/, /an attach names golden=s9-default, and the figures block has no row 'name \| golden=s9-default'/],
+      'two rows of one golden case': [{ files: [], text: '\n```figures\ntwice | golden=s7-default\n```\n', rows: 'twice | golden=s7-default\n', pytext: '' }, /its figures block names golden=s7-default twice$/, /figure case twice: golden=s7-default has a row already/],
+      'an attach with a bad style': [{ files: [], text: '\n```attach\nsource: figures/tli-cm.svg\nstyle: pinned\nfinish: photo\n\nA caption.\n```\n' }, /attach: style 'pinned' is not one of plate, clip, tape, insert$/, /attach: style 'pinned' is not one of plate, clip, tape, insert/],
+      'an attach with a bad finish': [{ files: [], text: '\n```attach\nsource: figures/tli-cm.svg\nstyle: tape\nfinish: gloss\n\nA caption.\n```\n' }, /attach: finish 'gloss' is not one of photo, film, copy$/, /attach: finish 'gloss' is not one of photo, film, copy/],
+      'a photograph without a credit': [{ files: [['p.png', PNG]], text: '\n```attach\nsource: media/p.png\nstyle: tape\nfinish: copy\ncite: a test\n\nA caption.\n```\n' }, /attach: source media\/p\.png is a photograph and has no credit$/, /attach: source media\/p\.png is a photograph and has no credit/],
+      'an unknown header key': [{ files: [['p.png', PNG]], text: att('media/p.png', 'onclick: alert(1)') }, /attach: no key 'onclick' \(its keys: /, /attach: no key 'onclick' \(its keys: /],
+      'a header key given twice': [{ files: [['p.png', PNG]], text: att('media/p.png', 'style: tape') }, /attach: style given twice$/, /attach: style given twice/],
+      'an empty header value': [{ files: [], text: fnd('date: 2026-10-08\ncite:') }, /finding: cite is empty$/, /finding: cite is empty/],
+      'a C0 control line after a header': [{ files: [], text: fnd('date: 2026-10-08\ncite: c\n\x1f') }, /finding: .* is not a 'key: value' header line/, /finding: .* is not a 'key: value' header line/],
+      'a finding without a date': [{ files: [], text: fnd('cite: TN D-6853, printed p. 3') }, /finding: no date \(/, /finding: no date \(/],
+      'a finding without a source': [{ files: [], text: fnd('date: 2026-10-08') }, /finding: no cite \(/, /finding: no cite \(/],
+      'a date not on the calendar': [{ files: [], text: fnd('date: 2026-02-30\ncite: c') }, /finding: date '2026-02-30' is not a YYYY-MM-DD date$/, /finding: date '2026-02-30' is not a YYYY-MM-DD date/],
+      'a date in other digits': [{ files: [], text: fnd('date: ٢٠٢٦-10-08\ncite: c') }, /finding: date '.*' is not a YYYY-MM-DD date$/, /finding: date '.*' is not a YYYY-MM-DD date/],
+    };
+    // The same readers accept what they agree is no finding or attach: a fence whose info string is a name an object
+    // inherits, and one whose info string is `finding` and a C0 control (only spaces and tabs are trimmed).
+    const PARITY_OK = { 'a ```toString fence': '\n```toString\nx = 1\n```\n', 'a ```constructor fence': '\n```constructor\n```\n',
+      'a ```finding\\x1f fence': '\n```finding\x1f\ndate: nonsense\n```\n' };
+    const tmpm = fs.mkdtempSync(path.join(R, 'build/media-fault-'));
+    // A reel without a notebook (alone): its photographs are checked as tools/pack.py checks them, named by its photo
+    // events only (none here).
+    const pyLoad = arg => {
+      for (const d of ['notebook', 'media']) fs.rmSync(path.join(tmpm, d), { recursive: true, force: true });
+      fs.mkdirSync(path.join(tmpm, 'notebook'), { recursive: true });
+      fs.mkdirSync(path.join(tmpm, 'media'), { recursive: true });
+      if (arg.alone) fs.rmSync(path.join(tmpm, 'notebook'), { recursive: true, force: true });
+      if (!arg.alone) fs.writeFileSync(path.join(tmpm, 'notebook/notebook.md'), `# t\n\n![a](figures/tli-cm.svg)${arg.rows ? '\n\n![b](figures/twice.svg)' : ''}\n\n\`\`\`figures\ntli-cm | golden=s7-default\n${arg.rows || ''}\`\`\`\n${arg.pytext ?? arg.text}`);
+      for (const [n, b, pad = 0] of arg.files) fs.writeFileSync(path.join(tmpm, 'media', n), Buffer.concat([Buffer.from(b, 'base64'), Buffer.alloc(pad)]));
+      const py = arg.alone ? 'import pathlib, sys; sys.path.insert(0, "tools"); import notebook; p = pathlib.Path(sys.argv[1]); notebook.media_unnamed(p, notebook.reel_media(p), set())'
+        : 'import pathlib, sys; sys.path.insert(0, "tools"); import notebook; notebook.load("apollo11-asflown", "scenario", pathlib.Path(sys.argv[1]), None)';
+      try { execFileSync('python3', ['-c', py, tmpm], { cwd: R, stdio: 'pipe' }); return ''; }
+      catch (err) { return String(err.stderr) || 'refused'; }
+    };
+    const jsArg = arg => JSON.stringify({ text: arg.text, files: arg.files.map(([n, b, pad = 0]) => [`media/${n}`, b, pad]) });
+    for (const [what, [arg, js, py]] of Object.entries(MEDIA_BAD)) {
+      await nbRefused(`a notebook with ${what}`, arg.alone ? 'nb-media-alone' : 'nb-media', js, jsArg(arg));
+      const msg = pyLoad(arg);
+      if (!py.test(msg)) wrong.push(`tools/notebook.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
+    }
+    for (const [what, text] of Object.entries(PARITY_OK)) {
+      try { await RP.readReel(craft('nb-media', nbReel.b64, jsArg({ text, files: [] })), sha, nbReel.id); }
+      catch (err) { wrong.push(`the page refuses a notebook with ${what}: ${err.message}`); }
+      const msg = pyLoad({ text, files: [] });
+      if (msg) wrong.push(`tools/notebook.py refuses a notebook with ${what}: ${msg.trim()}`);
+    }
+    fs.rmSync(tmpm, { recursive: true, force: true });
+    nMediaBad = Object.keys(MEDIA_BAD).length + Object.keys(PARITY_OK).length;
     // A figure that could act when opened as a page (reviews of PR #69): the allowlist (reelpkg.js reelSvgUnsafe,
     // tools/notebook.py svg_unsafe at render and pack) refuses each of these, the bypasses of a blocklist among them;
     // the reader refuses the package and the Python names it: the two agree.
@@ -691,6 +906,11 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
       'a comment': `<svg ${W3}><!-- --></svg>\n`,
       'a namespace swap': `<svg xmlns="http://www.w3.org/1999/xhtml"><text>x</text></svg>\n`,
       'an unquoted attribute': `<svg ${W3}><rect x=1 onload=alert(1)/></svg>\n`,
+      'a leading CSS <?xml-stylesheet?>': `<?xml-stylesheet type="text/css" href="https://evil.example/x.css"?><svg ${W3}></svg>\n`,
+      'a leading XSLT <?xml-stylesheet?>': `<?xml-stylesheet type="text/xsl" href="https://evil.example/x.xsl"?><svg ${W3}></svg>\n`,
+      'a url( from a decimal reference': `<svg ${W3}><rect fill="&#117;rl(https://evil.example/p.svg#g)"/></svg>\n`,
+      'a url( from a hex reference': `<svg ${W3}><rect fill="&#x75;rl(https://evil.example/p.svg#g)"/></svg>\n`,
+      'two byte order marks before the declaration': `\ufeff\ufeff<?xml version="1.0"?>\n<svg ${W3}></svg>\n`,
     };
     for (const [what, svg] of Object.entries(SVG_BAD)) {
       await nbRefused(`a figure with ${what}`, 'nb-fig-unsafe', /(holds .*, which a figure may not \(the allowlist\)|is not an SVG document)$/, svg);
@@ -702,6 +922,28 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
     const okSvg = `<?xml version="1.0"?>\n<svg ${W3} width="8" height="8" viewBox="0 0 8 8"><g stroke="white" xlink:href="#a"><line x1="0" y1="0" x2="1" y2="1" stroke-dasharray="6 5"/></g><g fill="#9cf" font-family="monospace" font-size="11"><text x="1" y="2">1:2 &amp; &#60;</text></g></svg>\n`;
     const okPy = execFileSync('python3', ['-c', 'import sys; sys.path.insert(0, "tools"); import notebook; print(notebook.svg_unsafe(sys.argv[1]))', okSvg], { cwd: R }).toString().trim();
     if (okPy !== 'None' || RP.reelSvgUnsafe(okSvg) !== null) wrong.push(`the allowlist refuses viewsvg's own shapes: ${okPy} / ${RP.reelSvgUnsafe(okSvg)}`);
+    // Hostile tags (#79): both judge each within 200 ms, and the same way (true: accepted). 200K spaces took the old
+    // scan 15-30 s in the page and minutes in Python. A byte order mark may lead the XML declaration (the page's
+    // TextDecoder drops it before the check), nowhere else.
+    const SP = ' '.repeat(200000), SVG_SLOW = {
+      '200K spaces before a name': [`<svg ${W3}><${SP}></svg>\n`, false],
+      '200K spaces in a tag': [`<svg ${W3}><rect${SP}/></svg>\n`, true],
+      '200K spaces and a stray character': [`<svg ${W3}><rect x="1"${SP}q/></svg>\n`, false],
+      '200K spaces in a closing tag': [`<svg ${W3}><g></g${SP}x></svg>\n`, false],
+      'a byte order mark before the declaration': [`\ufeff<?xml version="1.0"?>\n<svg ${W3}></svg>\n`, true],
+      'a byte order mark after whitespace': [` \ufeff<?xml version="1.0"?>\n<svg ${W3}></svg>\n`, false],
+    };
+    const pySlow = JSON.parse(execFileSync('python3', ['-c', `import json, sys, time; sys.path.insert(0, "tools"); import notebook
+out = []
+for t in json.load(sys.stdin):
+    t0 = time.perf_counter(); why = notebook.svg_unsafe(t); out.append([why, (time.perf_counter() - t0) * 1000])
+print(json.dumps(out))`], { cwd: R, timeout: 20000, input: JSON.stringify(Object.values(SVG_SLOW).map(v => v[0])) }).toString());
+    Object.entries(SVG_SLOW).forEach(([what, [svg, ok]], i) => {
+      const t0 = performance.now(), js = RP.reelSvgUnsafe(svg), ms = performance.now() - t0, [py, pms] = pySlow[i];
+      if ((js === null) !== ok || (py === null) !== ok) wrong.push(`a figure with ${what}: the page says ${js}, tools/notebook.py ${py}`);
+      if (ms > 200 || pms > 200) wrong.push(`a figure with ${what}: ${ms.toFixed(0)} ms in the page, ${pms.toFixed(0)} ms in tools/notebook.py`);
+    });
+    nSvgSlow = Object.keys(SVG_SLOW).length;
     // Every figure and every golden render (when build/golden is there) passes both: a kernel that writes a new element
     // or attribute fails here, loudly, not in a reader's browser.
     const svgFiles = [...fs.readdirSync(path.join(R, 'build/figures')).flatMap(d => fs.statSync(path.join(R, 'build/figures', d)).isDirectory()
@@ -725,20 +967,30 @@ for rid, n in nb.notebooks():
       wrong.push(`a stale render: ${st.trim()}`);
   }
   // The event listing and quick views (#29 slice f, #73; tools/pack.py, reelpkg.js reelListingWrong): each scenario
-  // reel's listing holds its situations and timeline rows once each, in g.e.t. order; Apollo 11's quick views are its
-  // data/missions/apollo11/asflown/quickviews.txt (key 9 an event) and Apollo 8's, which has no such file, its first
-  // situation on key 1; a repeated name's id carries its g.e.t. Planted faults, the first reel's page.json edited: a
-  // quick view naming an id the listing does not hold, a key outside 1-9, a situation dropped, an event renamed, a
-  // situation's field changed, a kind the page does not know yet (#75's
-  // photo), no listing; each refused by the reader. The packer refuses a quickviews.txt naming an unknown id or a key
-  // twice, and tools/notebook.py a golden=<case> from another reel or not in CASES.
+  // reel's listing holds its situations, timeline rows and photo events (#75) once each, in g.e.t. order; Apollo 11's
+  // quick views are its data/missions/apollo11/asflown/quickviews.txt (key 9 an event) and Apollo 8's, which has no
+  // such file, its first situation on key 1; a repeated name's id carries its g.e.t. Planted faults, the first reel's
+  // page.json edited: a quick view naming an id the listing does not hold, a key outside 1-9, a situation dropped, an
+  // event renamed, a situation's field changed, a kind the page does not know, no listing; and Apollo 8's photo events
+  // edited (below); each refused by the reader. The packer refuses a quickviews.txt naming an unknown id or a key
+  // twice, tools/photos.py the same photo rows, and tools/notebook.py a golden=<case> from another reel or not in CASES.
   {
     const lw = [], A11 = reels.find(r => r.manifest.id === 'apollo11-asflown'), A8 = reels.find(r => r.manifest.id === 'apollo8-asflown');
     for (const r of [A11, A8]) {
-      const L = r.page.listing, sits = L.filter(e => e.kind === 'situation'), evs = L.filter(e => e.kind === 'event');
-      if (sits.length !== r.page.situations.length || evs.length !== r.page.timeline.events.length || L.some((e, i) => i && e.get < L[i - 1].get))
-        lw.push(`${r.manifest.id}: listing of ${sits.length} situations and ${evs.length} events, not the reel's`);
+      const L = r.page.listing, sits = L.filter(e => e.kind === 'situation'), evs = L.filter(e => e.kind === 'event'), phs = L.filter(e => e.kind === 'photo');
+      if (sits.length !== r.page.situations.length || evs.length !== r.page.timeline.events.length || phs.length !== r.page.photos.length ||
+          L.some((e, i) => i && e.get < L[i - 1].get))
+        lw.push(`${r.manifest.id}: listing of ${sits.length} situations, ${evs.length} events and ${phs.length} photographs, not the reel's`);
     }
+    // The photo events (#75) are data/photos.tsv's rows with a situation, each reel its own: frames, situations, fits.
+    const tsv = JSON.parse(execFileSync('python3', ['-c', 'import json, sys; sys.path.insert(0, "tools"); import photos; print(json.dumps(photos.rows()))'], { cwd: R }).toString());
+    for (const r of [A11, A8]) {
+      const want = tsv.filter(x => x.reel === r.manifest.id && x.sit.trim()).map(x => `${x.frame}:${x.sit}`).join(), have = r.page.photos.map(x => `${x.frame}:${x.sit}`).join();
+      if (want !== have) lw.push(`${r.manifest.id}: photo events ${have}, not data/photos.tsv's ${want}`);
+      if (!r.page.photos.length || r.page.photos.some(x => !r.media.has(x.media.slice(6)))) lw.push(`${r.manifest.id}: a photo event without its photograph`);
+    }
+    if (JSON.stringify(A8.page.photos.find(x => x.frame === 'AS08-14-2383').fit) !== '{"cam":[0,0,0],"x":0.056,"y":-0.018,"rot":-0.7,"scale":100.28}')
+      lw.push(`AS08-14-2383's fit is ${JSON.stringify(A8.page.photos.find(x => x.frame === 'AS08-14-2383').fit)}`);
     const qv = JSON.stringify(A11.page.quickviews), qv8 = JSON.stringify(A8.page.quickviews);
     if (qv !== '{"1":"EARTHRISE","2":"EARTH APPROACH","3":"EARTH LIMB","4":"LM RENDEZVOUS","5":"LM DESCENT","6":"MOON VIEW","7":"TRANSPOSITION AND DOCKING","8":"DOCKED STACK","9":"translunar-injection"}')
       lw.push(`apollo11-asflown quick views ${qv}`);
@@ -746,21 +998,69 @@ for rid, n in nb.notebooks():
     // A repeated name's id carries its row's g.e.t. (stable whatever is added elsewhere): a literal from SP-4029's row.
     if (!A11.page.listing.some(e => e.id === 'midcourse-correction-ignition@26:44:58.64' && e.get === 96298.64))
       lw.push('apollo11-asflown: no midcourse-correction-ignition@26:44:58.64 at 96298.64 s');
-    const pg = A11.page, va = VR.find(r => r.id === A11.manifest.id);
+    const pg = A11.page, va = VR.find(r => r.id === A11.manifest.id), pg8 = A8.page, va8 = VR.find(r => r.id === A8.manifest.id);
+    const ph0 = pg8.photos[0], phEdit = f => ({ ...pg8, photos: pg8.photos.map((x, i) => i ? x : f(x)) });
     const sitDrop = pg.listing.filter(e => e.id !== 'EARTHRISE'), evRen = pg.listing.map(e => e.id === 'translunar-injection' ? { ...e, name: 'TLI' } : e);
     const PAGE_BAD = {
       'a quick view naming no entry': [{ ...pg, quickviews: { 1: 'NO SUCH VIEW' } }, /quick view 1 names "NO SUCH VIEW", which the reel's listing does not hold$/],
       'a quick view key 0': [{ ...pg, quickviews: { 0: 'EARTHRISE' } }, /quickviews key "0" is not 1 to 9$/],
-      'a situation missing from the listing': [{ ...pg, listing: sitDrop, quickviews: {} }, /the listing holds 7 of the reel's 8 situations$/],
+      'a situation missing from the listing': [{ ...pg, listing: sitDrop, quickviews: {} }, /the listing holds 8 of the reel's 9 situations$/],
       'an event renamed': [{ ...pg, listing: evRen }, /\(translunar-injection\) is not the timeline's row \d+$/],
       'a situation with another field': [{ ...pg, listing: pg.listing.map(e => e.id === 'EARTHRISE' ? { ...e, fov: 60 } : e) }, /situation EARTHRISE's name, view, target or field is not its card's$/],
-      'a kind not known yet': [{ ...pg, listing: pg.listing.map((e, i) => i ? e : { ...e, kind: 'photo' }) }, /listing entry 1 is of kind photo, not situation or event$/],
-      'no listing': [{ ...pg, listing: undefined }, /page\.json has no listing$/] };
-    for (const [what, [p, re]] of Object.entries(PAGE_BAD)) {
-      try { await RP.readReel(craft('page', va.b64, JSON.stringify(p)), sha, va.id); lw.push(`${what}: not refused`); }
+      'a kind not known yet': [{ ...pg, listing: pg.listing.map((e, i) => i ? e : { ...e, kind: 'slide' }) }, /listing entry 1 is of kind slide, not situation or event or photo$/],
+      'no listing': [{ ...pg, listing: undefined }, /page\.json has no listing$/],
+      // Photo events (#75), Apollo 8's first edited: its situation, its photograph, its frame twice, its credit, its
+      // fit, its listing entry dropped or at another g.e.t., no photos at all.
+      'a photo event naming a situation the reel does not hold': [phEdit(x => ({ ...x, sit: 99 })), new RegExp(`photo ${ph0.frame} names situation 99, which the reel does not hold$`), va8],
+      'a photo event whose photograph the reel does not hold': [phEdit(x => ({ ...x, media: 'media/nope.jpg' })), new RegExp(`photo ${ph0.frame} names "media/nope\\.jpg", which it does not hold$`), va8],
+      'a photo event given twice': [{ ...pg8, photos: [ph0, ...pg8.photos] }, new RegExp(`photo ${ph0.frame} is in page\\.json twice$`), va8],
+      'a photo event without its credit': [phEdit(x => ({ ...x, credit: '' })), new RegExp(`photo ${ph0.frame} has no credit or https source$`), va8],
+      'a photo event with a broken fit': [phEdit(x => ({ ...x, fit: { cam: [0, 0], x: 0, y: 0, rot: 0, scale: 100 } })), new RegExp(`photo ${ph0.frame}'s fit is not null or \\{cam, x, y, rot, scale\\}$`), va8],
+      'a photo event missing from the listing': [{ ...pg8, listing: pg8.listing.filter(e => e.kind !== 'photo' || e.id !== pg8.photos.at(-1).frame) }, /the listing holds \d+ of the reel's \d+ photo events$/, va8],
+      'a photo entry at another g.e.t.': [{ ...pg8, listing: pg8.listing.map(e => e.id === ph0.frame ? { ...e, get: e.get + 1 } : e) }, new RegExp(`\\(${ph0.frame}\\) is not one of the reel.s photo events$`), va8],
+      'no photo events': [{ ...pg8, photos: undefined }, /page\.json has no photos$/, va8],
+      'a photo event whose bracket runs backwards': [phEdit(x => ({ ...x, get: null, get_lo: 20, get_hi: 10 })), new RegExp(`photo ${ph0.frame}'s bracket runs backwards$`), va8],
+      'a photo event whose text field is not text': [phEdit(x => ({ ...x, where: 5 })), new RegExp(`photo ${ph0.frame}'s where is not text$`), va8] };
+    for (const [what, [p, re, reel = va]] of Object.entries(PAGE_BAD)) {
+      try { await RP.readReel(craft('page', reel.b64, JSON.stringify(p)), sha, reel.id); lw.push(`${what}: not refused`); }
       catch (err) { if (!re.test(String(err.message))) lw.push(`${what}: refused as "${err.message}"`); }
     }
+    // A frame on two reels (#75: Fusion keys a photograph by its frame) is refused when the page gathers the reels.
+    try { RP.reelPages([{ ...A11, page: { ...A11.page, photos: [...A11.page.photos, { ...ph0, sit: 1 }] } }, A8]); lw.push('a photo frame on two reels: not refused'); }
+    catch (err) { if (!new RegExp(`photo ${ph0.frame} is on reel apollo11-asflown too$`).test(err.message)) lw.push(`a photo frame on two reels: refused as "${err.message}"`); }
+    // A photo event may be a quick view (#75): the reader takes a key naming one, and so does the packer.
+    try { await RP.readReel(craft('page', va8.b64, JSON.stringify({ ...pg8, quickviews: { 1: 'APOLLO 8 EARTHRISE', 2: ph0.frame } })), sha, va8.id); }
+    catch (err) { lw.push(`a quick view naming a photo event: refused as "${err.message}"`); }
     const tmpq = fs.mkdtempSync(path.join(R, 'build/qv-fault-'));
+    fs.writeFileSync(path.join(tmpq, 'quickviews.txt'), `1 APOLLO 8 EARTHRISE\n2 ${ph0.frame}\n`);
+    try { execFileSync('python3', ['-c', `import json, pathlib, sys; sys.path.insert(0, "tools"); import pack
+page = json.loads(open("build/reels/apollo8-asflown/page.json").read())
+q = pack.quickviews("apollo8-asflown", pathlib.Path(sys.argv[1]), pack.listing("apollo8-asflown", page))
+assert q == {"1": "APOLLO 8 EARTHRISE", "2": sys.argv[2]}, q`, tmpq, ph0.frame], { cwd: R, stdio: 'pipe' }); }
+    catch (err) { lw.push(`tools/pack.py refuses a quick view naming a photo event: ${String(err.stderr).trim()}`); }
+    // The packer's photo events (tools/photos.py events) refuse what the reader refuses: a row whose situation the
+    // reel does not hold, whose photograph is not in its media/, a frame twice, a row without its credit, a fit not
+    // given whole, a row naming no scenario reel.
+    const row = tsv.find(x => x.frame === ph0.frame), head = Object.keys(row);
+    const tsvOf = rows => [head.join('\t'), ...rows.map(x => head.map(k => x[k]).join('\t'))].join('\n') + '\n';
+    const PHOTO_PY = {
+      'a photo row naming a situation the reel does not hold': [[{ ...row, sit: '99' }], /apollo8-asflown has no situation 99/],
+      'a photo row whose photograph is missing': [[{ ...row, frame: 'AS08-99-0001' }], /no media\/as08-99-0001\.jpg in apollo8-asflown's source folder/],
+      'a photo row given twice': [[row, row], /AS08-14-2383: given twice/],
+      'a photo row without its credit': [[{ ...row, credit: '' }], /no credit or https source URL/],
+      'a photo row with half a fit': [[{ ...row, fit_scale: '' }], /a fit gives cam_yaw, .*, not all of/],
+      'a photo row naming no scenario reel': [[{ ...row, reel: 'demo' }], /reel 'demo' is no scenario reel/],
+      'a photo frame on two reels': [[row, { ...row, reel: 'apollo11-asflown' }], /AS08-14-2383: given twice/],
+      'a photo row whose bracket runs backwards': [[{ ...row, get: '', get_lo: '20', get_hi: '10' }], /its bracket runs backwards/] };
+    for (const [what, [rows, re]] of Object.entries(PHOTO_PY)) {
+      let msg = '';
+      try { execFileSync('python3', ['-c', `import json, sys; sys.path.insert(0, "tools"); import notebook, photos, pack
+page = json.loads(open("build/page/apollo8-asflown.json").read())
+src = [s for r, k, s, u in notebook.reels() if r == "apollo8-asflown"][0]
+photos.events("apollo8-asflown", {s["id"] for s in page["situations"]}, notebook.reel_media(src), {"apollo11-asflown", "apollo8-asflown"}, sys.stdin.read())`], { cwd: R, stdio: 'pipe', input: tsvOf(rows) }); }
+      catch (err) { msg = String(err.stderr); }
+      if (!re.test(msg)) lw.push(`tools/photos.py with ${what}: ${msg ? `refused as "${msg.trim()}"` : 'not refused'}`);
+    }
     const PY_BAD = {
       'quickviews.txt naming no entry': ['1 EARTHRISE\n2 NO SUCH VIEW\n', /'NO SUCH VIEW' is no entry of apollo11-asflown's listing/],
       'quickviews.txt giving a key twice': ['1 EARTHRISE\n1 MOON VIEW\n', /key 1 given twice/] };
@@ -787,8 +1087,8 @@ pack.quickviews("apollo11-asflown", pathlib.Path(sys.argv[1]), pack.listing("apo
     }
     fs.rmSync(tmpq, { recursive: true, force: true });
     if (!nbRefs.length) lw.push('no notebook figure is a golden case\'s render');
-    console.log(`listing: ${[A11, A8].map(r => `${r.manifest.id} ${r.page.listing.length} entries, quick views ${Object.keys(r.page.quickviews).join('')}`).join('; ')}; ` +
-      `${nbRefs.length} figures golden cases' renders; ${Object.keys(PAGE_BAD).length + Object.keys(PY_BAD).length + Object.keys(NB_GOLD).length} planted faults` +
+    console.log(`listing: ${[A11, A8].map(r => `${r.manifest.id} ${r.page.listing.length} entries (${r.page.photos.length} photo events), quick views ${Object.keys(r.page.quickviews).join('')}`).join('; ')}; ` +
+      `${nbRefs.length} figures golden cases' renders; ${Object.keys(PAGE_BAD).length + Object.keys(PY_BAD).length + Object.keys(NB_GOLD).length + Object.keys(PHOTO_PY).length + 1} planted faults, a photo event as a quick view` +
       `  ${lw.length ? 'WRONG: ' + lw.join('; ') : 'the reels\' own, each fault refused'}`);
     if (lw.length) ok = false;
   }
@@ -803,7 +1103,7 @@ pack.quickviews("apollo11-asflown", pathlib.Path(sys.argv[1]), pack.listing("apo
   if (pageSha !== sha || reels.some(r => r.manifest.kernel.sha256 !== pageSha))
     wrong.push(`the page's KERNEL_SHA ${pageSha} is not the wasm's ${sha.slice(0, 8)} or a manifest's`);
   console.log(`packages: ${reels.length} reels (${reels.map(r => `${r.manifest.id} ${r.manifest.kind}`).join(', ')}), ${ndecks} decks; ` +
-    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, ${13 + nSvgBad} notebook faults (${nSvgBad} unsafe figures), the figure allowlist over ${nSvgOk} figures and golden renders, a stale render` +
+    `hash totals ${sumsR.join(', ')}; notebooks ${nbooks.join(', ') || 'none'}, ${nfig} figures, ${nmedia} photographs, ${13 + nSvgBad + nMediaBad} notebook faults (${nSvgBad} unsafe figures, ${nMediaBad} findings, attachments and photographs, parity cases among them), ${nSvgSlow} hostile figures timed, the figure allowlist over ${nSvgOk} figures and golden renders, a stale render` +
     `  ${wrong.length ? 'WRONG: ' + wrong.join('; ') : 'members equal data/ and build/figures/, packed twice the same, refusals hold'}`);
   if (wrong.length) ok = false;
 }
@@ -838,11 +1138,16 @@ if (W.sim_run) {
 // links and the one real figure.
 {
   const wrong = [];
-  const NB = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/notebook.js'), 'utf8') +
+  // notebook.js reads its finding and attach blocks with reelpkg.js's reelSlip, as in the page, where both share one
+  // closure.
+  const NB = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/reelpkg.js'), 'utf8') + '\n' + fs.readFileSync(path.join(R, 'web/src/notebook.js'), 'utf8') +
     '\n({ nbParse, nbBuild, nbTitle, NB_TAGS })', vm.createContext({ URL, Set, String }));
   const RF = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/reelpkg.js'), 'utf8') + '\nreelFigureRefs',
     vm.createContext({ atob, TextDecoder, Blob, Response, DecompressionStream, Uint8Array, JSON, Error, Map, Number, String, parseInt, Math }));
   const ATTRS = new Set(['href', 'target', 'rel', 'src', 'alt', 'class']);
+  // The classes the builder may give: its own words, an attachment's style and finish among them.
+  const CLASSES = new Set(['nbfig', 'nbmedia', 'nbcases', 'nbfinding', 'nbslip', 'nbcite', 'nbattach', 'nbprint', 'nbcredit', 'nbtape', 'nbclip',
+    'tl', 'tr', 'bl', 'br', ...['plate', 'clip', 'tape', 'insert', 'photo', 'film', 'copy'].map(w => `nb-${w}`)]);
   const fakeDoc = () => {
     const el = tag => {
       const e = { tag, attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = String(v); }, appendChild(k) { this.kids.push(k); return k; } };
@@ -853,28 +1158,41 @@ if (W.sim_run) {
       createTextNode: text => ({ text }), createDocumentFragment: () => el('#frag') };
   };
   const walk = (n, f) => { f(n); for (const k of n.kids || []) walk(k, f); };
-  // Build `md` with figures `names`; returns the elements, the text and the problems found.
-  const built = (md, names) => {
+  // Build `md` with figures `names` and photographs `pics`; returns the elements, the text and the problems found.
+  const built = (md, names, pics = []) => {
     const els = [], texts = [], bad = [];
-    const root = NB.nbBuild(NB.nbParse(md), fakeDoc(), n => names.includes(n) ? `data:image/svg+xml;base64,${n}` : null);
+    const root = NB.nbBuild(NB.nbParse(md), fakeDoc(), n => names.includes(n) ? `data:image/svg+xml;base64,${n}` : null,
+      f => pics.includes(f) ? `data:image/${f.endsWith('.png') ? 'png' : 'jpeg'};base64,${f}` : null);
     walk(root, n => {
       if (n.text !== undefined) { texts.push(n.text); return; }
       els.push(n);
       for (const [k, v] of Object.entries(n.attrs)) {
         if (!ATTRS.has(k)) bad.push(`attribute ${k}`);
         if (k === 'href' && !/^https?:\/\/[^/]/.test(v)) bad.push(`href ${v}`);
-        if (k === 'src' && !/^data:image\/svg\+xml;base64,[a-z0-9-]+$/.test(v)) bad.push(`src ${v}`);
+        if (k === 'src' && !(n.attrs.class === 'nbfig' ? /^data:image\/svg\+xml;base64,[a-z0-9-]+$/ : /^data:image\/(jpeg|png);base64,[a-z0-9-]+\.(jpg|png)$/).test(v)) bad.push(`src ${v}`);
+        if (k === 'class' && v.split(' ').some(c => !CLASSES.has(c))) bad.push(`class ${v}`);
         if (/javascript:|vbscript:/i.test(v) || (k !== 'src' && /data:/i.test(v))) bad.push(`${k} ${v}`);
       }
       if (n.tag === 'a' && /^https?:/.test(n.attrs.href) && (n.attrs.target !== '_blank' || !/noopener/.test(n.attrs.rel || ''))) bad.push(`a link without target/rel: ${n.attrs.href}`);
     });
     return { els, text: texts.join(''), bad };
   };
-  let nb = 0, nimg = 0;
+  let nb = 0, nimg = 0, nphoto = 0, nslip = 0;
+  const RS = vm.runInContext(fs.readFileSync(path.join(R, 'web/src/reelpkg.js'), 'utf8') + '\nreelSlips', vm.createContext({}));
   for (const r of reels.filter(r => r.notebook)) {
     nb++;
-    const id = r.manifest.id, names = [...r.notebook.figures.keys()], b = built(r.notebook.text, names);
-    const imgs = b.els.filter(e => e.tag === 'img').map(e => e.attrs.src.slice(26));
+    const pics = [...new Set(RS(r.notebook.text).filter(([k, f]) => k === 'attach' && f.source.startsWith('media/')).map(([, f]) => f.source.slice(6)))];
+    const id = r.manifest.id, names = [...r.notebook.figures.keys()], b = built(r.notebook.text, names, pics);
+    const imgs = b.els.filter(e => e.tag === 'img' && e.attrs.class === 'nbfig').map(e => e.attrs.src.slice(26));
+    const photos = b.els.filter(e => e.tag === 'img' && e.attrs.class === 'nbmedia').map(e => e.attrs.src.replace(/^.*base64,/, ''));
+    nphoto += photos.length;
+    if ([...new Set(photos)].sort().join() !== [...pics].sort().join()) wrong.push(`${id}: photographs ${photos}, not ${pics}`);
+    // Each finding and attach block of the text is built: a slip per finding, a print per attach.
+    const kinds = RS(r.notebook.text).map(([k]) => k);
+    if (b.els.filter(e => e.tag === 'aside' && e.attrs.class === 'nbfinding').length !== kinds.filter(k => k === 'finding').length ||
+        b.els.filter(e => e.tag === 'figure' && /^nbattach /.test(e.attrs.class || '')).length !== kinds.filter(k => k === 'attach').length)
+      wrong.push(`${id}: its ${kinds.length} finding and attach blocks are not all built`);
+    nslip += kinds.length;
     nimg += imgs.length;
     if (imgs.join() !== RF(r.notebook.text).join()) wrong.push(`${id}: figures ${imgs}, not ${RF(r.notebook.text)}`);
     if (b.bad.length) wrong.push(`${id}: ${b.bad.join(', ')}`);
@@ -892,20 +1210,31 @@ if (W.sim_run) {
     '[title](javascript:alert(1) "t") [frag](#libr) [hs](https:evil.example) [titled](https://ok.example/p?q=1 "a title")', '',
     '![i](javascript:alert(1)) ![j](figures/../x.svg) ![k](figures/real.svg) ![l](https://x.example/a.svg)', '',
     '> <svg onload=alert(1)>', '', '- <iframe src=x></iframe>', '', '| a | <script> |', '|---|---|', '| [x](javascript:y) | `<b>` |',
-    '', '```html', '<script>alert(2)</script>', '```', '', '```figures', '# name | args', 'real | 1', '```',
+    '', '```html', '<script>alert(2)</script>', '```', '',
+    '```finding', 'date: 2026-10-08', 'cite: <script>alert(3)</script> [c](javascript:alert(1))', '', '<img src=x onerror=alert(4)> [ok](https://ok.example/p?q=1)', '```', '',
+    '```attach', 'source: media/evil.jpg', 'style: clip', 'finish: copy', 'credit: <b onclick="x()">NASA</b>', 'cite: <iframe src=x></iframe>', '',
+    '<script>alert(5)</script> caption', '```', '',
+    '```attach', 'source: figures/real.svg', 'style: clip" onmouseover="x', 'finish: photo', '', '<script>alert(6)</script>', '```', '',
+    '```figures', '# name | args', 'real | 1', '```',
   ].join('\n');
-  const e = built(EVIL, ['real']);
+  const e = built(EVIL, ['real'], ['evil.jpg']);
   const tags = [...new Set(e.els.map(x => x.tag))].filter(t => t !== '#frag').sort();
   const links = e.els.filter(x => x.tag === 'a').map(x => x.attrs.href), imgs = e.els.filter(x => x.tag === 'img').map(x => x.attrs.src);
   if (e.bad.length) wrong.push(`crafted: ${e.bad.join(', ')}`);
-  if (links.join() !== 'https://ok.example/p?q=1,https://ok.example/p?q=1') wrong.push(`crafted: links ${links}`);
-  if (imgs.join() !== 'data:image/svg+xml;base64,real') wrong.push(`crafted: images ${imgs}`);
+  if (links.join() !== 'https://ok.example/p?q=1,https://ok.example/p?q=1,https://ok.example/p?q=1') wrong.push(`crafted: links ${links}`);
+  if (imgs.join() !== 'data:image/svg+xml;base64,real,data:image/jpeg;base64,evil.jpg') wrong.push(`crafted: images ${imgs}`);
+  // The crafted finding and photograph are built as a slip and a print, their header and text as text only; the attach
+  // with a style outside the list is shown as its lines.
+  if (e.els.filter(x => x.tag === 'aside').length !== 1 || e.els.filter(x => x.tag === 'figure' && /^nbattach nb-clip nb-copy$/.test(x.attrs.class || '')).length !== 1)
+    wrong.push('crafted: the finding and the attach are not one slip and one clip of a copy');
   // Hostile shapes, each parsed within a time bound and without throwing: a deep quote nest, unmatched emphasis, image
   // openers, a heading trailed by spaces (nbTitle too), a deep list; and a text over NB_MAX is refused, not parsed.
   const HOSTILE = { 'a 20 KB quote nest': '> '.repeat(10000) + 'x', 'unmatched emphasis, 120 KB': '*a '.repeat(40000),
     'image openers, 80 KB': '!['.repeat(40000), 'image openers and one "]"': '!['.repeat(40000) + '](x)', 'a heading and 20 K spaces': '# h' + ' '.repeat(20000) + 'x',
     'a deep list': Array.from({ length: 400 }, (_, k) => ' '.repeat(2 * k) + '- x').join('\n'),
-    'backticks, 80 KB': '`a'.repeat(40000), 'link openers, 80 KB': '[a]('.repeat(16000) };
+    'backticks, 80 KB': '`a'.repeat(40000), 'link openers, 80 KB': '[a]('.repeat(16000),
+    'a finding header of 200 K spaces': '```finding\ndate:' + ' '.repeat(200000) + 'x\ncite: c\n\nt\n```',
+    'a finding of 40 K lines, unmatched emphasis': '```finding\ndate: 2026-10-08\ncite: c\n\n' + 'a *b\n'.repeat(40000) + '```' };
   let slow = 0;
   for (const [what, t] of Object.entries(HOSTILE)) {
     const t0 = performance.now();
@@ -914,13 +1243,14 @@ if (W.sim_run) {
     if (ms > 400) wrong.push(`${what}: ${ms.toFixed(0)} ms`);
   }
   try { NB.nbParse('x'.repeat(300000)); wrong.push('a 300 KB text: not refused'); } catch (err) { if (!/more than/.test(err.message)) wrong.push(`a 300 KB text: ${err.message}`); }
-  if (!['<script>alert(1)</script>', 'onerror=alert(1)', '<svg onload=alert(1)>', '<iframe src=x></iframe>', '<script>alert(2)</script>'].every(t => e.text.includes(t)))
+  if (!['<script>alert(1)</script>', 'onerror=alert(1)', '<svg onload=alert(1)>', '<iframe src=x></iframe>', '<script>alert(2)</script>', '<script>alert(3)</script>',
+    'onerror=alert(4)', '<b onclick="x()">NASA</b>', '<script>alert(5)</script>', 'style: clip" onmouseover="x', '<script>alert(6)</script>'].every(t => e.text.includes(t)))
     wrong.push('crafted: the tags are not kept as text');
   if (tags.some(t => !NB.NB_TAGS.has(t))) wrong.push(`crafted: elements ${tags}`);
-  console.log(`notebook: ${nb} notebooks rendered, ${nimg} figures as <img> from figure URLs; a crafted text (script, img onerror, ` +
-    `javascript:/vbscript:/data:/entity/spaced/protocol-relative/angle/titled/#fragment/relative links and images, raw HTML in a quote, list, table and fence); ` +
+  console.log(`notebook: ${nb} notebooks rendered, ${nimg} figures and ${nphoto} photographs as <img> from data: URLs, ${nslip} findings and attachments; a crafted text (script, img onerror, ` +
+    `javascript:/vbscript:/data:/entity/spaced/protocol-relative/angle/titled/#fragment/relative links and images, raw HTML in a quote, list, table, fence, finding and attach); ` +
     `${Object.keys(HOSTILE).length} hostile shapes, slowest ${slow.toFixed(0)} ms, and an over-long text refused  ` +
-    `${wrong.length ? 'WRONG: ' + wrong.join('; ') : `inert: elements ${tags.join(' ')}, https links only, one figure`}`);
+    `${wrong.length ? 'WRONG: ' + wrong.join('; ') : `inert: elements ${tags.join(' ')}, https links only, one figure, one photograph`}`);
   if (wrong.length) ok = false;
 }
 // The cabins' hidden-line tables (#71; src/viewcom.inc /COCC/): the opaque triangles and each cabin's cut pieces
@@ -935,4 +1265,16 @@ if (fs.existsSync(VSVG)) {
     `  ${full ? `FULL (refused: ${nocx} triangles, ${cmx} CM and ${lmx} LM pieces)` : 'room left, none refused'}`);
   if (full) ok = false;
 } else console.log('cabin tables: no native driver (build/viewsvg)');
+// The spacecraft model table (src/viewcom.inc /CMOD/, /CLM/; #70 option B): models, solids and free lines against
+// their maxima, and the builders' refusals (NMODX, NSOLX, NXLX), from the native driver (VIEW_MODT, tools/vdump.f
+// VMODT).  A refused solid or line is a piece of a vehicle silently missing, so any refusal, or a table at its maximum, fails.
+if (fs.existsSync(VSVG)) {
+  const [nmod, mmod, nmodx, nsol, msol, nsolx, nxl, mxl, nxlx] = execFileSync(VSVG, ['1'], { cwd: R,
+    env: Object.fromEntries(Object.entries({ ...process.env, VIEW_MODT: '1' }).filter(([k]) => !['VIEW_DECK', 'VIEW_REEL'].includes(k))) })
+    .toString().trim().split(/\s+/).map(Number);
+  const full = nmodx + nsolx + nxlx > 0 || nmod >= mmod || nsol >= msol || nxl >= mxl;
+  console.log(`model tables: ${nmod} of ${mmod} models, ${nsol} of ${msol} solids, ${nxl} of ${mxl} free lines` +
+    `  ${full ? `FULL (refused: ${nmodx} models, ${nsolx} solids, ${nxlx} lines)` : 'room left, none refused'}`);
+  if (full) ok = false;
+} else console.log('model tables: no native driver (build/viewsvg)');
 console.log(ok ? 'PASS' : 'FAIL'); process.exit(ok ? 0 : 1);

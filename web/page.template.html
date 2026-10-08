@@ -16,8 +16,6 @@
 <meta name="twitter:title" content="VIEW-1108">
 <meta name="twitter:description" content="A reconstruction of the UNIVAC 1108 FORTRAN program that drew Apollo window views onto microfilm, running live in the browser.">
 <meta name="twitter:image" content="https://aaronsb.github.io/view1108/og-earthrise.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=IBM+Plex+Sans+Condensed:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="src/page.css">
 </head>
 <body>
@@ -30,8 +28,8 @@
   <button role="tab" data-tab="fusion" title="Crew photographs over the vector frame">Fusion</button>
   <button role="tab" data-tab="source" title="The kernel's FORTRAN">Source</button>
   <span class="sp"></span>
-  <!-- Room or Tiled (web/src/room.js): shown only when the page carries the lab and the screen is wide. -->
-  <button id="bspace" hidden>Room</button><button id="btiled" hidden title="The plain page">Tiled</button>
+  <!-- Room or Tabbed (web/src/room.js): shown only when the page carries the lab and the screen is wide. -->
+  <button id="bspace" hidden>Room</button><button id="btiled" hidden title="The plain page">Tabbed</button>
   <button id="bsound" title="M: machine-room sound (ours, synthesized)">Sound off</button>
   <button id="blink" title="L: copy a link to this view">Link</button>
 </nav>
@@ -70,8 +68,8 @@
     <button id="bfps" title="F">Film rate</button>
     <button id="bblm" title="B">Bloom</button>
   </div>
-  <div class="grp"><button id="bsvg" title="Download this frame as an SVG: the recorder's vectors, white on black">Print SVG</button><button id="bsvgp" title="The same, black on white paper">Paper SVG</button></div></section>
-  <!-- Fusion (web/src/fusion.js): a crew photograph over the plot at its moment (data/photos.tsv). -->
+  <div class="grp"><button id="bneg" title="Download this frame as an SVG negative: the recorder's vectors, white lines on black, as they went onto the film">Negative</button><button id="bpos" title="Download this frame as an SVG positive: black lines on white, for a printer">Positive</button><button id="bposc" title="Download the positive on a clear (transparent) background">Clear</button></div></section>
+  <!-- Fusion (web/src/fusion.js): a crew photograph over the plot at its moment (the mounted reel's photo events, #75). -->
   <section class="shade" data-shade="fusion" data-tabs="fusion" id="fusiongrp"><button class="shade-h" type="button">Fusion</button>
   <div id="flist" role="list" aria-label="Photographs"></div>
   <div id="fctl" hidden>
@@ -112,7 +110,10 @@
 </section>
   <section class="shade" data-shade="look" data-tabs="review simulate print fusion"><button class="shade-h" type="button">Look</button>
   <div class="grp">
-    <!-- Control pad (web/src/pad.js): the keyboard's look and time keys; the key letter is on each cap. -->
+    <!-- Control pad (web/src/pad.js): the keyboard's look and time keys; the key letter is on each cap. Over it one thin
+         toggle in two sections (#72): the key set, ARROWS or WASD, and the action, LOOK around or MOVE the eye. -->
+    <div id="padwrap">
+    <div id="padmode" role="group" aria-label="Pad mode"><button type="button" id="bkeys" title="The pad's keys: the arrows, or W A S D (which then stand in for the arrows; the W, S and D shortcuts wait until ARROWS)" aria-pressed="false">ARROWS</button><button type="button" id="bmove" title="V: LOOK around, or MOVE the eye (in a crew station, inside the cabin; outside, the point flown round)" aria-pressed="false">LOOK</button></div>
     <div id="pad" role="group" aria-label="Control pad">
       <button type="button" data-act="rollL" title="Roll left (Q)" aria-label="Roll left">Q<small>ROLL</small></button>
       <button type="button" data-act="up" title="Pitch up (Up arrow)" aria-label="Pitch up">&uarr;</button>
@@ -127,6 +128,7 @@
       <button type="button" data-act="pause" id="ppause" title="Pause or play (Space)" aria-label="Pause or play">SPC<small>PAUSE</small></button>
       <button type="button" data-act="faster" title="Faster (])" aria-label="Faster">]<small>FASTER</small></button>
     </div>
+    </div>
   </div>
   <div class="grp" id="viewgrp" hidden><span class="lbl">View</span><button title="Out of the scene's window">Window</button><button title="From outside, orbiting the target: drag to go round it">External</button><button title="From the CM crew station">CM</button><button title="From the LM crew station">LM</button><button id="bcab" class="on" title="I: the cabin interior around the CM or LM station (a modern addition)" hidden>Cabin</button><button id="bwal" class="on" title="W: the cabin's walls hide the outside, seen only through the windows (a modern addition)" hidden>Walls</button></div>
   <div class="grp" id="targrp" hidden><span class="lbl">Target</span><button title="The scene's own">Default</button><button>Earth</button><button>Moon</button><button>Sun</button><button>CSM</button><button>LM</button><button>S-IVB</button></div></section>
@@ -140,7 +142,7 @@
   <div class="grp"><span class="lbl">Screen</span><button data-disp="auto" title="S: the 1558 scope where the page was reached through the room (not in Attract or Print), else film">Auto</button><button data-disp="film" title="S: the microfilm recorder, with its film effects">Film</button><button data-disp="scope" title="S: the room's UNIVAC 1558 vector console: no film effects">Scope</button></div>
   <div class="grp"><span class="lbl">Refresh</span><button data-hz="16" title="H: the scope redraws the picture every 1/16 s on a fading phosphor">16 Hz</button><button data-hz="steady" title="H: a steady, modern vector picture">Steady</button></div></section>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. <span id="hintscenes"></span>: quick views (the numbered entries of the event list). J: film jitter. D: dust. F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. S: screen (film or scope). H: scope refresh. I: cabin. W: cabin walls. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. <span id="hintscenes"></span>: quick views (the numbered entries of the event list). J: film jitter. <span class="wasdk">D: dust.</span> F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. <span class="wasdk">S: screen (film or scope).</span> H: scope refresh. I: cabin. <span class="wasdk">W: cabin walls.</span> V: look around or move the eye. Look pad: the same keys, for touch; under WASD, W A S D are its arrows and the shortcuts greyed here wait. Any input leaves Attract or Tour.</div>
 <div id="about"><p>A reconstruction of VIEW, the Manned Spacecraft Center program that drew Apollo window views on a UNIVAC 1108 (FORTRAN V, output photographed from a CRT onto microfilm: NASA TN D-6853, p. 3). We know of no surviving source code; the geometry here is our own FORTRAN and this page only films it.</p>G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197. Code MIT; data, fonts and three.js under their own licences: <a href="https://github.com/aaronsb/view1108/blob/main/THIRD_PARTY.md" target="_blank" rel="noopener">THIRD_PARTY.md</a>.</div>
 </div>
 </div>
@@ -151,12 +153,14 @@
 <div id="list"><h2><span>VIEW KERNEL - our reconstruction; we know of no surviving source code</span><span class="btns"><button id="bfresh" title="Clear the paper and print the listing again, line by line (any click, Esc or scroll skips to the end)">Print fresh copy</button><button id="bpspeed" title="Print speed: REAL, 1,200 lines a minute (UP-4046 sec. 8.5), or FAST, ten times that">Real</button><button id="bpdf" title="The listing as a PDF of 14 7/8 x 11 in greenbar pages">Download PDF</button><button id="blist">Light</button><button id="blroom" hidden title="Return to the room (Esc)">← Room</button><button id="bclose">Close</button></span></h2><pre id="lst"></pre><div id="paper"></div></div>
 <!-- The reference library (web/src/library.js): the list of web/library/'s documents and the reels' scenario notebooks,
      the browser's PDF viewer for a document and the notebook viewer (web/src/notebook.js) for a notebook. -->
-<div id="libr" role="dialog" aria-label="Reference library"><h2><span>REFERENCE LIBRARY</span><span class="btns"><button id="blibload" hidden title="Mount this notebook's reel">Load this reel</button><button id="bliblist" hidden title="Back to the list">List</button><a id="libnew" class="libbtn" target="_blank" rel="noopener">Open in new tab</a><a id="libsrc" class="libbtn" target="_blank" rel="noopener">Source</a><button id="blibroom" hidden title="Return to the room (Esc)">← Room</button><button id="blibclose">Close</button></span></h2>
+<div id="libr" role="dialog" aria-label="Reference library"><h2><span>REFERENCE LIBRARY</span><span class="btns"><button id="blibload" hidden title="Mount this notebook's reel">Load this reel</button><button id="bliblist" hidden title="Back to the list">List</button><button id="blibtheme" hidden title="The notebook as typed pages in a binder (Light) or as the page's greens on black (Dark); remembered">Dark</button><a id="libnew" class="libbtn" target="_blank" rel="noopener">Open in new tab</a><a id="libsrc" class="libbtn" target="_blank" rel="noopener">Source</a><button id="blibroom" hidden title="Return to the room (Esc)">← Room</button><button id="blibclose">Close</button></span></h2>
 <div id="libbody"><ul id="liblist"></ul><div id="libview"><div id="libtitle"></div><iframe id="libframe" title="The document"></iframe><article id="libmd" hidden aria-label="Scenario notebook"></article><p id="libnote" hidden></p></div></div></div>
 <!-- A modal question (web/src/ask.js): the room's reel and notebook modals. -->
 <div id="ask" role="dialog" aria-modal="true" aria-labelledby="asktitle" hidden><div id="askbox"><h2 id="asktitle"></h2><div id="askbtns"></div></div></div>
+<!-- The tape file browser (web/src/tapes.js; #74): the mounted reel's package members, opened from the operator console. -->
+<div id="tapes" role="dialog" aria-modal="true" aria-label="Tape file browser" hidden><h2><span id="tapestitle">TAPE FILE BROWSER</span><span class="btns"><button id="btapesclose" title="Back to the console (Esc)">← Console</button></span></h2>
+<div id="tapesbody"><ul id="tapeslist" aria-label="Package members"></ul><div id="tapesview"><div id="tapesname"></div><div id="tapescontent" tabindex="0"></div></div></div></div>
 <pre id="fsrc" hidden>__FORTRAN_SRC__</pre>
-<script type="application/json" id="photos">__PHOTOS_JSON__</script>
 <script type="application/json" id="flib">__LIBRARY_JSON__</script>
 <script>var __FALLBACK_JS__, __NAMES_JS__, __REELS_JS__, __LAB_JS__;</script>
 <script>__NAMES_JS__</script>
@@ -165,6 +169,7 @@
 <script>__LAB_JS__</script>
 <!-- Page modules, in this order. tools/assemble.py inlines the stylesheet and joins the scripts into one
      strict-mode closure; served as is (?mock) they load as separate scripts. -->
+<script src="src/urlkeys.js"></script>
 <script src="src/config.js"></script>
 <script src="src/reelpkg.js"></script>
 <script src="src/kernel.js"></script>
@@ -187,6 +192,7 @@
 <script src="src/listing.js"></script>
 <script src="src/printout.js"></script>
 <script src="src/notebook.js"></script>
+<script src="src/binder.js"></script>
 <script src="src/library.js"></script>
 <script src="src/reels.js"></script>
 <script src="src/link.js"></script>
@@ -200,6 +206,7 @@
 <script src="src/fusion.js"></script>
 <script src="src/esc.js"></script>
 <script src="src/ask.js"></script>
+<script src="src/tapes.js"></script>
 <script src="src/room.js"></script>
 <script src="src/main.js"></script>
 </body>

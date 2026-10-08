@@ -4,6 +4,8 @@
 // with its new action. Nothing on the stack touches the loaded state (rule 2). Entries stack in the order things open, so
 // from top to bottom the order is:
 //   ask       a modal question (ask.js; the room's reel and notebook modals): Esc puts the tape or notebook back
+//   tapes     the tape file browser (tapes.js; #74), opened over the room from the operator console: Esc closes it, back
+//             to the console's seat
 //   printing  a fresh copy printing (printout.js): Esc finishes it at once
 //   library   the reference library (library.js): Esc closes it; opened from the bookcase, one of its binders or a
 //             mission notebook (room.js), back to the close-up it was opened at (the bookcase, or the rack)

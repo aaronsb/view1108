@@ -4,7 +4,7 @@
 // the last Sunday in October (the Uniform Time Act of 1966, 15 U.S.C. 260a).
 import * as THREE from "three";
 import type { BuildContext, Equipment, LabState } from "../types";
-import { Parts, at, canvasTex, chrome, laminate, own, paint, plastic, poseFrom, rng, sharedGeo } from "./kit";
+import { Parts, at, canvasTex, chrome, fontTex, laminate, own, paint, plastic, poseFrom, rng, sharedGeo } from "./kit";
 import { replayUTC } from "./console4009";
 
 const R = 10.5 / 2 * 0.0254, T = 0.022;
@@ -59,10 +59,10 @@ export function build(_ctx: BuildContext): Equipment {
   object.add(reels); mine.push(reels);
 
   // Clock face and hands.
-  const faceTex = canvasTex(256, 256, (g, w) => {
+  const faceTex = fontTex(256, 256, (g, w) => {
     const cc = w / 2;
     g.fillStyle = "#f6f4ec"; g.fillRect(0, 0, w, w);
-    g.fillStyle = "#1a1a1a"; g.font = "bold 30px Helvetica, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = "#1a1a1a"; g.font = 'bold 30px "VIEW Sans", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
     for (let h = 1; h <= 12; h++) { const a = h / 12 * Math.PI * 2; g.fillText(String(h), cc + Math.sin(a) * 96, cc - Math.cos(a) * 96); }
     for (let m = 0; m < 60; m++) { const a = m / 60 * Math.PI * 2, l = m % 5 ? 6 : 12; g.fillRect(cc + Math.sin(a) * (122 - l) - 1, cc - Math.cos(a) * (122 - l) - 1, 2, 2); }
   });

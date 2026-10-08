@@ -23,8 +23,8 @@
 #                              rows, burn cues, situations, the scenarios' epoch, site and pad), each
 #                              double as its bit pattern in hex, so a changed value shows as data and
 #                              not only through a render.  The page's SPAN tables are in page/.
-#   render/*.txt               build/viewsvg's SVG on stdout and hdr(1..24) on stderr (VIEW_HDR) for
-#                              every case in CASES, its reel's decks loaded the same way (VIEW_REEL)
+#   render/*.txt               build/viewsvg's SVG on stdout, then hdr(1..24) on stderr (VIEW_HDR), the two
+#                              captured apart and joined in that order (#122), for every case in CASES, its reel's decks loaded the same way (VIEW_REEL)
 #   render/nb-<reel>-<name>.txt  each scenario notebook figure (#29): the case of that name in the
 #                              figures block of reel <reel>'s notebook.md, rendered once by
 #                              tools/notebook.py into build/figures/<reel>/<name>.svg and .hdr, the
@@ -59,8 +59,8 @@ MASK='^[Cc].*(data/|tools/|\.scn|\.py|BURN_CUES)'
 
 # One render per line: NAME | environment | scenario reel | viewsvg arguments (situation GET yaw
 # pitch roll fov flags; the situation by its id in the reel).  Environment: VIEW_VIEW, VIEW_TARGET,
-# VIEW_LABLV (in_view, in_target, in_lablv) and VIEW_SIM (run the engine first; flags +8 draw from
-# the tape).  GETs are g.e.t. s of the reel's scenario.  The names keep the scene numbers of one
+# VIEW_LABLV (in_view, in_target, in_lablv), VIEW_EYE (in_eyeo, the moved eye: x,y,z; #72) and
+# VIEW_SIM (run the engine first; flags +8 draw from the tape).  GETs are g.e.t. s of the reel's scenario.  The names keep the scene numbers of one
 # numbering for all reels (before #26 slice 7e: s9 is Apollo 8's situation 1), so a capture
 # compares file for file across that change.
 CASES=$(cat <<'EOF'
@@ -73,6 +73,7 @@ s6-default        |                              | apollo11-asflown | 6
 s7-default        |                              | apollo11-asflown | 7
 s8-default        |                              | apollo11-asflown | 8
 s9-default        |                              | apollo8-asflown  | 1
+s9-launch-pad     |                              | apollo11-asflown | 9
 s1-367500         |                              | apollo11-asflown | 1 367500
 s1-369000         |                              | apollo11-asflown | 1 369000
 s2-600000         |                              | apollo11-asflown | 2 600000
@@ -98,6 +99,10 @@ s8-200000         |                              | apollo11-asflown | 8 200000
 s9-250000         |                              | apollo8-asflown  | 1 250000
 s9-290000         |                              | apollo8-asflown  | 1 290000
 s9-300000         |                              | apollo8-asflown  | 1 300000
+s9-tec-120h       |                              | apollo8-asflown  | 1 432000
+s9-tec-120h-fov50 |                              | apollo8-asflown  | 1 432000 0 0 0 50
+s9-tec-100h       |                              | apollo8-asflown  | 1 360000
+s9-tec-140h       |                              | apollo8-asflown  | 1 504000
 s9-10300          |                              | apollo8-asflown  | 1 10300
 s9-look           |                              | apollo8-asflown  | 1 - 20 -5 10 30
 s9-fov            |                              | apollo8-asflown  | 1 272000 0 0 0 60
@@ -179,6 +184,19 @@ s2-cm-sep         | VIEW_VIEW=2                  | apollo11-asflown | 2 12100
 s3-lm-eject       | VIEW_VIEW=3                  | apollo11-asflown | 3 16000
 s8-lm-13000       | VIEW_VIEW=3                  | apollo11-asflown | 8 13000
 s8-cm-13000       | VIEW_VIEW=2                  | apollo11-asflown | 8 13000
+s3-presep-lm      | VIEW_VIEW=3                  | apollo11-asflown | 3 10800
+s3-presep-lm-mask | VIEW_VIEW=3 VIEW_LABLV=3     | apollo11-asflown | 3 10800 0 0 0 - 51
+s3-pad-lm         | VIEW_VIEW=3                  | apollo11-asflown | 3 -600
+s1-lm-doi         | VIEW_VIEW=3                  | apollo11-asflown | 1 366500
+s1-lm-descent     | VIEW_VIEW=3                  | apollo11-asflown | 1 369600 0 0 0 82.4
+s1-lm-landed      | VIEW_VIEW=3                  | apollo11-asflown | 1 400000 0 0 0 82.4
+s1-lm-ascent      | VIEW_VIEW=3 VIEW_LABLV=2     | apollo11-asflown | 1 450000
+s8-cm-eye-cabin   | VIEW_VIEW=2 VIEW_EYE=0.3,0.25,0.1 | apollo11-asflown | 8 - 0 0 0 100 19
+s8-cm-eye-wall-mask | VIEW_VIEW=2 VIEW_EYE=0,-2,0 VIEW_LABLV=3 | apollo11-asflown | 8 - 0 0 0 100 51
+s8-lm-eye-cabin   | VIEW_VIEW=3 VIEW_EYE=0.1,0.3,0.05 | apollo11-asflown | 8 - 0 0 0 100 19
+s5-lm-eye-mask    | VIEW_VIEW=3 VIEW_EYE=0,0.4,0 VIEW_LABLV=3 | apollo11-asflown | 5 - 0 0 0 - 51
+s8-ext-eye        | VIEW_VIEW=1 VIEW_EYE=0.3,0,0.2 | apollo11-asflown | 8
+s1-eye-window     | VIEW_EYE=0.5,0.5,0.5         | apollo11-asflown | 1
 s7-ext            | VIEW_VIEW=1                  | apollo11-asflown | 7
 s7-ext-look       | VIEW_VIEW=1                  | apollo11-asflown | 7 - 20 -10 5 -
 s7-ext-lab3       | VIEW_VIEW=1 VIEW_LABLV=3     | apollo11-asflown | 7 12200
@@ -198,8 +216,36 @@ s3-eoi-ext-lm     | VIEW_VIEW=1 VIEW_TARGET=5    | apollo11-asflown | 3 709.33
 s3-eoi-ext-sivb   | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 709.33
 s3-eoi-tgt-lm     | VIEW_TARGET=5                | apollo11-asflown | 3 709.33
 s3-docked-ext-lm  | VIEW_VIEW=1 VIEW_TARGET=5    | apollo11-asflown | 3 14400
+s3-tli-ext-sivb   | VIEW_VIEW=1 VIEW_TARGET=6 VIEW_LABLV=2 | apollo11-asflown | 3 10000
+s3-presep-ext-csm | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 11824
+s3-postsep-ext-csm | VIEW_VIEW=1 VIEW_TARGET=4   | apollo11-asflown | 3 11825
+s3-pad-ext-csm    | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 -600
+s3-pad-ext-side   | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 -600 -120 25 0 110
+s3-pad-ext-wide   | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 -600 -120 -40 0 150
+s3-pad-ext-lm     | VIEW_VIEW=1 VIEW_TARGET=5 VIEW_LABLV=2 | apollo11-asflown | 3 -600
+s3-pad-window     |                              | apollo11-asflown | 3 -600
+s3-liftoff-ext    | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 0.7 -120 25 0 110
+s3-ascent-ext     | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 100 -120 25 0 110
+s3-ascent-pad-lab | VIEW_VIEW=1 VIEW_TARGET=4 VIEW_LABLV=2 | apollo11-asflown | 3 60 0 -60 0 120
+s3-ascent-sii-ext | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 200 -120 25 0 110
+s9-pad-ext-csm    | VIEW_VIEW=1 VIEW_TARGET=4    | apollo8-asflown  | 1 -600 0 0 0 70
+s3-ascent-10-ext  | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 10 -120 25 0 110
+s3-ascent-30-ext  | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 30 -120 25 0 110
 EOF
 )
+
+# AREA=a,b (make golden-check AREA=...; #119): check only the cases of those areas (tools/areas.tsv: what a name falls
+# under, plus the case's reel, apollo11 or apollo8), a slice for iteration, never the gate.  The tables and page.json
+# are always compared; the notebook figures with the area notebook or their reel; the tape round trip with tape and the
+# lift-off check with pad.  AREA=all or none: every case.  A case with no area is in no slice.
+SLICE=
+if [ "${1:-}" = check ] && [ -n "${AREA:-}" ] && [ "$AREA" != all ]; then
+  SLICE=$AREA
+  CASES=$(python3 tools/affected.py filter golden "$AREA" <<< "$CASES")
+  [ -n "$CASES" ] || { echo "golden: no case has the area $AREA (tools/areas.tsv)" >&2; exit 2; }
+  echo "golden: SLICE AREA=$AREA: $(wc -l <<< "$CASES") cases; a slice is for iteration, run it in full before a PR"
+fi
+slice_has() { [ -z "$SLICE" ] || [[ ",$SLICE," == *",$1,"* ]]; }
 
 # The tape round trip: NAME | VIEW_SIM | scenario reel | situation GET | the source the frame from the
 # read-back tape must report, hdr(17): 3 where the tape is drawn (after the scenario's START and before entry
@@ -221,9 +267,37 @@ s9-tape0          | 0 | apollo8-asflown  | 1 250000 | 3
 EOF
 )
 
+# The lift-off check (#97), run by capture and check, writes no file into the capture: in an External
+# view the drawn vehicle must rise from the pad, not slide off it.  NAME | scenario reel | situation
+# GET | the most the CSM's origin may stand off the pad's vertical axis (m) | the least height (m).
+# The ascent table's Hermite arc drifts about 54 m at 10 s and 215 m at 30 s (57 and 216 before
+# #105 put its low rows on the pad's geodetic footing); a slide from the pad (the 17.9 km
+# offset faded out by S-IC separation, as first drafted) was 1.1 and 3.3 km.
+PADCK=$(cat <<'EOF'
+pad-600           | apollo11-asflown | 3 -600 | 1    | 120
+pad-10            | apollo11-asflown | 3 10   | 100  | 150
+pad-30            | apollo11-asflown | 3 30   | 400  | 800
+EOF
+)
+
+padcheck() {
+  local name reel args maxr minh out r h bad=0
+  while IFS='|' read -r name reel args maxr minh; do
+    name=$(echo $name); reel=$(echo $reel); maxr=$(echo $maxr); minh=$(echo $minh)
+    out=$(env -u VIEW_DECK -u VIEW_HDR VIEW_REEL=$reel VIEW_VIEW=1 VIEW_TARGET=4 VIEW_PADCK=1 build/viewsvg $args)
+    read -r r h <<< "$out"
+    if ! awk -v r="$r" -v h="$h" -v a="$maxr" -v b="$minh" 'BEGIN { exit !(r >= 0 && r <= a && h >= b) }'; then
+      echo "golden: lift-off check $name: offset $r m (at most $maxr), height $h m (at least $minh)" >&2
+      bad=$((bad + 1))
+    fi
+  done <<< "$PADCK"
+  if [ $bad -ne 0 ]; then echo "golden: lift-off check FAIL" >&2; exit 1; fi
+  echo "golden: lift-off check PASS: the vehicle stands on the pad and rises from it"
+}
+
 roundtrip() {
   local tmp=build/tape-rt decks n=0 bad=0 name sim reel args want sc get src
-  local E="env -u VIEW_TIME -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP -u VIEW_DKSUM"
+  local E="env -u VIEW_TIME -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_EYE -u VIEW_DUMP -u VIEW_DKSUM"
   rm -rf "$tmp"; mkdir -p "$tmp"
   while IFS='|' read -r name sim reel args want; do
     name=$(echo $name); sim=$(echo $sim); reel=$(echo $reel); want=$(echo $want)
@@ -285,7 +359,7 @@ capture() {
   [ -f build/decks/reels.txt ] || { echo "golden: no build/decks/reels.txt (tools/gen_data.py writes it)" >&2; exit 1; }
   local reel
   for reel in $(cat build/decks/reels.txt); do
-    if ! env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_HDR \
+    if ! env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_EYE -u VIEW_HDR \
          -u VIEW_DECK -u VIEW_DKSUM VIEW_REEL=$reel VIEW_DUMP=1 build/viewsvg > "$out/tables-$reel.txt"; then
       echo "golden: the card reader refused the decks of build/decks/$reel.txt (the deck error is above)" >&2
       exit 1
@@ -300,9 +374,11 @@ capture() {
   while IFS='|' read -r name envs reel args; do
     name=$(echo $name); reel=$(echo $reel)
     # shellcheck disable=SC2086
-    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP \
+    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_EYE -u VIEW_DUMP \
       -u VIEW_DECK -u VIEW_DKSUM VIEW_HDR=1 VIEW_REEL=$reel $envs \
-      build/viewsvg $args > "$out/render/$name.txt" 2>&1
+      build/viewsvg $args > "$out/render/$name.svg.tmp" 2> "$out/render/$name.hdr.tmp"
+    cat "$out/render/$name.svg.tmp" "$out/render/$name.hdr.tmp" > "$out/render/$name.txt"
+    rm -f "$out/render/$name.svg.tmp" "$out/render/$name.hdr.tmp"
     n=$((n + 1))
   done <<< "$CASES"
   # The notebook figures, as tools/notebook.py rendered them (the one render tools/pack.py packs).
@@ -311,18 +387,19 @@ capture() {
     f=build/figures/$reel/$name
     cat "$f.svg" "$f.hdr" > "$out/render/nb-$reel-$name.txt"
     nf=$((nf + 1))
-  done < <(python3 tools/notebook.py list)
+  done < <(python3 tools/notebook.py list | { if [ -n "$SLICE" ]; then python3 tools/affected.py filter golden-nb "$SLICE"; else cat; fi; })
   # A figure that is a golden case's render (a notebook's `name | golden=<case>` row; #29 slice f) has no nb-*
   # capture: the case's own covers the frame.  What this adds: the figure the reel package carries
   # (build/reels/<reel>/notebook/figures/<name>.svg, as the last build packed it) must be that case drawn now, byte
   # for byte, so a package built before the frame changed fails here; and the .hdr notebook.py rendered above must be
-  # the case's too (the case's capture holds the two streams interleaved, so the case is redrawn with them apart).
+  # the case's too (the case is redrawn with the streams apart).
   local ng=0 gc genv gargs
   while read -r reel name gc; do
     f=build/figures/$reel/$name
+    grep -qE "^$gc +\\|" <<< "$CASES" || continue   # a slice without this figure's case
     IFS='|' read -r _ genv _ gargs <<< "$(grep -E "^$gc +\|" <<< "$CASES")"
     # shellcheck disable=SC2086
-    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_DUMP \
+    env -u VIEW_TIME -u VIEW_SIM -u VIEW_VIEW -u VIEW_TARGET -u VIEW_LABLV -u VIEW_EYE -u VIEW_DUMP \
       -u VIEW_DECK -u VIEW_DKSUM VIEW_HDR=1 VIEW_REEL=$reel $genv \
       build/viewsvg $gargs > "$out/ref.svg" 2> "$out/ref.hdr"
     if ! cmp -s "$out/ref.svg" "build/reels/$reel/notebook/figures/$name.svg"; then
@@ -335,7 +412,8 @@ capture() {
   done < <(python3 tools/notebook.py golden-refs)
   rm -f "$out/ref.svg" "$out/ref.hdr"
   echo "golden: captured 6 tables, $(ls "$out/page" | wc -l) page.json, the run-table dumps ($(cat "$out"/tables-*.txt | wc -l) entries, $(ls "$out"/tables-*.txt | wc -l) reels), $n renders and $nf notebook figures into $out; $ng notebook figures are golden cases' renders"
-  roundtrip
+  slice_has tape && roundtrip
+  slice_has pad && padcheck
 }
 
 case "${1:-}" in
@@ -346,7 +424,11 @@ case "${1:-}" in
     capture build/golden.new
     echo "golden: baseline from $(paste -sd' ' build/golden/source.txt 2>/dev/null || echo 'an unrecorded tree');" \
          "this check from $(paste -sd' ' build/golden.new/source.txt)"
-    if diff -rq -x source.txt build/golden build/golden.new > build/golden.diff.txt; then
+    # A slice compares only what it captured: the renders and figures it left out are not "only in" the baseline.
+    skip=(); if [ -n "$SLICE" ]; then
+      for f in build/golden/render/*; do [ -e "build/golden.new/render/${f##*/}" ] || skip+=(-x "${f##*/}"); done
+    fi
+    if diff -rq -x source.txt ${skip[@]+"${skip[@]}"} build/golden build/golden.new > build/golden.diff.txt; then
       echo "golden: check PASS: build/golden.new matches build/golden"
     else
       echo "golden: check FAIL: these files differ from the baseline (full diff: diff -r build/golden build/golden.new)" >&2

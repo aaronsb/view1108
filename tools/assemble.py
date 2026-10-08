@@ -12,7 +12,10 @@ viewdims.inc and viewcom.inc, each element preceded by
 a line of a form feed and its path, HTML-escaped),
 __FONT_3270_B64__ (web/fonts/3270-Regular.subset.woff2), __FONT_JBM_B64__ (web/fonts/JetBrainsMono-Regular.subset.woff2),
 __FONT_MICH_B64__ (web/fonts/Michroma-Regular.subset.woff2, the machine room's nameplates),
-__PHOTOS_JSON__ (build/photos.json from tools/photo_pack.py, the Fusion tab's photographs; [] when absent),
+__FONT_CPR_B64__ and __FONT_CPB_B64__ (web/fonts/CourierPrime-Regular.subset.woff2 and -Bold, the notebook binder's typed pages),
+__FONT_PSC_R_B64__, __FONT_PSC_B_B64__ (web/fonts/IBMPlexSansCondensed-Regular and -Bold.subset.woff2, the page's headings),
+__FONT_PS_R_B64__, __FONT_PS_B_B64__ (IBMPlexSans-Regular and -Bold, the machine room's labels),
+__FONT_PX_R_B64__, __FONT_PX_B_B64__ (IBMPlexSerif-Regular and -Bold, the bookcase's spines),
 __LIBRARY_JSON__ (web/library/library.json, the reference library's manifest; the PDFs stay beside the page),
 __LAB_JS__ (build/lab.js, the machine room bundled from web/lab; empty when absent, and the page has no Room).
 The kernel's symbol table (build/symbols.json, tools/gen_symbols.py) follows the listing's </pre> as
@@ -30,6 +33,8 @@ INPUTS = {
     "font": R / "web/fonts/3270-Regular.subset.woff2",
     "fontjbm": R / "web/fonts/JetBrainsMono-Regular.subset.woff2",
     "fontmich": R / "web/fonts/Michroma-Regular.subset.woff2",
+    "fontcpr": R / "web/fonts/CourierPrime-Regular.subset.woff2",
+    "fontcpb": R / "web/fonts/CourierPrime-Bold.subset.woff2",
     "library": R / "web/library/library.json",
 }
 missing = [f"  {k}: {p.relative_to(R)}" for k, p in INPUTS.items() if not p.is_file()]
@@ -71,6 +76,9 @@ if SYMS.is_file():
     fsym = '<script type="application/json" id="fsym">' + SYMS.read_text().replace("</", "<\\/") + "</script>"
     t = t.replace("__FORTRAN_SRC__</pre>", "__FORTRAN_SRC__</pre>\n__FSYM__", 1)
 # Function replacements so '\' and '&' in payloads are never interpreted.
+# IBM Plex (SIL OFL 1.1), six faces: Sans Condensed, Sans and Serif, each Regular and Bold (THIRD_PARTY.md).
+PLEX = {"PSC_R": "IBMPlexSansCondensed-Regular", "PSC_B": "IBMPlexSansCondensed-Bold", "PS_R": "IBMPlexSans-Regular",
+        "PS_B": "IBMPlexSans-Bold", "PX_R": "IBMPlexSerif-Regular", "PX_B": "IBMPlexSerif-Bold"}
 subs = {
     "__FORTRAN_SRC__": html.escape("".join(f"\f{f.relative_to(R)}\n{f.read_text()}" for f in KSRC), quote=False),
     "__FALLBACK_JS__": INPUTS["fallback"].read_text().replace("</script", "<\\/script"),
@@ -80,13 +88,14 @@ subs = {
     "__FONT_3270_B64__": base64.b64encode(INPUTS["font"].read_bytes()).decode(),
     "__FONT_JBM_B64__": base64.b64encode(INPUTS["fontjbm"].read_bytes()).decode(),
     "__FONT_MICH_B64__": base64.b64encode(INPUTS["fontmich"].read_bytes()).decode(),
+    "__FONT_CPR_B64__": base64.b64encode(INPUTS["fontcpr"].read_bytes()).decode(),
+    "__FONT_CPB_B64__": base64.b64encode(INPUTS["fontcpb"].read_bytes()).decode(),
+    **{f"__FONT_{k}_B64__": base64.b64encode((R / f"web/fonts/{f}.subset.woff2").read_bytes()).decode() for k, f in PLEX.items()},
     "__LIBRARY_JSON__": INPUTS["library"].read_text().replace("</", "<\\/"),
     "__WASM_B64__": base64.b64encode(INPUTS["wasm"].read_bytes()).decode(),
 }
 LAB = R / "build/lab.js"
 subs["__LAB_JS__"] = LAB.read_text().replace("</script", "<\\/script") if LAB.is_file() else ""
-PHOTOS = R / "build/photos.json"
-subs["__PHOTOS_JSON__"] = PHOTOS.read_text().replace("</", "<\\/") if PHOTOS.is_file() else "[]"
 if "__FSYM__" in t:
     subs["__FSYM__"] = fsym
 # Replace only the payload slots, not the dev-guard `var __FALLBACK_JS__, __NAMES_JS__, ...;` line.

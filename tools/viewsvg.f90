@@ -9,12 +9,17 @@
 ! prints the mean to stderr.  With VIEW_SIM=n, runs the engine first
 ! (sim_run flags n: bit 0 correction on); add 8 to FLAGS to draw from
 ! the tape.  VIEW_VIEW, VIEW_TARGET and VIEW_LABLV set in_view,
-! in_target and in_lablv (default 0).  With VIEW_HDR set, prints
+! in_target and in_lablv (default 0); VIEW_EYE="x,y,z" sets in_eyeo
+! (the eye offset, src/veye.f; default 0).  With VIEW_HDR set, prints
 ! hdr(1..24) to stderr.  With VIEW_DUMP set, writes the run tables
 ! (tools/vdump.f: every scenario-specific COMMON table's used entries,
 ! doubles as hex bit patterns) to stdout instead and stops.  With
 ! VIEW_CABN set, writes the cabins' hidden-line table counts against
-! their maxima (tools/vdump.f VCABN) and stops.
+! their maxima (tools/vdump.f VCABN) and stops.  With VIEW_MODT set, writes
+! the spacecraft model table's counts, maxima and refusals (tools/
+! vdump.f VMODT) and stops.  With VIEW_PADCK set, draws the frame and writes
+! the placed CSM's horizontal offset and height (m) from the launch complex's
+! foot (tools/vdump.f VPADCK, #97) instead of the SVG, and stops.
 ! The run decks come first, through the kernel's card reader
 ! (src/vdeck.f): the paths in VIEW_DECK (separated by colons), else the
 ! decks of the scenario reel VIEW_REEL names (its id; default the first
@@ -35,7 +40,7 @@ program viewsvg
   double precision :: vb(5, MAXV), sb(3, MAXS), lb(4, MAXL), hd(24), tb(4, 300)
   integer :: tc(6000), nt, nch, j, j0
   character(len=64) :: txt
-  double precision :: get, yaw, pit, rol, fov, b, s, r
+  double precision :: get, yaw, pit, rol, fov, b, s, r, eyo(3)
   integer :: isc, iflag, nv, ns, nl, i, na, k, c0, c1, crate
   character(len=64) :: arg
   character(len=16) :: tv
@@ -58,10 +63,15 @@ program viewsvg
     subroutine vsetin(iv, it, il)
       integer :: iv, it, il
     end subroutine vsetin
+    subroutine vsetey(eo)
+      double precision :: eo(3)
+    end subroutine vsetey
     subroutine vdump()
     end subroutine vdump
     subroutine vcabn()
     end subroutine vcabn
+    subroutine vpadck()
+    end subroutine vpadck
     subroutine vtape()
     end subroutine vtape
     subroutine crdopn()
@@ -114,6 +124,11 @@ program viewsvg
     call vcabn()
     stop
   end if
+  call get_environment_variable('VIEW_MODT', tv)
+  if (len_trim(tv) > 0) then
+    call vmodt()
+    stop
+  end if
   if (na >= 2) then
     call get_command_argument(2, arg)
     if (trim(arg) /= '-') read (arg, *) get
@@ -142,7 +157,17 @@ program viewsvg
   end if
 
   call vsetin(envint('VIEW_VIEW'), envint('VIEW_TARGET'), envint('VIEW_LABLV'))
+  call get_environment_variable('VIEW_EYE', arg)
+  eyo = 0d0
+  if (len_trim(arg) > 0) read (arg, *) eyo
+  call vsetey(eyo)
   call vframe(get, yaw, pit, rol, fov, iflag, vb, nv, sb, ns, lb, nl, hd, tb, nt, tc, nch)
+
+  call get_environment_variable('VIEW_PADCK', tv)
+  if (len_trim(tv) > 0) then
+    call vpadck()
+    stop
+  end if
 
   call get_environment_variable('VIEW_HDR', tv)
   if (len_trim(tv) > 0) then

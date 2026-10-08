@@ -283,7 +283,7 @@ export function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext
 /** A key's printed legend: text (lines split on "\n"), ink, the printed area w x d in metres, and a matrix placing
  *  that area centred in its XY plane, the text's top along +Y, facing +Z. */
 export interface Legend { t: string; ink: string; w: number; d: number; m: THREE.Matrix4 }
-const LEGEND_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const LEGEND_FONT = '"VIEW Sans", sans-serif';
 
 /** Every legend of a keyboard as one mesh: the texts drawn on one canvas atlas (cells packed on shelves), a quad per
  *  key. Its geometry, material and texture are pushed to `mine`. */
@@ -297,7 +297,7 @@ export function keyLegends(keys: Legend[], aniso: number, mine: { dispose(): voi
     if (x + cw > AW) { x = 0; y += CH; }
     cells.push([x, y, cw, CH]); x += cw + 2;
   }
-  const tex = canvasTex(AW, AH, g => {
+  const tex = fontTex(AW, AH, g => {
     keys.forEach((k, i) => {
       const [cx, cy, cw, ch] = cells[i], lines = k.t.split("\n");
       const single = lines.length === 1 && [...lines[0]].length <= 2;
@@ -340,18 +340,22 @@ export function plate(tex: THREE.Texture, w: number, h: number, emissive = false
  * (Vernon Adams, SIL OFL 1.1, web/fonts/) is an extended face in its spirit. The page declares "Michroma VIEW" in
  * page.css (gallery.html for the gallery); the fallbacks are wide sans faces.
  */
-export const PLATE_FONT = '"Michroma VIEW", Eurostile, "Arial Black", Helvetica, Arial, sans-serif';
+export const PLATE_FONT = '"Michroma VIEW", sans-serif';
 
+/** Every bundled face the room's canvases print in (page.css declares them; each name is one face, one file). */
+const ROOM_FACES = ['32px "Michroma VIEW"', '16px "VIEW Sans"', 'bold 16px "VIEW Sans"', '16px "VIEW Sans Condensed"',
+  'bold 16px "VIEW Sans Condensed"', '16px "VIEW Serif"', 'bold 16px "VIEW Serif"', '16px "Courier Prime VIEW"',
+  'bold 16px "Courier Prime VIEW"', '16px "IBM 3270"'];
 let fontOK = false;
 let fontWait: Promise<boolean> | null = null;
 /**
- * Resolves true once "Michroma VIEW" is loaded, false if it is not declared or does not arrive within `ms`. Canvas
- * text drawn before then falls back silently, hence fontTex.
+ * Resolves true once the room's faces (ROOM_FACES) are loaded, false if none is declared or they do not arrive within
+ * `ms`. Canvas text drawn before then falls back to the generic family silently, hence fontTex.
  */
 export function plateFontReady(ms = 4000): Promise<boolean> {
   if (fontWait) return fontWait;
   if (typeof document === "undefined" || !document.fonts) return fontWait = Promise.resolve(false);
-  const load = document.fonts.load('32px "Michroma VIEW"').then(f => (fontOK = f.length > 0), () => false);
+  const load = Promise.all(ROOM_FACES.map(f => document.fonts.load(f))).then(r => (fontOK = r.some(f => f.length > 0)), () => false);
   const late = new Promise<boolean>(r => setTimeout(() => r(false), ms));
   return fontWait = Promise.race([load, late]);
 }
@@ -364,13 +368,20 @@ export function fontTex(w: number, h: number, draw: (g: CanvasRenderingContext2D
   const t = canvasTex(w, h, draw, aniso);
   if (!fontOK) {
     let gone = false;
-    t.addEventListener("dispose", () => { gone = true; });
-    void plateFontReady().then(ok => {
-      if (!ok || gone) return;
+    const redraw = () => {
+      if (gone) return;
       const g = (t.image as HTMLCanvasElement).getContext("2d")!;
       g.clearRect(0, 0, w, h);
       draw(g, w, h); t.needsUpdate = true;
-    });
+    };
+    // A load slower than plateFontReady's timeout still lands: redraw when the document's fonts finish loading.
+    const done = () => {
+      if (gone) return document.fonts.removeEventListener("loadingdone", done);
+      if (ROOM_FACES.every(f => document.fonts.check(f))) { document.fonts.removeEventListener("loadingdone", done); redraw(); }
+    };
+    if (typeof document !== "undefined" && document.fonts) document.fonts.addEventListener("loadingdone", done);
+    t.addEventListener("dispose", () => { gone = true; document.fonts?.removeEventListener("loadingdone", done); });
+    void plateFontReady().then(ok => { if (ok) redraw(); });
   }
   return t;
 }
@@ -457,8 +468,8 @@ export function badgeTex(model: string): THREE.CanvasTexture {
 }
 
 /** Felt-marker lettering (ours): a plain condensed sans, every letter a little off its line and turned, so it reads as
- *  written by hand rather than printed. No web font: whichever of these the browser has. */
-const MARKER_FONT = '"Arial Narrow", "Liberation Sans Narrow", "Helvetica Neue", Arial, sans-serif';
+ *  written by hand rather than printed. The bundled condensed sans (bold). */
+const MARKER_FONT = '"VIEW Sans Condensed", sans-serif';
 
 /** Width of `text` in felt marker at `px`, letters `0.06 px` apart (as `marker` writes it). */
 export function markerWidth(text: string, px: number): number {

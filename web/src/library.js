@@ -45,23 +45,27 @@ function libList() {
     links.append(open, " ", src); li.appendChild(links); ul.appendChild(li);
   }
   if (nbs.length) ul.appendChild(libSection("MISSION NOTEBOOKS"));
-  for (const n of nbs) ul.appendChild(libRow(n.id, n.reel.manifest.title, n.title, `${n.reel.notebook.figures.size} figures · our notes, rendered by this kernel`));
+  for (const n of nbs) {
+    const pics = new Set(reelSlips(n.reel.notebook.text).filter(([k, f]) => k === "attach" && f.source.startsWith("media/")).map(([, f]) => f.source)).size;
+    ul.appendChild(libRow(n.id, n.reel.manifest.title, n.title, `${n.reel.notebook.figures.size} figures${pics ? `, ${pics} photograph${pics > 1 ? "s" : ""}` : ""} · our notes, rendered by this kernel`));
+  }
   if (libCur) libShow(libCur.id);
 }
 // The notebook viewer emptied.
 function libMdClear() { $("libmd").textContent = ""; }
 // A figure's image URL: data:image/svg+xml;base64 of its SVG (a data: document has an opaque origin, so a figure opened
 // as a page cannot reach the site's storage; review of PR #69). reelpkg.js has already refused a figure with script.
-function libFigUrl(svg) {
-  const b = new TextEncoder().encode(svg);
+const libFigUrl = svg => libDataUrl("image/svg+xml", new TextEncoder().encode(svg));
+// A data: URL of `bytes` as `type` (a figure's SVG, a notebook photograph's JPEG or PNG, reelpkg.js readReel).
+function libDataUrl(type, b) {
   let bin = "";
   for (let k = 0; k < b.length; k += 0x8000) bin += String.fromCharCode.apply(null, b.subarray(k, k + 0x8000));
-  return "data:image/svg+xml;base64," + btoa(bin);
+  return `data:${type};base64,` + btoa(bin);
 }
 // The viewer as a document's (PDF) or a notebook's: which of the iframe and the article shows, and the buttons.
 function libMode(md) {
   $("libr").classList.toggle("md", md);
-  $("libmd").hidden = !md; $("blibload").hidden = !md; $("bliblist").hidden = !md;
+  $("libmd").hidden = !md; $("blibload").hidden = !md; $("bliblist").hidden = !md; $("blibtheme").hidden = !md;
   $("libnew").hidden = $("libsrc").hidden = md;
   if (md) { $("libframe").hidden = true; $("libframe").removeAttribute("src"); $("libnote").hidden = true; }
   else libMdClear();
@@ -88,36 +92,43 @@ function libShow(id) {
   });
 }
 // A reel's notebook in the viewer: its text built by notebook.js, each figure an <img> from a data: URL of the reel's
-// own SVG (never inlined). A text the renderer refuses (too long) or fails on is shown as plain text.
+// own SVG (never inlined), with the run sheet in front, in the binder's wrappers and paging plate (binder.js nbBind).
+// An attached photograph that is one of the reel's photo events (#75) opens Fusion at it, as its run-sheet entry does
+// (libRunGo). A text the renderer refuses (too long) or fails on is shown as plain text.
 function libShowNb(id) {
   const n = libNotebooks().find(x => x.id === id);
   if (!n) { libShow(LIB[0]?.id); return; }
-  if (libCur?.id === id && $("libmd").childNodes.length) { libMode(true); return; }
+  if (libCur?.id === id && $("libmd").childNodes.length) { libMode(true); nbRecount(); return; }   // shown again: laid out anew
   libMdClear(); libMode(true);
   libCur = { id, reel: n.reel };
   document.querySelectorAll("#liblist .librow").forEach(b => b.classList.toggle("on", b.dataset.id === id));
   document.querySelector("#liblist .librow.on")?.scrollIntoView({ block: "nearest" });
   $("libtitle").textContent = `${n.reel.manifest.title} — scenario notebook (ours), carried in the reel`;
   const figs = n.reel.notebook.figures, fig = name => figs.has(name) ? libFigUrl(figs.get(name)) : null;
-  try { $("libmd").replaceChildren(nbBuild(nbParse(n.reel.notebook.text), document, fig)); }
+  const pics = n.reel.notebook.media, media = file => pics.has(file) ? libDataUrl(pics.get(file).type, pics.get(file).bytes) : null;
+  let body;
+  const rid = n.reel.manifest.id, photo = file => {
+    const p = (n.reel.page.photos || []).find(x => x.media === `media/${file}`);
+    return p ? { frame: p.frame, open: () => libRunGo(rid, p.frame) } : null;
+  };
+  try { body = nbBuild(nbParse(n.reel.notebook.text), document, fig, media, photo); }
   catch (e) {
-    const pre = document.createElement("pre");
-    pre.textContent = n.reel.notebook.text;
-    $("libmd").replaceChildren(pre);
+    body = document.createElement("pre");
+    body.textContent = n.reel.notebook.text;
     console.warn(`notebook ${id}: shown as text (${e.message})`);
   }
   const sheet = libRunSheet(n.reel.manifest.id);
-  if (sheet) $("libmd").prepend(sheet);
-  $("libmd").scrollTop = 0;
+  nbBind($("libmd"), sheet ? [sheet, body] : [body]);
 }
 // The run sheet at the front of a mission notebook (#29 slice f; the operator, 2026-10-07: the notebook is the tape's
 // operator's manual and opens with every event on the tape): the reel's event listing, generated when it was packed
 // (tools/pack.py; config.js SCNS[id].listing), so the notebook restates no run-deck data. It opens on the situations
 // and the milestones, with a line that shows every entry (libRunSheet). One row per entry: its
-// quick-view key, g.e.t., kind, name and, for a situation, its default camera (view, target, field). Picking one loads
-// the reel as a fresh run (reels.js reelParams, by=mount: its situation defaults, the clock stopped) and then goes to
-// the entry as the event list does (timeline.js tlPick), on a plot tab: in the room the viewer closes onto the
-// workbench's page (Esc goes back to the room), in Tabbed onto the page. Built from DOM nodes and text only. Ours.
+// quick-view key, g.e.t., kind, name and, for a situation, its default camera (view, target, field), for a photo event
+// (#75) its lens. Picking one loads the reel as a fresh run (reels.js reelParams, by=mount: its situation defaults, the
+// clock stopped) and then goes to the entry as the event list does (timeline.js tlPick), on a plot tab (Fusion for a
+// photo event): in the room the viewer closes onto the workbench's page (Esc goes back to the room), in Tabbed onto the
+// page. Built from DOM nodes and text only. Ours.
 function libRunSheet(rid) {
   const sc = SCNS[rid];
   if (!sc || !sc.listing.length) return null;
@@ -127,41 +138,44 @@ function libRunSheet(rid) {
   // Shown at first (the operator, 2026-10-08): the situations, the timeline's Noteworthy milestones (timeline.js
   // tlNoteworthy) and any event on a quick-view key; a typed line below the table shows every entry in place, and
   // hides the rest again.
-  const brief = e => e.kind === "situation" || keyOf(e.id) || tlNoteworthy([e.get, e.tl, e.name]);
+  const brief = e => e.kind !== "event" || keyOf(e.id) || tlNoteworthy([e.get, e.tl, e.name]);
   const nBrief = sc.listing.filter(brief).length, nAll = sc.listing.length;
   sec.append(mk("h2", "", `RUN SHEET - ${(REEL_LIB.find(r => r.manifest.id === rid)?.manifest.title || rid).toUpperCase()}`),
     mk("p", "", "Every entry on the tape, generated from the reel's situations and timeline when it was packed (ours); " +
-      "shown first, the situations and the mission's milestones. " +
-      "Pick one to load the reel as a fresh run, clock stopped, and go there: a situation applies its view, an event sets the time. " +
+      "shown first, the situations, the photographs and the mission's milestones. " +
+      "Pick one to load the reel as a fresh run, clock stopped, and go there: a situation applies its view, an event sets the time, " +
+      "a photograph opens Fusion with it laid over the plot. " +
       "KEY is the entry's quick-view key in the simulation."));
   for (const h of ["KEY", "G.E.T.", "KIND", "ENTRY", "DEFAULT CAMERA"]) head.appendChild(mk("th", "", h));
   for (const e of sc.listing) {
-    const sit = e.kind === "situation", tr = mk("tr", sit ? "rssit" : brief(e) ? "" : "rsmore"), b = mk("button", "", e.name);
+    const sit = e.kind === "situation", photo = e.kind === "photo", tr = mk("tr", sit ? "rssit" : photo ? "rsphoto" : brief(e) ? "" : "rsmore"), b = mk("button", "", e.name);
+    const ph = photo ? (REEL_LIB.find(r => r.manifest.id === rid)?.page.photos || []).find(x => x.frame === e.id) : null;
     b.type = "button"; b.dataset.id = e.id;
-    b.title = sit ? `Load the reel fresh and apply ${e.name}` : `Load the reel fresh and go to ${getStr(e.get)}`;
+    b.title = sit ? `Load the reel fresh and apply ${e.name}` : photo ? `Load the reel fresh and open ${e.name} in Fusion` : `Load the reel fresh and go to ${getStr(e.get)}`;
     b.onclick = () => libRunGo(rid, e.id);
     const name = mk("td", "rsn"); name.appendChild(b);
-    tr.append(mk("td", "", keyOf(e.id)), mk("td", "", tlGetStr(e.get)), mk("td", "", sit ? "SITUATION" : e.tl), name,
-      mk("td", "", sit ? `${e.view} ${e.target} ${e.fov === null ? "-" : e.fov + "°"}` : ""));
+    tr.append(mk("td", "", keyOf(e.id)), mk("td", "", tlGetStr(e.get)), mk("td", "", sit ? "SITUATION" : photo ? "PHOTO" : e.tl), name,
+      mk("td", "", sit ? `${e.view} ${e.target} ${e.fov === null ? "-" : e.fov + "°"}` : ph && ph.lens_mm ? `LENS ${ph.lens_mm}`.toUpperCase() : ""));
     body.appendChild(tr);
   }
   const thead = mk("thead"); thead.appendChild(head); tbl.append(thead, body); sec.appendChild(tbl);
   if (nBrief < nAll) {
     const more = mk("button", "rsall"), line = mk("p", "rsline");
-    const label = () => { more.textContent = sec.classList.contains("full") ? `SHOW ONLY THE ${nBrief} SITUATIONS AND MILESTONES` : `SHOW ALL ${nAll} ENTRIES`; };
+    const what = sc.listing.some(e => e.kind === "photo") ? "SITUATIONS, PHOTOGRAPHS AND MILESTONES" : "SITUATIONS AND MILESTONES";
+    const label = () => { more.textContent = sec.classList.contains("full") ? `SHOW ONLY THE ${nBrief} ${what}` : `SHOW ALL ${nAll} ENTRIES`; };
     more.type = "button"; label();
-    more.onclick = () => { sec.classList.toggle("full"); label(); };
+    more.onclick = () => { sec.classList.toggle("full"); label(); nbRecount(); };
     line.appendChild(more); sec.appendChild(line);
   }
   return sec;
 }
-// A run-sheet entry picked: the viewer closes onto a plot tab with the event list (Review unless Simulate or Print is
-// showing), the reel mounts fresh, and the entry is picked.
+// A run-sheet entry picked, or a photo event's print: the viewer closes onto a plot tab with the event list (Review
+// unless Simulate or Print is showing; Fusion for a photo event, tlPick), the reel mounts fresh, and the entry is picked.
 function libRunGo(rid, eid) {
   const p = reelParams(rid), e = (SCNS[rid]?.listing || []).find(x => x.id === eid);
   if (!p || !e) return;
   if (roomIn) roomLibraryClose(); else libraryClose();
-  if (!["review", "simulate", "print"].includes(tab)) setTab(roomIn && roomCanvasTab !== "fusion" ? roomCanvasTab : "review");
+  if (e.kind !== "photo" && !["review", "simulate", "print"].includes(tab)) setTab(roomIn && roomCanvasTab !== "fusion" ? roomCanvasTab : "review");
   loadReel(p);
   tlPick(e);
   syncUI();

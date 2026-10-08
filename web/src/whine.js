@@ -1,7 +1,7 @@
 // The 1558's deflection whine: what the scope's yoke and deflection amplifiers might leak while the beam writes the
 // plot. Ours throughout: no source documents the 1558's acoustic noise. Designers potted and varnished such magnetics
 // to keep them quiet, so this is residual leakage from a well-built machine, kept deliberately faint. It plays only in
-// the Room, never in Tiled, from two outputs web/lab places: the 1558's (with a steep distance law, so it is there
+// the Room, never in Tabbed, from two outputs web/lab places: the 1558's (with a steep distance law, so it is there
 // within about 1.5 m of the screen or zoomed into it) while the plot shows SCOPE outside Beam, and the microfilm
 // recorder's (its own CRT painting the same picture) while the recorder runs: the Print tab or Beam.
 //

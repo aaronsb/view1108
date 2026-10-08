@@ -43,33 +43,11 @@ The page is the console. It starts by replaying the film, then hands you the con
 | **Live** | Simulate | The Apollo 11 mission clock at 1× (or 10×, 60×). The scene follows the mission phase from the g.e.t. you type or scrub to. |
 | **Beam** | Print | Traces each frame vector by vector, in the kernel's output order, on a phosphor that fades. Speeds run from an estimated 1108-plus-recorder pace down to a slow trace you can watch, up to a persistence-of-vision blur. The recorder rates are our estimates (see [docs/univac-1108.md](docs/univac-1108.md)). |
 
-Keys (in every tab but Source): arrows look, Q/E roll, +/- field of view, space pause, `[` `]` speed, R reset, 1–9 quick views (the reel's numbered entries of the Timeline list), `T` beam (opens Print), `L` copy link, `M` sound. The Source tab browses the kernel source the page is running (routines, COMMON blocks, call graph; [docs/modes.md](docs/modes.md)), and its Print listing button shows it as a period compile listing. Its Library button (or, in the machine room, a binder on the bookcase) opens the manuals and reports the reconstruction is built from as PDFs, hosted with the page ([web/library/](web/library/README.md)).
+Keys (in every tab but Source): arrows look, Q/E roll, +/- field of view, space pause, `[` `]` speed, R reset, 1–9 quick views (the reel's numbered entries of the Timeline list), `T` beam (opens Print), `L` copy link, `M` sound. The Source tab browses the kernel source the page is running (routines, COMMON blocks, call graph; [docs/modes.md](docs/modes.md)), and its Print listing button shows it as a period compile listing. Its Library button (or, in the machine room, a binder on the bookcase) opens the manuals and reports the reconstruction is built from as PDFs, hosted with the page ([web/library/](web/library/README.md)), and each reel's scenario notebook, read as typed pages in an open three-ring binder (PgUp/PgDn or the arrows page it; DARK shows it green on black).
 
 ## Link parameters
 
-The `[ LINK ]` button (key `L`) copies a URL that reproduces the current view. You can also write one by hand. Bad values are ignored, parameters override stored preferences for that visit only (nothing is written to storage), and with no `mode` the page starts in Attract.
-
-| Parameter | Values | Example |
-|---|---|---|
-| `mode` | `attract`, `tour`, `live`, `free`, `beam` | `mode=live` |
-| `tab` | `review`, `simulate`, `print`, `fusion`, `source` (default: the mode's tab) | `tab=print` |
-| `scn` | a scenario reel: `apollo11-asflown` or `apollo8-asflown`; alone, its first situation | `scn=apollo8-asflown` |
-| `sit` | a situation of that reel, by id or by its card's NAME (any case; the LINK button writes the NAME); without `scn`, the first reel holding it (Free-look, Beam; in Live the windowed ones, 4, 5 and 7, and the Moon view, 6, are pinned) | `scn=apollo11-asflown&sit=lm%20descent` |
-| `scene` | kept for old links: `1`..`9`, the Nth situation across the reels in load order; `scn` and `sit` win over it | `scene=5` |
-| `get` | g.e.t. as `h:mm:ss` or seconds | `get=102:45:40` |
-| `utc` | UTC as `YYYY-MM-DDTHH:MM:SS` | `utc=1969-07-20T20:17:40` |
-| `fov`, `yaw`, `pitch`, `roll` | degrees (`fov` 1 to 170) | `fov=100&pitch=-10` |
-| `rate` | `1`, `10`, `60`, `300`, `1000` (Live, Free-look) | `rate=60` |
-| `bspeed` | `1`..`4`: 1108 + recorder, recorder only, slow trace, persistence (Beam) | `bspeed=3` |
-| `labels`, `frame`, `hidden` | `0` or `1` (names, plot frame, hidden lines) | `labels=0` |
-| `bloom`, `jitter`, `dust`, `fps` | `0` or `1` (film effects; `fps=1` is the 16 fps film rate) | `bloom=1` |
-| `catalog` | `nav` (391 stars) or `full` | `catalog=full` |
-| `disp`, `hz` | `auto`, `film` or `scope` (the microfilm look or the 1558 vector console); `16` or `steady` (the scope's refresh) | `disp=scope&hz=steady` |
-| `listing` | `dark` or `light` (Fortran listing) | `listing=light` |
-| `space` | `room` or `tiled`: the 3D machine room around the workbench, or the plain page | `space=tiled` |
-| `bare`, `still=earthrise`, `film=N` | chrome hidden; frozen Earthrise; Attract at film second N (for screenshots) | `still=earthrise` |
-
-Example: <https://aaronsb.github.io/view1108/?mode=live&get=102:45:40&fov=100> opens Live at the landing, with a 100 degree field of view.
+The `[ LINK ]` button (key `L`) copies a URL that reproduces the current view, and you can write one by hand: <https://aaronsb.github.io/view1108/?mode=live&get=102:45:40&fov=100> opens Live at the landing, with a 100 degree field of view. Every key, the switches for screenshots and tests, and the old keys still read for old links are in one table, [docs/modes.md, Link parameters](docs/modes.md#link-parameters).
 
 ## Period engine, modern chassis
 
@@ -107,7 +85,7 @@ Probably, with changes: the fenced items above rewritten in FORTRAN V terms, and
 
 ## Build
 
-Needs LFortran 0.66, LLVM/clang 23 and binaryen 121 (conda-forge), plus gfortran, node and python3 (with Pillow, for the Fusion photographs).
+Needs LFortran 0.66, LLVM/clang 23 and binaryen 121 (conda-forge), plus gfortran, node and python3 (Pillow only to remake the packed photographs, `tools/photo_pack.py`).
 
 The machine room (Room, `web/lab/`: TypeScript and three.js, bundled by esbuild) also needs npm and, the first time, the network: `tools/build.sh` runs `npm ci` from `web/lab/package-lock.json` and bundles `build/lab.js`. Without them the build warns and the page comes out without the Room. See [web/lab/README.md](web/lab/README.md).
 

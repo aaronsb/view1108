@@ -118,8 +118,11 @@ C     The cabins are drawn whole, outside the window mask (vmask.f).
    10 CONTINUE
       IMSK = IM
       ISTYLE = 1
-C     Vehicle labels and markers, with a label level set (lvlab.f).
-      IF (ILABL .GE. 1) CALL VLABEL(GET, VB, NV, LB, NL)
+C     Vehicle labels and markers, with a label level set (lvlab.f);
+C     none from the LM station in the closed SLA (ISLA), which sees
+C     nothing outside.
+      IF (ILABL .GE. 1 .AND. ISLA .EQ. 0) CALL VLABEL(GET, VB, NV, LB,
+     &  NL)
       RETURN
       END
 C
@@ -168,6 +171,10 @@ C     lines leave (vmask.f CBCUT).
       IF (IC .GT. 0) GO TO 110
       IF (MDX2(K) .LT. MDX1(K)) RETURN
       DO 100 J = MDX1(K), MDX2(K)
+C       The CSM's high-gain antenna, stowed in the closed SLA before
+C       the separation (CSMBLD), not drawn while the stack is placed.
+        IF (K .EQ. KCSM .AND. MDON(KSTK) .EQ. 1 .AND. J .GE. LHGA1
+     &      .AND. J .LE. LHGA2) GO TO 100
         DO 85 L = 0, 1
           DO 82 I = 1, 3
             V(I) = (LXL(I + 3 * L, J) - MDBO(I,K)) * 1.0D-3

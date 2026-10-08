@@ -10,7 +10,7 @@ import type { Footprint } from "./types";
 
 const SPEED = 1.4, FAST = 2.6;        // m/s
 const EASE_S = 0.18;                  // time constant of the walk's acceleration
-const RADIUS = 0.25;                  // the viewer's body on the floor, m
+export const RADIUS = 0.25;                  // the viewer's body on the floor, m
 const PITCH_MAX = 35;                 // deg
 const STRIDE = 0.77;                  // m per step: a step every 0.55 s at walking speed
 const ZONE = { r: 1.3, rearm: 1.7, face: 35, dwell: 0.4 };   // m, m, deg, s
@@ -142,6 +142,11 @@ export class Walk {
 
   /** Where to stand after leaving a terminal: `back` metres out from its screen, outside its re-arm zone. */
   standBack(t: Terminal, back = ZONE.rearm + 0.3): THREE.Vector2 {
-    return this.collide(new THREE.Vector2(t.screen.x, t.screen.z).addScaledVector(t.normal, back));
+    return this.collide(this.standBackRaw(t, back));
+  }
+
+  /** The same spot before collide() moves it out of anything it landed in: the layout should leave it free (#117). */
+  standBackRaw(t: Terminal, back = ZONE.rearm + 0.3): THREE.Vector2 {
+    return new THREE.Vector2(t.screen.x, t.screen.z).addScaledVector(t.normal, back);
   }
 }

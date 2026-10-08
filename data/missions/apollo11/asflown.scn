@@ -51,7 +51,8 @@
 *   ROW      T= LAT= LON= ALT= (n mi above the ellipsoid) V= (ft/s) FPA=
 *            HDG= (deg): space-fixed, or with VEL=EF relative to the
 *            turning Earth.
-*   EVENT    KIND= T=  (an event the kernel keys on)
+*   EVENT    KIND= T=  (an event the kernel keys on; LIFTOFF is the launch from
+*            the pad, LIFT the LM's lunar lift-off)
 *   TIMELINE T= KIND= NAME=  (a row of the mission's timeline; see TIMELINE below)
 *   BURNCUE  IGN= CUT= VEH= ENG=  (a main-engine firing between two TIMELINE
 *            rows, named; see Burn cue at the end)
@@ -165,6 +166,14 @@ EVENT KIND=TPF T=127:46:09.8 SRC="SP p. 104, LM terminal phase finalize ignition
 EVENT KIND=LMDOK T=128:03:00.0 SRC="SP p. 104, CSM/LM docked 128:03:00.00; MR Table 7-II p. 7-9"
 EVENT KIND=JETT T=130:09:31.2 SRC="SP p. 104, LM ascent stage jettisoned 130:09:31.20; MR Table 7-II p. 7-9"
 EVENT KIND=CMSEP T=194:49:12.7 SRC="MR Table 7-II p. 7-9, command module/service module separation; SP p. 109 has 194:49:12.70"
+*
+* The launch vehicle's stages (vdrive.f LVPL, ASCPL; #97): the stack stands on
+* the mobile launcher at the pad before lift-off, then drops the S-IC, the
+* launch escape tower and the S-II at these rows of the timeline below.
+EVENT KIND=LIFTOFF T=0:00:00.63 SRC="SP p. 105, Liftoff (umbilical disconnected) 000:00:00.63"
+EVENT KIND=SICSEP T=0:02:42.30 SRC="SP p. 105, S-IC maximum Earth-fixed velocity. S-IC/S-II separation command 000:02:42.30"
+EVENT KIND=LESJET T=0:03:17.90 SRC="SP p. 105, Launch escape tower jettisoned 000:03:17.90"
+EVENT KIND=SIISEP T=0:09:09.00 SRC="SP p. 105, S-II maximum Earth-fixed velocity. S-II/S-IVB separation command 000:09:09.00"
 *
 * The S-IVB (traj.f SIVST): with the CSM to SEP, scene 7's geometry to the
 * spacecraft's ejection, then the CSM's state less the separation the CSM
@@ -663,6 +672,17 @@ SITUATION ID=8 NAME="DOCKED STACK" TITLE="Translunar stack" GET=PTC+1800 FOV=40 
 RECIPE NAME=EXTSEED ATT=S8ATT DIST=0.060
 VIEWS VIEW=EXTERNAL TARGET=CSM RIDES=NONE CM=ALWAYS LM=PLACED
 HDRREF OBJ=CSMTUNNEL OFFSET=2.743E-3 RADIUS=1.0E-2 SRC="ours"
+*
+* Launch pad, a modern addition (the view is ours): the External view of the
+* stack on LC-39A ten minutes before range zero, the camera west-southwest of
+* the pad (yaw -120, pitch 25 deg, as the launch complex shots of #97 use),
+* aimed at the S-IVB, at a 110 deg field.  The camera, complex and stack are
+* the kernel's (vdrive.f PADPL, ASCPL, LVPL); the recipe is situation 3's,
+* which holds the Earth-fixed ascent table's pad state.  Labels (the page's
+* own control) are not a card key.
+SITUATION ID=9 NAME="LAUNCH PAD" TITLE="Launch pad" CAPTION="Launch pad - Saturn V on LC-39A" GET=-0:10:00 FOV=110 LOOK=-120,25,0 WINDOW=CSM LAYERS=FRAME,STARS,SUN,MOON,EARTH,VEHICLES,BURN DRAW=NOSHADE SRC="ours, a modern addition; the pad and stack from the press kit (see CLAUDE.md, the launch complex, #97)"
+RECIPE NAME=LOCALVERT BODY=EARTH MODE=FORWARD ELEV=8
+VIEWS VIEW=EXTERNAL TARGET=SIVB RIDES=CSM CM=ALWAYS LM=PLACED
 *
 * SPANS (#17; ours): how the page puts a situation on this scenario's time.
 * tools/gen_data.py writes them into the reel's page.json

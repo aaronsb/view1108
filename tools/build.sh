@@ -55,7 +55,7 @@ native() {
 }
 if [ "${1:-}" = native ]; then native; exit 0; fi
 
-EXPORTS="memory view_init view_frame sim_run in_get in_yaw in_pitch in_roll in_fov in_flags in_src in_view in_target in_lablv out_terise
+EXPORTS="memory view_init view_frame sim_run in_get in_yaw in_pitch in_roll in_fov in_flags in_src in_view in_target in_lablv in_eyeo out_eyek out_eyax out_terise
          vbuf nvec sbuf nstar lbuf nlab hdr tbuf ntxt tchr nchr
          deck_open deck_card deck_file deck_close deck_sum in_card out_dkerr out_dkcrd out_dkwrn out_dksum"
 # No --fast: LFortran would optimise for the host (x86 vectors, i64 overflow
@@ -130,5 +130,5 @@ lab || { rm -f build/lab.js; echo "lab: not built; the page builds without the R
 if [ -f build/lab.js ]; then npm --prefix web/lab run --silent test; fi
 
 # 5. Page (when the template is there), selftest.
-if [ -f web/page.template.html ]; then python3 tools/photo_pack.py; python3 tools/assemble.py; fi
+if [ -f web/page.template.html ]; then python3 tools/assemble.py; fi
 node tools/selftest.mjs

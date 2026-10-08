@@ -3,19 +3,21 @@
 const STILL = /[?&]still=earthrise\b/.test(location.search);   // frozen Earthrise, chrome hidden, for screenshots
 const BARE = STILL || /[?&]bare\b/.test(location.search);       // chrome hidden (combine with ?film= for screenshots)
 const DEBUG = /[?&]debug\b/.test(location.search);
-const UP = new URLSearchParams(location.search);   // shareable view parameters (documented in the README)
+const UP = canonUrl(new URLSearchParams(location.search));   // the link's keys, old ones made canonical (urlkeys.js; docs/modes.md)
 const NAMES = (typeof VIEW_NAMES !== "undefined") ? VIEW_NAMES : (window.MOCK_NAMES || { NAV: [], CRATER: [] });
 // Situations (scenes), each scenario reel's spans and timeline, and the playlist reels: the reels' page.json (#26
 // slices 7d, 7e; reelpkg.js reelPages), set once at boot (kernel.js) before anything reads them; the page holds no
 // list of its own. A scene is a situation's place among all the scenario reels' situations, 1..N (sitOf); SCNS and TL
 // are by reel id. The mock kernel (?mock) on a page without reels gets one stand-in reel, STANDIN_PAGE, and a one-shot
-// demo and tour on it.
-let SITS = [], SCNS = {}, TL = {}, SCENES = [], LIVE_SCN;
+// demo and tour on it. PHOTOS: every scenario reel's photo events (#75; reelpkg.js reelPages), Fusion's photographs,
+// each with `img`, an object URL of its photograph's bytes (a raster the reel carries; drawn on the canvas, never a page).
+let SITS = [], SCNS = {}, TL = {}, SCENES = [], LIVE_SCN, PHOTOS = [];
 const STANDIN_PAGE = { scenario: { id: 1, mission: "", zero: 0, spans: { follow: [[null, 1, 0, 0, null]], live: [[null, 1, ""]], jump: [], pin: [] } },
   situations: [{ id: 1, name: "MOCK", title: "Mock", scenario: 1, mission: "", recipe: "", stations: {} }], timeline: { name: "", events: [] } };
 function setPageData(reels) {
-  let lists;
-  ({ sits: SITS, scns: SCNS, tl: TL, lists } = reelPages(reels));
+  let lists, photos;
+  ({ sits: SITS, scns: SCNS, tl: TL, lists, photos } = reelPages(reels));
+  PHOTOS = photos.filter(p => p.pic).map(p => ({ ...p, img: URL.createObjectURL(new Blob([p.pic.bytes], { type: p.pic.type })) }));
   SCENES = SITS.map(s => s.title);
   LIVE_SCN = Object.keys(SCNS).find(k => spansOf(k).live.length);   // Live follows the one scenario with LIVE spans
   if (!Object.keys(lists).length) lists = Object.fromEntries([["demo", "attract"], ["tour", "tour"]].map(([id, alias]) => [id,

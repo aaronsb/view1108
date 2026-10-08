@@ -203,3 +203,42 @@ C     NCP(1) NCP(2) MCP, NCPX(1) NCPX(2), on one line.
      &  NCPX(1), NCPX(2)
       RETURN
       END
+C
+C     VMODT: the spacecraft model table against its maxima, for the
+C     selftest's model tables line (build/viewsvg, VIEW_MODT=1, after
+C     MLIB has run): NMOD MMOD NMODX, NSOL MSOL NSOLX, NXL MXL NXLX,
+C     on one line.
+      SUBROUTINE VMODT
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+      WRITE (*, '(9(I0,1X))') NMOD, MMOD, NMODX, NSOL, MSOL, NSOLX,
+     &  NXL, MXL, NXLX
+      RETURN
+      END
+C
+C     VPADCK: after a frame (VIEW_PADCK), where the placed CSM stands
+C     against the placed launch complex (#97): the horizontal offset
+C     (m) of the CSM's origin from the pad's vertical axis and its
+C     height (m) along it, or -1 -1 where either is not placed.  The
+C     golden gate checks that the vehicle rises from the pad.
+      SUBROUTINE VPADCK
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+      DOUBLE PRECISION D(3), H, R
+      INTEGER I
+      IF (MDON(KCSM) .EQ. 0 .OR. MDON(KPAD) .EQ. 0) THEN
+        WRITE (*, '(A)') '-1 -1'
+        RETURN
+      END IF
+      H = 0.0D0
+      DO 10 I = 1, 3
+        D(I) = (MDP(I,KCSM) - MDP(I,KPAD)) * 1.0D3
+        H = H + D(I) * MDAT(I,1,KPAD)
+   10 CONTINUE
+      R = 0.0D0
+      DO 20 I = 1, 3
+        R = R + (D(I) - H * MDAT(I,1,KPAD))**2
+   20 CONTINUE
+      WRITE (*, '(F12.3,1X,F12.3)') DSQRT(R), H
+      RETURN
+      END
