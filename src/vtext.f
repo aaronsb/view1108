@@ -37,13 +37,18 @@ C     RESTOMOD END
       DOUBLE PRECISION LB(4,MAXL), TB(4,MAXT)
       INTEGER NL, NT, TC(MAXTC), NCH
       DOUBLE PRECISION B, ST, TL, H, V, R
-      INTEGER I, J, K, N, ID, IC(24), VEHCH(25), ENGCH(20)
+      INTEGER I, J, K, N, ID, IC(24), VEHCH(25), ENGCH(20), SLACH(38)
 C     Vehicle names, 5 codes each, zero padded: CM, SM, LM, S-IVB, CSM.
       DATA VEHCH / 67, 77, 0, 0, 0, 83, 77, 0, 0, 0, 76, 77, 0, 0, 0,
      &             83, 45, 73, 86, 66, 67, 83, 77, 0, 0 /
 C     Engine names, 5 codes each, zero padded: SPS, DPS, APS, S-IVB.
       DATA ENGCH / 83, 80, 83, 0, 0, 68, 80, 83, 0, 0, 65, 80, 83, 0,
      &             0, 83, 45, 73, 86, 66 /
+C     The SLA caption, 20 and 18 codes: LM IN THE CLOSED SLA,
+C     OCCLUDED UNTIL SEP.
+      DATA SLACH / 76, 77, 32, 73, 78, 32, 84, 72, 69, 32, 67, 76, 79,
+     &             83, 69, 68, 32, 83, 76, 65, 79, 67, 67, 76, 85, 68,
+     &             69, 68, 32, 85, 78, 84, 73, 76, 32, 83, 69, 80 /
       NT = 0
       NCH = 0
       B = BOXH
@@ -84,7 +89,21 @@ C     The burn cue's text: the engine's name and BURN.
       IC(N + 5) = 78
       CALL TXPUT(TB, NT, TC, NCH, -0.97D0 * B, 0.97D0 * B - H, H,
      &           IC, N + 5)
-   38 IF (MOD(IFLG, 2) .EQ. 0) RETURN
+C     The LM station in the closed SLA (ISLA, STATLM): why its window
+C     shows nothing, in the box's top left corner at every label level
+C     (ours, #70 option C): LM IN THE CLOSED SLA, OCCLUDED UNTIL SEP.
+   38 IF (ISLA .EQ. 0) GO TO 39
+      DO 381 J = 1, 20
+        IC(J) = SLACH(J)
+  381 CONTINUE
+      CALL TXPUT(TB, NT, TC, NCH, -0.97D0 * B, 0.97D0 * B - H, H,
+     &           IC, 20)
+      DO 382 J = 1, 18
+        IC(J) = SLACH(20 + J)
+  382 CONTINUE
+      CALL TXPUT(TB, NT, TC, NCH, -0.97D0 * B, 0.97D0 * B - 2.6D0 * H,
+     &           H, IC, 18)
+   39 IF (MOD(IFLG, 2) .EQ. 0) RETURN
       DO 40 I = 1, NL
         K = NINT(LB(3,I))
         ID = NINT(LB(4,I))

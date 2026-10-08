@@ -255,7 +255,7 @@ C     RESTOMOD END
       INTEGER NT, TC(MAXTC), NCH
       DOUBLE PRECISION PM(3), CG(3), CV(3), RB, RNG, D1, D2, D3, D4
       DOUBLE PRECISION PB(3), RR, VNRM, VDOT, RHO, RC(3), RL(3), VX(3)
-      INTEGER I, IREF, IWIN, IOK, J, LOOKD, KLMPL, KCSPL
+      INTEGER I, IREF, IWIN, IOK, J, LOOKD, KLMPL, KCSPL, LMEX
 C
 C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
       IF (INITD .NE. 1 .OR. ISCN .EQ. 0) THEN
@@ -312,7 +312,7 @@ C     reference body IREF, window code IWIN, reference attitude.
 C     Spacecraft models first: they hide stars and bodies.
       CALL SCNMOD(GET, PM, CG)
 C     The camera target and the external view (vview.f).
-      CALL VIEWPT(GET, PM, CG, YAW, PIT, ROL, LOOKD)
+      CALL VIEWPT(GET, PM, CG, CV, IREF, YAW, PIT, ROL, LOOKD)
       DO 20 I = 1, 3
         EPOS(I) = -CG(I)
         MPOS(I) = PM(I) - CG(I)
@@ -406,15 +406,17 @@ C     The vehicles in this frame's world (VPRES): 1 CSM, 2 LM, 4 S-IVB.
 C     The crew stations this situation offers (its VIEWS card; STATCM,
 C     STATLM): 1 the CM, 2 the LM, each always or where that vehicle
 C     is placed (in a station the camera's own vehicle is not placed,
-C     the camera being inside it), and 4 always, so the page can tell
-C     this from a kernel without HD(22).  The page enables its station
+C     the camera being inside it), the LM also wherever it exists
+C     (LMEX: a state of its own or the CSM's, docked or stowed in the
+C     SLA; #70 option C), and 4 always, so the page can tell this
+C     from a kernel without HD(22).  The page enables its station
 C     buttons from these; HD(21) leaves out the vehicle the camera
 C     rides, so it cannot.
       HD(22) = 4.0D0
       IF (JSCM .EQ. 2 .OR. (JSCM .EQ. 1 .AND. (KCSPL() .NE. 0
      &  .OR. IVUSE .EQ. 2))) HD(22) = HD(22) + 1.0D0
-      IF (JSLM .EQ. 2 .OR. (JSLM .EQ. 1 .AND. (KLMPL() .NE. 0
-     &  .OR. IVUSE .EQ. 3))) HD(22) = HD(22) + 2.0D0
+      IF (JSLM .EQ. 2 .OR. (JSLM .EQ. 1 .AND. LMEX(GET) .EQ. 1))
+     &  HD(22) = HD(22) + 2.0D0
 C     The target's status (VIEWPT, ITGST): the page says why a pick
 C     cannot be aimed from the window and looks from outside instead.
       HD(23) = DBLE(ITGST)
@@ -738,11 +740,20 @@ C     stage from TPF (terminal phase finalize) on, braking to the CSM,
 C     turns its +X, the docking tunnel's axis, toward the CSM.
 C-----------------------------------------------------------------------
       SUBROUTINE VEHPL(GET, PM, CG)
+      DOUBLE PRECISION GET, PM(3), CG(3)
+      CALL VEHPLD(GET, PM, CG, 5.0D0)
+      RETURN
+      END
+C
+C     VEHPLD: VEHPL within DMAX km of the camera (VEHPL's 5 km; the LM
+C     station's LMSTPL places it at any range).
+      SUBROUTINE VEHPLD(GET, PM, CG, DMAX)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION GET, PM(3), CG(3), LP(3), V(3), AT(3,3), BO(3)
+      DOUBLE PRECISION GET, PM(3), CG(3), DMAX, LP(3), V(3), AT(3,3)
+      DOUBLE PRECISION BO(3)
       DOUBLE PRECISION RL(3), RC(3), VC(3), TL, TF, C, VDOT, VNRM
       DOUBLE PRECISION EVGET
       INTEGER IOK, I, J, K, KLMPL
@@ -754,7 +765,7 @@ C     RESTOMOD END
      &  RETURN
       CALL LMREL(GET, PM, CG, LP, V, IOK)
       IF (IOK .EQ. 0) RETURN
-      IF (VNRM(LP) .GT. 5.0D0) RETURN
+      IF (VNRM(LP) .GT. DMAX) RETURN
 C     Up: from the Moon's centre to the LM.
       DO 10 I = 1, 3
         AT(I,1) = CG(I) + LP(I) - PM(I)

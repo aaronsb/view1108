@@ -40,24 +40,27 @@ C=======================================================================
 C
 C-----------------------------------------------------------------------
 C     VIEWPT: apply the view and target to the camera: CG (geocentric,
-C     km) may move, BREF, UREF, RREF may turn, and placed models are
-C     carried along.  LOOKD = 1 if the camera axes are already set
-C     (external view), so VFRAME skips its free-look step.  ITGST, the
+C     km) may move (and with it, in the LM station at the LM's own
+C     state, CV, relative to the reference body IREF), BREF, UREF, RREF
+C     may turn, and placed models are carried along.  LOOKD = 1 if
+C     the camera axes are already set (external view), so VFRAME skips
+C     its free-look step.  ITGST, the
 C     target's status (hdr 23; see TGTPOS), is taken before anything
 C     is placed for the external view.
 C-----------------------------------------------------------------------
-      SUBROUTINE VIEWPT(GET, PM, CG, YAW, PIT, ROL, LOOKD)
+      SUBROUTINE VIEWPT(GET, PM, CG, CV, IREF, YAW, PIT, ROL, LOOKD)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION GET, PM(3), CG(3), YAW, PIT, ROL
-      INTEGER LOOKD
+      DOUBLE PRECISION GET, PM(3), CG(3), CV(3), YAW, PIT, ROL
+      INTEGER LOOKD, IREF
       DOUBLE PRECISION TG(3), D(3), DIST, DS(3), CG0(3), P(3), VDOT
       DOUBLE PRECISION C
       INTEGER IT, IST, IOK, I, J, KCSPL, ECOAST
       LOOKD = 0
       ITGST = 0
+      ISLA = 0
       IVUSE = IVIEW
 C     The situation's own view where in_view is 0 (JVW; the docked
 C     stack's is the external one).
@@ -73,7 +76,7 @@ C     Stations: the camera moves to the eye, the cabin goes around it.
 C     Where the scene has no such vehicle, the window view.
       IF (IVUSE .EQ. 2) CALL STATCM(CG, IOK)
       IF (IVUSE .EQ. 2 .AND. IOK .EQ. 0) IVUSE = 0
-      IF (IVUSE .EQ. 3) CALL STATLM(CG, IOK)
+      IF (IVUSE .EQ. 3) CALL STATLM(GET, PM, CG, CV, IREF, IOK)
       IF (IVUSE .EQ. 3 .AND. IOK .EQ. 0) IVUSE = 0
 C     The LM station keeps its window's own aim (its overlay is drawn in
 C     the reference frame, OVLPD).
@@ -147,17 +150,19 @@ C     External: free-look sets the direction, the camera backs off
 C     along it to DIST from the target.  A situation with XSTART (JXOF;
 C     the docking, whose reference looks down the docking axis, where
 C     the CSM's solids hide the LM it docks with) starts QXY round:
-C     there 60 deg round and 25 deg up (ours).  Before the separation,
-C     while the launch stack is placed behind the CSM (LVPL), a vehicle
-C     target starts 60 deg round and 25 deg down, the camera above the
-C     stack looking down on it against the Earth, since from straight
-C     behind or ahead one end of the stack hides the rest (ours).  Only
-C     while the stack is placed: at SEP the start goes back to the
-C     scene's own, so the external camera jumps by that offset between
-C     the frames either side of SEP (ours; one start for every vehicle
-C     target is filed against #70).
+C     there 60 deg round and 25 deg up (ours).  A vehicle target
+C     picked (in_target 4-6, where it is flown round) starts 60 deg
+C     round and 25 deg down, the camera above the vehicle looking down
+C     on it, before the separation as after it, so the camera does not
+C     jump at SEP
+C     (#70; ours): before it the launch stack is placed behind the CSM
+C     (LVPL), and from straight behind or ahead one end of the stack
+C     hides the rest.  While the stack is placed the situation's own
+C     vehicle target (in_target 0) starts there too; after SEP it
+C     keeps the scene's own start (the docked stack's, scene 8).
       J = 0
       IF (JXOF .NE. 1 .AND. MDON(KSTK) .EQ. 1 .AND. IT .GE. 4) J = 1
+      IF (JXOF .NE. 1 .AND. ITARG .GE. 4 .AND. IT .GE. 4) J = 1
       IF (JXOF .EQ. 1) CALL LOOK(YAW + QXY(1), PIT + QXY(2), ROL)
       IF (J .EQ. 1) CALL LOOK(YAW + 60.0D0, PIT - 25.0D0, ROL)
       IF (JXOF .NE. 1 .AND. J .EQ. 0) CALL LOOK(YAW, PIT, ROL)
@@ -466,23 +471,31 @@ C     RESTOMOD END
 C
 C-----------------------------------------------------------------------
 C     STATLM: the LM station.  The camera at the commander's design eye
-C     (LDEYE) in the placed LM (scenes 4, 7, 8), looking as scene 5
-C     does, LPDDN deg down from the LM's +Z in the X-Z plane; the LM
-C     window and LPD overlay (OVLPD) is drawn about that aim, and with
-C     in_flags bit 4 the interior (KLMI) around the eye.  Only where
-C     the situation offers it (JSLM) and an LM is placed.
+C     (LDEYE) in the LM, looking as scene 5 does, LPDDN deg down from
+C     the LM's +Z in the X-Z plane; the LM window and LPD overlay
+C     (OVLPD) is drawn about that aim, and with in_flags bit 4 the
+C     interior (KLMI) around the eye.  Only where the situation offers
+C     it (JSLM) and an LM exists (#70 option C): the LM the situation
+C     placed (scenes 4, 7, 8), else the one LMSTPL places for the
+C     station at its state, docked to the CSM or landed; before the
+C     separation, stowed in the closed SLA, its window sees nothing
+C     (ISLA; below).  IOK 0 where there is no LM: the window view.
 C-----------------------------------------------------------------------
-      SUBROUTINE STATLM(CG, IOK)
+      SUBROUTINE STATLM(GET, PM, CG, CV, IREF, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION CG(3), AT(3,3), E(3), V(3), W(3), DS(3), C, S
+      DOUBLE PRECISION GET, PM(3), CG(3), CV(3)
+      DOUBLE PRECISION AT(3,3), E(3), V(3), W(3), DS(3), C, S
       DOUBLE PRECISION Z(3)
-      INTEGER IOK, I, J, KL, KLMPL
+      INTEGER IREF, IOK, I, J, KL, KLMPL
       IOK = 0
+      IF (JSLM .EQ. 0) RETURN
+      IF (KLMPL() .EQ. 0) CALL LMSTPL(GET, PM, CG, CV, IREF)
+      IF (ISLA .EQ. 1) GO TO 40
       KL = KLMPL()
-      IF (KL .EQ. 0 .OR. JSLM .EQ. 0) RETURN
+      IF (KL .EQ. 0) RETURN
       IOK = 1
       CALL LDEYE(E)
       DO 10 I = 1, 3
@@ -498,7 +511,28 @@ C     RESTOMOD END
         DS(I) = -W(I)
    15 CONTINUE
       CALL MSHIFT(DS, KL)
-      C = DCOS(LPDDN * DR)
+      GO TO 50
+C     Stowed in the closed SLA before the separation: the window faces
+C     the adapter's inner wall a metre or two away, unlit, so nothing
+C     outside is drawn (LAYERS), no model is placed, and the frame
+C     letters why (TXALL); the window overlay and, with in_flags bit
+C     4, the cabin are drawn as in any LM station.  The LM's axes: X
+C     along the CSM's +X, as it stood under the SM with its docking
+C     tunnel up, and Z the CSM's +Z, the CSM's axes as STATCM takes
+C     them from the window view (the turn about X is ours; nothing
+C     outside depends on it).  The camera stays where the window
+C     view's was, at the CM some metres away (ours: nothing outside is
+C     drawn from it).  A modern addition, ours: VIEW drew no LM
+C     station before separation.
+   40 IOK = 1
+      DO 45 I = 1, 3
+        AT(I,1) = BREF(I)
+        AT(I,3) = -UREF(I)
+   45 CONTINUE
+      CALL VCRS(AT(1,3), AT(1,1), AT(1,2))
+      CALL MCLEAR
+      CALL LDEYE(E)
+   50 C = DCOS(LPDDN * DR)
       S = DSIN(LPDDN * DR)
       DO 20 I = 1, 3
         BREF(I) = C * AT(I,3) - S * AT(I,1)
@@ -508,6 +542,105 @@ C     RESTOMOD END
       CALL VUNIT(RREF)
       CALL SETV(Z, 0.0D0, 0.0D0, 0.0D0)
       IF (MOD(IFLG / 16, 2) .EQ. 1) CALL MPLACE(KLMI, AT, Z, E)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     LMSTPL: place the LM for its station where the scene has not
+C     (#70 option C), from its state (VSTATE; the source used, ISRCU,
+C     kept as the camera's):
+C       none: nothing (no station);
+C       the CSM's (docked, or stowed in the SLA) before the separation
+C         (the scenario's SEP event): ISLA 1, nothing placed;
+C       the CSM's after it, docked: the CSM in the axes STATCM gives it
+C         (X along the window view's boresight, Z against its up), its
+C         CM eye at the camera, and the LM docked to it as STKPL docks
+C         the stack, gear stowed (KLMS), or the ascent stage alone
+C         (KLMA) after lunar lift-off;
+C       its own, from 600 s before touchdown (the TOUCH event) to
+C         lunar lift-off (LIFT): the descending and then landed LM of
+C         scene 5 (LMDESC), the gear-down model (KLMD) with its
+C         commander's eye at LMDESC's;
+C       its own otherwise: as VEHPL places it, at any range;
+C     and with its own state, CV the LM's velocity about IREF.  All
+C     ours.
+C-----------------------------------------------------------------------
+      SUBROUTINE LMSTPL(GET, PM, CG, CV, IREF)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, PM(3), CG(3), CV(3), R(3), V(3), AT(3,3)
+      DOUBLE PRECISION E(3), P(3), W(3), PMF(3), XB(3), YB(3), ZB(3)
+      DOUBLE PRECISION TS, TL, EVGET
+      INTEGER IREF, IOK, I, J, K, KCSPL
+      J = ISRCU
+      CALL VSTATE(GET, 2, 1, R, V, IOK)
+      ISRCU = J
+      IF (IOK .EQ. 0) RETURN
+      TS = EVGET(KESEP)
+      TL = EVGET(KELFT)
+      IF (IOK .EQ. 2 .AND. TS .GE. 0.0D0 .AND. GET .LT. TS) ISLA = 1
+      IF (ISLA .EQ. 1) RETURN
+      IF (IOK .EQ. 2) GO TO 50
+      IF (LUT0 .LE. 0.0D0 .OR. GET .LT. LUT0 - 600.0D0) GO TO 20
+      IF (TL .GE. 0.0D0 .AND. GET .GE. TL) GO TO 20
+C     Descending or landed: LMDESC's axes and eye (LDCAB's).
+      CALL LMDESC(GET, PMF, XB, YB, ZB)
+      CALL MXV(MMF, XB, AT(1,1))
+      CALL MXV(MMF, YB, AT(1,2))
+      CALL MXV(MMF, ZB, AT(1,3))
+      CALL MXV(MMF, PMF, W)
+      DO 10 I = 1, 3
+        P(I) = PM(I) + W(I) - CG(I)
+   10 CONTINUE
+      CALL LDEYE(E)
+      CALL MPLACE(KLMD, AT, P, E)
+      GO TO 30
+   20 CALL VEHPLD(GET, PM, CG, 1.0D30)
+   30 J = ISRCU
+      CALL VSTATE(GET, 2, IREF, R, V, IOK)
+      ISRCU = J
+      IF (IOK .EQ. 0) RETURN
+      DO 35 I = 1, 3
+        CV(I) = V(I)
+   35 CONTINUE
+      RETURN
+C     Docked to the CSM.
+   50 IF (KCSPL() .NE. 0) RETURN
+      DO 55 I = 1, 3
+        AT(I,1) = BREF(I)
+        AT(I,3) = -UREF(I)
+   55 CONTINUE
+      CALL VCRS(AT(1,3), AT(1,1), AT(1,2))
+      CALL CMEYE(E)
+      CALL MXV(AT, E, W)
+      DO 60 I = 1, 3
+        P(I) = -W(I) * 1.0D-3
+   60 CONTINUE
+      K = KLMS
+      IF (TL .GE. 0.0D0 .AND. GET .GE. TL) K = KLMA
+      CALL STKPL(AT, P, K)
+      RETURN
+      END
+C
+C     LMEX: 1 if an LM exists this frame, for its station (hdr 22): one
+C     placed, the LM station in use, or a state (VSTATE: its own, or
+C     the CSM's, docked or stowed in the SLA); else 0.  The source
+C     used, ISRCU, kept.
+      INTEGER FUNCTION LMEX(GET)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION GET, R(3), V(3)
+      INTEGER IOK, J, KLMPL
+      LMEX = 1
+      IF (KLMPL() .NE. 0 .OR. IVUSE .EQ. 3) RETURN
+      J = ISRCU
+      CALL VSTATE(GET, 2, 1, R, V, IOK)
+      ISRCU = J
+      IF (IOK .EQ. 0) LMEX = 0
       RETURN
       END
 C
