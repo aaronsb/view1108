@@ -111,6 +111,38 @@ C     and the closed SLA, the LM hidden inside (not built).
       CALL MODBEG(KSTK)
       CALL LVSTK
       CALL MODEND(KSTK)
+C     Below it the S-II and the S-IC, and on the CM the launch escape
+C     system, each dropped at its own event (vdrive.f LVPL; #97).
+      CALL MODBEG(KSII)
+      CALL LVSII
+      CALL MODEND(KSII)
+      CALL MODBEG(KSIC)
+      CALL LVSIC
+      CALL MODEND(KSIC)
+      CALL MODBEG(KLES)
+      CALL LESBLD
+      CALL MODEND(KLES)
+C     The launch complex fixed to the Earth at the pad, with the
+C     umbilical tower's arms swung out and swung back, the access
+C     arm also parked (mpad.f; vdrive.f PADPL).
+      CALL MODBEG(KPAD)
+      CALL PADBLD
+      CALL MODEND(KPAD)
+      CALL MODBEG(KARE)
+      CALL ARMBLD(1, 8, 0.0D0)
+      CALL MODEND(KARE)
+      CALL MODBEG(KARR)
+      CALL ARMBLD(1, 8, 90.0D0)
+      CALL MODEND(KARR)
+      CALL MODBEG(KA9E)
+      CALL ARMBLD(9, 9, 0.0D0)
+      CALL MODEND(KA9E)
+      CALL MODBEG(KA9P)
+      CALL ARMBLD(9, 9, 12.0D0)
+      CALL MODEND(KA9P)
+      CALL MODBEG(KA9R)
+      CALL ARMBLD(9, 9, 90.0D0)
+      CALL MODEND(KA9R)
       RETURN
       END
 C
@@ -667,8 +699,8 @@ C     press kit, printed p. 86).  SIVBMD's body frame: X forward along
 C     the vehicle, origin at the centre of the top of the IU, metres.
 C     Plain primitives from the published overall sizes (viewcom.inc;
 C     press kit, printed pp. 88, 109, 113), each its own solid along X
-C     (LVCYL), so a stack builder can add the stages below, the S-II
-C     and S-IC, as further pieces:
+C     (LVCYL, LVFRU), the stages below it models of their own (LVSII,
+C     LVSIC):
 C       S-IVB and IU, one cylinder SIVBH + SIUH ft long, SLVD in
 C         across, X from -(SIVBH + SIUH) ft to 0;
 C       SLA, a frustum SLAH ft long from SLVD in across at X 0 to
@@ -683,20 +715,100 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,24), FT, RB
-      INTEGER K
+      DOUBLE PRECISION FT
       FT = 0.3048D0
       CALL LVCYL(-(SIVBH + SIUH) * FT, (SIVBH + SIUH) * FT, SLVD)
-      RB = 0.5D0 * SLVD * 0.0254D0
+      CALL LVFRU(0.0D0, SLAH * FT, SLVD, SLATD / SLVD)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     LVSII, LVSIC: the S-II and the S-IC below the stack (#97), each
+C     its own model so that it drops at its separation (vdrive.f LVPL),
+C     in SIVBMD's body frame as LVSTK: smooth cylinders SICD in across,
+C     SIIH and SICH ft long (Apollo 11 press kit, printed p. 109;
+C     viewcom.inc).  The S-II/S-IVB interstage, the taper from 33 ft to
+C     21 ft 8 in, is left out: no source we hold gives its length, so
+C     the step from the S-II's top to the S-IVB is drawn flat (ours).
+C     No fins, engines or fairings.
+C-----------------------------------------------------------------------
+      SUBROUTINE LVSII
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION FT
+      FT = 0.3048D0
+      CALL LVCYL(-(SIVBH + SIUH + SIIH) * FT, SIIH * FT, SICD)
+      RETURN
+      END
+C
+      SUBROUTINE LVSIC
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION FT
+      FT = 0.3048D0
+      CALL LVCYL(-(SIVBH + SIUH + SIIH + SICH) * FT, SICH * FT, SICD)
+      RETURN
+      END
+C
+C-----------------------------------------------------------------------
+C     LESBLD: the launch escape system on the CM (#97), in CSMBLD's
+C     body frame, by the Apollo Operations Handbook's stations (Fig.
+C     1-2, p. 1-5; LESXC to LESTP in viewcom.inc): the LES-CM
+C     separation plane at CM station 83.476 in (X = 0.0254 (Xc - 18)
+C     m, as CMINT), the tower to LES station 118.3, the skirt to 138.0,
+C     the motor to 363.7 and the tip at 400.762, "33 feet tall, four
+C     feet in diameter at the base" (press kit, printed p. 86).  Plain
+C     primitives: the open-frame tower a square frustum, 48 in (LESBD)
+C     across at its base to 36 in at its top; the skirt a frustum from
+C     48 in to the motor's 27 in; the motor a cylinder 27 in across;
+C     the nose a frustum to the Q-ball, 4 in.  The widths but LESBD
+C     are ours, measured on the handbook's figure; the canards and the
+C     boost protective cover over the CM are not drawn.
+C-----------------------------------------------------------------------
+      SUBROUTINE LESBLD
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION X0, HB, DM
+      X0 = 0.0254D0 * (LESXC - 18.0D0)
+      HB = 0.5D0 * LESBD * 0.0254D0
+      DM = 27.0D0
+      CALL MKBOX(X0, LESTW * 0.0254D0, 0.0D0, 0.0D0, HB, HB,
+     &           36.0D0 / LESBD)
+      CALL LVFRU(X0 + LESTW * 0.0254D0, (LESSK - LESTW) * 0.0254D0,
+     &           LESBD, DM / LESBD)
+      CALL LVCYL(X0 + LESSK * 0.0254D0, (LESMO - LESSK) * 0.0254D0,
+     &           DM)
+      CALL LVFRU(X0 + LESMO * 0.0254D0, (LESTP - LESMO) * 0.0254D0,
+     &           DM, 4.0D0 / DM)
+      RETURN
+      END
+C
+C     LVFRU: a smooth 24-sided frustum on the X axis from X0 for H (m),
+C     D inches across at X0, its top scaled by SC.
+      SUBROUTINE LVFRU(X0, H, D, SC)
+C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+C     RESTOMOD END
+      DOUBLE PRECISION X0, H, D, SC, O(3), A1(3), A2(3), AN(3), P(2,24)
+      DOUBLE PRECISION R
+      INTEGER K
+      R = 0.5D0 * D * 0.0254D0
       DO 10 K = 1, 24
-        P(1,K) = RB * DCOS(DBLE(K) * PI / 12.0D0)
-        P(2,K) = RB * DSIN(DBLE(K) * PI / 12.0D0)
+        P(1,K) = R * DCOS(DBLE(K) * PI / 12.0D0)
+        P(2,K) = R * DSIN(DBLE(K) * PI / 12.0D0)
    10 CONTINUE
-      CALL SETV(O, 0.0D0, 0.0D0, 0.0D0)
+      CALL SETV(O, X0, 0.0D0, 0.0D0)
       CALL SETV(A1, 0.0D0, 1.0D0, 0.0D0)
       CALL SETV(A2, 0.0D0, 0.0D0, 1.0D0)
       CALL SETV(AN, 1.0D0, 0.0D0, 0.0D0)
-      CALL MKFRU(24, P, O, A1, A2, AN, SLAH * FT, SLATD / SLVD)
+      CALL MKFRU(24, P, O, A1, A2, AN, H, SC)
       IF (LBOK .EQ. 1) LSMO(NSOL) = 1
       RETURN
       END
@@ -775,7 +887,8 @@ C     points counter-clockwise (duplicates when C = 0 are harmless).
       END
 C
 C     MKPRS: prism over polygon P (NP points in axes A1, A2 about O),
-C     extruded H along AN.  Faces 1..NP sides, NP+1 base, NP+2 cap.
+C     extruded H along AN.  Faces 1..NP sides, NP+1 base, NP+2 cap,
+C     the base's plane through its points 1, 3 and 6 (4 for a box).
 C     Its edges are all real (LSMO = 0); a caller building a curved
 C     surface sets LSMO(NSOL) = 1 after the call (as MKFRU's), if
 C     the call added it (LBOK).
@@ -819,11 +932,11 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         ELSE IF (K .EQ. NP + 1) THEN
           IA = 1
           IB = 3
-          IC = 6
+          IC = MIN0(NP, 6)
         ELSE
           IA = 1 + NP
           IB = 3 + NP
-          IC = 6 + NP
+          IC = MIN0(NP, 6) + NP
         END IF
 C     RESTOMOD END
         DO 30 I = 1, 3
@@ -912,10 +1025,10 @@ C     lines).
         IC = K + NP
         IF (K .EQ. NP + 1) IA = 1
         IF (K .EQ. NP + 1) IB = 3
-        IF (K .EQ. NP + 1) IC = 6
+        IF (K .EQ. NP + 1) IC = MIN0(NP, 6)
         IF (K .EQ. NP + 2) IA = 1 + NP
         IF (K .EQ. NP + 2) IB = 3 + NP
-        IF (K .EQ. NP + 2) IC = 6 + NP
+        IF (K .EQ. NP + 2) IC = MIN0(NP, 6) + NP
         DO 30 I = 1, 3
           E1(I) = LMV(I,IB,IS) - LMV(I,IA,IS)
           E2(I) = LMV(I,IC,IS) - LMV(I,IA,IS)
@@ -982,7 +1095,7 @@ C     RESTOMOD END
 C     The cap's plane again, facing along AN.
       DO 30 I = 1, 3
         E1(I) = LMV(I,3+NP,IS) - LMV(I,1+NP,IS)
-        E2(I) = LMV(I,6+NP,IS) - LMV(I,1+NP,IS)
+        E2(I) = LMV(I,MIN0(NP, 6)+NP,IS) - LMV(I,1+NP,IS)
    30 CONTINUE
       CALL VCRS(E1, E2, N)
       CALL VUNIT(N)

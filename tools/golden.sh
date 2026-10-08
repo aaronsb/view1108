@@ -203,6 +203,18 @@ s3-docked-ext-lm  | VIEW_VIEW=1 VIEW_TARGET=5    | apollo11-asflown | 3 14400
 s3-tli-ext-sivb   | VIEW_VIEW=1 VIEW_TARGET=6 VIEW_LABLV=2 | apollo11-asflown | 3 10000
 s3-presep-ext-csm | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 11824
 s3-postsep-ext-csm | VIEW_VIEW=1 VIEW_TARGET=4   | apollo11-asflown | 3 11825
+s3-pad-ext-csm    | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 -600
+s3-pad-ext-side   | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 -600 -120 25 0 110
+s3-pad-ext-wide   | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 -600 -120 -40 0 150
+s3-pad-ext-lm     | VIEW_VIEW=1 VIEW_TARGET=5 VIEW_LABLV=2 | apollo11-asflown | 3 -600
+s3-pad-window     |                              | apollo11-asflown | 3 -600
+s3-liftoff-ext    | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 0.7 -120 25 0 110
+s3-ascent-ext     | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 100 -120 25 0 110
+s3-ascent-pad-lab | VIEW_VIEW=1 VIEW_TARGET=4 VIEW_LABLV=2 | apollo11-asflown | 3 60 0 -60 0 120
+s3-ascent-sii-ext | VIEW_VIEW=1 VIEW_TARGET=6    | apollo11-asflown | 3 200 -120 25 0 110
+s9-pad-ext-csm    | VIEW_VIEW=1 VIEW_TARGET=4    | apollo8-asflown  | 1 -600 0 0 0 70
+s3-ascent-10-ext  | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 10 -120 25 0 110
+s3-ascent-30-ext  | VIEW_VIEW=1 VIEW_TARGET=4    | apollo11-asflown | 3 30 -120 25 0 110
 EOF
 )
 
@@ -225,6 +237,33 @@ s9-tape1          | 1 | apollo8-asflown  | 1 -      | 3
 s9-tape0          | 0 | apollo8-asflown  | 1 250000 | 3
 EOF
 )
+
+# The lift-off check (#97), run by capture and check, writes no file into the capture: in an External
+# view the drawn vehicle must rise from the pad, not slide off it.  NAME | scenario reel | situation
+# GET | the most the CSM's origin may stand off the pad's vertical axis (m) | the least height (m).
+# The ascent table's Hermite arc drifts about 57 m at 10 s and 216 m at 30 s; a slide from the
+# pad (the 17.9 km offset faded out by S-IC separation, as first drafted) was 1.1 and 3.3 km.
+PADCK=$(cat <<'EOF'
+pad-600           | apollo11-asflown | 3 -600 | 1    | 120
+pad-10            | apollo11-asflown | 3 10   | 100  | 150
+pad-30            | apollo11-asflown | 3 30   | 400  | 800
+EOF
+)
+
+padcheck() {
+  local name reel args maxr minh out r h bad=0
+  while IFS='|' read -r name reel args maxr minh; do
+    name=$(echo $name); reel=$(echo $reel); maxr=$(echo $maxr); minh=$(echo $minh)
+    out=$(env -u VIEW_DECK -u VIEW_HDR VIEW_REEL=$reel VIEW_VIEW=1 VIEW_TARGET=4 VIEW_PADCK=1 build/viewsvg $args)
+    read -r r h <<< "$out"
+    if ! awk -v r="$r" -v h="$h" -v a="$maxr" -v b="$minh" 'BEGIN { exit !(r >= 0 && r <= a && h >= b) }'; then
+      echo "golden: lift-off check $name: offset $r m (at most $maxr), height $h m (at least $minh)" >&2
+      bad=$((bad + 1))
+    fi
+  done <<< "$PADCK"
+  if [ $bad -ne 0 ]; then echo "golden: lift-off check FAIL" >&2; exit 1; fi
+  echo "golden: lift-off check PASS: the vehicle stands on the pad and rises from it"
+}
 
 roundtrip() {
   local tmp=build/tape-rt decks n=0 bad=0 name sim reel args want sc get src
@@ -341,6 +380,7 @@ capture() {
   rm -f "$out/ref.svg" "$out/ref.hdr"
   echo "golden: captured 6 tables, $(ls "$out/page" | wc -l) page.json, the run-table dumps ($(cat "$out"/tables-*.txt | wc -l) entries, $(ls "$out"/tables-*.txt | wc -l) reels), $n renders and $nf notebook figures into $out; $ng notebook figures are golden cases' renders"
   roundtrip
+  padcheck
 }
 
 case "${1:-}" in

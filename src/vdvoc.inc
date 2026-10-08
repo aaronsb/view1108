@@ -4,7 +4,7 @@ C     tools/gen_data.py write_vocab): the lists, their numbers in
 C     VOCLST, and the codes of the card kinds (Q...) and keys (Y...).
       INTEGER NVOCC, NVOCW, NVOCL
 C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77 (1978)
-      PARAMETER (NVOCC=921, NVOCW=216, NVOCL=29)
+      PARAMETER (NVOCC=946, NVOCW=220, NVOCL=29)
       INTEGER NVOCK
       PARAMETER (NVOCK=84)
       INTEGER VCARD, VKEY, VLEGT, VLVEH, VLATT

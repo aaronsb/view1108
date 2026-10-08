@@ -174,13 +174,16 @@ ROW_VELS = {"SF": 0, "EF": 1}              # a ROW's velocity space-fixed (defau
 EVENT_KINDS = {"TDATT": 1, "SEP": 2, "APPR": 3, "DOCK": 4, "UNDOCK": 5, "TOUCH": 6, "EI": 7,
                "PTC": 8, "TLI": 9, "LOI1": 10, "LOI2": 11, "PHOTO": 12, "TEI": 13,
                "LMSEP": 14, "PDI": 15, "LIFT": 16, "TPF": 17, "LMDOK": 18, "JETT": 19,
-               "CMSEP": 20, "EJECT": 21, "SLING": 22}
+               "CMSEP": 20, "EJECT": 21, "SLING": 22, "LIFTOFF": 23, "SICSEP": 24,
+               "LESJET": 25, "SIISEP": 26}
 EVENT_PARAMS = {"TDATT": "KETDA", "SEP": "KESEP", "APPR": "KEAPR", "DOCK": "KEDOK",
                 "UNDOCK": "KEUND", "TOUCH": "KETD", "EI": "KEEI", "PTC": "KEPTC",
                 "TLI": "KETLI", "LOI1": "KELOI1", "LOI2": "KELOI2", "PHOTO": "KEPHO",
                 "TEI": "KETEI", "LMSEP": "KELMS", "PDI": "KEPDI", "LIFT": "KELFT",
                 "TPF": "KETPF", "LMDOK": "KELDK", "JETT": "KEJET",
-                "CMSEP": "KECMS", "EJECT": "KEEJC", "SLING": "KESLG"}
+                "CMSEP": "KECMS", "EJECT": "KEEJC", "SLING": "KESLG",
+                "LIFTOFF": "KELFO", "SICSEP": "KESIC", "LESJET": "KELES",
+                "SIISEP": "KESII"}
 # Timeline card kinds (TIMELINE KIND=): a small enum shared with the kernel (/CTLN/) and the
 # page (build/names.js); see CLAUDE.md, "Scenario timeline".
 TL_KINDS = {"LAUNCH": 1, "BURN": 2, "STAGING": 3, "ORBIT": 4, "SEP": 5, "SURFACE": 6, "TV": 7,
