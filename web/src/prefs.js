@@ -6,7 +6,14 @@ const NAV_MAG = NAMES.NAV_MAG || 3.8;   // magnitude limit passing the 391 brigh
 try { Object.assign(prefs, JSON.parse(localStorage.getItem("view1108.prefs") || "{}")); } catch (e) { /* storage unavailable */ }
 const savePrefs = () => { try { localStorage.setItem("view1108.prefs", JSON.stringify(prefs)); } catch (e) { /* ignore */ } };
 const auto = () => !!LS.reel;   // a playlist reel plays (Attract, Tour; player.js)
-const filmAuto = () => auto() || tab === "print";
+// Automatic effects: in the room they follow the station (#117; ours): the microfilm recorder's Print tab has jitter and
+// bloom on (with its dust and 16 fps), the live consoles and terminals none, whatever reel plays; outside the room, on in
+// Attract/Tour reels and the Print tab. A toggle in the room holds (stationOv) until the viewer leaves that station.
+const filmAuto = () => roomIn ? tab === "print" : auto() || tab === "print";
+const stationOv = {}; let stationOvAt = "";
+const stationKey = () => roomIn && !roomShown ? roomTermOf(tab) : "";
+const stationSync = () => { const s = stationKey(); if (s !== stationOvAt) { for (const j in stationOv) delete stationOv[j]; stationOvAt = s; } };   // a toggle ends when the station changes
+const stationFlag = k => { stationSync(); return k in stationOv ? stationOv[k] : null; };
 // URL parameters override stored prefs for this visit only, and are never written to storage. A toggle clicked
 // by the viewer drops the URL value for that effect and saves the viewer's own choice.
 const urlOv = {}; for (const k of ["jitter", "bloom", "dust", "fps"]) { const v = UP.get(k); if (v === "0" || v === "1") urlOv[k] = v === "1"; }
@@ -16,28 +23,32 @@ if (UP.get("hz") === "16" || UP.get("hz") === "steady") urlOv.hz = UP.get("hz");
 const urlFlag = k => k in urlOv ? urlOv[k] : null;
 // The screen: FILM, the microfilm recorder (the effects below), or SCOPE, the room's UNIVAC 1558 console (none of
 // them: render.js scopeRender). AUTO (ours): the 1558's screen while the room shows it; on the page SCOPE when it was
-// reached through the room, except on a FILM=YES reel (Attract, the film clip; player.js filmReel) and the Print tab;
+// reached through the room, except on the Print tab (in the room a FILM=YES reel does not turn the live terminals to FILM, #117), but on a FILM=YES reel (Attract, the film clip; player.js filmReel) outside it;
 // FILM otherwise, as in Tabbed.
 const dispChoice = () => urlOv.disp || prefs.disp;
 const effDisp = () => {
+  stationSync();
   if (roomShown) return "scope";
   const d = dispChoice();
-  return d !== "auto" ? d : roomIn && !filmReel() && tab !== "print" ? "scope" : "film";
+  return d !== "auto" ? d : roomIn && tab !== "print" ? "scope" : "film";
 };
 const isFilm = () => effDisp() === "film";
 // SCOPE refresh: "16" redraws the frame as a beam pass every 1/16 s on a decaying phosphor; "steady" holds it still.
 const scopeHz = () => (urlOv.hz || prefs.hz) === "steady" ? "steady" : "16";
 const scopeLive = () => !isFilm() && scopeHz() === "16" && LS.mode !== "beam";   // Beam traces itself (beam.js)
-const effJit = () => !isFilm() ? false : urlFlag("jitter") !== null ? urlFlag("jitter") : prefs.jitter !== null ? prefs.jitter : filmAuto();
-const effBloom = () => !isFilm() ? false : urlFlag("bloom") !== null ? urlFlag("bloom") : prefs.bloom !== null ? prefs.bloom : filmAuto();
-const effDust = () => !isFilm() ? false : urlFlag("dust") !== null ? urlFlag("dust") : prefs.dust !== null ? prefs.dust : filmAuto();
-const effFps = () => LS.mode === "beam" || !isFilm() ? false : urlFlag("fps") !== null ? urlFlag("fps") : prefs.fps !== null ? prefs.fps : filmAuto();   // film rate: present at 16 fps
+const effJit = () => !isFilm() ? false : urlFlag("jitter") !== null ? urlFlag("jitter") : roomIn ? stationFlag("jitter") ?? filmAuto() : prefs.jitter !== null ? prefs.jitter : filmAuto();
+const effBloom = () => !isFilm() ? false : urlFlag("bloom") !== null ? urlFlag("bloom") : roomIn ? stationFlag("bloom") ?? filmAuto() : prefs.bloom !== null ? prefs.bloom : filmAuto();
+const effDust = () => !isFilm() ? false : urlFlag("dust") !== null ? urlFlag("dust") : roomIn ? stationFlag("dust") ?? filmAuto() : prefs.dust !== null ? prefs.dust : filmAuto();
+const effFps = () => LS.mode === "beam" || !isFilm() ? false : urlFlag("fps") !== null ? urlFlag("fps") : roomIn ? stationFlag("fps") ?? filmAuto() : prefs.fps !== null ? prefs.fps : filmAuto();   // film rate: present at 16 fps
 const effCatalog = () => (urlOv.catalog || prefs.catalog) === "full" ? "full" : "nav";
 const toggleCatalog = () => { const c = effCatalog() === "full" ? "nav" : "full"; delete urlOv.catalog; prefs.catalog = c; savePrefs(); syncUI(); };
 const toggle = k => {
   if (!isFilm()) { flash("SCOPE: NO FILM EFFECTS"); return; }
-  const cur = k === "jitter" ? effJit() : k === "dust" ? effDust() : k === "fps" ? effFps() : effBloom(); delete urlOv[k]; prefs[k] = !cur; savePrefs(); syncUI();
+  const cur = k === "jitter" ? effJit() : k === "dust" ? effDust() : k === "fps" ? effFps() : effBloom(); delete urlOv[k];
+  if (roomIn) stationOv[k] = !cur; else { prefs[k] = !cur; savePrefs(); }   // in the room: held for this station only (#117)
+  syncUI();
 };
+if (DEBUG) window.VIEW_FX = { state: () => ({ station: stationKey(), disp: effDisp(), film: isFilm(), jitter: effJit(), bloom: effBloom(), dust: effDust(), fps: effFps(), tab }), toggle, film: () => setDisp("film"), dropUrl: () => { for (const k of ["jitter", "bloom", "dust", "fps"]) delete urlOv[k]; } };   // test hook (?debug): dropUrl lets a shot see the defaults under its own determinism overrides
 const setDisp = d => { delete urlOv.disp; prefs.disp = d; savePrefs(); syncUI(); };
 const cycleDisp = () => setDisp({ auto: "film", film: "scope", scope: "auto" }[dispChoice()]);
 const setHz = h => { delete urlOv.hz; prefs.hz = h; savePrefs(); syncUI(); };

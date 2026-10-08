@@ -465,6 +465,11 @@ export class Lab {
     return { footprints: this.room.footprints ?? [], door: this.room.door ?? null, terminals };
   }
 
+  /** Where each terminal's close-up steps back to (back(): Walk.standBack), for tests (#117): the pose, and the spot before the walk's collision pushes it out, must lie outside every footprint. */
+  get stepBacks() {
+    return this.walk.terminals.map(t => { const p = this.walk.standBack(t), r = this.walk.standBackRaw(t); return { name: t.name, x: p.x, z: p.y, raw: { x: r.x, z: r.y } }; });
+  }
+
   /** Stand at (x, z) looking `yaw` degrees left of north and `pitch` up, walking: for tests. */
   stand(x: number, z: number, yaw: number, pitch = 0): void {
     this.flight = null; this.mode = "free";
