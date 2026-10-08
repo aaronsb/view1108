@@ -35,7 +35,7 @@ name: the same bytes again for a given Python and zlib (the selftest packs twice
 Reels in a package are per scenario (operator, 2026-10-07): a mission's second scenario would be a
 second reel carrying its own copy of mission.scn.
 """
-import base64, gzip, hashlib, io, json, pathlib, re, shutil, sys, tarfile
+import base64, gzip, hashlib, io, json, os, pathlib, re, shutil, subprocess, sys, tarfile
 
 import notebook
 
@@ -91,6 +91,95 @@ def notebook_members(rid, kind, src, uses, sits):
     return members, entries
 
 
+# The event listing (#29 slice f, #73; ours): one list per scenario reel, generated here from the reel's own data and
+# added to its packed page.json as `listing`, never typed by hand. The packed page.json is build/page/<id>.json
+# (tools/gen_data.py: the reel's situations and its TIMELINE cards) with two keys added, `listing` and `quickviews`;
+# the rest is what gen_data wrote. Each entry, in g.e.t. order (a situation before an event at the same g.e.t.;
+# otherwise the situations in id order and the events in timeline order):
+#   {"kind": "situation", "id": <its NAME=>, "name": <its TITLE=>, "get": s, "sit": <its id in the reel>,
+#    "view": <its VIEW=>, "target": <its TARGET=>, "fov": <its default field, deg, or null: the recipe's own>}
+#   {"kind": "event", "id": <the row's name as a slug, -2, -3 ... for a repeat>, "name": <the row's name>,
+#    "get": s, "tl": <its KIND=>}
+# A situation's g.e.t. is its page.json `get` or, where its card's rule is the kernel's own (ERISE: the Earthrise
+# search, src/traj.f ERFIND), hdr(1) of build/viewsvg at its defaults: the time view_init gives the page. #75 adds a
+# third kind, "photo". Picking a situation entry applies the situation's own view; an event entry moves the time.
+LIST_KINDS = ("situation", "event")
+
+
+def slug(name):
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "event"
+
+
+def kernel_get(rid, sit):
+    """The g.e.t. the kernel gives situation `sit` of reel `rid` at its defaults: build/viewsvg's hdr(1)."""
+    exe = R / "build" / "viewsvg"
+    if not exe.is_file():
+        sys.exit("pack.py: no build/viewsvg (tools/build.sh native builds it), which gives a situation's g.e.t. by rule")
+    env = {k: v for k, v in os.environ.items() if not k.startswith("VIEW_")}
+    r = subprocess.run([str(exe), str(sit)], cwd=R, env={**env, "VIEW_HDR": "1", "VIEW_REEL": rid},
+                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    m = re.search(r"^hdr\(1\) =\s*(\S+)", r.stderr, re.M)
+    if r.returncode or not m:
+        sys.exit(f"pack.py: {rid}: build/viewsvg {sit} gave no hdr(1) (exit {r.returncode})")
+    return float(m.group(1))
+
+
+def listing(rid, page):
+    """Reel `rid`'s event listing from its page.json (above)."""
+    sits, rows, seen = [], [], {}
+    for s in page["situations"]:
+        g = s["get"] if s["get"] is not None else kernel_get(rid, s["id"])
+        sits.append({"kind": "situation", "id": s["name"], "name": s["title"], "get": g, "sit": s["id"],
+                     "view": s["view"], "target": s["target"], "fov": s["fov"]})
+    for g, kind, name in page["timeline"]["events"]:
+        base = slug(name)
+        seen[base] = seen.get(base, 0) + 1
+        rows.append({"kind": "event", "id": base if seen[base] == 1 else f"{base}-{seen[base]}", "name": name,
+                     "get": g, "tl": kind})
+    every = sits + rows
+    ids = [e["id"] for e in every]
+    dup = sorted({i for i in ids if ids.count(i) > 1})
+    if dup:
+        sys.exit(f"pack.py: {rid}: listing ids {', '.join(dup)} name two entries")
+    return [every[k] for k in sorted(range(len(every)), key=lambda k: (every[k]["get"], k >= len(sits), k))]
+
+
+# Quick views (#73; ours): the page's keys 1-9 for a scenario reel, each a shortcut to one entry of its listing (a
+# situation's NAME or an event's id) that does what picking the entry does. They are a page feature, so they stay out
+# of the kernel's run deck: the source is quickviews.txt in the reel's own source folder,
+# data/missions/<mission>/<scenario file stem>/, beside its notebook/ (the reel's page-side material, which the card
+# reader never reads). One line per key: the key 1-9, a space, the entry's id; '#' lines and blank lines skipped;
+# gaps allowed. Without the file the first nine situations, in id order, take keys 1-9. Packed
+# as page.json's `quickviews`, {"<key>": "<id>"}; a key or an id the reel does not have is refused here and by
+# web/src/reelpkg.js readReel.
+def quickviews(rid, src, entries):
+    f = src / "quickviews.txt"
+    ids = {e["id"] for e in entries}
+    if not f.is_file():
+        sits = sorted((e for e in entries if e["kind"] == "situation"), key=lambda e: e["sit"])
+        return {str(k + 1): s["id"] for k, s in enumerate(sits[:9])}
+    where, out = f.relative_to(R), {}
+    for n, ln in enumerate(f.read_text(encoding="utf-8").split("\n"), 1):
+        if not ln.strip() or ln.lstrip().startswith("#"):
+            continue
+        m = re.fullmatch(r"\s*([1-9])\s+(\S.*?)\s*", ln)
+        if not m:
+            sys.exit(f"pack.py: {where}:{n}: not '<key 1-9> <entry id>'")
+        if m.group(1) in out:
+            sys.exit(f"pack.py: {where}:{n}: key {m.group(1)} given twice")
+        if m.group(2) not in ids:
+            sys.exit(f"pack.py: {where}:{n}: {m.group(2)!r} is no entry of {rid}'s listing (a situation NAME or an event id)")
+        out[m.group(1)] = m.group(2)
+    return dict(sorted(out.items()))
+
+
+def page_bytes(rid, src, pbytes):
+    """A scenario reel's packed page.json: gen_data's, with its listing and quick views added."""
+    page = json.loads(pbytes)
+    entries = listing(rid, page)
+    return (json.dumps({**page, "listing": entries, "quickviews": quickviews(rid, src, entries)}) + "\n").encode()
+
+
 def write_members(rdir, rid, members):
     for name, data in members:
         f = rdir / rid / name
@@ -138,7 +227,7 @@ def main():
                                      {"path": sfile.name, "type": "scn"},
                                      {"path": "page.json", "type": "page"}, *nbe]}
             members = [("manifest.json", (json.dumps(manifest, indent=1) + "\n").encode()),
-                       ("mission.scn", mtext), (sfile.name, stext), ("page.json", pfile.read_bytes()), *nbm]
+                       ("mission.scn", mtext), (sfile.name, stext), ("page.json", page_bytes(rid, mdir / sfile.stem, pfile.read_bytes())), *nbm]
             pkg = tar_gz(members)
             (rdir / f"{rid}.reel.tar.gz").write_bytes(pkg)
             write_members(rdir, rid, members)

@@ -1,0 +1,14 @@
+# Quick views of the Apollo 11 as-flown reel (#73; ours): the page's keys 1-9, each a shortcut to one entry of the
+# reel's event listing, doing what picking that entry does (tools/pack.py packs this as page.json's `quickviews`).
+# One line per key: the key, a space, the entry's id: a situation's NAME= (asflown.scn, SITUATIONS) or a timeline
+# event's id (its name as a slug: lower case, each run of other characters a hyphen; -2, -3 for a repeated name).
+# Gaps are allowed. Keys 1-8 keep the situations' own order, the keys the page gave them before #73; 9 is ours.
+1 EARTHRISE
+2 EARTH APPROACH
+3 EARTH LIMB
+4 LM RENDEZVOUS
+5 LM DESCENT
+6 MOON VIEW
+7 TRANSPOSITION AND DOCKING
+8 DOCKED STACK
+9 translunar-injection

@@ -105,6 +105,47 @@ function reelFigureRefs(md) {
   }
   return out;
 }
+// A scenario reel's event listing and quick views (#29 slice f, #73; ours): page.json's `listing` and `quickviews`,
+// which tools/pack.py generates from the reel's own situations and TIMELINE rows (its header gives the format). Why
+// they may not be the reel's, or null. The listing must hold each situation of page.json once (kind "situation", id
+// its NAME, sit its id) and each timeline row once, in the timeline's order (kind "event"), every entry with a unique
+// id, a name and a g.e.t., in g.e.t. order; a situation entry carries its default view, target and field. #75 adds
+// the kind "photo". quickviews maps keys "1" to "9" to ids the listing holds.
+const REEL_LIST_KINDS = ["situation", "event"];
+function reelListingWrong(pg) {
+  const L = pg.listing, Q = pg.quickviews, ids = new Set(), sits = pg.situations || [], evs = (pg.timeline || {}).events || [];
+  if (!Array.isArray(L)) return "page.json has no listing";
+  let lastGet = -Infinity, ev = 0;
+  const seenSit = new Set();
+  for (const [k, e] of L.entries()) {
+    const at = `listing entry ${k + 1}`;
+    if (!e || typeof e !== "object") return `${at} is not an object`;
+    if (!REEL_LIST_KINDS.includes(e.kind)) return `${at} is of kind ${e.kind}, not ${REEL_LIST_KINDS.join(" or ")}`;
+    if (typeof e.id !== "string" || !e.id || ids.has(e.id)) return `${at}: id ${JSON.stringify(e.id)} is empty or not unique`;
+    ids.add(e.id);
+    if (typeof e.name !== "string" || typeof e.get !== "number" || !isFinite(e.get)) return `${at} (${e.id}) has no name or g.e.t.`;
+    if (e.get < lastGet) return `${at} (${e.id}) is out of g.e.t. order`;
+    lastGet = e.get;
+    if (e.kind === "situation") {
+      const s = sits.find(x => x.name === e.id);
+      if (!s || s.id !== e.sit || seenSit.has(e.id)) return `${at}: situation ${e.id} is not one of the reel's, once`;
+      if (typeof e.view !== "string" || typeof e.target !== "string" || !(e.fov === null || typeof e.fov === "number"))
+        return `${at}: situation ${e.id} has no default view, target and field`;
+      seenSit.add(e.id);
+    } else {
+      const t = evs[ev++];
+      if (!t || t[0] !== e.get || t[1] !== e.tl || t[2] !== e.name) return `${at} (${e.id}) is not the timeline's row ${ev}`;
+    }
+  }
+  if (seenSit.size !== sits.length) return `the listing holds ${seenSit.size} of the reel's ${sits.length} situations`;
+  if (ev !== evs.length) return `the listing holds ${ev} of the timeline's ${evs.length} rows`;
+  if (!Q || typeof Q !== "object" || Array.isArray(Q)) return "page.json has no quickviews";
+  for (const [key, v] of Object.entries(Q)) {
+    if (!/^[1-9]$/.test(key)) return `quickviews key ${JSON.stringify(key)} is not 1 to 9`;
+    if (!ids.has(v)) return `quick view ${key} names ${JSON.stringify(v)}, which the reel's listing does not hold`;
+  }
+  return null;
+}
 async function readReel(b64, sha, id) {
   const no = why => new Error(`REEL ${id}: ${why}`);
   let bytes, files;
@@ -140,6 +181,7 @@ async function readReel(b64, sha, id) {
   if (pages.length !== 1) throw no(`it lists ${pages.length} page.json, not one`);
   let page;
   try { page = JSON.parse(text.get(pages[0].path)); } catch (e) { throw no(`${pages[0].path}: ${e.message}`); }
+  if (manifest.kind === "scenario") { const why = reelListingWrong(page || {}); if (why) throw no(why); }
   const books = c.filter(e => e.type === "notebook"), figs = c.filter(e => e.type === "figure");
   for (const e of c) if (String(e.path).startsWith("notebook/") && e.type !== "notebook" && e.type !== "figure")
     throw no(`${e.path} is under notebook/ as type ${e.type}, not notebook or figure`);
@@ -176,8 +218,9 @@ const reelDecks = r => r.manifest.contents.filter(c => c.type === "scn").map(c =
 //          URL's scn= and sit= (loader.js), and the kernel's view_init(id) with that reel's decks loaded (each reel
 //          numbers its own situations, #26 slice 7e). scene is the page's handle for it, and the old links' scene=N
 //          (#22): Apollo 11's eight, then Apollo 8's as 9, as one numbering gave them before.
-//   scns   by reel id: {id (the kernel's scenario number, 1 in every reel), mission, zero, spans}, the spans'
-//          situations as scenes
+//   scns   by reel id: {id (the kernel's scenario number, 1 in every reel), mission, zero, spans, listing, quick}, the
+//          spans' situations as scenes; listing the reel's event listing (reelListingWrong), each situation entry with
+//          its scene added, and quick its quick views, {key: entry id}
 //   tl     by reel id: the timeline, {name, events: [[get, kind, name], ...]}
 //   lists  the playlist reels by id: their page.json (REEL and SHOT cards), each shot with `scene` added
 // A reel without page.json, a span naming a situation its reel does not hold, a playlist using a scenario reel the
@@ -200,7 +243,9 @@ function reelPages(reels) {
       follow: follow.map(([until, s, ...rest]) => [until, scene(s), ...rest]),
       live: live.map(([until, s, name]) => [until, scene(s), name]),
       jump: jump.map(j => ({ ...j, scene: scene(j.scene) })),
-      pin: pin.map(scene) } };
+      pin: pin.map(scene) },
+      listing: (pg.listing || []).map(e => e.kind === "situation" ? { ...e, scene: scene(e.sit) } : e),
+      quick: pg.quickviews || {} };
     tl[id] = pg.timeline;
   }
   for (const r of reels.filter(x => x.manifest.kind === "playlist")) {
