@@ -182,7 +182,7 @@ function libLoad() {
   const id = libCur?.reel?.manifest.id;
   if (!id) return;
   if (roomIn) { roomCarry(id); return; }
-  libraryClose(); reelMount(id);
+  roomLibraryClose(); reelMount(id);   // roomLibraryClose: the library closed, and no room origin left behind
 }
 $("blib").onclick = () => libraryOpen();
 $("blibclose").onclick = libraryClose;

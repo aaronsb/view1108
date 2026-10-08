@@ -54,8 +54,9 @@ export interface LabHooks {
   screens: { vector: HTMLCanvasElement };   // #cv, the plot
   state(): LabState;
   /** The terminal was opened at its close-up: the page shows the tab it opens, fades the lab out and asks it to hide. `name` is
-   *  the placed name flown to ("binder:<id>" picks that document in the library). */
-  arrive(opens: Opens, name: string): void;
+   *  the placed name flown to ("binder:<id>" picks that document in the library), `from` the station whose close-up it
+   *  was opened at (the bookcase, or the rack for a notebook pulled from its half-pull there), where an overlay returns. */
+  arrive(opens: Opens, name: string, from: string): void;
   /** Lay the page out for `opens` behind the room, without showing it, and give the client rect of the element the
    *  terminal's screen becomes (#cv for the workbench, the Source workspace for source). The lab ends its flight
    *  where the screen covers that rect, so the crossfade lines up. */
