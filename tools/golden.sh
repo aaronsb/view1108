@@ -250,8 +250,9 @@ EOF
 # The lift-off check (#97), run by capture and check, writes no file into the capture: in an External
 # view the drawn vehicle must rise from the pad, not slide off it.  NAME | scenario reel | situation
 # GET | the most the CSM's origin may stand off the pad's vertical axis (m) | the least height (m).
-# The ascent table's Hermite arc drifts about 57 m at 10 s and 216 m at 30 s; a slide from the
-# pad (the 17.9 km offset faded out by S-IC separation, as first drafted) was 1.1 and 3.3 km.
+# The ascent table's Hermite arc drifts about 54 m at 10 s and 215 m at 30 s (57 and 216 before
+# #105 put its low rows on the pad's geodetic footing); a slide from the pad (the 17.9 km
+# offset faded out by S-IC separation, as first drafted) was 1.1 and 3.3 km.
 PADCK=$(cat <<'EOF'
 pad-600           | apollo11-asflown | 3 -600 | 1    | 120
 pad-10            | apollo11-asflown | 3 10   | 100  | 150
