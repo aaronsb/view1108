@@ -43,7 +43,7 @@ Sizes are W x H x D in metres.
 | `glass` | UNISCOPE 100 Display Terminal, showing the kernel source | UP-7701 Fig. 1-1 and p. 1 (10 x 5 in viewing area, 16 x 64 or 12 x 80, green on dark), size p. 30; UNISCOPE photo (below) | 0.46 x 0.33 x 0.69 | Good. Delivered from 1970, a year after the film (an anachronism we keep for Source) |
 | `uniservo` | UNISERVO VIII-C tape unit; the middle one is the drive (below) | UP-4046 sec. 8.4.2 (120 in/s, 240 in/s rewind, 2400 ft reels); brochure p. 7; MSC photo (numbers 60, 61, ...) | 0.75 x 1.8 x 0.75 (inferred) | Good on look; vacuum columns not shown. The drive's label and lamps are ours |
 | `cpu` | 1108 cabinet; `{lampPanel: true}` is the processor's maintenance panel | Brochure p. 3 (colour) | 0.8 x 1.9 x 0.8 (inferred) | Good on look; the lamp count is ours |
-| `powercab` | Power distribution cabinet, low, on the south wall east of the card reader: a sloped meter panel over a pair of doors (below) | none | 1.0 x 1.13 x 0.7 (ours) | HYPOTHETICAL |
+| `powercab` | Power distribution cabinet, low, on the south wall at the machine floor's south end, beside the 1557: a sloped meter panel over a pair of doors (below) | none | 1.0 x 1.13 x 0.7 (ours) | HYPOTHETICAL |
 | `console4009` | 1108 Display Console, type 4009: indicator panel with Day Clock, display unit with CRT and keyboard, PAGEWRITER on a pedestal (below) | UP-7604 Figs. 2-1, 2-3, 2-4, 4-1, Tables 2-1, 2-3, secs. 2.1 to 2.3.4; UP-7619 App. A and cover; console photo; UP-4046 Fig. 1-1; brochure pp. 6, 7 | 2.8 x 1.25 x 0.95 (2.8 x 1.13 x 0.9 drawn; desk and panel sizes ours) | Fair: parts and display unit sourced, layout ours |
 | `controller1557` | UNIVAC 1557 Display Controller | UP-7789 p. 27 (48 x 24 x 64 in, read as W x D x H) | 1.2 x 1.6 x 0.6 | Size sourced, look HYPOTHETICAL (no figure) |
 | `printer` | High-speed printer, 132 columns, 1200 lines/min, fanfold greenbar paper | UP-4046 sec. 8.5 (model not stated); MSC photo | 1.4 x 1.2 x 0.8 (inferred) | Fair; the paper path and stacker are ours |
@@ -171,7 +171,7 @@ keypunch, and the 4020's tape transport and hard-copy camera.
 
 ## The power cabinet
 
-The power distribution cabinet is a low floor-standing unit against the south wall, east of the card reader, with
+The power distribution cabinet is a low floor-standing unit against the south wall at the machine floor's south end, beside the 1557 controller, with
 nothing in front of it for 0.9 m and clear of the door's swing; it, its place and its look are HYPOTHETICAL. What our sources say about the 1108's power is little: each storage bank has "an adjacent cabinet"
 holding "dc power supplies for operation of the bank and the associated MMA" (UP-4046 sec. 3.4), and the processor
 has a Power Loss Interrupt (Table 4-7, address 210 octal). Neither UP-4046 nor anything we found on bitsavers gives
@@ -202,8 +202,7 @@ One tape unit, the middle of the seven (number 63), is the drive: the unit with 
 
 ## The reference library
 
-No source shows where MSC kept its manuals; the bookcase, its place (against the east wall behind the UNISCOPE's
-desk, its front 0.9 m clear) and everything on it are ours. Each binder's thickness follows its PDF's page count (1 in
+No source shows where MSC kept its manuals; the bookcase, its place (against the north wall in the library zone east of the tape drives, beside the space kept for the reel rack, #19; its front 1.2 m clear) and everything on it are ours. Each binder's thickness follows its PDF's page count (1 in
 rings for the thinnest up to 2 1/2 in for 330 pages), its spine card gives the number and a short title in the
 nameplate face, and the colours are ours too: grey and blue vinyl for the UNIVAC manuals, black and oxblood for the
 Stromberg-Carlson ones, buff for the NASA reports. The bookends are olive enamel. A binder is picked on its own (its

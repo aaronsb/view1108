@@ -206,10 +206,10 @@ two rows under three-point lighting, with a stand-in plot. The flags are `?view=
 `footprints` (each floor-standing piece's own bounding box seen from above, placed and turned: what the plan's
 checks and walking use), `door`, `overview` (the zoomed-out `CameraPose`), `labels` (hover text by name), `air` (the
 dust's box), `update` and `dispose`. The page addresses the station table's names: `"vector"` (the 1558, which opens the workbench), `"glass"` (the UNISCOPE 100, which opens Source), `"filmrecorder"` (which opens Print), `"printer"` (the listing), `"library"` (the bookcase, which opens the library; its binders are `"binder:<id>"`) and `"drive"` (the middle tape unit, STOP/START; the lab gives it its `use`, `hooks.drive`). Their hover labels come from the same table.
-`src/room/shell.ts` builds the 9 m × 7 m × 2.75 m shell: one textured plane for the raised floor's 0.6 m tiles
-(`surfaces.ts`), an acoustic-tile ceiling, two instanced meshes for the 20 troffers, walls, a door in the south wall
+`src/room/shell.ts` builds the 13.2 m × 10.2 m × 2.75 m shell: one textured plane for the raised floor's 0.6 m tiles
+(`surfaces.ts`), an acoustic-tile ceiling, two instanced meshes for the 42 troffers, walls, a door in the south wall
 with an EXIT sign over it, and a wall clock. `room.ts` places by registry name, with options where a module takes
 them (`uniservo` `{ number, index, drive }`, `cpu` `{ lampPanel }`), and casts and receives shadows on everything it
 places. Nothing stands in the door's swing, its aisle runs clear 2 m into the room, and every machine's front has at
-least 0.9 m clear (the UNISCOPE's desk, beside the 1558, only on its chair side). A name the registry lacks becomes a
+least 0.9 m clear (the UNISCOPE's desk, beside the 1558, only on its chair side). The equipment stands in #21's zones (tape area, machine floor, operator consoles, output, library) with at least 1.2 m between them; `room.ts`'s header comment gives the map, and `LIBRARY` there the library zone on the north wall, with the floor kept clear for the reel rack (#19). A name the registry lacks becomes a
 grey stand-in box of its `FOOTPRINT`, so the room composes before every module exists.

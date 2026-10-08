@@ -137,7 +137,7 @@ export class Lab {
     this.scene.add(this.room.object);
     markScreens(this.room.object);
     this.room.object.updateMatrixWorld(true);
-    if (this.room.air) { this.dust = new Dust({ box: this.room.air, count: 420, size: 0.006, opacity: 0.22 }); this.scene.add(this.dust.object); }
+    if (this.room.air) { this.dust = new Dust({ box: this.room.air, count: 900, size: 0.006, opacity: 0.22 }); this.scene.add(this.dust.object); }
     this.home0 = shotOf(this.room.overview);
     this.sound = new RoomSound(this.room, this.camera, hooks.state, () => this.shown);
     const terminals: Terminal[] = this.room.placed.filter(p => (p.equipment.opens || p.equipment.use || p.name === "switch" || stationNamed(p.name)) && p.equipment.anchors.screen).map(p => {

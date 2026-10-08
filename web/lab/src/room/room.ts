@@ -1,16 +1,21 @@
 // The machine room: the shell (shell.ts) and the equipment placed in it by registry name.
 //
 // The layout is ours. The MSC photograph of 15 July 1969 shows tape drives in a row, a work table with stacked
-// reels, a card reader and printers, but no floor plan survives; this arrangement puts the same kinds of machine
-// in a 9 m by 7 m room so that one standing view from the south-east takes in the terminals and the tapes:
-// UNISERVO drives along the north wall, the 1108's five cabinets along the west wall (the lamp-panel cabinet at the
-// centre), the 4009 operator console facing the tapes, the reel table at the centre, and in the east half a desk
-// with the UNISCOPE 100 beside the 1558 graphic console, turned toward the viewer, with its 1557 controller behind
-// them. Along the east wall the microfilm recorder, downstream of the computer as the film was, then the printer;
-// the card reader in the south-west corner and the low power distribution cabinet east of it on the south wall; behind the UNISCOPE's desk, against the east wall between the 1557 and the
-// film recorder, the reference library's bookcase, facing the room across the desk's back aisle. The door is in the south wall, west of centre, with nothing in its
-// swing and a clear aisle from it into the room, and the light switch on its latch side; every front has an aisle of
-// at least 0.9 m (the plan's check, `footprints`, is what the walk collides with).
+// reels, a card reader and printers, but no floor plan survives; period photographs of 1108 installations show long
+// cabinet runs on an open raised floor (#21). This arrangement puts the same kinds of machine in a 13.2 m by 10.2 m
+// room, in zones on one open floor (#19, #21), so that one standing view from the south-east takes them in:
+// - Tape area, the north wall's west part: the UNISERVO row, and the reel table in front of its west end.
+// - Machine floor, the west: the 1108's five cabinets along the west wall (the lamp-panel cabinet at the centre),
+//   facing east across open floor; the low power distribution cabinet and the 1557 controller on the south wall.
+// - Operator consoles, the middle: the 4009 facing the tapes, its chair between; east of it the 1558 graphic
+//   console turned toward the viewer, its stool at its left, and the desk with the UNISCOPE 100.
+// - Output, the east wall and the south-east: the microfilm recorder, downstream of the computer as the film was,
+//   then the printer; the card reader on the south wall.
+// - Library, the north wall east of the drives: the reel rack (to come) and the reference bookcase side by side
+//   (LIBRARY below), a few steps from the drives.
+// The door is in the south wall, west of centre, with nothing in its swing and a clear aisle from it into the room,
+// and the light switch on its latch side; every front has an aisle of at least 0.9 m and the zones at least 1.2 m
+// between them (the plan's check, `footprints`, is what the walk collides with).
 //
 // A name the registry lacks is placed as a neutral grey box of its FOOTPRINT, so the room composes before every
 // module exists. What a station opens and its hover label come from the station table (stations.ts), by placed name;
@@ -29,6 +34,9 @@ type Builder = (ctx: BuildContext, opts?: Record<string, unknown>) => Equipment;
 /** Turns about the vertical: the front (+Z in the module's frame) toward north, east, south, west. */
 const N = Math.PI, E = Math.PI / 2, S = 0, W = -Math.PI / 2;
 
+/** The tape row on the north wall: the westmost drive's x (seven at 0.82 m, the middle one at x0 + 2.46). */
+const DRIVES = { x0: -5.9 };
+
 const STANDIN = new THREE.MeshStandardMaterial({ color: 0x8e908c, roughness: 0.8 });
 
 function standIn(kind: string): Equipment {
@@ -38,6 +46,16 @@ function standIn(kind: string): Equipment {
   const object = new THREE.Group(); object.add(m);
   return { object, anchors: {}, dispose() { g.dispose(); } };
 }
+
+/** The library zone on the north wall (#19; ours), facing south with 1.2 m of standing room in front (to z0 + 1.65):
+ *  the reel rack, kept clear for now, a few steps east of the drive row, each reel's notebook binder to stand beside
+ *  it; and east of it the reference bookcase, the operator's manuals and documents. Centre x, the wall's z, width
+ *  and depth (out from the wall), metres. */
+export const LIBRARY = {
+  z0: -ROOM.d / 2,
+  rack: { x: 2.0, w: 2.8, d: 0.45 },
+  bookcase: { x: 4.1, w: 1.0, d: 0.36 },
+};
 
 export function build(ctx: BuildContext): Room {
   const object = new THREE.Group(), placed: Placed[] = [], footprints: Footprint[] = [];
@@ -66,39 +84,39 @@ export function build(ctx: BuildContext): Room {
   const top = (e: Equipment, dflt: number) => (e.anchors.top as THREE.Vector3 | undefined)?.y ?? dflt;
 
   const nW = ROOM.d / 2, wW = ROOM.w / 2;
-  for (let i = 0; i < 7; i++) place("uniservo", [-2.7 + i * 0.82, 0, -nW + 0.45], S, i === 3 ? "drive" : undefined, { number: 60 + i, index: i + 1, drive: i === 3 });
-  for (let i = 0; i < 5; i++) place("cpu", [-wW + 0.48, 0, -1.64 + i * 0.82], E, undefined, { lampPanel: i === 2 });
+  for (let i = 0; i < 7; i++) place("uniservo", [DRIVES.x0 + i * 0.82, 0, -nW + 0.45], S, i === 3 ? "drive" : undefined, { number: 60 + i, index: i + 1, drive: i === 3 });
+  for (let i = 0; i < 5; i++) place("cpu", [-wW + 0.48, 0, -0.4 + i * 0.82], E, undefined, { lampPanel: i === 2 });
   // The operator's chair at the 4009's seat (its keyboard end), facing it; without the anchor, centred in front of it.
   // The console stands far enough south that the chair leaves the tape units' 0.9 m aisle.
-  const op = place("console4009", [-1.2, 0, -0.55], N);
+  const op = place("console4009", [-1.0, 0, -1.3], N);
   const seat = op.anchors.seat as { position: THREE.Vector3; yaw: number } | undefined;
   const seatAt = op.object.localToWorld(seat?.position.clone() ?? new THREE.Vector3(0, 0, 0.86));
   place("chair", [seatAt.x, 0, seatAt.z], N + (seat?.yaw ?? Math.PI));
-  place("reeltable", [0.75, 0, 1.2], 0.08);
-  place("chair", [1.5, 0, 1.85], -2.4);
+  place("reeltable", [-4.6, 0, -2.5], 0.08);
+  place("chair", [-3.85, 0, -1.85], -2.4);
 
-  const desk = place("desk", [2.6, 0, -1.25], -0.19, "desk");
+  const desk = place("desk", [4.0, 0, -1.25], -0.19, "desk");
   const dt = top(desk, FOOTPRINT.desk[1]);
   desk.object.updateMatrixWorld();
   const glassAt = desk.object.localToWorld(new THREE.Vector3(0.25, dt, -0.05));
   place("glass", [glassAt.x, glassAt.y, glassAt.z], -0.19, "glass");
-  place("chair", [2.55, 0, -0.5], N - 0.19);
-  const vector = place("vector", [1.2, 0, -1.0], 0.32, "vector");   // beside the desk, turned toward the overview's eye
+  place("chair", [3.95, 0, -0.5], N - 0.19);
+  const vector = place("vector", [2.6, 0, -1.0], 0.32, "vector");   // beside the desk, turned toward the overview's eye
   // A drafting chair for the 1558's shelf (0.92 m up), off to its left so that the walk-up in front stays clear,
   // turned toward the keyboard (ours).
   const stool = vector.object.localToWorld(new THREE.Vector3(-0.62, 0, 0.92)), keys = vector.object.localToWorld(new THREE.Vector3(0, 0, 0.5));
   place("chair", [stool.x, 0, stool.z], Math.atan2(keys.x - stool.x, keys.z - stool.z), undefined, { tall: true });
-  place("controller1557", [3.4, 0, -nW + 0.38], S);
-  place("filmrecorder", [wW - 0.47, 0, 0.85], W, "filmrecorder");
-  place("printer", [wW - 0.4, 0, 2.75], W, "printer");
-  place("cardreader", [-wW + 0.37, 0, nW - 0.65], E);
-  // The power cabinet, clear of the card reader's front aisle and the door's swing; its voltmeter selector is a piece
-  // of its own, picked and turned apart from the cabinet's doors.
-  const power = place("powercab", [-2.3, 0, nW - 0.37], N, "power");
+  place("controller1557", [-3.3, 0, nW - 0.38], N);
+  place("filmrecorder", [wW - 0.47, 0, 1.5], W, "filmrecorder");
+  place("printer", [wW - 0.4, 0, 3.6], W, "printer");
+  place("cardreader", [2.8, 0, nW - 0.37], N);
+  // The power cabinet, beside the 1557 on the south wall, clear of the cabinet run's front aisle and the door's swing;
+  // its voltmeter selector is a piece of its own, picked and turned apart from the cabinet's doors.
+  const power = place("powercab", [-4.9, 0, nW - 0.37], N, "power");
   const selector = power.anchors.selector as Equipment;
   selector.object.userData.placed = "power:selector"; placed.push({ name: "power:selector", equipment: selector });
   // The bookcase; each of its binders is placed under its own name, so it is picked, labelled and flown to alone.
-  const library = place("bookcase", [wW - 0.19, 0, -2.2], W, "library");
+  const library = place("bookcase", [LIBRARY.bookcase.x, 0, LIBRARY.z0 + 0.19], S, "library");
   const binders = library.anchors.binders as Binder[];
   for (const b of binders) { b.object.userData.placed = `binder:${b.doc.id}`; b.opens = library.opens; placed.push({ name: b.object.userData.placed, equipment: b }); }
   const props = library.anchors.props as Prop[];   // for looks: named on hover, inert
@@ -137,7 +155,7 @@ export function build(ctx: BuildContext): Room {
       face: { normal: L.normal.clone().transformDirection(mw), w: L.w, h: L.h } });
   }
   // The tape units' lamps along the row's top strip (uniservo.ts: 1.71 m up, 0.356 m out), facing into the room.
-  glows.push({ pos: new THREE.Vector3(-0.24, 1.71, -nW + 0.45 + 0.356), color: 0xffe6c0, intensity: 0.25, distance: 5,
+  glows.push({ pos: new THREE.Vector3(DRIVES.x0 + 3 * 0.82, 1.71, -nW + 0.45 + 0.356), color: 0xffe6c0, intensity: 0.25, distance: 5,
     face: { normal: new THREE.Vector3(0, 0, 1), w: 5.6, h: 0.1 } });
   glows.push({ pos: shell.exit.clone(), color: 0xff2a1a, intensity: 0.4, distance: 3, face: { normal: new THREE.Vector3(0, 0, -1), w: 0.36, h: 0.17 } });
 
@@ -149,7 +167,7 @@ export function build(ctx: BuildContext): Room {
     placed,
     footprints,
     door: { x: DOOR.x, z: nW, w: DOOR.w },
-    overview: { position: new THREE.Vector3(2.4, 1.62, 3.15), target: new THREE.Vector3(0.1, 1.0, -1.6), fov: 55 },
+    overview: { position: new THREE.Vector3(4.4, 1.62, 4.0), target: new THREE.Vector3(0.2, 1.0, -2.6), fov: 55 },
     labels: { ...Object.fromEntries(STATIONS.map(st => [st.name, st.label])), switch: "Lights", power: "Power distribution — click to open/close the doors", "power:selector": "Voltmeter selector — click to turn", door: "Exit — github.com/aaronsb/view1108",
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
       ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },
@@ -157,7 +175,7 @@ export function build(ctx: BuildContext): Room {
     setLights(on) { room.lightsOn = on; sw.set(on); },
     tubes: level => shell.tubes(level),
     glows,
-    air: new THREE.Box3(new THREE.Vector3(-4, 0.3, -2.9), new THREE.Vector3(4, 2.5, 3.1)),
+    air: new THREE.Box3(new THREE.Vector3(-6.2, 0.3, -4.7), new THREE.Vector3(6.2, 2.5, 4.8)),
     update() { shell.update(); batches.update(); },
     dispose() { shell.dispose(); batches.dispose(); sw.dispose?.(); handle.dispose?.(); STANDIN.dispose(); },
   };

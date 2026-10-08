@@ -7,18 +7,18 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { ceilingMap, clockFace, exitSign, floorMaps } from "./surfaces";
 
 /** Room size, metres: x across (west -, east +), z deep (north wall at -D/2), y up. */
-export const ROOM = { w: 9, d: 7, h: 2.75 };
+export const ROOM = { w: 13.2, d: 10.2, h: 2.75 };
 /** Raised-floor and ceiling tile, metres. */
 export const TILE = 0.6;
 /** Troffer rows: z of each row, the fixtures' x centres and their size (metres). */
 export const TROFFERS = {
-  rows: [-2.45, -0.82, 0.82, 2.45],
-  xs: [-3.4, -1.7, 0, 1.7, 3.4],
+  rows: [-4.25, -2.55, -0.85, 0.85, 2.55, 4.25],
+  xs: [-5.4, -3.6, -1.8, 0, 1.8, 3.6, 5.4],
   len: 1.22, wid: 0.3,
 };
 /** The door, on the south wall: the x of its centre, its width and height; it opens inward, hinged on its west side. */
 export const DOOR = { x: -0.6, w: 0.92, h: 2.13 };
-const CLOCK = { x: 0, y: 2.32, r: 0.16 };    // on the north wall, above the tape drives
+const CLOCK = { x: -3.44, y: 2.32, r: 0.16 };    // on the north wall, above the middle tape drive
 
 export interface Shell {
   object: THREE.Group;
