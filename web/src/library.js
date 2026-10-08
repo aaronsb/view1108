@@ -61,7 +61,7 @@ function libFigUrl(svg) {
 // The viewer as a document's (PDF) or a notebook's: which of the iframe and the article shows, and the buttons.
 function libMode(md) {
   $("libr").classList.toggle("md", md);
-  $("libmd").hidden = !md; $("blibload").hidden = !md; $("bliblist").hidden = !md;
+  $("libmd").hidden = !md; $("blibload").hidden = !md; $("bliblist").hidden = !md; $("blibtheme").hidden = !md;
   $("libnew").hidden = $("libsrc").hidden = md;
   if (md) { $("libframe").hidden = true; $("libframe").removeAttribute("src"); $("libnote").hidden = true; }
   else libMdClear();
@@ -88,27 +88,27 @@ function libShow(id) {
   });
 }
 // A reel's notebook in the viewer: its text built by notebook.js, each figure an <img> from a data: URL of the reel's
-// own SVG (never inlined). A text the renderer refuses (too long) or fails on is shown as plain text.
+// own SVG (never inlined), with the run sheet in front, in the binder's wrappers and paging plate (binder.js nbBind).
+// A text the renderer refuses (too long) or fails on is shown as plain text.
 function libShowNb(id) {
   const n = libNotebooks().find(x => x.id === id);
   if (!n) { libShow(LIB[0]?.id); return; }
-  if (libCur?.id === id && $("libmd").childNodes.length) { libMode(true); return; }
+  if (libCur?.id === id && $("libmd").childNodes.length) { libMode(true); nbRecount(); return; }   // shown again: laid out anew
   libMdClear(); libMode(true);
   libCur = { id, reel: n.reel };
   document.querySelectorAll("#liblist .librow").forEach(b => b.classList.toggle("on", b.dataset.id === id));
   document.querySelector("#liblist .librow.on")?.scrollIntoView({ block: "nearest" });
   $("libtitle").textContent = `${n.reel.manifest.title} — scenario notebook (ours), carried in the reel`;
   const figs = n.reel.notebook.figures, fig = name => figs.has(name) ? libFigUrl(figs.get(name)) : null;
-  try { $("libmd").replaceChildren(nbBuild(nbParse(n.reel.notebook.text), document, fig)); }
+  let body;
+  try { body = nbBuild(nbParse(n.reel.notebook.text), document, fig); }
   catch (e) {
-    const pre = document.createElement("pre");
-    pre.textContent = n.reel.notebook.text;
-    $("libmd").replaceChildren(pre);
+    body = document.createElement("pre");
+    body.textContent = n.reel.notebook.text;
     console.warn(`notebook ${id}: shown as text (${e.message})`);
   }
   const sheet = libRunSheet(n.reel.manifest.id);
-  if (sheet) $("libmd").prepend(sheet);
-  $("libmd").scrollTop = 0;
+  nbBind($("libmd"), sheet ? [sheet, body] : [body]);
 }
 // The run sheet at the front of a mission notebook (#29 slice f; the operator, 2026-10-07: the notebook is the tape's
 // operator's manual and opens with every event on the tape): the reel's event listing, generated when it was packed
@@ -150,7 +150,7 @@ function libRunSheet(rid) {
     const more = mk("button", "rsall"), line = mk("p", "rsline");
     const label = () => { more.textContent = sec.classList.contains("full") ? `SHOW ONLY THE ${nBrief} SITUATIONS AND MILESTONES` : `SHOW ALL ${nAll} ENTRIES`; };
     more.type = "button"; label();
-    more.onclick = () => { sec.classList.toggle("full"); label(); };
+    more.onclick = () => { sec.classList.toggle("full"); label(); nbRecount(); };
     line.appendChild(more); sec.appendChild(line);
   }
   return sec;

@@ -11,6 +11,17 @@ const TL = k => `VIEW_TL.state().${k}`;
 // clock ran from the link until now), then hold it at s for a picture that repeats.
 const LINKED = s => [HOLD(), { expect: [`(d => d >= 0 && d < 300)(VIEW_TL.state().get - ${s})`] }, HOLD(s)];
 const LAB = "VIEW_LAB.info()";
+// The notebook's binder (#29 slice g): Apollo 11's notebook opened from the library, and its paging plate's label.
+const NB_OPEN = [{ js: `document.getElementById("blib").click()` },
+  { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` }, { frames: 2 }];
+const NB_PAGE = `document.querySelector("#libmd .nbpage").textContent`;
+const NB_COLS = `getComputedStyle(document.querySelector("#libmd .nbpages")).columnCount`;
+const NO_HSCROLL = `document.documentElement.scrollWidth <= innerWidth && document.getElementById("libr").scrollWidth <= innerWidth`;
+// Every shown run-sheet row, in each of its fragments, no wider than one column of the binder's pages.
+const RS_FITS = `(pg => { const cs = getComputedStyle(pg), w = pg.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+  - (parseInt(cs.columnCount, 10) - 1) * parseFloat(cs.columnGap);
+  const rows = [...pg.querySelectorAll(".runsheet tr")].filter(r => r.offsetParent !== null);
+  return rows.length > 0 && rows.every(r => [...r.getClientRects()].every(q => q.width <= w / parseInt(cs.columnCount, 10) + 0.5)); })(document.querySelector("#libmd .nbpages"))`;
 const VISIBLE_ROWS = `[...document.querySelectorAll("#libmd .runsheet tbody tr")].filter(r => r.offsetParent !== null).length`;   // the run sheet's rows shown
 const ROOM_UP = { wait: `VIEW_LAB.running && ${LAB} && document.body.classList.contains("room")` };
 const ROOM_STILL = { wait: `${LAB}.mode !== "flight" && !document.getElementById("labhost").classList.contains("fading") && ${LAB}.lit >= 0.999` };
@@ -170,7 +181,7 @@ export const SHOTS = [
   { name: "tabbed-run-sheet", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
     steps: [HOLD(), { js: `document.getElementById("blib").click()` },
       { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` }, { frames: 3 }],
-    expect: [[`document.getElementById("libmd").firstElementChild.className`, "runsheet"],
+    expect: [[`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"],
       [`document.querySelectorAll("#libmd .runsheet tbody tr").length`, 255], [`document.querySelectorAll("#libmd .runsheet tr.rssit").length`, 8],
       [VISIBLE_ROWS, 21], [`document.querySelector("#libmd .runsheet button.rsall").textContent`, "SHOW ALL 255 ENTRIES"],
       [`document.querySelector("#libmd .runsheet h2").textContent`, "RUN SHEET - APOLLO 11 AS FLOWN"]] },
@@ -195,6 +206,68 @@ export const SHOTS = [
       { js: `document.getElementById("blib").click()` }, { js: `document.querySelector('#libmd .runsheet button[data-id="LM DESCENT"]').click()` },
       { frames: 3 }],
     expect: [[TL("scene"), 5], [TL("viewMode"), 0], [TL("fov"), 82.4], [TL("get"), 369720], [TL("playing"), false], [TL("mode"), "free"]] },
+
+  // The notebook's reading view (#29 slice g): LIGHT by default, typed pages in an open three-ring binder on a desk.
+  // On a phone-sized window one page, the run sheet first, with no sideways scroll of the page itself.
+  { name: "notebook-light-page", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1", viewport: [400, 860],
+    steps: [HOLD(), ...NB_OPEN],
+    expect: [[`document.getElementById("libmd").className`, "light"], [NB_COLS, "1"], [NB_PAGE, /^PAGE 1 OF \d+$/],
+      [`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"], [VISIBLE_ROWS, 21],
+      [`document.getElementById("blibtheme").textContent`, "Dark"], [NO_HSCROLL]] },
+
+  // On a narrow screen LIST hides the viewer; a resize while it is hidden, then the same notebook again: counted anew
+  // (review of PR #94: the hidden binder measured 0 wide and the count went to -Infinity).
+  { name: "notebook-light-relist", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1", viewport: [400, 860],
+    steps: [HOLD(), ...NB_OPEN, { click: "#bliblist" }, { vp: [390, 700] }, { frames: 2 },
+      { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` }, { frames: 2 },
+      { expect: [NB_PAGE, /^PAGE 1 OF \d+$/] }, { key: "PageDown" }, { frames: 2 }],
+    expect: [[NB_PAGE, /^PAGE 2 OF \d+$/], [`document.querySelector("#libmd .nbnext").disabled`, false]] },
+
+  // A small phone (360x640): the run sheet's table fits its page, collapsed and with every entry shown; every row's
+  // fragments within the column (review of PR #94: rows were 262 px in a 216 px column).
+  { name: "notebook-light-phone", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1", viewport: [360, 640],
+    steps: [HOLD(), ...NB_OPEN, { expect: [RS_FITS] }, { js: `document.querySelector("#libmd .runsheet button.rsall").click()` },
+      { frames: 2 }, { expect: [RS_FITS] }, { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { frames: 2 }],
+    expect: [[RS_FITS], [NB_PAGE, /^PAGE 1 OF \d+$/], [NO_HSCROLL]] },
+
+  // On a wide window a two-page spread: the run sheet on the left page, the notebook's first page on the right.
+  { name: "notebook-light-spread", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB_OPEN],
+    expect: [[`document.getElementById("libmd").className`, "light"], [NB_COLS, "2"], [NB_PAGE, /^PAGES 1-2 OF \d+$/],
+      [`document.querySelector("#libmd .nbprev").disabled`, true], [NO_HSCROLL]] },
+
+  // Paged forward by jumps (PgDn twice, Left, Right): the spread of pages 5 and 6, the scroll two whole views.
+  { name: "notebook-light-paged", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB_OPEN, { key: "PageDown" }, { expect: [NB_PAGE, /^PAGES 3-4 OF /] },
+      { key: "PageDown" }, { key: "ArrowLeft" }, { expect: [NB_PAGE, /^PAGES 3-4 OF /] }, { key: "ArrowRight" }, { frames: 2 }],
+    expect: [[NB_PAGE, /^PAGES 5-6 OF \d+$/], [`document.querySelector("#libmd .nbprev").disabled`, false],
+      [`(p => Math.abs(p.scrollLeft / (p.clientWidth + parseFloat(getComputedStyle(p).columnGap) - 2 * parseFloat(getComputedStyle(p).paddingLeft)) - 2) < 0.01)(document.querySelector("#libmd .nbpages"))`],
+      [`VIEW_TL.state().playing`, false]] },
+
+  // End: Apollo 8's notebook at its last spread, the figure cases, on a whole view; its pages are odd here, so the
+  // spread ends on a blank page (.nbend.blank), which is not counted. Home goes back to the first spread.
+  { name: "notebook-light-end", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, { js: `document.getElementById("blib").click()` },
+      { js: `document.querySelector('#liblist .librow[data-id="nb-apollo8-asflown"]').click()` }, { frames: 2 },
+      { key: "End" }, { expect: [NB_PAGE, /^PAGE \d+ OF \d+$/] }, { key: "Home" }, { expect: [NB_PAGE, /^PAGES 1-2 OF /] },
+      { key: "End" }, { frames: 2 }],
+    expect: [[`(m => !!m && m[1] === m[2])(/(\\d+) OF (\\d+)$/.exec(${NB_PAGE}))`], [`document.querySelector("#libmd .nbnext").disabled`, true],
+      [`document.querySelector("#libmd .nbend").className`, "nbend blank"],
+      [`(p => p.scrollLeft > 0 && Math.abs(p.scrollLeft / (p.clientWidth + parseFloat(getComputedStyle(p).columnGap) - 2 * parseFloat(getComputedStyle(p).paddingLeft)) % 1) < 0.01)(document.querySelector("#libmd .nbpages"))`],
+      [`(r => r.left > 0 && r.right < innerWidth)(document.querySelector("#libmd section.nbcases h2").getBoundingClientRect())`]] },
+
+  // DARK, the viewer as it was, by the toggle: remembered (prefs.notebook), so the notebook opens dark again.
+  { name: "notebook-dark", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), ...NB_OPEN, { click: "#blibtheme" }, { expect: [`document.getElementById("libmd").className`, "dark"] },
+      { key: "Escape" }, { expect: [`document.getElementById("libr").classList.contains("open")`, false] }, ...NB_OPEN],
+    expect: [[`document.getElementById("libmd").className`, "dark"], [`document.getElementById("blibtheme").textContent`, "Light"],
+      [`JSON.parse(localStorage.getItem("view1108.prefs")).notebook`, "dark"], [`getComputedStyle(document.querySelector("#libmd .nbnav")).display`, "none"],
+      [`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"]] },
+
+  // ?notebook=dark holds DARK for the visit without touching the remembered choice.
+  { name: "notebook-dark-url", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1&notebook=dark",
+    steps: [HOLD(), ...NB_OPEN],
+    expect: [[`document.getElementById("libmd").className`, "dark"], [`localStorage.getItem("view1108.prefs")`, null]] },
 
   // [ RETURN TO REELS ] in the room: from the vector terminal's page, back into the room at the rack's close-up.
   { name: "room-return-to-reels", url: "space=room&mode=free&scn=apollo11-asflown&sit=1&get=102:14:04",
