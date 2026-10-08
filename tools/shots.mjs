@@ -649,7 +649,8 @@ function printShot(name, link, get, stem) {
     window.__prints = got.map(g => { const d = new DOMParser().parseFromString(g.svg, "image/svg+xml"), r = d.getElementById("film");
       const ink = new Set([...d.querySelectorAll("[stroke],[fill]")].filter(e => e !== r).flatMap(e => [e.getAttribute("stroke"), e.getAttribute("fill")]));
       ink.delete(null); ink.delete("none");
-      return { name: g.name, bg: r ? r.getAttribute("fill") : null, ink: [...ink].sort(), ok: !d.querySelector("parsererror") && d.querySelectorAll("path").length > 2 }; });
+      return { name: g.name, bg: r ? r.getAttribute("fill") : null, ink: [...ink].sort(), ok: !d.querySelector("parsererror") && d.querySelectorAll("path").length > 2
+        && d.querySelectorAll("clipPath").length === d.querySelectorAll("defs clipPath").length }; });   // a loose clip outline paints black in some viewers
   })()`;
   return { name, url: `mode=free&space=tabbed&tab=print&${link}`,
     steps: [...LINKED(get), { frames: 3 }, { js: PRINTS }],
