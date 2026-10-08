@@ -22,6 +22,18 @@ const RS_FITS = `(pg => { const cs = getComputedStyle(pg), w = pg.clientWidth - 
   - (parseInt(cs.columnCount, 10) - 1) * parseFloat(cs.columnGap);
   const rows = [...pg.querySelectorAll(".runsheet tr")].filter(r => r.offsetParent !== null);
   return rows.length > 0 && rows.every(r => [...r.getClientRects()].every(q => q.width <= w / parseInt(cs.columnCount, 10) + 0.5)); })(document.querySelector("#libmd .nbpages"))`;
+// Findings and attachments (#29 slice g): the Apollo 8 notebook opened likewise; the binder paged forward (its Next
+// button) until the element `sel` has come into view, its photographs and figures decoded; and the check that `sel`
+// lies whole inside the binder's view.
+const NB8_OPEN = [{ js: `document.getElementById("blib").click()` },
+  { js: `document.querySelector('#liblist .librow[data-id="nb-apollo8-asflown"]').click()` }, { frames: 2 }];
+const NB_TO = sel => [{ js: `(() => { const pg = document.querySelector("#libmd .nbpages"), el = document.querySelector(${JSON.stringify(sel)}), nx = document.querySelector("#libmd .nbnext");
+  for (let k = 0; k < 60 && el.getBoundingClientRect().left >= pg.getBoundingClientRect().right - 1 && !nx.disabled; k++) nx.click(); })()` },
+  { wait: `[...document.querySelectorAll("#libmd img")].every(i => i.complete && i.naturalWidth > 0)` }, { frames: 2 }];
+// Every attachment no wider than one column of the binder's pages (on a phone, one page).
+const NB_ATTACH_FITS = `(pg => { const cs = getComputedStyle(pg), n = parseInt(cs.columnCount, 10), w = (pg.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - (n - 1) * parseFloat(cs.columnGap)) / n;
+  const fs = [...pg.querySelectorAll("figure.nbattach")]; return fs.length > 0 && fs.every(f => f.getBoundingClientRect().width <= w + 1); })(document.querySelector("#libmd .nbpages"))`;
+const NB_SHOWN = sel => `(r => (p => r.width > 0 && r.left >= p.left - 1 && r.right <= p.right + 1)(document.querySelector("#libmd .nbpages").getBoundingClientRect()))(document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect())`;
 const VISIBLE_ROWS = `[...document.querySelectorAll("#libmd .runsheet tbody tr")].filter(r => r.offsetParent !== null).length`;   // the run sheet's rows shown
 const ROOM_UP = { wait: `VIEW_LAB.running && ${LAB} && document.body.classList.contains("room")` };
 const ROOM_STILL = { wait: `${LAB}.mode !== "flight" && !document.getElementById("labhost").classList.contains("fading") && ${LAB}.lit >= 0.999` };
@@ -264,6 +276,53 @@ export const SHOTS = [
       [`JSON.parse(localStorage.getItem("view1108.prefs")).notebook`, "dark"], [`getComputedStyle(document.querySelector("#libmd .nbnav")).display`, "none"],
       [`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"]] },
 
+  // Findings and attachments (#29 slice g; the look is ours): a finding, a typed slip pasted beside the text (Apollo 8,
+  // TN D-6853 p. 3).
+  { name: "notebook-finding", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB8_OPEN, ...NB_TO("#libmd aside.nbfinding")],
+    expect: [[NB_SHOWN("#libmd aside.nbfinding")], [`document.querySelector("#libmd aside.nbfinding .nbslip").textContent`, "FINDING  2026-10-08"],
+      [`document.querySelector("#libmd aside.nbfinding .nbcite").textContent`, "Source: TN D-6853, printed p. 3"]] },
+  // A plate, printed on the page and numbered: Apollo 8's LOI figure, a glossy photo finish.
+  { name: "notebook-attach-plate", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB8_OPEN, ...NB_TO("#libmd figure.nb-plate")],
+    expect: [[NB_SHOWN("#libmd figure.nb-plate")], [`document.querySelector("#libmd figure.nb-plate").className`, "nbattach nb-plate nb-photo"],
+      [`document.querySelector("#libmd figure.nb-plate figcaption strong").textContent`, "PLATE 1."]] },
+  // Taped in and clipped on: the golden render of the Earthrise as a film-recorder print taped at its corners, and the
+  // photograph AS08-14-2383 (a media member, JPEG) as a glossy print under a paper clip beside it.
+  { name: "notebook-attach-tape-clip", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB8_OPEN, ...NB_TO("#libmd figure.nb-tape")],
+    expect: [[NB_SHOWN("#libmd figure.nb-tape")], [NB_SHOWN("#libmd figure.nb-clip")],
+      [`document.querySelector("#libmd figure.nb-tape").className`, "nbattach nb-tape nb-film"], [`document.querySelectorAll("#libmd figure.nb-tape .nbtape").length`, 4],
+      [`document.querySelector("#libmd figure.nb-clip").className`, "nbattach nb-clip nb-photo"],
+      [`(i => i.naturalWidth + "x" + i.naturalHeight + " " + i.src.slice(0, 23))(document.querySelector("#libmd figure.nb-clip img.nbmedia"))`, "800x800 data:image/jpeg;base64,"]] },
+  // An insert, a sheet of its own tipped in: a figure of MSC IN 69-FM-197 (a media member, PNG) with the copy finish, in
+  // Apollo 11's notebook; on the facing page the descent section's first figure.
+  { name: "notebook-attach-insert", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB_OPEN, ...NB_TO("#libmd figure.nb-insert")],
+    expect: [[NB_SHOWN("#libmd figure.nb-insert")], [`document.querySelector("#libmd figure.nb-insert").className`, "nbattach nb-insert nb-copy"],
+      [`(i => i.naturalWidth + " " + i.src.slice(0, 22))(document.querySelector("#libmd figure.nb-insert img.nbmedia"))`, "1100 data:image/png;base64,"],
+      [`(f => Math.abs(f.getBoundingClientRect().height - (f.parentElement.clientHeight - parseFloat(getComputedStyle(f.parentElement).paddingTop) - parseFloat(getComputedStyle(f.parentElement).paddingBottom))) < 2)(document.querySelector("#libmd figure.nb-insert"))`]] },
+  // The late-descent render as a plate with the film finish (Apollo 11).
+  { name: "notebook-attach-plate-film", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1",
+    steps: [HOLD(), { vp: [1600, 1000] }, { frames: 2 }, ...NB_OPEN, ...NB_TO("#libmd figure.nb-film")],
+    expect: [[NB_SHOWN("#libmd figure.nb-film")], [`document.querySelector("#libmd figure.nb-film").className`, "nbattach nb-plate nb-film"],
+      [`document.querySelector("#libmd figure.nb-film figcaption strong").textContent`, "PLATE 1."]] },
+  // On a phone (390x844, one page) the attachments take the column: the clipped photograph and the taped render each the
+  // column's width (most of it), every attachment within it; and Apollo 11's insert, whole on its page.
+  { name: "notebook-attach-phone", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1", viewport: [390, 844],
+    steps: [HOLD(), ...NB8_OPEN, ...NB_TO("#libmd figure.nb-clip")],
+    expect: [[NB_COLS, "1"], [NB_SHOWN("#libmd figure.nb-clip")], [NB_ATTACH_FITS], [NO_HSCROLL],
+      [`(i => (pg => i.getBoundingClientRect().width >= 0.7 * (pg.clientWidth - parseFloat(getComputedStyle(pg).paddingLeft) - parseFloat(getComputedStyle(pg).paddingRight)))(document.querySelector("#libmd .nbpages")))(document.querySelector("#libmd figure.nb-clip img.nbmedia"))`]] },
+  { name: "notebook-attach-phone-insert", url: "mode=free&space=tiled&scn=apollo11-asflown&sit=1", viewport: [390, 844],
+    steps: [HOLD(), ...NB_OPEN, ...NB_TO("#libmd figure.nb-insert")],
+    expect: [[NB_COLS, "1"], [NB_SHOWN("#libmd figure.nb-insert")], [NB_ATTACH_FITS], [NO_HSCROLL]] },
+  // DARK shows attachments plainly: the photograph and its credit, no clip, tape or finish.
+  { name: "notebook-dark-attach", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1&notebook=dark",
+    steps: [HOLD(), ...NB8_OPEN, { js: `document.querySelector("#libmd figure.nb-clip").scrollIntoView({ block: "center" })` },
+      { wait: `[...document.querySelectorAll("#libmd img")].every(i => i.complete && i.naturalWidth > 0)` }, { frames: 2 }],
+    expect: [[`document.getElementById("libmd").className`, "dark"], [`getComputedStyle(document.querySelector("#libmd .nbclip")).display`, "none"],
+      [`document.querySelector("#libmd figure.nb-clip .nbcredit").textContent.startsWith("Credit: NASA. Source: ")`, true]] },
+
   // ?notebook=dark holds DARK for the visit without touching the remembered choice.
   { name: "notebook-dark-url", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1&notebook=dark",
     steps: [HOLD(), ...NB_OPEN],
@@ -347,4 +406,35 @@ export const SHOTS = [
       { wait: `document.body.classList.contains("room")`, timeout: 5000 }, ROOM_STILL, { frames: 10 }, ROOM_STILL, { frames: 3 }],
     expect: [[`${LAB}.at`, null], [`${LAB}.mode`, "free"], [NEAREST, "vector"], [`VIEW_ESC()`, ["room"]],
       [`document.getElementById("blibroom").hidden`, true]] },
+
+  // #82, the film recorder's prints: the Print tab's NEGATIVE, POSITIVE and CLEAR buttons, each download caught at
+  // its link (printShot, below) and checked: the file name, the background, and every colour drawn.
+  printShot("print-svg-apollo11-descent", "scn=apollo11-asflown&sit=5&get=102:45:40", 369940, "apollo11-asflown-s5-lm-descent-102-45-40"),
+  printShot("print-svg-apollo8-earthrise", "scn=apollo8-asflown&sit=1&get=75:48:39", 272919, "apollo8-asflown-s1-apollo-8-earthrise-75-48-39"),
 ];
+
+// A print shot: the Print tab open at a situation and g.e.t., the clock held there, and the three print buttons
+// pressed with each download link's click caught (its file name and the SVG at its blob URL, read before the page
+// revokes it). Each print is summed up as { name, bg: the #film rect's fill (null: none), ink: every stroke and fill
+// colour but "none" }: the negative white on black (its captions #aaa), the positive true black on white, the clear
+// positive true black on nothing.
+function printShot(name, link, get, stem) {
+  const PRINTS = `(async () => {
+    const got = [], click = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () { if (this.download) got.push({ name: this.download, href: this.href }); else click.call(this); };
+    try { for (const id of ["bneg", "bpos", "bposc"]) document.getElementById(id).click(); }
+    finally { HTMLAnchorElement.prototype.click = click; }
+    for (const g of got) g.svg = await (await fetch(g.href)).text();
+    window.__prints = got.map(g => { const d = new DOMParser().parseFromString(g.svg, "image/svg+xml"), r = d.getElementById("film");
+      const ink = new Set([...d.querySelectorAll("[stroke],[fill]")].filter(e => e !== r).flatMap(e => [e.getAttribute("stroke"), e.getAttribute("fill")]));
+      ink.delete(null); ink.delete("none");
+      return { name: g.name, bg: r ? r.getAttribute("fill") : null, ink: [...ink].sort(), ok: !d.querySelector("parsererror") && d.querySelectorAll("path").length > 2 }; });
+  })()`;
+  return { name, url: `mode=free&space=tiled&tab=print&${link}`,
+    steps: [...LINKED(get), { frames: 3 }, { js: PRINTS }],
+    expect: [[TL("get"), get], [`["bneg", "bpos", "bposc"].map(id => document.getElementById(id).innerText).join("/")`, "NEGATIVE/POSITIVE/CLEAR"],
+      [`window.__prints`, [
+        { name: `${stem}-negative.svg`, bg: "#000", ink: ["#aaa", "#fff"], ok: true },
+        { name: `${stem}-positive.svg`, bg: "#fff", ink: ["#000"], ok: true },
+        { name: `${stem}-positive-clear.svg`, bg: null, ink: ["#000"], ok: true }]]] };
+}
