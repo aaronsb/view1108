@@ -17,7 +17,7 @@ const urlFlag = k => k in urlOv ? urlOv[k] : null;
 // The screen: FILM, the microfilm recorder (the effects below), or SCOPE, the room's UNIVAC 1558 console (none of
 // them: render.js scopeRender). AUTO (ours): the 1558's screen while the room shows it; on the page SCOPE when it was
 // reached through the room, except on a FILM=YES reel (Attract, the film clip; player.js filmReel) and the Print tab;
-// FILM otherwise, as in Tiled.
+// FILM otherwise, as in Tabbed.
 const dispChoice = () => urlOv.disp || prefs.disp;
 const effDisp = () => {
   if (roomShown) return "scope";

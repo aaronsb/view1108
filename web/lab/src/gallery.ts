@@ -1,6 +1,6 @@
 // Development only: the equipment gallery (web/lab/gallery.html, `npm run gallery`), every registry item in two rows
 // on a plain floor under three-point lighting, for checking models against their references. Not part of the page.
-// URL flags: ?view=<name> flies to that item's close-up (`&q`: a three-quarter view instead; `&cam=px,py,pz,tx,ty,tz,fov`:
+// URL flags: ?piece=<name> (?view=, its old name, still read: the page's view is another key, #22) flies to that item's close-up (`&q`: a three-quarter view instead; `&cam=px,py,pz,tx,ty,tz,fov`:
 // a camera at p looking at t, in the item's own frame), &play runs the fake page clock, &tape sends a `tape` event at
 // load. window.__gallery reports the renderer's counts.
 import * as THREE from "three";
@@ -94,7 +94,7 @@ async function main() {
 
   const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.03, 80);
   let pose: CameraPose = { position: new THREE.Vector3(0, 6.5, 11), target: new THREE.Vector3(0, 0.6, -0.4), fov: 50 };
-  const view = UP.get("view"), p = placed.find(q => q.name === view);
+  const view = UP.get("piece") ?? UP.get("view"), p = placed.find(q => q.name === view);
   if (p) {
     p.eq.object.updateMatrixWorld(true);
     const m = p.eq.object.matrixWorld, [w, h, d] = FOOTPRINT[p.kind], y0 = p.eq.object.position.y;
