@@ -133,14 +133,19 @@ C     External: free-look sets the direction, the camera backs off
 C     along it to DIST from the target.  A situation with XSTART (JXOF;
 C     the docking, whose reference looks down the docking axis, where
 C     the CSM's solids hide the LM it docks with) starts QXY round:
-C     there 60 deg round and 25 deg up (ours).  Before the separation
-C     a vehicle in the launch stack behind the CSM (LVPL) starts the
-C     same 60 and 25 deg round, since from straight behind or ahead
-C     one end of the stack hides the rest (ours).
+C     there 60 deg round and 25 deg up (ours).  Before the separation,
+C     while the launch stack is placed behind the CSM (LVPL), a vehicle
+C     target starts 60 deg round and 25 deg down, the camera above the
+C     stack looking down on it against the Earth, since from straight
+C     behind or ahead one end of the stack hides the rest (ours).  Only
+C     while the stack is placed: at SEP the start goes back to the
+C     scene's own, so the external camera jumps by that offset between
+C     the frames either side of SEP (ours; one start for every vehicle
+C     target is filed against #70).
       J = 0
       IF (JXOF .NE. 1 .AND. MDON(KSTK) .EQ. 1 .AND. IT .GE. 4) J = 1
       IF (JXOF .EQ. 1) CALL LOOK(YAW + QXY(1), PIT + QXY(2), ROL)
-      IF (J .EQ. 1) CALL LOOK(YAW + 60.0D0, PIT + 25.0D0, ROL)
+      IF (J .EQ. 1) CALL LOOK(YAW + 60.0D0, PIT - 25.0D0, ROL)
       IF (JXOF .NE. 1 .AND. J .EQ. 0) CALL LOOK(YAW, PIT, ROL)
       LOOKD = 1
       DO 30 I = 1, 3
@@ -236,10 +241,11 @@ C         The placed CSM (or CM): aim at the top of its tunnel.
    50     CONTINUE
         ELSE IF (MDON(KSTK) .EQ. 1) THEN
 C         Stowed in the placed stack's SLA, hidden by it: its stage
-C         joint, the point of its state, 1.5 + 2.3 m above the IU's top
-C         (S7POSE, VEHPL).
+C         joint, the point of its state, the LM's base 1.5 m above the
+C         IU's top (S7POSE) plus the joint 2.3 m above the base
+C         (VEHPL's body point).
           IST = 5
-          CALL SETV(C, (3.8D0 - MDBO(1,KSTK)) * 1.0D-3,
+          CALL SETV(C, (1.5D0 + 2.3D0 - MDBO(1,KSTK)) * 1.0D-3,
      &      -MDBO(2,KSTK) * 1.0D-3, -MDBO(3,KSTK) * 1.0D-3)
           CALL MXV(MDAT(1,1,KSTK), C, W)
           DO 52 I = 1, 3

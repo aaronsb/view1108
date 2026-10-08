@@ -46,6 +46,9 @@ C     RESTOMOD END
       NWIN = 0
       NOC = 0
       NOCX = 0
+      NMODX = 0
+      NSOLX = 0
+      NXLX = 0
 C     LM, landing gear deployed (scene 4).
       CALL MODBEG(KLMD)
       CALL LMBODY
@@ -111,13 +114,17 @@ C     and the closed SLA, the LM hidden inside (not built).
       RETURN
       END
 C
-C     MODBEG, MODEND: open and close model K in the table.
+C     MODBEG, MODEND: open and close model K in the table.  A model
+C     number past MMOD is refused and counted (NMODX): its builder's
+C     solids and lines are still made, but no model holds them.
       SUBROUTINE MODBEG(K)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       INTEGER K
+      IF (K .GT. MMOD .OR. K .LT. 1) NMODX = NMODX + 1
+      IF (K .GT. MMOD .OR. K .LT. 1) RETURN
       MDS1(K) = NSOL + 1
       MDX1(K) = NXL + 1
       MDHL(K) = 1
@@ -131,6 +138,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       INTEGER K
+      IF (K .GT. MMOD .OR. K .LT. 1) RETURN
       MDS2(K) = NSOL
       MDX2(K) = NXL
       IF (K .GT. NMOD) NMOD = K
@@ -728,6 +736,7 @@ C     RESTOMOD END
       DOUBLE PRECISION Y1, X1, Z1, Y2, X2, Z2
       INTEGER IS
       LXOK = 0
+      IF (NXL .GE. MXL) NXLX = NXLX + 1
       IF (NXL .GE. MXL) RETURN
       LXOK = 1
       NXL = NXL + 1
@@ -782,6 +791,7 @@ C     RESTOMOD END
 C     A full model table takes no more solids (as XLINE takes no more
 C     lines).
       LBOK = 0
+      IF (NSOL .GE. MSOL) NSOLX = NSOLX + 1
       IF (NSOL .GE. MSOL) RETURN
       LBOK = 1
       NSOL = NSOL + 1
@@ -877,6 +887,7 @@ C     RESTOMOD END
 C     A full model table takes no more solids (as XLINE takes no more
 C     lines).
       LBOK = 0
+      IF (NSOL .GE. MSOL) NSOLX = NSOLX + 1
       IF (NSOL .GE. MSOL) RETURN
       LBOK = 1
       NSOL = NSOL + 1
@@ -958,6 +969,7 @@ C     RESTOMOD END
       DOUBLE PRECISION E1(3), E2(3), N(3), VDOT
       INTEGER I, K, IS
       LBOK = 0
+      IF (NSOL .GE. MSOL) NSOLX = NSOLX + 1
       IF (NSOL .GE. MSOL) RETURN
       LBOK = 1
       CALL MKPRS(NP, P, O, A1, A2, AN, H)
@@ -1054,6 +1066,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION O(3), A1(3), A2(3), AN(3), P(2,24), Q(2,8)
       DOUBLE PRECISION FT, RB, XF, XS, HS, XN, RN, C, S, CMTOP, XT
+      DOUBLE PRECISION SMAFT
       DOUBLE PRECISION BR(3), BD(3), BU(3), T(3), CX, CY, HA, R, XQ
       DOUBLE PRECISION B0, SA(6), HB, CS, SN, U(3), W(3), D, XB
       DOUBLE PRECISION BL(2,6)
@@ -1087,7 +1100,7 @@ C
 C     SM and fairing.
       XF = 22.0D0 / 12.0D0 * FT
       HS = (12.0D0 + 11.0D0 / 12.0D0) * FT
-      XS = -XF - HS
+      XS = SMAFT()
       DO 14 K = 1, 24
         P(1,K) = RB * DCOS(DBLE(K) * PI / 12.0D0)
         P(2,K) = RB * DSIN(DBLE(K) * PI / 12.0D0)
@@ -1187,7 +1200,13 @@ C     blade's outline, down the SM and out from it, m).
    32   CONTINUE
    34 CONTINUE
 C
-C     High-gain antenna: boom, four dishes, the square horn.
+C     High-gain antenna: boom, four dishes, the square horn, drawn
+C     deployed.  Before the separation it was "Nested alongside the
+C     service propulsion system engine nozzle until deployment"
+C     (Apollo 11 press kit, printed p. 90), inside the closed SLA, so
+C     MDRAW leaves its lines (LHGA1 to LHGA2) out while the launch
+C     stack is placed (KSTK).
+      LHGA1 = NXL + 1
       C = DCOS(-52.0D0 * DR)
       S = DSIN(-52.0D0 * DR)
       CALL SETV(BD, 0.0D0, C, S)
@@ -1205,6 +1224,7 @@ C     High-gain antenna: boom, four dishes, the square horn.
 C     The horn, a square ring (a 4-sided ring turned 45 deg).
       HA = 0.5D0 * 11.0D0 * 0.0254D0 * DSQRT(2.0D0)
       CALL HGARNG(R, C, S, XS, 0.0D0, 0.0D0, HA, T, BU, 4)
+      LHGA2 = NXL
       RETURN
       END
 C
@@ -1344,8 +1364,9 @@ C     1-5), with X = 0.0254 (Xc - 18) as CMINT.
       END
 C
 C     SMAFT: X (m) of the SM's aft end in CSMBLD's frame, below its
-C     fairing and the SM (CSMBLD), where the SLA's top met it before
-C     the separation (press kit, printed p. 88; LVPL).
+C     fairing ("22 inches high", NR p. 55) and the SM ("12 feet 11
+C     inches long", AOH p. 1-50; see CSMBLD), where the SLA's top met
+C     it before the separation (press kit, printed p. 88; LVPL).
       DOUBLE PRECISION FUNCTION SMAFT()
       DOUBLE PRECISION FT
       FT = 0.3048D0

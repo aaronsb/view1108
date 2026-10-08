@@ -308,7 +308,7 @@ Outputs (written by the kernel):
   none in scenes 6, 8 and external views) is not counted. Set at every label level. 22 the crew
   stations the scene offers (its VIEWS card's `CM=` and `LM=`), a bitmask: 1 the CM station (not scenes 5 and 6), 2 the LM station
   (where an LM is placed, in the LM station itself, and scene 5), 4 always (a kernel without
-  hdr(22) leaves 0); the page enables its CM and LM buttons from it. 23 the target's status (`vview.f` TGTPOS, `ITGST`; #70): 0 no target asked (`in_target` 0) or none applies (the LM station, a FIXED situation), 1 aimed at a point of its own (a body, a placed model, a vehicle's own state), 2 the vehicle the camera rides, 3 docked to or carried with another vehicle (the LM docked, the S-IVB with the CSM before SEP or docked to the stack; its point is that vehicle's), 4 no point (no state; the Sun from outside), 5 as 3 for the LM stowed in the SLA before SEP. A window or the CM station aims only at 1 and otherwise keeps the scene's aim; the external view flies round 1, 3 and 5 (before SEP, with the launch stack drawn behind the CSM, the S-IVB at its centre and the LM at its place in the closed SLA, hidden by it, the camera starting 60 deg round and 25 deg up, as the docking's XSTART, for a vehicle target; ours), and for 4 the situation's own subject (else the Earth), always choosing before it places the CSM around the camera, so a failed pick never leaves the camera inside the hull. The page shows a vehicle picked from the window at 2, 3 or 5 from outside and letters why on the caption line (`views.js` tgtTick). 24 spare.
+  hdr(22) leaves 0); the page enables its CM and LM buttons from it. 23 the target's status (`vview.f` TGTPOS, `ITGST`; #70): 0 no target asked (`in_target` 0) or none applies (the LM station, a FIXED situation), 1 aimed at a point of its own (a body, a placed model, a vehicle's own state), 2 the vehicle the camera rides, 3 docked to or carried with another vehicle (the LM docked, the S-IVB with the CSM before SEP or docked to the stack; its point is that vehicle's), 4 no point (no state; the Sun from outside), 5 as 3 for the LM stowed in the SLA before SEP. A window or the CM station aims only at 1 and otherwise keeps the scene's aim; the external view flies round 1, 3 and 5 (before SEP, with the launch stack drawn behind the CSM, the S-IVB at its centre and the LM at its place in the closed SLA, hidden by it, the camera starting 60 deg round and 25 deg down, above the stack looking down on it against the Earth, for a vehicle target, only while the stack is placed, so the external camera jumps by that offset at SEP; ours, and one start for every vehicle target is filed against #70), and for 4 the situation's own subject (else the Earth), always choosing before it places the CSM around the camera, so a failed pick never leaves the camera inside the hull. The page shows a vehicle picked from the window at 2, 3 or 5 from outside and letters why on the caption line (`views.js` tgtTick). 24 spare.
   The page letters the report-style header from these.
 - `tbuf(4, MAXT)` real(8), `ntxt` int32, `tchr(MAXTC)` int32, `nchr` int32: text records for the
   recorder's character generator, decided by the kernel. Record k is `x, y, height, start`: plot
@@ -347,8 +347,8 @@ outline as ρ = θ. The film's descent LPD marks fit a scaled tangent law (`src/
 Spacecraft models (`src/models.f`, drawn by `src/lvehic.f`): a library built once by `MLIB`, each
 model a range of convex solids (`MKPRS` prisms) and free lines or face marks (`XLINE`) in its own
 body frame in metres, listed in the model table `/CMODI/` (numbers `KLMD`, `KLMS`, `KSIV`,
-`KCSM`, `KLMA`, `KCMO`, `KSTK` and the cabins in `viewcom.inc`; 10 of `MMOD` 10, 115 solids of `MSOL` 120,
-1371 free lines of `MXL` 1500). Per frame `SCNMOD` places models with `MPLACE(K, axes, position, body point)`,
+`KCSM`, `KLMA`, `KCMO`, `KSTK` and the cabins in `viewcom.inc`; 10 of `MMOD` 16, 115 solids of `MSOL` 160,
+1369 free lines of `MXL` 1500; a full table refuses and counts, `NMODX`, `NSOLX`, `NXLX`, and the selftest's `model tables:` line, `build/viewsvg` with `VIEW_MODT`, `tools/vdump.f` VMODT, fails on any refusal or a table at its maximum). Per frame `SCNMOD` places models with `MPLACE(K, axes, position, body point)`,
 and `MDRALL` draws every placed model after the sky, with hidden-line removal against all placed
 solids; placed solids also hide stars, Sun, Earth and Moon. A model can ride on the observer's
 vehicle (position 0, body point = the eye); a solid with the camera inside hides nothing. Model
@@ -371,7 +371,9 @@ the sizes are named constants in `viewcom.inc` (`SIVBH`, `SIUH`, `SLVD`, `SLAH`,
 solid (`LVCYL`) so the stages below can be added. The LM inside is hidden and not placed. `LVPL` (`vdrive.f`) places
 it behind the placed CSM (`CSMCAM`, the external view) before the scenario's SEP event, in the CSM's attitude with
 the SLA's top at the SM's aft end (`SMAFT`), unless the situation places an S-IVB or an LM of its own (scenes 7 and
-8). Code that asks which LM, CSM or S-IVB model is placed uses `KLMPL()`, `KCSPL()` and `KSIVPL()`. The CSM and the lone CM are hidden-line
+8). While it is placed the CSM's high-gain antenna is not drawn: it was "Nested alongside the service propulsion
+system engine nozzle until deployment" (press kit printed p. 90), inside the SLA (CSMBLD's `LHGA1`-`LHGA2`, MDRAW).
+Code that asks which LM, CSM or S-IVB model is placed uses `KLMPL()`, `KCSPL()` and `KSIVPL()`. The CSM and the lone CM are hidden-line
 models like the LM: the CM cone, SM and SPS nozzle are 24-sided solids flagged smooth (`LSMO`),
 whose side edges `lvehic.f` draws only where they are the outline, so curved surfaces read as
 silhouettes; the CM's five windows and side hatch are face marks carried out from CMINT's window

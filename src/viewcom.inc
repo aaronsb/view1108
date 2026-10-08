@@ -47,12 +47,16 @@ C     RESTOMOD END
       INTEGER KCMC, KCMI, KLMI, KLMA, KCMO, KSTK
 C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
 C     (1978); FORTRAN V wrote PARAMETER I = 2 (UP-4046 Rev 3, sec.
-C     10.4.1).  And 120 solids (the LM's RCS clusters are 20 a model,
-C     in three LM models; the CSM's quads 20 more) make /CLM/ and
-C     /CLMI/ about 176K words (our count: 1,294 words a solid, 21,000
-C     for the free lines, 2 words a DP number), two thirds of the
-C     1108's 262,144 (docs/univac-1108.md).
-      PARAMETER (MSOL=120, MVX=48, MFC=26, MED=72, MXL=1500, MMOD=10)
+C     10.4.1).  And 160 solids (the LM's RCS clusters are 20 a model,
+C     in three LM models; the CSM's quads 20 more; 115 used, room for
+C     the launch vehicle's lower stages and the pad, #97) make /CLM/
+C     and /CLMI/ about 228K words (our count: 1,294 words a solid,
+C     21,000 for the free lines, 2 words a DP number), 87 percent of
+C     the 1108's 262,144 (docs/univac-1108.md).  16 models (10 used).
+C     A full table refuses and counts (NMODX, NSOLX, NXLX; MODBEG,
+C     MKPRS, MKFRU, MKWDG, XLINE), and the selftest's model tables
+C     line fails on a refusal or a table at its maximum.
+      PARAMETER (MSOL=160, MVX=48, MFC=26, MED=72, MXL=1500, MMOD=16)
 C     RESTOMOD END
 C     Model numbers (MLIB): LM gear down, LM gear stowed with docking
 C     aids, S-IVB with IU and SLA ring, CSM, CM cabin (window), CM
@@ -405,6 +409,12 @@ C     solid, 0 if the table was full; LXOK the same for XLINE.  Code
 C     that marks the solid or line just built tests them first.
       INTEGER LBOK, LXOK
       COMMON /CMOK/ LBOK, LXOK
+C     /CMODX/ the model table's refusals since MLIB began: models past
+C     MMOD (MODBEG), solids past MSOL, free lines past MXL.  LHGA1,
+C     LHGA2: the CSM's high-gain antenna, its free lines in CSMBLD
+C     (MDRAW leaves them out while the launch stack is placed).
+      INTEGER NMODX, NSOLX, NXLX, LHGA1, LHGA2
+      COMMON /CMODX/ NMODX, NSOLX, NXLX, LHGA1, LHGA2
       COMMON /CMOD/ MDAT, MDP, MDBO
 C
 C     /CWIN/ the cabin windows, for the window mask (vmask.f): window
