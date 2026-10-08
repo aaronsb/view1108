@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """data/photos.tsv + reference/photos/*.jpg -> build/photos.json, the Fusion tab's photographs (web/src/fusion.js).
 
-Every row of the table goes in, as an object keyed by its column names. A row with a scene also carries its image,
-reduced to a long side of 1024 px (JPEG quality 80, orientation as scanned) as a data URI; rows without a scene are
+Every row of the table goes in, as an object keyed by its column names. A row with a situation (sit) also carries its image,
+reduced to a long side of 1024 px (JPEG quality 80, orientation as scanned) as a data URI; rows without one are
 listed but not embedded, since the page cannot show them in place yet. Needs Pillow.
 """
 import base64, io, json, pathlib, sys
@@ -21,7 +21,7 @@ head, out, total = rows[0], [], 0
 for r in rows[1:]:
     p = dict(zip(head, r + [""] * (len(head) - len(r))))
     src = R / "reference/photos" / (p["frame"] + ".jpg")
-    if p["scene"] and src.is_file():
+    if p["sit"] and src.is_file():
         im = Image.open(src)
         im.thumbnail((LONG, LONG), Image.LANCZOS)
         b = io.BytesIO(); im.save(b, "JPEG", quality=QUALITY, optimize=True)

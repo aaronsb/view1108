@@ -2,14 +2,15 @@
 *
 * A scenario is one mission's data as one source tells it: this one is the
 * mission as flown, from the post-flight reports.  A pre-flight nominal
-* scenario for the same mission would be a second file with its own ID.
+* scenario for the same mission would be a second file, a reel of its own.
 * One card per line.  A card starting with * is a comment.  Fields are
 * KEY=VALUE; times are g.e.t. h:mm:ss.s from this mission's range zero.
 * The mission's identity (name, range zero, landing site, launch pad) is in
-* mission.scn beside this file.  The kernel's card reader (src/vdeck.f)
-* loads every data/missions/*/ (its mission.scn, then its scenario files)
-* into its run tables; tools/gen_data.py checks the same cards and builds
-* the page's copy (build/names.js).  SRC is the card's source, for readers.
+* mission.scn beside this file.  Each scenario is a reel (tools/pack.py:
+* mission.scn and this file), and the kernel's card reader (src/vdeck.f)
+* loads one reel's decks at a time into its run tables (#26 slice 7e);
+* tools/gen_data.py checks the same cards and builds the page's copy (the
+* reel's page.json).  SRC is the card's source, for readers.
 *
 * Sources:
 *   MR  Apollo 11 Mission Report, MSC-00171, November 1969.  NASA re-scan
@@ -20,7 +21,7 @@
 *   SP  R. W. Orloff, Apollo by the Numbers, NASA SP-2000-4029 (printed pages).
 *
 * Card types:
-*   SCENARIO ID= (1, 2, ... across all missions)  NAME=  (the mission's
+*   SCENARIO ID= (1: each reel numbers its own)  NAME=  (the mission's
 *            name comes from its MISSION card, mission.scn)
 *   LEG      TYPE=CIRC|CONIC|LUNAR|LCONIC|TABLE  FROM= TO=  (g.e.t. span
 *            it covers)  VEH=CSM|LM|SIVB  (the vehicle on it; default CSM;
@@ -523,14 +524,15 @@ BURNCUE IGN="Transearth injection ignition (SPS)" CUT="Transearth injection cuto
 * SITUATIONS (#17; the model is ours: docs/systems-model.md, section 3).  A
 * situation is what a viewer picks: one camera recipe (a fixed set of kernel
 * camera code) and this scenario's facts for it.  Its ID is the kernel's
-* scene number (view_init(scene), hdr(7)): global across all decks, 1..N,
-* and kept stable; the situation runs on the scenario of the deck it sits in.
+* situation number (view_init, hdr(7)) within this reel, 1..N (each reel
+* numbers its own, #26 slice 7e), and kept stable; the situation runs on the
+* scenario of the deck it sits in.
 * Each SITUATION card is followed by its RECIPE and VIEWS cards and,
 * optionally, an HDRREF card.  The card reader reads them into the
 * situation tables (src/vdksit.f, layout in src/viewsit.inc);
 * tools/gen_data.py checks them and writes build/scenes.json and the
-* page's copy into build/names.js (VIEW_NAMES.SITUATIONS).  Every code
-* below is ours.
+* page's copy into the reel's page.json (build/page/<reel id>.json).
+* Every code below is ours.
 *
 *   SITUATION ID= NAME=
 *     TITLE=   the page's name for it (scene buttons, captions, the timeline);
@@ -663,8 +665,8 @@ VIEWS VIEW=EXTERNAL TARGET=CSM RIDES=NONE CM=ALWAYS LM=PLACED
 HDRREF OBJ=CSMTUNNEL OFFSET=2.743E-3 RADIUS=1.0E-2 SRC="ours"
 *
 * SPANS (#17; ours): how the page puts a situation on this scenario's time.
-* tools/gen_data.py writes them into build/names.js
-* (VIEW_NAMES.SCENARIOS[id].spans), the page's only copy; the kernel never
+* tools/gen_data.py writes them into the reel's page.json
+* (build/page/<reel id>.json), the page's only copy; the kernel never
 * reads them.  A g.e.t. on a SPAN card is h:mm:ss (or s) or an EVENT kind of
 * this scenario plus or minus an offset (UNDOCK, TOUCH-600), resolved when
 * the tables are generated; END is the end of the scenario.  SIT= names a
@@ -679,7 +681,7 @@ HDRREF OBJ=CSMTUNNEL OFFSET=2.743E-3 RADIUS=1.0E-2 SRC="ours"
 *     situation's default.  CAPTION= the caption while the situation shown
 *     is the span's, outside Live and the reels (which caption their own);
 *     absent, the situation's.  For a situation that spans several phases
-*     (Apollo 8's scene 9).
+*     (Apollo 8's Earthrise situation).
 *   SPAN TRACK=LIVE SIT= UNTIL= NAME=
 *     Live's mission phase while the g.e.t. is before UNTIL, NAME its
 *     caption; LIVE cards in g.e.t. order, the last UNTIL=END.  Live follows

@@ -14,11 +14,17 @@ Inputs (all in data/):
                                 cards) -> build/scenes.json, and with its SPAN and TIMELINE
                                 cards -> build/page/<reel id>.json, its scenario reel's page.json
                                 (tools/pack.py packs it; <reel id> is <mission folder>-<file stem>)
-  reels/<id>/run.scn            playlist reels (REEL and SHOT cards) -> build/names.js (REELS)
+  reels/<id>/run.scn            playlist reels (REEL and SHOT cards) -> build/page/<id>.json, the
+                                playlist reel's page.json (tools/pack.py packs it with run.scn)
 
 Also the card reader's vocabulary (its card kinds, keys and code words, from the tables below)
--> src/vdvoc.f and src/vdvoc.inc, and the decks in load order -> build/decks.txt (for the native
-driver and the gates; the page's copies are the reel packages, tools/pack.py).
+-> src/vdvoc.f and src/vdvoc.inc, and each scenario reel's decks in load order ->
+build/decks/<reel id>.txt, with the scenario reels in load order in build/decks/reels.txt (for the
+native driver and the gates; the page's copies are the reel packages, tools/pack.py).
+
+Each scenario reel numbers its own scenario (1) and situations (1..N) (#26 slice 7e): the kernel
+holds one reel's decks at a time.  Inside this script a scenario is keyed by its place in load
+order ("n", which the other tables carry as "m"); its card's ID is "id".
 
 Everything is written in the J2000 equatorial frame. AGC star vectors are precessed
 from 1969.5 to J2000 so they share a frame with the catalog.
@@ -232,6 +238,9 @@ CARD_KEYS = {
     # kernel's reader takes them; tools/vtape.f writes them).  No deck this script reads has one.
     "TAPE": {"SCN", "CHAN", "SRC"},
 }
+# Keys of the playlist reels' cards that the kernel's card reader never reads (it never reads a
+# playlist deck), kept out of its vocabulary (vocab_lists reads CARD_KEYS only).
+PLAYLIST_KEYS = {"SHOT": {"REEL"}}
 
 
 # A card's number and g.e.t., the grammar the kernel's card reader takes (src/vdeck.f DKNMS,
@@ -323,7 +332,7 @@ def cards(path):
         if kind not in CARD_KEYS:
             print(f"warning: {name}: unknown card {kind}, ignored")
             continue
-        for k in sorted(set(kv) - CARD_KEYS[kind]):
+        for k in sorted(set(kv) - CARD_KEYS[kind] - PLAYLIST_KEYS.get(kind, set())):
             print(f"warning: {name}: {kind} card: unknown key {k}, ignored")
         yield kind, kv
     yield "*END", {}
@@ -361,9 +370,10 @@ def mission(path):
 
 def scenarios():
     """Parse data/missions/*/: each mission's mission.scn and its scenario .scn files, missions
-    and files in name order.  Returns scenarios (dicts with id, mission, name, jd, site, pad,
-    sources; the mission's cards are copied into each of its scenarios), legs and events, each
-    carrying its scenario id and source string."""
+    and files in name order, each scenario file a reel.  Returns scenarios (dicts with n, their
+    place in that order, which the other tables carry as "m"; id, the SCENARIO card's ID, 1 in
+    every reel; reel, mission, name, jd, site, pad, sources; the mission's cards are copied into
+    each of its scenarios), legs and events, each carrying its scenario's n and source string."""
     mis, legs, evs, sim = [], [], [], {"start": [], "burn": [], "ref": [], "tl": [], "cue": [],
                                        "sit": [], "span": []}
     for mdir in sorted(p for p in (D / "missions").iterdir() if p.is_dir()):
@@ -382,7 +392,11 @@ def scenarios():
                     break
                 assert kind not in MISSION_CARDS, f"{name}: {kind} card belongs in mission.scn"
                 if kind == "SCENARIO":
-                    cur = {"n": int(kv["ID"]), "mission": mdir.name, "mname": ms["name"],
+                    assert cur is None, f"{name}: one SCENARIO card per file (a reel holds one scenario)"
+                    # Each reel numbers its own: its one scenario is 1 (the card reader's deck
+                    # error 20, ids 1..N over the decks loaded together, holds it too).
+                    assert kv["ID"] == "1", f"{name}: SCENARIO ID={kv['ID']}: each reel's scenario is 1"
+                    cur = {"n": len(mis) + 1, "id": 1, "mission": mdir.name, "mname": ms["name"],
                            "reel": f"{mdir.name}-{path.stem}",
                            "name": ms["name"] + " " + kv["NAME"], "jd": ms["jd"],
                            "site": ms["site"], "sitename": ms["sitename"], "pad": ms["pad"],
@@ -392,8 +406,6 @@ def scenarios():
                     assert cur is not None, f"{name}: {kind} card before the SCENARIO card"
                     tab = scenario_card(name, kind, kv, cur, tab, legs, evs, sim)
         assert len(mis) > nmis, f"{mdir.relative_to(D)}: no scenario (a .scn with a SCENARIO card)"
-    mis.sort(key=lambda m: m["n"])
-    assert [m["n"] for m in mis] == list(range(1, len(mis) + 1)), "scenario ids must be 1..N"
     for m in mis:
         assert sum(1 for x in sim["start"] if x["m"] == m["n"]) <= 1, "one START per scenario"
     return mis, legs, evs, sim
@@ -466,8 +478,9 @@ def scenario_card(name, kind, kv, cur, tab, legs, evs, sim):
 
 
 # Situations (#17): SITUATION cards in a scenario deck, each followed by its RECIPE and VIEWS cards
-# and, optionally, an HDRREF card.  A situation's ID is global (1..N across all decks) and is the
-# kernel's scene number (view_init(scene)); its scenario is the deck it sits in.  The codes below are
+# and, optionally, an HDRREF card.  A situation's ID is its number in its reel (1..N in each
+# reel, #26 slice 7e) and the kernel's situation number (view_init, hdr(7)) while that reel's
+# decks are loaded; its scenario is the deck it sits in.  The codes below are
 # the card reader's vocabulary (vdvoc.f); the reader fills the situation tables (src/viewsit.inc),
 # and SITSET in src/vdrive.f copies a row into /CSITU/.
 SIT_CARDS = {"SITUATION", "RECIPE", "VIEWS", "HDRREF"}
@@ -541,15 +554,14 @@ def get_rule(txt, evkinds):
 
 
 def situations(mis, evs, sits):
-    """Check the situation cards, situations 1..N.  Returns per situation what the page's lists
-    read: id, m (its scenario), gk (its GET= rule's kind, get_rule), rcp (its recipe) and az (a
-    LOCALVERT recipe's AZ= rule; 0 for the others)."""
+    """Check the situation cards, situations 1..N in each reel.  Returns per situation, in load
+    order, what the page's lists read: id, m (its scenario), gk (its GET= rule's kind, get_rule),
+    rcp (its recipe) and az (a LOCALVERT recipe's AZ= rule; 0 for the others)."""
     out = []
-    seen = {}
+    seen = set()
     for t in sits:
-        assert t["id"] not in seen, \
-            f"{t['deck']}: situation {t['id']}: ID {t['id']} already used in {seen.get(t['id'])}"
-        seen[t["id"]] = t["deck"]
+        assert (t["m"], t["id"]) not in seen, f"{t['deck']}: situation {t['id']}: ID {t['id']} already used"
+        seen.add((t["m"], t["id"]))
     for t in sits:
         kv, where = t["kv"], f"{t['deck']}: situation {t['id']}"
         assert "RECIPE" in t and "VIEWS" in t, f"{where}: needs a RECIPE and a VIEWS card"
@@ -642,8 +654,10 @@ def situations(mis, evs, sits):
         assert hk != 2 or pose == POSES["S7POSE"], f"{where}: HDRREF OBJ=LMDOCK needs POSE=S7POSE"
         assert hk != 3 or pose == POSES["S8POSE"], f"{where}: HDRREF OBJ=CSMTUNNEL needs POSE=S8POSE"
         out.append({"id": t["id"], "m": t["m"], "gk": gk, "rcp": rcp, "az": az})
-    out.sort(key=lambda r: r["id"])
-    assert [r["id"] for r in out] == list(range(1, len(out) + 1)), "situation ids must be 1..N"
+    out.sort(key=lambda r: (r["m"], r["id"]))
+    for m in mis:
+        ids = [r["id"] for r in out if r["m"] == m["n"]]
+        assert ids == list(range(1, len(ids) + 1)), f"reel {m['reel']}: situation ids must be 1..N, not {ids}"
     assert {r["m"] for r in out} <= {m["n"] for m in mis}
     return out
 
@@ -681,15 +695,15 @@ def page_situations(sits, raw, mis, evs):
     """page.json's situations: what the page needs of each situation, from its cards.  get is the
     default g.e.t. where the cards fix it (None for a computed rule, get_rule); fov None for a
     DISC: field (fov_rule)."""
-    card = {t["id"]: t for t in raw}
-    mname = {m["n"]: m["mname"] for m in mis}
+    card = {(t["m"], t["id"]): t for t in raw}
+    mname, mid = {m["n"]: m["mname"] for m in mis}, {m["n"]: m["id"] for m in mis}
     out = []
     for r in sits:
-        t = card[r["id"]]
+        t = card[(r["m"], r["id"])]
         kv, rc, vw = t["kv"], t["RECIPE"], t["VIEWS"]
         where = f"{t['deck']}: situation {r['id']}"
         assert "TITLE" in kv, f"{where}: needs TITLE= (the page's name for it)"
-        o = {"id": r["id"], "name": kv["NAME"], "title": kv["TITLE"], "scenario": r["m"],
+        o = {"id": r["id"], "name": kv["NAME"], "title": kv["TITLE"], "scenario": mid[r["m"]],
              "mission": mname[r["m"]], "get_rule": kv["GET"],
              "get": None if r["gk"] == 3 else static_get(kv["GET"], event_times(evs, r["m"]), where),
              "fov": None if kv["FOV"].startswith("DISC:") else float(kv["FOV"]),
@@ -698,7 +712,7 @@ def page_situations(sits, raw, mis, evs):
              "recipe": rc["NAME"], "pose": kv.get("POSE", "")}
         if "CAPTION" in kv:
             o["caption"] = kv["CAPTION"]
-        out.append(o)
+        out.append((r["m"], o))
     return out
 
 
@@ -712,7 +726,7 @@ def page_scenarios(mis, legs, evs, spans, sits):
     CAPTION=; live: [until, situation, name]; jump:
     {scene, get, len, button}; pin: situation ids.  Every span time lies within the scenario's
     legs; LIVE cards are in exactly one scenario (the one Live follows)."""
-    sit_m = {r["id"]: r["m"] for r in sits}
+    held = {(r["m"], r["id"]) for r in sits}
     out = {}
     for m in mis:
         evt = event_times(evs, m["n"])
@@ -739,7 +753,7 @@ def page_scenarios(mis, legs, evs, spans, sits):
                     f"{where}: {key}={kv[key]} ({t} s) is outside the scenario's legs, {t0} to {t1} s"
                 return t
             sid = num("SIT", int)
-            assert sit_m.get(sid) == m["n"], f"{where}: SIT={sid} is not a situation of this scenario"
+            assert (m["n"], sid) in held, f"{where}: SIT={sid} is not a situation of this scenario"
             if track in ("FOLLOW", "LIVE"):
                 until = when("UNTIL")
                 prev = tr[track.lower()]
@@ -761,36 +775,40 @@ def page_scenarios(mis, legs, evs, spans, sits):
                 assert sid not in tr["pin"], f"{where}: SIT={sid} is already pinned"
                 tr["pin"].append(sid)
         for t in ("follow", "live"):
-            assert not tr[t] or tr[t][-1][0] is None, f"scenario {m['n']}: the last {t.upper()} span ends at END"
-        out[str(m["n"])] = {"mission": m["mname"],
+            assert not tr[t] or tr[t][-1][0] is None, f"reel {m['reel']}: the last {t.upper()} span ends at END"
+        out[m["n"]] = {"mission": m["mname"],
                             "zero": round((m["jd"] - JD_UNIX) * 86400) * 1000, "spans": tr}
-    live = [k for k, v in out.items() if v["spans"]["live"]]
+    live = [m["reel"] for m in mis if out[m["n"]]["spans"]["live"]]
     assert len(live) == 1, f"LIVE spans: Live follows one scenario, found them in {len(live)} ({', '.join(live)})"
     return out
 
 
 # Playlist reels (#18): data/reels/<id>/run.scn, a REEL card and its SHOT cards in playing order
-# (the format: data/reels/demo/run.scn's header).  The page's copy is VIEW_NAMES.REELS in
-# build/names.js, which the playlist player (web/src/player.js) reads; the kernel never reads them.
-# Every shot names a situation by its ID and an absolute g.e.t., never an offset from the
-# situation's default, so retuning a default does not move a shot.  The one time computed at run
+# (the format: data/reels/demo/run.scn's header).  The page's copy is the playlist reel's page.json
+# (build/page/<id>.json; tools/pack.py packs it with run.scn, #26 slice 7e), which the playlist
+# player (web/src/player.js) reads; the kernel never reads them.  Every shot names a situation by
+# its scenario reel (REEL=) and its ID or NAME there (SIT=), and an absolute g.e.t., never an
+# offset from the situation's default, so retuning a default does not move a shot.  The one time computed at run
 # time is ERFIND's Earthrise (ERISE+-offset), which the kernel exports as out_terise.
 REEL_NEED = {"ID", "TITLE", "KIND", "ALIAS"}
 REEL_MODES = {"LIVE", "FREE", "BEAM"}   # the page's other modes: no reel may take their name
-SHOT_NEED = {"SIT", "NAME", "DUR"}
+SHOT_NEED = {"REEL", "SIT", "NAME", "DUR"}
 SHOT_LAWS = ({"GET", "RATE"}, {"GET", "TO"}, {"AT", "TTE"})   # the time laws: exactly one
 LOOK_LAWS = {"LIN", "SIN", "HAV"}   # a + (b - a) u; a + b sin(2 pi u); a + (b - a) (1 - cos(2 pi u)) / 2
 FLAGS = {"YES": True, "NO": False}
 
 
-def page_reels(mis, legs, evs, sits):
-    """VIEW_NAMES.REELS: {id: {id, title, alias, next, fade, film, tag, shots}} from
-    data/reels/*/run.scn.  Each shot: name, sit, dur (s), get [from, to] (g.e.t. s at the shot's
+def page_reels(mis, legs, evs, sits, raw):
+    """The playlist reels' page.json: {id: {id, title, alias, next, fade, film, tag, shots}} from
+    data/reels/*/run.scn.  Each shot: name, reel (its scenario reel's id), sit (the situation's ID
+    there), dur (s), get [from, to] (g.e.t. s at the shot's
     start and end, linear between; with rule "ERISE" both are offsets from the kernel's Earthrise,
     out_terise) or at and tte (the entry interface's g.e.t. and [u, s to it] rows,
     log-interpolated), lab (0 or 3), frame, view (0..3), and where its cards name them target, cap,
     fov, yaw, pitch, roll (a number, or [law, a, b] in the shot fraction u) and limb ([u, deg])."""
-    sit = {r["id"]: r for r in sits}
+    sit = {(r["m"], r["id"]): r for r in sits}
+    sitname = {(t["m"], t["kv"]["NAME"].upper()): t["id"] for t in raw}
+    reel_m = {m["reel"]: m["n"] for m in mis}
     span = {}
     for m in mis:
         ml = [lg["p"] for lg in legs if lg["m"] == m["n"]]
@@ -856,19 +874,20 @@ def page_reels(mis, legs, evs, sits):
                 t = static_get(txt, evt, f"{where}: {key}")
                 assert t is not None, f"{where}: {key}=END"
                 return "", t
-            try:
-                sid = int(kv["SIT"])
-            except ValueError:
-                raise AssertionError(f"{where}: SIT={kv['SIT']}: not a situation ID") from None
-            assert sid in sit, f"{where}: SIT={sid}: no such situation (the SITUATION cards' IDs)"
-            s = sit[sid]
+            rid = kv["REEL"].lower()
+            assert rid in reel_m, f"{where}: REEL={kv['REEL']}: no such scenario reel ({', '.join(reel_m)})"
+            sm = reel_m[rid]
+            sid = int(kv["SIT"]) if re.fullmatch(r"\d+", kv["SIT"]) else sitname.get((sm, kv["SIT"].upper()))
+            assert (sm, sid) in sit, \
+                f"{where}: SIT={kv['SIT']}: no such situation in {rid} (its SITUATION cards' IDs and NAMEs)"
+            s = sit[(sm, sid)]
             evt, (t0, t1) = event_times(evs, s["m"]), span[s["m"]]
             dur = num(kv["DUR"], "DUR")
             assert dur > 0, f"{where}: DUR={kv['DUR']}: must be more than 0"
             laws = [law for law in SHOT_LAWS if law <= set(kv)]
             assert len(laws) == 1 and not (set().union(*SHOT_LAWS) - laws[0]) & set(kv), \
                 f"{where}: one time law: GET= with RATE= or TO=, or AT= with TTE="
-            sh = {"name": kv["NAME"], "sit": sid, "dur": dur}
+            sh = {"name": kv["NAME"], "reel": rid, "sit": sid, "dur": dur}
             rule = ""
             if "TTE" in kv:
                 rule, at = when("AT")
@@ -1239,13 +1258,12 @@ def main():
              "CRATER_KM": [round(c[2], 1) for c in crat],
              "TL_KINDS": list(TL_KINDS)}
     sits = situations(mis, evs, sim["sit"])
-    # The playlist reels (REEL and SHOT cards, data/reels/*/run.scn): the page's only copy.
-    names["REELS"] = page_reels(mis, legs, evs, sits)
     (R / "build").mkdir(exist_ok=True)
     (R / "build" / "names.js").write_text("const VIEW_NAMES = " + json.dumps(names) + ";\n")
-    # Each scenario reel's page.json (tools/pack.py packs it): its situations (in id order), its
-    # mission, range zero and SPAN cards, and its timeline (TIMELINE cards) for chapter marks:
-    # g.e.t. (s from that scenario's range zero), kind, name.  The page's only copy of them.
+    # Each scenario reel's page.json (tools/pack.py packs it): its scenario (its ID, 1), its
+    # situations (in id order), its mission, range zero and SPAN cards, and its timeline (TIMELINE
+    # cards) for chapter marks: g.e.t. (s from that scenario's range zero), kind, name.  The page's
+    # only copy of them.
     psit = page_situations(sits, sim["sit"], mis, evs)
     pscn = page_scenarios(mis, legs, evs, sim["span"], sits)
     pdir = R / "build" / "page"
@@ -1253,24 +1271,38 @@ def main():
         shutil.rmtree(pdir)
     pdir.mkdir()
     for m in mis:
-        page = {"scenario": {"id": m["n"], **pscn[str(m["n"])]},
-                "situations": [s for s in psit if s["scenario"] == m["n"]],
+        page = {"scenario": {"id": m["id"], **pscn[m["n"]]},
+                "situations": [s for k, s in psit if k == m["n"]],
                 "timeline": {"name": m["name"],
                              "events": [[round(r["t"], 3), r["kind"], r["name"]]
                                         for r in sorted(sim["tl"], key=lambda r: r["t"])
                                         if r["m"] == m["n"]]}}
         (pdir / f"{m['reel']}.json").write_text(json.dumps(page) + "\n")
+    # Each playlist reel's page.json (the REEL and SHOT cards, data/reels/*/run.scn; tools/pack.py
+    # packs it with run.scn): the page's only copy.
+    reels = page_reels(mis, legs, evs, sits, sim["sit"])
+    for rid, reel in reels.items():
+        assert not any(m["reel"] == rid for m in mis), f"reels/{rid}: a scenario reel has that id"
+        (pdir / f"{rid}.json").write_text(json.dumps(reel) + "\n")
     write_vocab()
-    # The decks in load order (the order above: missions by folder, each mission.scn and then its
-    # scenarios), for the card reader's gates: tools/golden.sh and the selftest load them.
-    order = []
-    for mdir in sorted(p for p in (D / "missions").iterdir() if p.is_dir()):
-        order += [mdir / "mission.scn"] + sorted(p for p in mdir.glob("*.scn")
-                                                 if p.name != "mission.scn")
-    (R / "build" / "decks.txt").write_text("".join(f"{p.relative_to(R)}\n" for p in order))
-    # The scene list make check and the selftest read: situation ids and their scenarios.
+    # Each scenario reel's decks in load order (its mission.scn, then its scenario file), the
+    # native driver's and the gates' copy of what the reel package carries (tools/viewsvg.f90
+    # VIEW_REEL, tools/golden.sh, the selftest), and the scenario reels in load order (missions by
+    # folder, scenarios by file name).  The kernel holds one reel's decks at a time (#26 slice 7e).
+    ddir = R / "build" / "decks"
+    if ddir.exists():
+        shutil.rmtree(ddir)
+    ddir.mkdir()
+    (R / "build" / "decks.txt").unlink(missing_ok=True)   # one list for all reels, before slice 7e
+    for m in mis:
+        mdir = D / "missions" / m["mission"]
+        sfile = mdir / (m["reel"][len(m["mission"]) + 1:] + ".scn")
+        (ddir / f"{m['reel']}.txt").write_text(f"{(mdir / 'mission.scn').relative_to(R)}\n{sfile.relative_to(R)}\n")
+    (ddir / "reels.txt").write_text("".join(f"{m['reel']}\n" for m in mis))
+    # The scene list make check and the selftest read: each scenario reel's situation ids.
     (R / "build" / "scenes.json").write_text(json.dumps(
-        {"scenes": [t["id"] for t in sits], "scenario": {str(t["id"]): t["m"] for t in sits}}) + "\n")
+        {"reels": [{"id": m["reel"], "scenario": m["id"], "scenes": [t["id"] for t in sits if t["m"] == m["n"]]}
+                   for m in mis]}) + "\n")
     print(f"stars {len(sx)} (nav 37), coast {len(coast)} lines / {len(clon)} pts, "
           f"craters {len(crat)}, scenarios {len(mis)} ({len(legs)} legs, {len(evs)} events, "
           f"{len(sim['start'])} start, {len(sim['burn'])} burns, {len(sim['ref'])} reference rows, "

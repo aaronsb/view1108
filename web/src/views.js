@@ -39,10 +39,11 @@ function featTick() {
 // After boot, before the first scene.
 function featInit() {
   FEAT.view = !!K.in_view; FEAT.target = !!K.in_target; FEAT.lablv = !!K.in_lablv;
-  // The cabin probe: the first situation that always offers the CM station (Earthrise), from it with a 170 deg field,
-  // draws more with bit 4 than without.
+  // The cabin probe: the first situation of the reel the kernel holds (LS.deck, the boot reel; each reel numbers its
+  // own situations) that always offers the CM station (Earthrise), from it with a 170 deg field, draws more with bit 4
+  // than without.
   if (FEAT.view) {
-    const cm = (SITS.find(s => s.stations.cm === "ALWAYS") || SITS[0]).id;
+    const held = SITS.filter(s => s.reel === LS.deck), cm = (held.find(s => s.stations.cm === "ALWAYS") || held[0]).id;
     const nv = fl => { K.view_init(cm); wi("in_view", 2); wr("in_fov", 170); wi("in_flags", fl); K.view_frame(); return new Int32Array(buf(), K.nvec.value, 1)[0]; };
     FEAT.cabin = nv(16) > nv(0);
     // The walls probe: the same frame with bit 5 too draws less (the Moon and stars only through the windows).

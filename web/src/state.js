@@ -9,7 +9,8 @@
 const LS = {
   situation: 0,                    // the situation shown, as its scene (config.js sitOf); 0 until the first mount
   scn: "",                         // its scenario reel's id (the URL's scn=)
-  scenario: 0,                     // its scenario's number in the kernel, from its SITUATION card
+  deck: "",                        // the scenario reel whose decks the kernel holds (kernel.js loadDecks; mount)
+  scenario: 0,                     // its scenario's number in the kernel, from its SCENARIO card (1: #26 slice 7e)
   mission: "",                     // that scenario's mission (its MISSION card's name)
   epoch: 0, zero: 0,               // the scenario's range zero: s from Apollo 11's (the kernel's hdr(16)), and UTC ms (loader.js mount)
   get: 0, get0: 0,                                     // g.e.t., s; get0 the reference the time scrubber centres on
@@ -17,7 +18,7 @@ const LS = {
   view: 0, target: 0,                                  // in_view, in_target (views.js)
   labLv: 3,                                            // label level: 0 off, 1 primary, 2 secondary, 3 all (views.js)
   reel: DEFAULT_REEL,                                  // the mounted playlist reel (player.js), "" when none plays
-  mode: REELS[DEFAULT_REEL].alias, playing: true       // playback: the mode (its alias while a reel plays) and whether the clock runs
+  mode: "", playing: true                              // playback: the mode (its alias while a reel plays; the demo reel's from boot, kernel.js) and whether the clock runs
 };
 // The one setter for continuous changes: the fields given, nothing reloaded.
 const track = patch => { Object.assign(LS, patch); };

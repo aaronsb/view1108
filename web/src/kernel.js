@@ -32,6 +32,7 @@ async function boot() {
     if (window.MOCK_NAMES && typeof VIEW_NAMES === "undefined") Object.assign(NAMES, window.MOCK_NAMES);
     // The page's data from the reels the page embeds, whose decks the mock does not read; without reels, the stand-in.
     setPageData(typeof VIEW_REELS !== "undefined" ? await reelLibrary() : [{ manifest: { id: "mock" }, page: STANDIN_PAGE }]);
+    LS.deck = SITS[0].reel;
   } else {
     const bin = Uint8Array.from(atob(WASM_B64), c => c.charCodeAt(0));
     try {
@@ -49,15 +50,19 @@ async function boot() {
       K = VIEW1108_ASM(proxyEnv()); cpuName = "wasm2js";
     }
     const reels = await reelLibrary();
-    loadDecks(reels); setPageData(reels);
+    setPageData(reels);
+    // Every scenario reel's decks once, so a deck error stops the boot rather than a later switch, in reverse load
+    // order: the first, the boot reel, is the one left in the kernel.
+    for (const r of scenarioReels().reverse()) loadDecks(r);
   }
+  LS.mode = REELS[DEFAULT_REEL].alias;
   if (DEBUG) window.VIEW_KERNEL = K;
 }
 
 // The reels embedded in the page (VIEW_REELS, build/reels.js, tools/pack.py), unpacked once at boot (reelpkg.js),
 // in their load order; a reel that does not unpack, or names another kernel build, stops the boot. REEL_LIB keeps
-// them for switching reels in the kernel (#26 slice 7, per-reel loading); their page.json are the page's situations,
-// spans and timelines (config.js setPageData).
+// them for switching scenario reels in the kernel (useDeck); their page.json are the page's situations, spans,
+// timelines and playlists (config.js setPageData).
 let REEL_LIB = [];
 async function reelLibrary() {
   if (typeof VIEW_REELS === "undefined") throw new Error("no reels (build/reels.js)");
@@ -67,12 +72,16 @@ async function reelLibrary() {
   for (const r of VIEW_REELS) REEL_LIB.push(await readReel(r.b64, KERNEL_SHA, r.id));
   return REEL_LIB;
 }
-// The reels' run decks through the kernel's card reader (src/vdeck.f), one card image a line as character codes,
-// each file closed with deck_file; a deck error stops the boot with its reel, file and line.
-function loadDecks(reels) {
+const scenarioReels = () => REEL_LIB.filter(r => r.manifest.kind === "scenario");
+// One scenario reel's run decks through the kernel's card reader (src/vdeck.f), replacing the run tables (deck_open):
+// the kernel holds one scenario reel at a time, each numbering its own scenario and situations (#26 slice 7e). One card
+// image a line as character codes, each file closed with deck_file; a deck error throws with its reel, file and line.
+// Synchronous: the reel's files are already unpacked.
+function loadDecks(reel) {
   const enc = new TextEncoder(), at = [];
+  LS.deck = "";
   K.deck_open();
-  for (const [path, text] of reels.flatMap(reelDecks)) {
+  for (const [path, text] of reelDecks(reel)) {
     const lines = text.split("\n");
     if (lines.at(-1) === "") lines.pop();   // the file's last newline ends a card, as natively
     lines.forEach((ln, i) => {
@@ -87,6 +96,15 @@ function loadDecks(reels) {
   const err = new Int32Array(K.memory.buffer, K.out_dkerr.value, 1)[0];
   const card = new Int32Array(K.memory.buffer, K.out_dkcrd.value, 1)[0];
   if (err) throw new Error(`DECK ERROR ${String(err).padStart(2, "0")} AT ${at[card - 1] ?? "the end of the decks"}`);
+  LS.deck = reel.manifest.id;
+}
+// The scenario reel `id`'s decks into the kernel unless they are there already (loader.js mount, before view_init).
+// The mock kernel reads no decks.
+function useDeck(id) {
+  if (USE_MOCK || LS.deck === id) return;
+  const r = scenarioReels().find(x => x.manifest.id === id);
+  if (!r) throw new Error(`no scenario reel ${id}`);
+  loadDecks(r);
 }
 
 // ---- kernel access (views are re-made on every access; memory may grow) ----

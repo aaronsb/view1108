@@ -8,7 +8,7 @@
 //
 // params: a URLSearchParams, or anything with get(k) and has(k); P() makes one from an object. The keys are the URL's
 // (docs/modes.md): reel, mode, scn, sit, scene, get, utc, fov, yaw, pitch, roll, rate, bspeed, labels, lab, view, target,
-// cabin, walls, frame, hidden, photo. reel names a playlist reel (VIEW_NAMES.REELS); mode=attract and mode=tour, the
+// cabin, walls, frame, hidden, photo. reel names a playlist reel (config.js REELS); mode=attract and mode=tour, the
 // demo and tour reels' ALIASes, mount them too. scn and sit name a situation (scenario reel, situation id or name) and
 // only a link reads them (reelpkg.js sceneOfLink); everywhere else scene is the page's handle for a situation (config.js
 // sitOf), which a link's scene=N still is for old links (#22). One more, `by`, names the page's own callers whose rule
@@ -27,11 +27,11 @@
 // as a link with those keys.
 "use strict";
 const P = o => new URLSearchParams(Object.entries(o).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => [k, String(v)]));
-const MODES = [...Object.values(REELS).map(r => r.alias), "live", "free", "beam"];   // the reels' ALIASes, then the others
+const modes = () => [...Object.values(REELS).map(r => r.alias), "live", "free", "beam"];   // the playlist reels' ALIASes, then the others
 const pNum = (p, k) => { if (!p.has(k) || p.get(k).trim() === "") return null; const n = Number(p.get(k)); return isFinite(n) ? n : null; };
 const pFlag = (p, k) => p.get(k) === "1" ? true : p.get(k) === "0" ? false : null;
 // The mode params ask for: a playlist reel's (reel=, by id) or mode=; null for neither.
-const pMode = p => { const r = REELS[(p.get("reel") || "").toLowerCase()]; return r ? r.alias : MODES.includes(p.get("mode")) ? p.get("mode") : null; };
+const pMode = p => { const r = REELS[(p.get("reel") || "").toLowerCase()]; return r ? r.alias : modes().includes(p.get("mode")) ? p.get("mode") : null; };
 const pPick = (p, k, names) => { const v = p.get(k); if (v === null) return null; const i = names.indexOf(v.toLowerCase()); return i >= 0 ? i : /^\d$/.test(v) && +v < names.length ? +v : null; };
 // get or utc, read after the situation is mounted: a utc is converted with its scenario's range zero.
 const pGet = (p, keys = ["get", "utc"]) => { let g = null; for (const k of keys) if (p.has(k)) { const v = parseGet(p.get(k)); if (v !== null && isFinite(v)) g = v; } return g; };
@@ -52,12 +52,15 @@ function loadReel(p) {
 }
 
 // ---- steps ----
-// Mount scene s: the kernel sets its situation up (view_init, by the situation's id) and its defaults become the look
-// and time, with its own target (in_target 0), so a playlist shot's TARGET does not carry into the next shot or
-// Free-look. Its reel, scenario, mission and range zero come from the reels' page.json (config.js SITS, SCNS); the
-// scenario's offset from Apollo 11's range zero is the kernel's, hdr(16), from the frame view_init draws (#26 slice 7d).
+// Mount scene s: the kernel holds its scenario reel's decks (kernel.js useDeck reloads them when another reel's are
+// loaded; each reel numbers its own situations, #26 slice 7e), sets its situation up (view_init, by the situation's id
+// in that reel) and its defaults become the look and time, with its own target (in_target 0), so a playlist shot's
+// TARGET does not carry into the next shot or Free-look. Its reel, scenario, mission and range zero come from the
+// reels' page.json (config.js SITS, SCNS); the scenario's offset from Apollo 11's range zero is the kernel's, hdr(16),
+// from the frame view_init draws (#26 slice 7d).
 function mount(s) {
   const sit = sitOf(s), scn = SCNS[sit.reel] || {};
+  useDeck(sit.reel);
   Object.assign(LS, { situation: s, scn: sit.reel || "", scenario: sit.scenario, mission: scn.mission || "", zero: scn.zero || 0, target: 0 });
   viewInit(sit.id);
   LS.epoch = new Float64Array(buf(), K.hdr.value, 16)[15];
@@ -175,12 +178,12 @@ function loadEvent(g) {
 // A crew photograph (Fusion): its situation in the window view, its g.e.t. held, the fitted pointing, the lens's
 // field, in Free-look; a link's own get, fov, yaw, pitch and roll then apply.
 function loadPhoto(p) {
-  const i = PHOTOS.findIndex(x => x.frame === p.get("photo") && x.img);
+  const i = PHOTOS.findIndex(x => x.frame === p.get("photo") && x.img && photoScene(x));
   if (i < 0) return;
   if (auto() || LS.mode === "beam") enterMode("free");
   const ph = PHOTOS[i];
   LS.view = 0; LS.target = 0;
-  pickSituation(+ph.scene);
+  pickSituation(photoScene(ph));
   const cam0 = [LS.yaw, LS.pitch, LS.roll], c = fFit(ph).cam;
   LS.yaw += c[0]; LS.pitch += c[1]; LS.roll += c[2];
   LS.get = LS.get0 = photoGet(ph); LS.playing = false;
