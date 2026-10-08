@@ -338,4 +338,35 @@ export const SHOTS = [
       { wait: `document.body.classList.contains("room")`, timeout: 5000 }, ROOM_STILL, { frames: 10 }, ROOM_STILL, { frames: 3 }],
     expect: [[`${LAB}.at`, null], [`${LAB}.mode`, "free"], [NEAREST, "vector"], [`VIEW_ESC()`, ["room"]],
       [`document.getElementById("blibroom").hidden`, true]] },
+
+  // #82, the film recorder's prints: the Print tab's NEGATIVE, POSITIVE and CLEAR buttons, each download caught at
+  // its link (printShot, below) and checked: the file name, the background, and every colour drawn.
+  printShot("print-svg-apollo11-descent", "scn=apollo11-asflown&sit=5&get=102:45:40", 369940, "apollo11-asflown-s5-lm-descent-102-45-40"),
+  printShot("print-svg-apollo8-earthrise", "scn=apollo8-asflown&sit=1&get=75:48:39", 272919, "apollo8-asflown-s1-apollo-8-earthrise-75-48-39"),
 ];
+
+// A print shot: the Print tab open at a situation and g.e.t., the clock held there, and the three print buttons
+// pressed with each download link's click caught (its file name and the SVG at its blob URL, read before the page
+// revokes it). Each print is summed up as { name, bg: the #film rect's fill (null: none), ink: every stroke and fill
+// colour but "none" }: the negative white on black (its captions #aaa), the positive true black on white, the clear
+// positive true black on nothing.
+function printShot(name, link, get, stem) {
+  const PRINTS = `(async () => {
+    const got = [], click = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () { if (this.download) got.push({ name: this.download, href: this.href }); else click.call(this); };
+    try { for (const id of ["bneg", "bpos", "bposc"]) document.getElementById(id).click(); }
+    finally { HTMLAnchorElement.prototype.click = click; }
+    for (const g of got) g.svg = await (await fetch(g.href)).text();
+    window.__prints = got.map(g => { const d = new DOMParser().parseFromString(g.svg, "image/svg+xml"), r = d.getElementById("film");
+      const ink = new Set([...d.querySelectorAll("[stroke],[fill]")].filter(e => e !== r).flatMap(e => [e.getAttribute("stroke"), e.getAttribute("fill")]));
+      ink.delete(null); ink.delete("none");
+      return { name: g.name, bg: r ? r.getAttribute("fill") : null, ink: [...ink].sort(), ok: !d.querySelector("parsererror") && d.querySelectorAll("path").length > 2 }; });
+  })()`;
+  return { name, url: `mode=free&space=tiled&tab=print&${link}`,
+    steps: [...LINKED(get), { frames: 3 }, { js: PRINTS }],
+    expect: [[TL("get"), get], [`["bneg", "bpos", "bposc"].map(id => document.getElementById(id).innerText).join("/")`, "NEGATIVE/POSITIVE/CLEAR"],
+      [`window.__prints`, [
+        { name: `${stem}-negative.svg`, bg: "#000", ink: ["#aaa", "#fff"], ok: true },
+        { name: `${stem}-positive.svg`, bg: "#fff", ink: ["#000"], ok: true },
+        { name: `${stem}-positive-clear.svg`, bg: null, ink: ["#000"], ok: true }]]] };
+}
