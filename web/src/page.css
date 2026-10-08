@@ -165,7 +165,17 @@ button.librow.on .libm { color:var(--fg); }
 #libframe { flex:1; width:100%; border:1px solid var(--line); background:#222; }
 #libframe[hidden], #libnote[hidden], #libmd[hidden], #libr a.libbtn[hidden], #libr button[hidden] { display:none; }
 #libnote { color:var(--dim); font-size:14px; } #libnote a { color:var(--fg); word-break:break-all; }
-/* The list's sections (documents, the reels' scenario notebooks). */
+/* A modal question (ask.js; the room's reel and notebook modals, ours): the library's black and greens, centred over
+   everything, its buttons wrapping on a narrow screen. */
+#ask { position:fixed; inset:0; z-index:30; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(0,0,0,.55); }
+#ask[hidden] { display:none; }
+#askbox { background:#000; border:1px solid var(--dim); padding:14px 18px 12px; max-width:min(640px, 100%); box-shadow:0 0 0 1px #000, 0 8px 40px rgba(0,0,0,.8); }
+#asktitle { font:400 18px var(--term); letter-spacing:.08em; margin:0 0 14px; color:var(--fg); }
+#askbtns { display:flex; flex-wrap:wrap; gap:6px 14px; justify-content:flex-end; }
+#askbtns button { text-transform:uppercase; }
+#askbtns button.primary { color:var(--fg); }
+#askbtns button:focus-visible { outline:1px solid var(--fg); outline-offset:2px; }
+/* The list's sections (documents, the reels' mission notebooks). */
 #liblist li.libsec { padding:8px 8px 3px; font-size:12px; letter-spacing:.14em; color:var(--dim); border-bottom:1px solid var(--line); }
 /* A scenario notebook (notebook.js, ours): the page's greens on black, a reading column, the figures white on black as
    the native renders draw them, the figure cases small at the end. */
