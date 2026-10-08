@@ -456,6 +456,64 @@ export function badgeTex(model: string): THREE.CanvasTexture {
   });
 }
 
+/** Felt-marker lettering (ours): a plain condensed sans, every letter a little off its line and turned, so it reads as
+ *  written by hand rather than printed. No web font: whichever of these the browser has. */
+const MARKER_FONT = '"Arial Narrow", "Liberation Sans Narrow", "Helvetica Neue", Arial, sans-serif';
+
+export interface TapeStripOpts {
+  /** A drawn arrow after the text pointing right, or before it pointing left. */
+  arrow?: "left" | "right";
+  /** Seed for the hand's wobble and the torn ends. */
+  seed?: number;
+}
+
+/**
+ * A strip of masking tape with writing on it (ours, #19: the shelves' labels, the operator's signage form of
+ * 2026-10-07): `text` in black marker on buff paper tape with torn ends, `h` metres tall and as wide as its writing,
+ * with a drawn arrow where `arrow` says. A plane facing +Z, centred on its origin, to stick on a shelf's front edge;
+ * its geometry, material and texture are pushed to `mine`.
+ */
+export function tapeStrip(text: string, h: number, mine: { dispose(): void }[], o: TapeStripOpts = {}): THREE.Mesh {
+  const CH = 64, px = 40, r = rng(o.seed ?? text.length * 131 + 7), chars = [...text.toUpperCase()];
+  const measure = document.createElement("canvas").getContext("2d")!;
+  measure.font = `bold ${px}px ${MARKER_FONT}`;
+  const ws = chars.map(c => measure.measureText(c).width), gap = 0.06 * px;
+  const textW = ws.reduce((a, b) => a + b, 0) + gap * Math.max(0, chars.length - 1);
+  const arrowW = o.arrow ? 1.7 * px : 0, pad = 0.45 * CH, W = Math.ceil(textW + arrowW + 2 * pad);
+  const tex = canvasTex(W, CH, g => {
+    // The tape: torn ends (a ragged edge every few pixels), a faint crepe of darker streaks along it.
+    g.beginPath(); g.moveTo(6, 3);
+    for (let x = 6; x < W - 6; x += 24) g.lineTo(x, 3 + r() * 1.5);
+    for (let y = 3; y < CH - 3; y += 5) g.lineTo(W - 4 - r() * 6, y);
+    for (let x = W - 6; x > 6; x -= 24) g.lineTo(x, CH - 3 - r() * 1.5);
+    for (let y = CH - 3; y > 3; y -= 5) g.lineTo(2 + r() * 6, y);
+    g.closePath(); g.fillStyle = "#d9cb9a"; g.fill();
+    g.save(); g.clip();
+    for (let k = 0; k < 14; k++) { g.fillStyle = `rgba(120,100,60,${0.04 + r() * 0.05})`; g.fillRect(0, r() * CH, W, 1 + r() * 2); }
+    g.restore();
+    // The writing: each letter on its own slightly wandering line, a little turned.
+    g.fillStyle = g.strokeStyle = "#17171a"; g.lineWidth = 1.6; g.lineJoin = g.lineCap = "round";
+    g.font = `bold ${px}px ${MARKER_FONT}`; g.textBaseline = "middle"; g.textAlign = "left";
+    let x = pad + (o.arrow === "left" ? arrowW : 0);
+    chars.forEach((c, i) => {
+      g.save(); g.translate(x, CH / 2 + 2 + (r() - 0.5) * 3); g.rotate((r() - 0.5) * 0.09);
+      g.fillText(c, 0, 0); g.strokeText(c, 0, 0); g.restore();
+      x += ws[i] + gap;
+    });
+    if (o.arrow) {   // a shaft and a two-stroke head, drawn as quickly as by hand
+      const right = o.arrow === "right", x0 = right ? x + 0.3 * px : pad + 1.3 * px, x1 = right ? x0 + 1.2 * px : pad + 0.1 * px;
+      const y = CH / 2 + 1, d = right ? -1 : 1;
+      g.lineWidth = 0.13 * px;
+      g.beginPath(); g.moveTo(x0, y + 1); g.lineTo(x1, y - 1); g.stroke();
+      g.beginPath(); g.moveTo(x1 + d * 0.42 * px, y - 0.36 * px); g.lineTo(x1, y - 1); g.lineTo(x1 + d * 0.4 * px, y + 0.38 * px); g.stroke();
+    }
+  });
+  const geo = new THREE.PlaneGeometry(h * W / CH, h);
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, alphaTest: 0.5 });
+  mine.push(geo, mat, tex);
+  return new THREE.Mesh(geo, mat);
+}
+
 /** Dispose a list of geometries, materials and textures made by one build. */
 export function disposer(...lists: { dispose(): void }[][]): () => void {
   return () => { for (const l of lists) for (const d of l) d.dispose(); };

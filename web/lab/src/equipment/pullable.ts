@@ -65,6 +65,8 @@ export class Shelf {
   putBack(): boolean { if (!this.outItem) return false; this.set(null); return true; }
   /** Put `item` back if it is the one out. */
   back(item: Pullable): void { if (this.outItem === item) this.set(null); }
+  /** Is `item` the one out? */
+  isOut(item: Pullable): boolean { return this.outItem === item; }
   /** A click on `item`: true when it was already out and opens (the caller opens it); otherwise it comes out. */
   pull(item: Pullable): boolean {
     if (this.outItem === item) return item.opens;

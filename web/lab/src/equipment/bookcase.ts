@@ -5,11 +5,12 @@
 // ours. Each binder is its own pickable piece (`anchors.binders`, placed by the room as "binder:<id>"); the bookcase
 // and every binder open "library". After the binders, for looks only (`anchors.props`, placed as "prop:<id>", inert:
 // named on hover, nothing to open): a 1969 Houston telephone directory, two paperbacks, and an index card of places to
-// eat leaning on the back panel (docs/lab.md). Everything on the shelf pulls out (pullable.ts): a click at the close-up
-// brings one out and puts the last back, a second click on a binder that is out opens it, and leaving puts all back.
+// eat leaning on the back panel (docs/lab.md); a strip of masking tape on each shelf's edge names it. Everything on
+// the shelf pulls out (pullable.ts): a click at the close-up brings one out and puts the last back, a second click on a
+// binder that is out opens it, and leaving puts all back.
 import * as THREE from "three";
 import type { BuildContext, Equipment } from "../types";
-import { Parts, canvasTex, fontTex, nameplate, paint, plastic, plateText } from "./kit";
+import { Parts, canvasTex, fontTex, nameplate, paint, plastic, plateText, tapeStrip } from "./kit";
 import { Shelf } from "./pullable";
 import LIBRARY from "../../../library/library.json";
 
@@ -224,6 +225,13 @@ export function build(ctx: BuildContext): Equipment & { anchors: { binders: Bind
   const label = nameplate("REFERENCE LIBRARY", { height: 0.026, fg: "#e8e4d6", bg: "#2a2c2e" }, mine);
   label.position.set(0, H - T - 0.022, D / 2 + 0.001);
   object.add(label);
+  // A strip of masking tape on each shelf's front edge, hand-lettered with what stands there (ours, #19; library.json
+  // has no groups): the manuals on the upper shelf, reference binders lying on the lower.
+  for (const [text, y] of [["MANUALS", SHELF - T / 2], ["REFERENCE", 0.08 + T / 2]] as const) {
+    const s = tapeStrip(text, T, mine, { seed: text.length });
+    s.position.set(-0.2, y, D / 2 - 0.01 + 0.0008); s.rotation.z = text.length % 2 ? 0.01 : -0.008;
+    object.add(s);
+  }
   const target = new THREE.Vector3(-0.1, SHELF + BH * 0.5, FRONT);
   return {
     object,

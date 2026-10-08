@@ -13,15 +13,16 @@
 //   the UNISCOPE 100.
 // - Output, the east wall and the south-east: the microfilm recorder, downstream of the computer as the film was,
 //   then the printer; the card reader on the south wall.
-// - Library, the north wall east of the drives: the reel rack (to come) and the reference bookcase side by side
-//   (LIBRARY below), a few steps from the drives.
+// - Library, the north wall east of the drives: the tape rack and the reference bookcase side by side (LIBRARY
+//   below), a few steps from the drives.
 // The door is in the south wall, west of centre, with nothing in its swing and a clear aisle from it into the room,
 // and the light switch on its latch side; every front has an aisle of at least 0.9 m and the zones at least 1.2 m
 // between them (the plan's check, `footprints`, is what the walk collides with).
 //
 // A name the registry lacks is placed as a neutral grey box of its FOOTPRINT, so the room composes before every
 // module exists. What a station opens and its hover label come from the station table (stations.ts), by placed name;
-// the drive is the middle tape unit, the one the overview sees best (ours).
+// the drive is the middle tape unit, the one the overview sees best (ours). The tape units are placed as
+// "uniservo-<its number>": any of them mounts a reel carried from the rack (lab.ts).
 import * as THREE from "three";
 import { EQUIPMENT, FOOTPRINT } from "../equipment";
 import type { BuildContext, Equipment, Footprint, Glow, Placed, Room } from "../types";
@@ -29,6 +30,7 @@ import { STATIONS, stationNamed } from "../stations";
 import { DOOR, DRIVES, ROOM, buildShell } from "./shell";
 import { batch } from "./batch";
 import type { Binder, Prop } from "../equipment/bookcase";
+import type { ReelPiece } from "../equipment/taperack";
 
 /** A builder with the options some modules take (a tape drive's number, the CPU cabinet with the lamp panel). */
 type Builder = (ctx: BuildContext, opts?: Record<string, unknown>) => Equipment;
@@ -47,14 +49,14 @@ function standIn(kind: string): Equipment {
 }
 
 /** The library zone on the north wall (#19; ours), facing south with `stand` metres of standing room in front: the
- *  reel rack, kept clear for now (build() refuses a layout that puts anything on it or its standing room), a few
- *  steps east of the drive row, each reel's notebook binder to stand beside it; and east of it the reference
- *  bookcase, the operator's manuals and documents. Centre x, the wall's z, width and depth (out from the wall),
- *  metres. */
+ *  tape rack (equipment/taperack.ts, which fills it exactly; build() refuses a layout that puts anything else on it
+ *  or its standing room), a few steps east of the drive row, each reel's notebook binder to stand beside it; and east
+ *  of it the reference bookcase, the operator's manuals and documents. Centre x, the wall's z, width and depth (out
+ *  from the wall), metres. */
 export const LIBRARY = {
   z0: -ROOM.d / 2,
   stand: 1.2,
-  rack: { x: 2.0, w: 2.8, d: 0.45 },
+  rack: { x: 2.0, w: FOOTPRINT.taperack[0], d: FOOTPRINT.taperack[2] },
   bookcase: { x: 4.1, w: FOOTPRINT.bookcase[0], d: FOOTPRINT.bookcase[2] },
 };
 
@@ -85,7 +87,7 @@ export function build(ctx: BuildContext): Room {
   const top = (e: Equipment, dflt: number) => (e.anchors.top as THREE.Vector3 | undefined)?.y ?? dflt;
 
   const nW = ROOM.d / 2, wW = ROOM.w / 2;
-  for (let i = 0; i < DRIVES.n; i++) place("uniservo", [DRIVES.x0 + i * DRIVES.pitch, 0, -nW + 0.45], S, i === 3 ? "drive" : undefined, { number: 60 + i, index: i + 1, drive: i === 3 });
+  for (let i = 0; i < DRIVES.n; i++) place("uniservo", [DRIVES.x0 + i * DRIVES.pitch, 0, -nW + 0.45], S, i === 3 ? "drive" : `uniservo-${60 + i}`, { number: 60 + i, index: i + 1, drive: i === 3 });
   for (let i = 0; i < 5; i++) place("cpu", [-wW + 0.48, 0, -0.4 + i * 0.82], E, undefined, { lampPanel: i === 2 });
   // The operator's chair at the 4009's seat (its keyboard end), facing it; without the anchor, centred in front of it.
   // The console stands far enough south that the chair leaves the tape units' 0.9 m aisle.
@@ -119,14 +121,21 @@ export function build(ctx: BuildContext): Room {
   selector.object.userData.placed = "power:selector"; placed.push({ name: "power:selector", equipment: selector });
   // The bookcase; each of its binders is placed under its own name, so it is picked, labelled and flown to alone.
   const library = place("bookcase", [LIBRARY.bookcase.x, 0, LIBRARY.z0 + LIBRARY.bookcase.d / 2], S, "library");
-  // The rack's zone and its standing room stay clear: any footprint's box over it is a layout error.
+  // The tape rack in its zone, its reels each placed under its own name, as the binders are.
+  const rack = place("taperack", [LIBRARY.rack.x, 0, LIBRARY.z0 + LIBRARY.rack.d / 2], S, "rack");
+  // The rack fills its zone, and nothing else stands on the zone or its standing room: a layout error otherwise.
   {
     const r = LIBRARY.rack, x0 = r.x - r.w / 2, x1 = r.x + r.w / 2, z0 = LIBRARY.z0, z1 = LIBRARY.z0 + r.d + LIBRARY.stand;
     for (const f of footprints) {
       const ex = Math.abs(f.hw * Math.cos(f.turn)) + Math.abs(f.hd * Math.sin(f.turn)), ez = Math.abs(f.hw * Math.sin(f.turn)) + Math.abs(f.hd * Math.cos(f.turn));
-      if (f.x + ex > x0 && f.x - ex < x1 && f.z + ez > z0 && f.z - ez < z1) throw new Error(`room: ${f.name} stands in the reel rack's zone`);
+      if (f.name === "rack") {
+        if (Math.abs(f.x - ex - x0) > 1e-3 || Math.abs(f.x + ex - x1) > 1e-3 || Math.abs(f.z - ez - z0) > 1e-3 || Math.abs(f.z + ez - (z0 + r.d)) > 1e-3)
+          throw new Error("room: the tape rack does not fill its zone");
+      } else if (f.x + ex > x0 && f.x - ex < x1 && f.z + ez > z0 && f.z - ez < z1) throw new Error(`room: ${f.name} stands in the tape rack's zone`);
     }
   }
+  const reels = rack.anchors.reels as ReelPiece[];
+  for (const p of reels) { p.object.userData.placed = `reel:${p.reel.id}`; p.opens = rack.opens; placed.push({ name: p.object.userData.placed, equipment: p }); }
   const binders = library.anchors.binders as Binder[];
   for (const b of binders) { b.object.userData.placed = `binder:${b.doc.id}`; b.opens = library.opens; placed.push({ name: b.object.userData.placed, equipment: b }); }
   const props = library.anchors.props as Prop[];   // for looks: named on hover, inert
@@ -179,6 +188,8 @@ export function build(ctx: BuildContext): Room {
     door: { x: DOOR.x, z: nW, w: DOOR.w },
     overview: { position: new THREE.Vector3(4.4, 1.62, 4.0), target: new THREE.Vector3(0.2, 1.0, -2.6), fov: 55 },
     labels: { ...Object.fromEntries(STATIONS.map(st => [st.name, st.label])), switch: "Lights", power: "Power distribution — click to open/close the doors", "power:selector": "Voltmeter selector — click to turn", door: "Exit — github.com/aaronsb/view1108",
+      ...Object.fromEntries(Array.from({ length: DRIVES.n }, (_, i) => [`uniservo-${60 + i}`, `UNISERVO VIII-C — tape unit ${60 + i}`]).filter((_, i) => i !== 3)),
+      ...Object.fromEntries(reels.map(p => [`reel:${p.reel.id}`, `${p.reel.title} — ${p.reel.kind} reel`])),
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
       ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },
     lightsOn: true,
