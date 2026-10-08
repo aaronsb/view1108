@@ -22,7 +22,8 @@ function reelParams(id) {
   const s = SITS.find(x => x.reel === id);
   return s ? P({ scene: s.scene }) : null;
 }
-function reelMount(id) { const p = reelParams(id); if (p) { loadReel(p); syncUI(); } }
+// Mounting the reel already mounted does nothing (it would rewind it to its first situation, or restart a playlist).
+function reelMount(id) { if (id === reelMounted()) return; const p = reelParams(id); if (p) { loadReel(p); syncUI(); } }
 // Tabbed's Reels group, built once the page's data is set at boot (main.js); syncUI marks the mounted one.
 function reelButtons() {
   const g = $("reels"), list = reelIndex();

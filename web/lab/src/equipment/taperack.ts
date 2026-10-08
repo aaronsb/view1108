@@ -6,14 +6,16 @@
 // colours, the wire shelves, the numbering, the cases and the labels are ours.
 //
 // One reel per entry of the site reel index (BuildContext.reels, the page's REEL_LIB), each its own pickable piece
-// (`anchors.reels`, placed by the room as "reel:<id>"), its case label typed with its manifest title. The levels are
-// grouped (ours): one per mission, earliest range zero first, its scenario reels in index order, then one for the
-// playlists. Each group's reels stand at the left of the middle bay, each followed by an empty slot kept for that
-// reel's scenario notebook binder (#29, slice d; `anchors.notebooks`). Anonymous reels in cases of varied colours (one
-// instanced mesh) fill the rest, with a few gaps, so the rack reads as a library. Each grouped level has a strip of
-// masking tape on its front edge with the group hand-lettered (the mission, and the month and year of its range zero
-// from the reel's page.json; the playlists' titles), and the east bay, nearest the bookcase, an arrow strip toward the
-// operator's manuals (kit.ts tapeStrip; the operator's signage form, 2026-10-07: tape on the shelves, no wall signs).
+// (`anchors.reels`, placed by the room as "reel:<id>"), its case label typed with its manifest title. Where each stands
+// is racklayout.ts's plan (ours): one group per mission, earliest range zero first, then one for the playlists, each on
+// a level of its own while there are levels enough, from the left of the middle bay, spilling into the west and east
+// bays and the levels below; a reel with no room left is not shelved and the build warns. Each reel is followed by an
+// empty slot kept for its scenario notebook binder (#29, slice d; `anchors.notebooks`). Anonymous reels in cases of
+// varied colours (one instanced mesh, not picked) fill the rest, with a few gaps, so the rack reads as a library. Each
+// group has a strip of masking tape on the front edge under its first reel with the group hand-lettered (the mission,
+// and the month and year of its range zero from the reel's page.json; the playlists' titles), and the east bay,
+// nearest the bookcase, an arrow strip toward the operator's manuals (kit.ts tapeStrip; the operator's signage form,
+// 2026-10-07: tape on the shelves, no wall signs).
 //
 // Pulling (pullable.ts): a click at the close-up brings a reel 13 cm out of its row, and a click on another swaps them.
 // A pulled reel stays out when the camera leaves (`carried`): the viewer carries it to a tape unit, which mounts it
@@ -24,21 +26,14 @@ import type { BuildContext, Equipment, LabState, ReelInfo } from "../types";
 import { Parts, canvasTex, fontTex, nameplate, paint, plastic, plateText, rng, satinMetal, sharedGeo, tapeStrip } from "./kit";
 import { Shelf } from "./pullable";
 
-const W = 2.8, H = 1.85, D = 0.45;
-const POST = 0.03, BAYS = 3, PITCH = (W - POST) / BAYS;   // angle posts, and their spacing centre to centre
-const postX = (k: number) => -W / 2 + POST / 2 + k * PITCH;
-const bayX0 = (b: number) => postX(b) + POST / 2, bayX1 = (b: number) => postX(b + 1) - POST / 2;
-const BAY_W = bayX1(0) - bayX0(0);
-/** Each level's deck top, m, levels 1 to 5 from the top. */
-const LEVELS = [1.47, 1.12, 0.77, 0.42, 0.07];
+import { BAYS, D, H, LEVELS, NB, POST, T, W, bayX0, bayX1, BAY_W, postX, rackLayout } from "./racklayout";
+
 const LIP = 0.035, LIP_Z = D / 2 - 0.004;               // the shelf's front channel: its height and its face
-const R = 0.135, T = 0.04, GAP = 0.004;                  // a reel case's radius and thickness (on edge), the gap between
+const R = 0.135, GAP = 0.004;                            // a reel case's radius, the gap between anonymous cases
 const REEL_Z = D / 2 - 0.03 - R;                         // the cases' centres: their fronts 3 cm behind the lip
-const NB = 0.05;                                         // a notebook slot's width
 const PULL = new THREE.Vector3(0, 0.012, 0.13);
 // Case colours (ours): the slate and grey of tape-seal belts, a few in red, green, mustard and buff.
 const TINTS = [0x2f4a6b, 0x5b6f86, 0x5b6f86, 0x7d8287, 0x7d8287, 0x2b2d30, 0x8a2b22, 0x3f5a3a, 0xb8963a, 0xd8d0b4];
-const MON = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 const TYPED = '"Courier Prime", "Courier New", Courier, monospace';
 
 /** A reel on the rack: its piece, and the reel of the index it stands for. */
@@ -49,29 +44,9 @@ export interface ReelPiece extends Equipment { reel: ReelInfo }
  *  height above the deck, `d` the depth behind the front line. */
 export interface NotebookSlot { position: THREE.Vector3; w: number; h: number; d: number }
 
-/** One grouped level: the tape strip's words and its reels. */
-interface Group { label: string; reels: ReelInfo[] }
-
-/** The reel index grouped by level (ours): each mission's scenario reels, missions by range zero, then the playlists.
- *  More groups than levels would leave the last unshelved (four reels and three groups today). */
-function groups(reels: readonly ReelInfo[]): Group[] {
-  const missions = new Map<string, ReelInfo[]>();
-  for (const r of reels) if (r.kind === "scenario") {
-    const k = r.mission || r.title;
-    missions.set(k, [...missions.get(k) ?? [], r]);
-  }
-  const when = (rs: ReelInfo[]) => rs[0].zero ?? Number.MAX_VALUE;
-  const out: Group[] = [...missions].sort((a, b) => when(a[1]) - when(b[1])).map(([m, rs]) => {
-    const z = rs[0].zero, d = z === null ? null : new Date(z);
-    return { label: d ? `${m} · ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}` : m, reels: rs };
-  });
-  const lists = reels.filter(r => r.kind === "playlist");
-  if (lists.length) out.push({ label: `${lists.map(r => r.title).join(" / ")} REELS`, reels: lists });
-  return out.slice(0, LEVELS.length);
-}
-
-/** A reel case on edge, its axis across the shelf (x): the rim faces the viewer; groups 0 rim, 1 and 2 the faces. */
-const caseGeo = () => sharedGeo("rackCase", () => new THREE.CylinderGeometry(R, R, T, 28).rotateZ(Math.PI / 2));
+/** A reel case on edge, its axis across the shelf (x): the rim faces the viewer; groups 0 rim, 1 and 2 the faces.
+ *  `seg` sides: 28 for the index's reels, 16 for the anonymous ones (instanced, many). */
+const caseGeo = (seg = 28) => sharedGeo(`rackCase${seg}`, () => new THREE.CylinderGeometry(R, R, T, seg).rotateZ(Math.PI / 2));
 /** A label curved onto the rim's front: `arc` m along the rim, `w` m across it; its texture's u runs up the rim and
  *  its v across, the texture's top row at the case's west face. */
 const rimLabelGeo = (arc: number, w: number) => new THREE.CylinderGeometry(R + 0.0008, R + 0.0008, w, 10, 1, true, -arc / R / 2, arc / R).rotateZ(Math.PI / 2);
@@ -153,35 +128,34 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
   rods.forEach((m, i) => deck.setMatrixAt(i, m));
   object.add(deck); mine.push(rodGeo, deck);
 
-  // The reels: the grouped levels from the top, each group's reels at the left of the middle bay with a notebook slot
-  // after each; anonymous reels everywhere else.
-  const r = rng(1919), grouped = groups(ctx.reels ?? []), reels: ReelPiece[] = [], notebooks: Record<string, NotebookSlot> = {};
+  // The reels where the plan puts them (racklayout.ts), a notebook slot after each; anonymous reels after the last slot
+  // of each bay and in every other bay.
+  const r = rng(1919), plan = rackLayout(ctx.reels ?? []), reels: ReelPiece[] = [], notebooks: Record<string, NotebookSlot> = {};
+  if (plan.unplaced.length) console.warn(`tape rack: no room for ${plan.unplaced.length} reel(s): ${plan.unplaced.map(u => u.id).join(", ")}`);
+  for (const { reel, level: l, x } of plan.slots) {
+    const y = LEVELS[l], p = reelPiece(reel, reel.kind === "playlist" ? 0x8a2b22 : 0x2f4a6b, mine);
+    p.object.position.set(x + T / 2, y, REEL_Z);
+    object.add(p.object); reels.push(p);
+    notebooks[reel.id] = { position: new THREE.Vector3(x + T + GAP + NB / 2, y, REEL_Z + R), w: NB, h: (l ? LEVELS[l - 1] - LIP : H - 0.025) - y - 0.01, d: 2 * R };
+  }
   const anon: { x: number; y: number; yaw: number; tint: number; label: boolean }[] = [];
   LEVELS.forEach((y, l) => {
-    const g = grouped[l];
-    for (let b = 0; b < BAYS; b++) {
-      let x = bayX0(b) + 0.012;
-      if (g && b === 1) for (const reel of g.reels) {
-        const p = reelPiece(reel, reel.kind === "playlist" ? 0x8a2b22 : 0x2f4a6b, mine);
-        p.object.position.set(x + T / 2, y, REEL_Z);
-        object.add(p.object); reels.push(p);
-        notebooks[reel.id] = { position: new THREE.Vector3(x + T + GAP + NB / 2, y, REEL_Z + R), w: NB, h: (l ? LEVELS[l - 1] - LIP : H - 0.025) - y - 0.01, d: 2 * R };
-        x += T + GAP + NB + GAP;
-      }
-      for (; x + T <= bayX1(b) - 0.008; x += T + GAP)
+    for (let b = 0; b < BAYS; b++)
+      for (let x = plan.free.get(`${l}:${b}`) ?? bayX0(b) + 0.012; x + T <= bayX1(b) - 0.008; x += T + GAP)
         if (r() > 0.1) anon.push({ x: x + T / 2, y, yaw: (r() - 0.5) * 0.05, tint: TINTS[Math.floor(r() * TINTS.length)], label: r() > 0.45 });
-    }
   });
-  const cases = new THREE.InstancedMesh(caseGeo(), [plastic(0xffffff, 0.5), plastic(0xcccccc, 0.55), plastic(0xcccccc, 0.55)], anon.length);
+  const cases = new THREE.InstancedMesh(caseGeo(16), [plastic(0xffffff, 0.5), plastic(0xcccccc, 0.55), plastic(0xcccccc, 0.55)], anon.length);
   const labGeo = rimLabelGeo(0.07, LABEL_W), tags = anon.filter(a => a.label);
   const labels = new THREE.InstancedMesh(labGeo, plastic(0xffffff, 0.8), tags.length);
   const c = new THREE.Color(), m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), one = new THREE.Vector3(1, 1, 1);
   const place = (a: typeof anon[number]) => m.compose(new THREE.Vector3(a.x, a.y + R + 0.001, REEL_Z), q.setFromEuler(e.set(0, a.yaw, 0)), one);
   anon.forEach((a, i) => { cases.setMatrixAt(i, place(a)); cases.setColorAt(i, c.set(a.tint)); });
   tags.forEach((a, i) => { labels.setMatrixAt(i, place(a)); labels.setColorAt(i, c.set(0xe4dcc4).multiplyScalar(0.7 + r() * 0.2)); });
+  // The anonymous reels and the decks are not picked: a click there is the rack's frame (its own close-up, or back).
+  cases.raycast = labels.raycast = deck.raycast = () => {};
   object.add(cases, labels); mine.push(cases, labels, labGeo);
 
-  // The plates and the tape: each grouped level's strip on the middle bay's channel, under its reels; the arrow toward
+  // The plates and the tape: each group's strip on the channel of the bay where its first reel stands; the arrow toward
   // the bookcase (east) at the right end of the east bay, level 2.
   object.add(numberPlates(mine));
   /** A strip on level `l`'s channel, centred at x, or (`x` null) ending 2 cm short of the east bay's end. */
@@ -192,7 +166,7 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
     s.rotation.z = (r() - 0.5) * 0.03;
     object.add(s);
   };
-  grouped.forEach((g, l) => strip(g.label, (bayX0(1) + bayX1(1)) / 2, l));
+  for (const st of plan.strips) strip(st.label, (bayX0(st.bay) + bayX1(st.bay)) / 2, st.level);
   strip("OPERATORS MANUALS", null, 1, "right");
 
   // A nameplate on the top rail (ours), which is also the rack's screen anchor: what the walk's zone faces.

@@ -47,6 +47,7 @@ const DUST_PER_M3 = 4;              // the dust motes' density
 const OPEN_S = 0.5;                 // the ease from a console's arrival pose to its handover pose, s
 const ARC_M = 0.12;                 // the flight's rise at its middle, metres per 2 m flown (at most one unit)
 const CLICK_PX = 5;
+const MOUNT_MS = 400;               // after a mount, a tape unit's own use (the drive's STOP/START) waits this long
 const LOOK_DEG = 0.12;              // turn per mouse count while the pointer is locked, deg
 const ESC_MS = 250;                 // an Esc this soon after the lock went is the one that released it
 const WHEEL_M = 0.0018;             // metres stepped per wheel pixel
@@ -100,7 +101,9 @@ export class Lab {
   private pinchD = 0;
   private hover: Placed | null = null;
   private pointer: { x: number; y: number } | null = null;
-  private lifted = new Map<THREE.Mesh, [THREE.Material, THREE.Material]>();
+  private lifted = new Map<THREE.Mesh, [THREE.Material | THREE.Material[], THREE.Material | THREE.Material[]]>();
+  /** When a carried reel was last mounted (performance.now()), for MOUNT_MS. */
+  private mountT = -Infinity;
   private labelEl: HTMLDivElement;
   private crossEl: HTMLDivElement;
   private lineEl: HTMLDivElement;
@@ -180,7 +183,8 @@ export class Lab {
     // do nothing (and are not picked).
     for (const p of this.room.placed) if (p.equipment.anchors.tapeUnit !== undefined) {
       const own = p.equipment.use;
-      p.equipment.use = () => { const r = this.carried(); if (r) this.mount(r); else own?.(); };
+      // A double click mounts with its first click; its second must not then stop the clock (MOUNT_MS).
+      p.equipment.use = () => { const r = this.carried(); if (r) this.mount(r); else if (performance.now() - this.mountT > MOUNT_MS) own?.(); };
       p.equipment.usable = () => !!own || !!this.carried();
     }
     this.dust?.light(this.lighting.lit, this.room.glows ?? []);
@@ -342,6 +346,7 @@ export class Lab {
 
   /** A carried reel used on a tape unit: the page mounts it (loadReel), and it goes back on the rack. */
   private mount(reel: Placed): void {
+    this.mountT = performance.now();
     reel.equipment.putBack?.();
     this.hooks.esc?.("pulled", null);
     this.hooks.mount?.(reel.name.replace(/^reel:/, ""));
@@ -490,7 +495,7 @@ export class Lab {
     document.removeEventListener("mousemove", this.onLook);
     for (const p of this.room.placed) p.equipment.dispose?.();
     this.room.dispose?.();
-    for (const [, [, lift]] of this.lifted) lift.dispose();
+    for (const [, [base, lift]] of this.lifted) for (const x of [lift].flat()) if (![base].flat().includes(x)) x.dispose();
     this.dust?.dispose();
     this.post?.dispose();
     this.lighting.dispose();
@@ -883,20 +888,33 @@ export class Lab {
 
   /** Hover highlight: a slight emissive lift on the equipment's lit surfaces (clones, so shared materials stay). */
   private lift(p: Placed, on: boolean): void {
+    const up = (base: THREE.Material): THREE.Material | null => {
+      if (!(base as THREE.MeshStandardMaterial).isMeshStandardMaterial) return null;
+      const u = base.clone() as THREE.MeshStandardMaterial;
+      u.emissive = (base as THREE.MeshStandardMaterial).emissive.clone().add(new THREE.Color(0x1c2a20));
+      return u;
+    };
     p.equipment.object.traverse(o => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
       let pair = this.lifted.get(m);
       if (!pair) {
-        const base = m.material as THREE.Material;
-        if (Array.isArray(m.material) || !(base as THREE.MeshStandardMaterial).isMeshStandardMaterial) return;
-        const up = base.clone() as THREE.MeshStandardMaterial;
-        up.emissive = (base as THREE.MeshStandardMaterial).emissive.clone().add(new THREE.Color(0x1c2a20));
-        pair = [base, up]; this.lifted.set(m, pair);
+        const base = m.material;
+        if (Array.isArray(base)) {   // a mesh with groups (a reel's case): each lit material lifted, the rest kept
+          const ups = base.map(b => up(b));
+          if (ups.every(u => !u)) return;
+          pair = [base, ups.map((u, i) => u ?? base[i])];
+        } else {
+          const u = up(base);
+          if (!u) return;
+          pair = [base, u];
+        }
+        this.lifted.set(m, pair);
       }
       m.material = on ? pair[1] : pair[0];
     });
   }
+
 
   private resize(): void {
     const w = this.host.clientWidth, h = this.host.clientHeight;
