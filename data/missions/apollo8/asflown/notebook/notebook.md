@@ -24,7 +24,7 @@ The station looks where the situation's lunar-orbit camera points, not along the
 
 NASA's Scientific Visualization Studio has reconstructed "the moment when the crew first saw and photographed the Earth rising from behind the Moon", working from vertical stereo photographs taken through a rendezvous window, and found that "the spacecraft was rolling when the photos were taken, and that it was this roll that brought the Earth into view" (NASA SVS 4129, *Earthrise: The 45th Anniversary*, https://svs.gsfc.nasa.gov/4129). It names three Earthrise photographs, AS08-13-2329, AS08-14-2383 and AS08-14-2384, and places them at frames 1092, 2814 and 3545 of a frame set that starts at 75:47:06 and runs at 30 frames a second (the page's "47 seconds (1410 frames)").
 
-![Our render: the situation's fitted camera at the time of AS08-13-2329, the Earth's disc just clearing the lunar horizon](figures/earthrise-first.svg)
+![Our render: the situation's fitted camera at the time of AS08-13-2329, the Earth's disc partly risen above the lunar horizon](figures/earthrise-first.svg)
 
 ![Our render: the situation at its default, the moment of AS08-14-2383, the Earth clear of the horizon with its night side hatched](figures/earthrise.svg)
 
@@ -32,7 +32,7 @@ The first figure's time is our arithmetic from those frame numbers; the same ari
 
 ## Transearth coast
 
-On the way home the program's Earth views showed which side of the Earth faced the crew. The report allows one limit: "the Earth terminator could not be duplicated accurately because of the atmospheric scattering of light" (TN D-6853, p. 4). The Apollo 11 note drew its transearth Earth views in a constant 50° field with the CM window outlines (MSC IN 69-FM-197, figure 7.3.2-1, p. 207), and this reel's follow track uses that field on the coast.
+For Apollo 11 the note's coast views of the Earth were meant to help "determine which part of the world can be seen from the spacecraft" (MSC IN 69-FM-197, p. 15, on that mission's translunar coast); we take that as the precedent for this figure (ours). TN D-6853 allows one limit: "the Earth terminator could not be duplicated accurately because of the atmospheric scattering of light" (TN D-6853, p. 4). The Apollo 11 note drew its transearth Earth views in a constant 50° field with the CM window outlines (MSC IN 69-FM-197, figure 7.3.2-1, p. 207), and this reel's follow track uses that field on the coast.
 
 ![Our render: the window view aimed at the Earth a little over two hours before entry interface, a 50° field, the Americas on the disc and its night side hatched](figures/transearth.svg)
 
@@ -45,7 +45,7 @@ The report lists TEI and the entry phase among the Apollo 8 maneuver views (TN D
 ## Sources
 
 - C. T. Hyle and A. N. Lunde, *Apollo Experience Report: The Application of a Computerized Visualization Capability to Lunar Missions*, NASA TN D-6853, June 1972 (`reference/TN-D-6853_Hyle_Lunde_1972.pdf`; printed pages).
-- A. N. Lunde, *Revision 1 to Views from the CM and LM During the Flight of Apollo 11 (Mission G)*, MSC Internal Note 69-FM-197, 3 July 1969, NTRS 19740073250 (`reference/MSC-IN-69-FM-197_Apollo11_views.pdf`; printed pages).
+- A. N. Lunde, *Revision 1 to Views from the CM and LM During the Flight of Apollo 11 (Mission G)*, MSC Internal Note 69-FM-197, 3 July 1969, NASA-TM-X-69921, N74-71189 (`reference/MSC-IN-69-FM-197_Apollo11_views.pdf`; printed pages).
 - NASA Scientific Visualization Studio, *Earthrise: The 45th Anniversary*, ID 4129, 20 December 2013, https://svs.gsfc.nasa.gov/4129.
 
 ```figures
