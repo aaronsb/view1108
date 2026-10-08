@@ -17,6 +17,11 @@ const NB_OPEN = [{ js: `document.getElementById("blib").click()` },
 const NB_PAGE = `document.querySelector("#libmd .nbpage").textContent`;
 const NB_COLS = `getComputedStyle(document.querySelector("#libmd .nbpages")).columnCount`;
 const NO_HSCROLL = `document.documentElement.scrollWidth <= innerWidth && document.getElementById("libr").scrollWidth <= innerWidth`;
+// Every shown run-sheet row, in each of its fragments, no wider than one column of the binder's pages.
+const RS_FITS = `(pg => { const cs = getComputedStyle(pg), w = pg.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+  - (parseInt(cs.columnCount, 10) - 1) * parseFloat(cs.columnGap);
+  const rows = [...pg.querySelectorAll(".runsheet tr")].filter(r => r.offsetParent !== null);
+  return rows.length > 0 && rows.every(r => [...r.getClientRects()].every(q => q.width <= w / parseInt(cs.columnCount, 10) + 0.5)); })(document.querySelector("#libmd .nbpages"))`;
 const VISIBLE_ROWS = `[...document.querySelectorAll("#libmd .runsheet tbody tr")].filter(r => r.offsetParent !== null).length`;   // the run sheet's rows shown
 const ROOM_UP = { wait: `VIEW_LAB.running && ${LAB} && document.body.classList.contains("room")` };
 const ROOM_STILL = { wait: `${LAB}.mode !== "flight" && !document.getElementById("labhost").classList.contains("fading") && ${LAB}.lit >= 0.999` };
@@ -209,6 +214,21 @@ export const SHOTS = [
     expect: [[`document.getElementById("libmd").className`, "light"], [NB_COLS, "1"], [NB_PAGE, /^PAGE 1 OF \d+$/],
       [`document.querySelector("#libmd .nbpages").firstElementChild.className`, "runsheet"], [VISIBLE_ROWS, 21],
       [`document.getElementById("blibtheme").textContent`, "Dark"], [NO_HSCROLL]] },
+
+  // On a narrow screen LIST hides the viewer; a resize while it is hidden, then the same notebook again: counted anew
+  // (review of PR #94: the hidden binder measured 0 wide and the count went to -Infinity).
+  { name: "notebook-light-relist", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1", viewport: [400, 860],
+    steps: [HOLD(), ...NB_OPEN, { click: "#bliblist" }, { vp: [390, 700] }, { frames: 2 },
+      { js: `document.querySelector('#liblist .librow[data-id="nb-apollo11-asflown"]').click()` }, { frames: 2 },
+      { expect: [NB_PAGE, /^PAGE 1 OF \d+$/] }, { key: "PageDown" }, { frames: 2 }],
+    expect: [[NB_PAGE, /^PAGE 2 OF \d+$/], [`document.querySelector("#libmd .nbnext").disabled`, false]] },
+
+  // A small phone (360x640): the run sheet's table fits its page, collapsed and with every entry shown; every row's
+  // fragments within the column (review of PR #94: rows were 262 px in a 216 px column).
+  { name: "notebook-light-phone", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1", viewport: [360, 640],
+    steps: [HOLD(), ...NB_OPEN, { expect: [RS_FITS] }, { js: `document.querySelector("#libmd .runsheet button.rsall").click()` },
+      { frames: 2 }, { expect: [RS_FITS] }, { js: `document.querySelector("#libmd .runsheet button.rsall").click()` }, { frames: 2 }],
+    expect: [[RS_FITS], [NB_PAGE, /^PAGE 1 OF \d+$/], [NO_HSCROLL]] },
 
   // On a wide window a two-page spread: the run sheet on the left page, the notebook's first page on the right.
   { name: "notebook-light-spread", url: "mode=free&space=tiled&scn=apollo8-asflown&sit=1",

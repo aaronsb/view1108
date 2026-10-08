@@ -237,7 +237,7 @@ button.librow.on .libm { color:var(--fg); }
    internal notes (MSC IN 69-FM-197 in reference/): an open three-ring binder lying on a desk, white typed pages on its
    rings, one page on a narrow viewer and a two-page spread on a wide one. Paging jumps; there is no page-turn
    animation. The pages are CSS columns: .nbpages has a fixed page height, so the text flows into columns side by side,
-   one column a page; the viewer scrolls them sideways a view at a time (library.js nbTurn: buttons, PgUp/PgDn, the
+   one column a page; the viewer scrolls them sideways a view at a time (binder.js nbTurn: buttons, PgUp/PgDn, the
    arrow keys, Home/End), and on a single page each column is a scroll-snap point (::column). The paper, its punched
    holes and the binding's shade are backgrounds of .nbpages that scroll with the text (background-attachment:local),
    one tile per view, so at rest the holes sit under the rings, which belong to the binder (.nbbinder::after) and stay
@@ -369,7 +369,7 @@ button.librow.on .libm { color:var(--fg); }
 #libmd.light section.nbcases { break-before:column; font-size:.85em; }
 #libmd.light section.nbcases table { font-size:.88em; }
 #libmd.light section.nbcases h2 { margin-top:0; }
-#libmd.light section.nbcases th { overflow-wrap:anywhere; }
+#libmd.light section.nbcases th { overflow-wrap:break-word; }
 #libmd.light section.nbcases td:nth-child(-n+2) code { white-space:nowrap; }
 #libmd.light .runsheet { break-after:column; }
 #libmd.light .runsheet h2 { margin:0 0 .5em; text-decoration:underline; text-underline-offset:.25em; }
@@ -377,6 +377,17 @@ button.librow.on .libm { color:var(--fg); }
 #libmd.light .runsheet table { font-size:.86em; }
 #libmd.light .runsheet td:nth-child(2) { white-space:nowrap; }
 #libmd.light .runsheet td:last-child { font-size:.92em; }
+/* On a phone the run sheet's table is laid out to its page: fixed columns for KEY, G.E.T., KIND and the camera, the
+   entry taking the rest, smaller type, and the camera and the entry wrapping (ours). */
+@container (max-width:460px) {
+  #libmd.light .runsheet table { table-layout:fixed; font-size:.74em; }
+  #libmd.light .runsheet th, #libmd.light .runsheet td { padding:1px 2px; overflow-wrap:anywhere; }
+  #libmd.light .runsheet th:nth-child(1) { width:calc(3ch + 4px); }
+  #libmd.light .runsheet th:nth-child(2) { width:calc(9ch + 4px); }
+  #libmd.light .runsheet th:nth-child(3) { width:calc(9ch + 4px); }
+  #libmd.light .runsheet th:nth-child(5) { width:calc(8ch + 4px); }
+  #libmd.light .runsheet td:last-child { font-size:1em; }
+}
 #libmd.light .runsheet p.rsline { margin-top:.8em; }
 #libmd.light .nbend { height:0; }
 #libmd.light .nbend.blank { break-before:column; height:1px; }
