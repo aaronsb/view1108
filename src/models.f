@@ -728,8 +728,11 @@ C     its own model so that it drops at its separation (vdrive.f LVPL),
 C     in SIVBMD's body frame as LVSTK: smooth cylinders SICD in across,
 C     SIIH and SICH ft long (Apollo 11 press kit, printed p. 109;
 C     viewcom.inc).  The S-II/S-IVB interstage, the taper from 33 ft to
-C     21 ft 8 in, is left out: no source we hold gives its length, so
-C     the step from the S-II's top to the S-IVB is drawn flat (ours).
+C     21 ft 8 in, is the S-II's top SIIIS ft, one smooth frustum
+C     (LVFRU) on the cylinder, which is that much shorter: no source
+C     we hold gives its length (the press kit lists its weight only),
+C     so the 18 ft and the choice to count it in the S-II's 81.5 ft
+C     are ours, and the stack's height is unchanged (mpad.f PADHC).
 C     No fins, engines or fairings.
 C-----------------------------------------------------------------------
       SUBROUTINE LVSII
@@ -739,7 +742,10 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION FT
       FT = 0.3048D0
-      CALL LVCYL(-(SIVBH + SIUH + SIIH) * FT, SIIH * FT, SICD)
+      CALL LVCYL(-(SIVBH + SIUH + SIIH) * FT, (SIIH - SIIIS) * FT,
+     &           SICD)
+      CALL LVFRU(-(SIVBH + SIUH + SIIIS) * FT, SIIIS * FT, SICD,
+     &           SLVD / SICD)
       RETURN
       END
 C

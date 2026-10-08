@@ -259,14 +259,15 @@ const A11_ZERO = Date.UTC(1969, 6, 16, 13, 32, 0);   // Apollo 11's range zero, 
   const md = [path.join(R, 'README.md'), ...fs.readdirSync(path.join(R, 'docs'), { recursive: true })
     .filter(f => f.endsWith('.md')).map(f => path.join(R, 'docs', f))];
   const old = [...new Set(md.flatMap(f => [...fs.readFileSync(f, 'utf8').matchAll(/[?&]scene=(\d+)/g)].map(m => +m[1])))].sort((x, y) => x - y);
-  const oneNumbering = scenes.reels.flatMap(x => x.scenes.map(id => [x.id, id]));   // [reel, id] for scene 1, 2, ...
+  const legacy = [...Array(8)].map((_, k) => ['apollo11-asflown', k + 1]).concat([['apollo8-asflown', 1]]);   // the old links' scene=1..9, frozen
   for (const n of old) {
-    const sc = RP.sceneOfLink(SIT, null, null, n), s = SIT[sc - 1] || {}, w = oneNumbering[n - 1] || [];
-    if (!(sc === n && s.reel === w[0] && s.id === w[1])) bad.push(`scene=${n} opens ${s.reel}/${s.id}, not ${w.join('/')}`);
+    const sc = RP.sceneOfLink(SIT, null, null, n), s = SIT[sc - 1] || {}, w = legacy[n - 1] || [];
+    if (!(s.reel === w[0] && s.id === w[1])) bad.push(`scene=${n} opens ${s.reel}/${s.id}, not ${w.join('/')}`);
     if (RP.sceneOfLink(SIT, s.reel, String(s.id), null) !== sc || RP.sceneOfLink(SIT, s.reel, s.name.toLowerCase(), null) !== sc)
       bad.push(`scn=${s.reel}&sit=${s.id} (or its name) does not open scene ${sc}`);
   }
   if (!old.length) bad.push('no scene=N link in docs/ or README.md');
+  if (RP.sceneOfLink(SIT, null, null, 10) !== null) bad.push('scene=10 opens a situation: no old link has it');
   const nine = SIT[RP.sceneOfLink(SIT, null, null, 9) - 1] || {};
   if (!(nine.name === 'APOLLO 8 EARTHRISE' && nine.id === 1 && nine.reel === 'apollo8-asflown')) bad.push(`scene=9 opens ${nine.reel}/${nine.id}`);
   try { RP.reelPages([{ manifest: { id: 'nopage' }, page: null }]); bad.push('a reel without page.json: not refused'); }
@@ -980,7 +981,7 @@ for rid, n in nb.notebooks():
     const PAGE_BAD = {
       'a quick view naming no entry': [{ ...pg, quickviews: { 1: 'NO SUCH VIEW' } }, /quick view 1 names "NO SUCH VIEW", which the reel's listing does not hold$/],
       'a quick view key 0': [{ ...pg, quickviews: { 0: 'EARTHRISE' } }, /quickviews key "0" is not 1 to 9$/],
-      'a situation missing from the listing': [{ ...pg, listing: sitDrop, quickviews: {} }, /the listing holds 7 of the reel's 8 situations$/],
+      'a situation missing from the listing': [{ ...pg, listing: sitDrop, quickviews: {} }, /the listing holds 8 of the reel's 9 situations$/],
       'an event renamed': [{ ...pg, listing: evRen }, /\(translunar-injection\) is not the timeline's row \d+$/],
       'a situation with another field': [{ ...pg, listing: pg.listing.map(e => e.id === 'EARTHRISE' ? { ...e, fov: 60 } : e) }, /situation EARTHRISE's name, view, target or field is not its card's$/],
       'a kind not known yet': [{ ...pg, listing: pg.listing.map((e, i) => i ? e : { ...e, kind: 'slide' }) }, /listing entry 1 is of kind slide, not situation or event or photo$/],

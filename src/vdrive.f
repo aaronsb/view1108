@@ -886,19 +886,17 @@ C     on the drawn Earth (learth.f PADEF, where DPAD marks it): X up,
 C     -Z north, toward the umbilical tower (ours: no source we hold
 C     says which side of the vehicle the tower stood), Y = Z x X; the
 C     vehicle on the pad has the same axes, so the CM's side hatch
-C     (CSMBLD, -Z) faces the tower's access arm.  The foot where the
-C     scenario's ascent table stands the CSM before lift-off: its state
-C     at the LIFTOFF event, held Earth fixed (MEFAT) and turned with the
-C     Earth to now, less the stack's height PADHC along X, so the stack
-C     on the pad and the CSM's own state agree and the vehicle rises
-C     from the pad along the table (ASCPL).  The table's latitudes are
-C     geocentric and PADEF's are on the coastlines' geodetic footing, so
-C     this foot lies 17.9 km south of DPAD's mark (0.161 deg at 28.447
-C     deg N) and, the table's lift-off altitude (0.032 n mi, SP-4029 p.
-C     103) being less than the stack's height, about 70 m inside the
-C     drawn sphere (ours).  Without a LIFTOFF event or a state there,
-C     the foot is PADEF's place on the sphere.  IOK 0 if the scenario
-C     has no pad.
+C     (CSMBLD, -Z) faces the tower's access arm.  The foot is under
+C     PADEF's place, where the scenario's ascent table stands the CSM
+C     before lift-off (TABRV takes the table's low rows onto the same
+C     geodetic footing, #105), at the radius of the CSM's state at the
+C     LIFTOFF event less the stack's height PADHC, so the stack on the
+C     pad and the CSM's own state agree and the vehicle rises from the
+C     pad along the table (ASCPL).  The table's lift-off altitude
+C     (0.032 n mi, SP-4029 p. 103) being less than the stack's height,
+C     the foot lies about 70 m inside the drawn sphere (ours).  Without
+C     a LIFTOFF event or a state there, the foot is on the sphere.  IOK
+C     0 if the scenario has no pad.
 C-----------------------------------------------------------------------
       SUBROUTINE PADAX(CG, AT, P0, IOK)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
@@ -906,7 +904,7 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION CG(3), AT(3,3), P0(3), U(3), EN(3), W(3)
-      DOUBLE PRECISION R0(3), V0(3), M0(3,3), TL, HC, EVGET, PADHC
+      DOUBLE PRECISION R0(3), V0(3), TL, HC, EVGET, PADHC, VDOT
       INTEGER IOK, I, J, I0
       CALL PADEF(U, EN, IOK)
       IF (IOK .EQ. 0) RETURN
@@ -923,12 +921,9 @@ C     RESTOMOD END
       CALL VSTATE(TL, 1, 1, R0, V0, I0)
       ISRCU = J
       IF (I0 .NE. 1) RETURN
-      CALL MEFAT(TL, M0)
-      CALL MTXV(M0, R0, U)
-      CALL MXV(MEF, U, W)
-      HC = PADHC() * 1.0D-3
+      HC = DSQRT(VDOT(R0, R0)) - PADHC() * 1.0D-3
       DO 20 I = 1, 3
-        P0(I) = W(I) - HC * AT(I,1) - CG(I)
+        P0(I) = HC * AT(I,1) - CG(I)
    20 CONTINUE
       RETURN
       END
