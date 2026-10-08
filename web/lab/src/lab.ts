@@ -51,6 +51,7 @@ import { QualityCheck } from "./quality";
 import { anchorShot, matchShot, shotOf, type Mismatch, type Shot } from "./shot";
 import type { LabEvent, LabHooks, Opens, Placed, Quality, ReelInfo, Room } from "./types";
 import type { SystemTape } from "./equipment/systapes";
+import type { Exec8 } from "./equipment/exec8";
 
 /** A flight's time, s, by the distance flown (m): 1 s up to 2.5 m, then slower per metre, at most 1.8 s (an 11 m
  *  flight across the room takes 1.7 s). */
@@ -479,6 +480,9 @@ export class Lab {
       tapes: this.room.placed.filter(p => p.equipment.anchors.tapeUnit !== undefined).map(p => (p.equipment.anchors.tapeLabel as (() => string) | undefined)?.() ?? ""),
       // the system tapes on the rack, by their labels (#87)
       systapes: this.room.placed.map(p => (p.equipment as { tape?: SystemTape }).tape?.label).filter(Boolean),
+      // the 1108 console's EXEC loop (#68): its screen's 16 lines, the PAGEWRITER's last lines, the run's phase, typing
+      exec: (x => x ? { screen: x.screen(), paper: x.paper.slice(-20), run: x.run ? `${x.run.id} ${x.run.phase}` : null, busy: x.busy } : null)(
+        this.room.placed.find(p => p.name === "console")?.equipment.anchors.exec as Exec8 | undefined),
       walk: { x: w.pos.x, z: w.pos.y, yaw: w.yaw / D2R, pitch: w.pitch / D2R, near: w.near?.name ?? null },
       // what is out on a shelf, by placed name: 1 out, HALF (pullable.ts) half out beside its partner
       out: Object.fromEntries(this.room.placed.flatMap(p => { const o = p.equipment.out?.() ?? 0; return o ? [[p.name, o]] : []; })),
