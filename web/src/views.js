@@ -7,7 +7,7 @@ const TARGETS = ["default", "earth", "moon", "sun", "csm", "lm", "sivb"];   // i
 const LAB_LEVELS = ["off", "primary", "secondary", "all"];  // in_lablv
 const STATION_FOV = 100;
 let stFov = null;   // [the field before a station, the station's]: restored on leaving it
-const FEAT = { view: false, target: false, lablv: false, cabin: false, walls: false };
+const FEAT = { view: false, target: false, lablv: false, cabin: false, walls: false, eye: false };
 let cabin = true;   // cabin: the CM or LM interior in a station view (in_flags bit 4)
 let walls = true;   // walls: with the cabin, the outside seen only through its windows (in_flags bit 5)
 // Attract and Tour draw the cabin, with its walls, in their station shots.
@@ -20,7 +20,29 @@ function featInputs() {   // every frame, before view_frame
   if (FEAT.view) wi("in_view", LS.view);
   if (FEAT.target) wi("in_target", LS.target);
   if (FEAT.lablv) wi("in_lablv", LS.labLv);
+  if (FEAT.eye) eyeInput();
 }
+// The moved eye (#72, #31; the kernel's in_eyeo, src/veye.f): the pad's MOVE (controls.js PADM) steps it along the
+// camera's right, up and boresight as the kernel gives them in the offset's own frame (out_eyax: in a crew station the
+// vehicle's body axes, outside the target's reference axes), and the kernel clamps it (inside the cabin's walls; the
+// point flown round within one camera distance of the target) and writes the clamped offset back. out_eyek says what
+// the last frame took: 0 nothing (a window view), 1 the external view, 2 the CM station, 3 the LM station. A step is
+// 5 cm in a station, 2% of the distance outside (ours). The offset belongs to the situation and view it was made in: a
+// new one starts at the design eye, so every frame of a link or a reel is as it was.
+const EYE_STEP = [0, 0.02, 0.05, 0.05];
+let eyeOff = [0, 0, 0], eyeCtx = "";
+const eyeKind = () => FEAT.eye ? new Int32Array(buf(), K.out_eyek.value, 1)[0] : 0;
+function eyeInput() {
+  const c = LS.situation + "/" + LS.view;
+  if (c !== eyeCtx) { eyeCtx = c; eyeOff = [0, 0, 0]; }
+  new Float64Array(buf(), K.in_eyeo.value, 3).set(eyeOff);
+}
+function eyeStep(j, s) {   // j: the camera's axis (0 right, 1 up, 2 boresight), s: +1 or -1
+  const k = eyeKind(); if (!k) return;
+  const ax = new Float64Array(buf(), K.out_eyax.value, 9);   // ax(i, j), column-major
+  for (let i = 0; i < 3; i++) eyeOff[i] += EYE_STEP[k] * s * ax[3 * j + i];
+}
+function eyeReset() { eyeOff = [0, 0, 0]; }
 function featSyncUI() {
   if (FEAT.view) document.querySelectorAll("#viewgrp button:not(#bcab):not(#bwal)").forEach((b, i) => b.classList.toggle("on", i === LS.view));
   if (FEAT.target) document.querySelectorAll("#targrp button").forEach((b, i) => b.classList.toggle("on", i === LS.target));
@@ -31,6 +53,7 @@ function featSyncUI() {
 // the vehicles in the scene's world (1 CSM, 2 LM), which leaves out the one the camera rides.
 let stMask = -1;
 function featTick() {
+  if (eyeKind()) eyeOff = [...new Float64Array(buf(), K.in_eyeo.value, 3)];   // the offset the kernel used, clamped
   if (!FEAT.view) return;
   const h = new Float64Array(buf(), K.hdr.value, 24), m = (h[21] & 4) ? h[21] & 3 : h[20] | 0;
   if (FEAT.target) tgtTick(h[22] | 0);
@@ -82,6 +105,7 @@ function tgtTick(st) {
 // After boot, before the first scene.
 function featInit() {
   FEAT.view = !!K.in_view; FEAT.target = !!K.in_target; FEAT.lablv = !!K.in_lablv;
+  FEAT.eye = !!(K.in_eyeo && K.out_eyek && K.out_eyax);
   // The cabin probe: the first situation of the reel the kernel holds (LS.deck, the boot reel; each reel numbers its
   // own situations) that always offers the CM station, from it with a 170 deg field, draws more with bit 4
   // than without.

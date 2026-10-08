@@ -67,6 +67,20 @@ button.shade-h:hover { color:var(--fg); border-bottom-color:var(--dim); }
 #pad button.held { color:#000; background:var(--fg); border-color:var(--fg); }
 #pad button.held small { color:#000; }
 #pad button:nth-child(n+10) { margin-top:4px; }
+/* The pad's mode (#72): one thin, wide toggle over the pad, its left third the key set (ARROWS, WASD), its right two
+   thirds the action (LOOK, MOVE). MOVE shows the pad in reverse video, green caps and dark letters, so the keys' other
+   meaning is plain at a glance; a held cap then shows dark. */
+#padwrap { display:inline-flex; flex-direction:column; gap:5px; }
+#padmode { display:grid; grid-template-columns:1fr 2fr; touch-action:none; user-select:none; -webkit-user-select:none; }
+#padmode button { min-height:24px; padding:0 2px; border:1px solid var(--line); font-size:13px; letter-spacing:.1em; }
+#padmode button::before, #padmode button::after { content:none; }
+#padmode button + button { border-left:0; }
+#padmode button.on { color:#000; background:var(--fg); border-color:var(--fg); }
+#pad.move button { color:#000; background:var(--fg); border-color:var(--fg); }
+#pad.move button small { color:#000; }
+#pad.move button.held { color:var(--fg); background:#000; }
+#pad.move button.held small { color:var(--fg); }
+#hint.wasd .wasdk { opacity:.4; text-decoration:line-through; }
 /* The status line (loop.js updateStatus): a fixed number of lines, cut with an ellipsis at its end, so the plot sized
    under it (render.js) and the dock below keep their places as it changes (#37): three lines on a narrow screen, four
    on the narrowest, two on a wide one (above). */
@@ -79,6 +93,7 @@ button.shade-h:hover { color:var(--fg); border-bottom-color:var(--dim); }
   .shade[data-shade=live] { order:-2; }   /* Simulate: the Mission clock (Live, the jumps) above it, on the first screen (#37) */
   #tabs button { font-size:14px; }
   #pad { grid-auto-rows:44px; gap:4px; }
+  #padwrap { gap:4px; }
 }
 .grp { display:flex; gap:2px; align-items:center; flex-wrap:wrap; }
 /* buttons are 3270-style fields: [ LABEL ], reverse video when active */

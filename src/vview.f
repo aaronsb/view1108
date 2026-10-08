@@ -56,8 +56,8 @@ C     RESTOMOD END
       DOUBLE PRECISION GET, PM(3), CG(3), CV(3), YAW, PIT, ROL
       INTEGER LOOKD, IREF
       DOUBLE PRECISION TG(3), D(3), DIST, DS(3), CG0(3), P(3), VDOT
-      DOUBLE PRECISION C
-      INTEGER IT, IST, IOK, I, J, KCSPL, ECOAST
+      DOUBLE PRECISION C, AX(3,3), OFF(3)
+      INTEGER IT, IST, IOK, I, J, KCSPL, ECOAST, NZ
       LOOKD = 0
       ITGST = 0
       ISLA = 0
@@ -67,7 +67,7 @@ C     stack's is the external one).
       IF (IVUSE .EQ. 0) IVUSE = JVW
 C     A crew-station recipe is that station already; asked for as
 C     one, it gets the cabin (the LM's: JVEH 2, in_view 3).
-      IF (JRCP .EQ. 3 .AND. IVUSE .EQ. JVEH + 1) CALL LDCAB(GET)
+      IF (JRCP .EQ. 3 .AND. IVUSE .EQ. JVEH + 1) CALL LDCAB(GET, CG)
       IF (JRCP .EQ. 3 .AND. IVUSE .EQ. JVEH + 1) IVUSE = 0
       IF (JFIX .EQ. 1) IVUSE = 0
       IT = ITARG
@@ -145,6 +145,22 @@ C     scene's own boresight is kept (ours, #97).
       CALL VCRS(BREF, UREF, RREF)
       CALL VUNIT(RREF)
       IF (IVUSE .NE. 1) RETURN
+C     RESTOMOD BEGIN: the moved eye is ours (veye.f; #72): the point
+C     flown round leaves the target by the eye offset, along the
+C     reference axes at the target, in units of the distance
+      DO 26 I = 1, 3
+        AX(I,1) = RREF(I)
+        AX(I,2) = UREF(I)
+        AX(I,3) = BREF(I)
+   26 CONTINUE
+      CALL EYUSE(1, AX, OFF, NZ)
+      IF (NZ .EQ. 0) GO TO 28
+      DO 27 I = 1, 3
+        TG(I) = TG(I) + DIST * (OFF(1) * RREF(I) + OFF(2) * UREF(I)
+     &    + OFF(3) * BREF(I))
+   27 CONTINUE
+   28 CONTINUE
+C     RESTOMOD END
 C
 C     External: free-look sets the direction, the camera backs off
 C     along it to DIST from the target.  A situation with XSTART (JXOF;
@@ -432,7 +448,8 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
       DOUBLE PRECISION CG(3), AT(3,3), E(3), V(3), W(3), DS(3), Z(3)
-      INTEGER IOK, I, J, KC, KCSPL
+      DOUBLE PRECISION OFF(3)
+      INTEGER IOK, I, J, KC, KCSPL, NZ
       IOK = 0
       IF (JSCM .EQ. 0 .OR. (JSCM .EQ. 1 .AND. KCSPL() .EQ. 0)) RETURN
       IOK = 1
@@ -441,11 +458,20 @@ C     RESTOMOD END
       KC = KCSPL()
       IF (KC .EQ. 0) GO TO 20
       DO 10 I = 1, 3
-        V(I) = (E(I) - MDBO(I,KC)) * 1.0D-3
         DO 5 J = 1, 3
           AT(I,J) = MDAT(I,J,KC)
     5   CONTINUE
    10 CONTINUE
+C     RESTOMOD BEGIN: the moved eye is ours (veye.f; #72): the eye
+C     leaves the design eye by the offset, in the CSM's body frame
+      CALL EYUSE(2, AT, OFF, NZ)
+      DO 11 I = 1, 3
+        E(I) = E(I) + OFF(I)
+   11 CONTINUE
+C     RESTOMOD END
+      DO 12 I = 1, 3
+        V(I) = (E(I) - MDBO(I,KC)) * 1.0D-3
+   12 CONTINUE
       CALL MXV(AT, V, W)
       DO 15 I = 1, 3
         W(I) = W(I) + MDP(I,KC)
@@ -459,12 +485,23 @@ C     RESTOMOD END
         AT(I,3) = -UREF(I)
    25 CONTINUE
       CALL VCRS(AT(1,3), AT(1,1), AT(1,2))
+C     RESTOMOD BEGIN: the moved eye is ours (veye.f; #72): the camera
+C     moves with it, the world stays
+      CALL EYUSE(2, AT, OFF, NZ)
+      IF (NZ .EQ. 1) CALL EYMOVE(AT, OFF, CG, 0)
+      DO 26 I = 1, 3
+        E(I) = E(I) + OFF(I)
+   26 CONTINUE
+C     RESTOMOD END
    30 DO 35 I = 1, 3
         BREF(I) = AT(I,1)
         UREF(I) = -AT(I,3)
    35 CONTINUE
       CALL VCRS(BREF, UREF, RREF)
       CALL MPLACE(KCMC, AT, Z, E)
+C     The interior's hidden lines for this eye (vmask.f CBCUT: none to
+C     redo while the offset is the one cut last).
+      IF (MOD(IFLG / 16, 2) .EQ. 1) CALL CBCUT(KCMI, OFF)
       IF (MOD(IFLG / 16, 2) .EQ. 1) CALL MPLACE(KCMI, AT, Z, E)
       RETURN
       END
@@ -488,8 +525,8 @@ C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
 C     RESTOMOD END
       DOUBLE PRECISION GET, PM(3), CG(3), CV(3)
       DOUBLE PRECISION AT(3,3), E(3), V(3), W(3), DS(3), C, S
-      DOUBLE PRECISION Z(3)
-      INTEGER IREF, IOK, I, J, KL, KLMPL
+      DOUBLE PRECISION Z(3), OFF(3)
+      INTEGER IREF, IOK, I, J, KL, KLMPL, NZ
       IOK = 0
       IF (JSLM .EQ. 0) RETURN
       IF (KLMPL() .EQ. 0) CALL LMSTPL(GET, PM, CG, CV, IREF)
@@ -499,11 +536,20 @@ C     RESTOMOD END
       IOK = 1
       CALL LDEYE(E)
       DO 10 I = 1, 3
-        V(I) = (E(I) - MDBO(I,KL)) * 1.0D-3
         DO 5 J = 1, 3
           AT(I,J) = MDAT(I,J,KL)
     5   CONTINUE
    10 CONTINUE
+C     RESTOMOD BEGIN: the moved eye is ours (veye.f; #72), in the LM's
+C     body frame
+      CALL EYUSE(3, AT, OFF, NZ)
+      DO 11 I = 1, 3
+        E(I) = E(I) + OFF(I)
+   11 CONTINUE
+C     RESTOMOD END
+      DO 12 I = 1, 3
+        V(I) = (E(I) - MDBO(I,KL)) * 1.0D-3
+   12 CONTINUE
       CALL MXV(AT, V, W)
       DO 15 I = 1, 3
         W(I) = W(I) + MDP(I,KL)
@@ -532,6 +578,13 @@ C     station before separation.
       CALL VCRS(AT(1,3), AT(1,1), AT(1,2))
       CALL MCLEAR
       CALL LDEYE(E)
+C     RESTOMOD BEGIN: the moved eye is ours (veye.f; #72); the camera
+C     stays (nothing outside is drawn), the cabin goes about the eye
+      CALL EYUSE(3, AT, OFF, NZ)
+      DO 46 I = 1, 3
+        E(I) = E(I) + OFF(I)
+   46 CONTINUE
+C     RESTOMOD END
    50 C = DCOS(LPDDN * DR)
       S = DSIN(LPDDN * DR)
       DO 20 I = 1, 3
@@ -541,6 +594,7 @@ C     station before separation.
       CALL VCRS(BREF, UREF, RREF)
       CALL VUNIT(RREF)
       CALL SETV(Z, 0.0D0, 0.0D0, 0.0D0)
+      IF (MOD(IFLG / 16, 2) .EQ. 1) CALL CBCUT(KLMI, OFF)
       IF (MOD(IFLG / 16, 2) .EQ. 1) CALL MPLACE(KLMI, AT, Z, E)
       RETURN
       END
@@ -645,22 +699,32 @@ C     RESTOMOD END
       END
 C
 C     LDCAB: the LM crew-station recipe's camera is the commander's
-C     eye; asked for as the LM station, with in_flags bit 4 the LM
-C     interior goes around it, on the descending LM's axes (LMDESC).
-      SUBROUTINE LDCAB(GET)
+C     eye; asked for as the LM station, it moves with the eye offset
+C     (veye.f; #72) and with in_flags bit 4 the LM interior goes
+C     around it, on the descending LM's axes (LMDESC).
+      SUBROUTINE LDCAB(GET, CG)
 C     RESTOMOD BEGIN: file INCLUDE; FORTRAN V's named PDP elements
       INCLUDE 'viewdims.inc'
       INCLUDE 'viewcom.inc'
 C     RESTOMOD END
-      DOUBLE PRECISION GET, PMF(3), XB(3), YB(3), ZB(3), AT(3,3)
-      DOUBLE PRECISION E(3), Z(3)
-      IF (MOD(IFLG / 16, 2) .EQ. 0) RETURN
+      DOUBLE PRECISION GET, CG(3), PMF(3), XB(3), YB(3), ZB(3)
+      DOUBLE PRECISION E(3), Z(3), AT(3,3), OFF(3)
+      INTEGER I, NZ
       CALL LMDESC(GET, PMF, XB, YB, ZB)
       CALL MXV(MMF, XB, AT(1,1))
       CALL MXV(MMF, YB, AT(1,2))
       CALL MXV(MMF, ZB, AT(1,3))
       CALL LDEYE(E)
+C     RESTOMOD BEGIN: the moved eye is ours (veye.f; #72)
+      CALL EYUSE(3, AT, OFF, NZ)
+      IF (NZ .EQ. 1) CALL EYMOVE(AT, OFF, CG, 0)
+      DO 10 I = 1, 3
+        E(I) = E(I) + OFF(I)
+   10 CONTINUE
+C     RESTOMOD END
+      IF (MOD(IFLG / 16, 2) .EQ. 0) RETURN
       CALL SETV(Z, 0.0D0, 0.0D0, 0.0D0)
+      CALL CBCUT(KLMI, OFF)
       CALL MPLACE(KLMI, AT, Z, E)
       RETURN
       END

@@ -83,15 +83,24 @@ cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
 cv.addEventListener("wheel", e => { e.preventDefault(); leaveAttract(); track({ fov: clampFov(LS.fov * Math.exp(e.deltaY * 0.001)) }); }, { passive: false });
 
 // Look and time actions, shared by the keyboard and the control pad (pad.js).
+// The pad's mode (#72; pad.js padSync): wasd, W A S D stand in for the arrows (their own shortcuts, walls, screen and
+// dust, wait); move, the look keys move the eye instead (views.js eyeStep: in a crew station the eye inside the cabin,
+// outside the point flown round): left and right slide, up and down go forward and back along the view, Q and E down
+// and up, R puts the eye back.
+const PADM = { wasd: false, move: false };
+const WASD = { w: "up", W: "up", a: "left", A: "left", s: "down", S: "down", d: "right", D: "right" };
+const MOVE_ACT = { left: () => eyeStep(0, -1), right: () => eyeStep(0, 1), up: () => eyeStep(2, 1), down: () => eyeStep(2, -1),
+  rollL: () => eyeStep(1, -1), rollR: () => eyeStep(1, 1), reset: () => eyeReset() };
 const lookStep = () => orbiting() ? 5 : LS.fov * 0.05;
+const moveOr = (a, f) => () => PADM.move ? MOVE_ACT[a]() : f();
 const ACT = {
-  left: () => track({ yaw: LS.yaw - lookStep() }), right: () => track({ yaw: LS.yaw + lookStep() }),
-  up: () => track({ pitch: Math.min(90, LS.pitch + lookStep()) }), down: () => track({ pitch: Math.max(-90, LS.pitch - lookStep()) }),
-  rollL: () => track({ roll: LS.roll - 2 }), rollR: () => track({ roll: LS.roll + 2 }),
+  left: moveOr("left", () => track({ yaw: LS.yaw - lookStep() })), right: moveOr("right", () => track({ yaw: LS.yaw + lookStep() })),
+  up: moveOr("up", () => track({ pitch: Math.min(90, LS.pitch + lookStep()) })), down: moveOr("down", () => track({ pitch: Math.max(-90, LS.pitch - lookStep()) })),
+  rollL: moveOr("rollL", () => track({ roll: LS.roll - 2 })), rollR: moveOr("rollR", () => track({ roll: LS.roll + 2 })),
   zoomIn: () => track({ fov: clampFov(LS.fov / 1.1) }), zoomOut: () => track({ fov: clampFov(LS.fov * 1.1) }),
   pause: () => { track({ playing: !LS.playing }); syncUI(); },
   slower: () => bump(-1), faster: () => bump(1),
-  reset: () => loadReel(P({ by: "reset" }))
+  reset: moveOr("reset", () => loadReel(P({ by: "reset" })))
 };
 const KEY_ACT = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down", q: "rollL", Q: "rollL", e: "rollR", E: "rollR",
   "+": "zoomIn", "=": "zoomIn", "-": "zoomOut", "_": "zoomOut", " ": "pause", "[": "slower", "]": "faster", r: "reset", R: "reset" };
@@ -102,6 +111,8 @@ window.addEventListener("keydown", e => {
   if ($("list").classList.contains("open") || libraryIsOpen()) return;   // overlays: Esc is the stack's (esc.js)
   if (!canvasTab() || typingIn()) return;
   const k = e.key;
+  if (PADM.wasd && WASD[k]) { leaveAttract(); ACT[WASD[k]](); e.preventDefault(); return; }   // the pad's keys (#72)
+  if (k === "v" || k === "V") { padToggle("move"); e.preventDefault(); return; }
   if (k === "j" || k === "J") { toggle("jitter"); e.preventDefault(); return; }
   if (k === "d" || k === "D") { toggle("dust"); e.preventDefault(); return; }
   if (k === "f" || k === "F") { toggle("fps"); e.preventDefault(); return; }

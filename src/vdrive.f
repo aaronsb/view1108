@@ -32,6 +32,7 @@ C       Core:  ephem.f (time, Sun, Moon), traj.f (trajectory legs,
 C              the replay), sim.f (the engine), tape.f (the tape it
 C              writes), vsrc.f (the state source: replay or tape),
 C              vview.f (camera target and external view),
+C              veye.f (the moved eye: its offset, clamp and axes),
 C              pen.f (projection, clipping, visibility, vectors),
 C              vmask.f (the outside cut to the cabin's windows),
 C              vtext.f (text records), vmath.f (vectors, matrices),
@@ -268,6 +269,8 @@ C     RESTOMOD END
       DO 10 I = 1, 24
         HD(I) = 0.0D0
    10 CONTINUE
+C     RESTOMOD: the moved eye is ours (veye.f; #72)
+      CALL EYCLR
       IF (ISCN .GE. 1) GO TO 12
       NT = 0
       NCH = 0
@@ -331,6 +334,9 @@ C     RESTOMOD BEGIN: block IF is FORTRAN 77 (1978)
         CALL LOOK(YAW, PIT, ROL)
       END IF
 C     RESTOMOD END
+C     RESTOMOD: the moved eye is ours (veye.f; #72): the camera's axes
+C     in the eye offset's frame, for the page
+      CALL EYAXES
       CALL MTXV(MMF, CB, CBMF)
 C
       ISTYLE = 1

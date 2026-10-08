@@ -64,7 +64,7 @@ for (const K of [W, F]) for (const r of [...REELS_IN].reverse()) use(K, r);
 const f64 = (K, name, n) => Array.from(new Float64Array(K.memory.buffer, K[name].value, n));
 const i32 = (K, name) => new Int32Array(K.memory.buffer, K[name].value, 1)[0];
 // One frame of situation s ({reel, id}, a row of SIT below) in K, its reel's decks loaded first.
-function run(K, s, flags = 3, view = 0, target = 0, lablv = 0, get = null) {
+function run(K, s, flags = 3, view = 0, target = 0, lablv = 0, get = null, eye = [0, 0, 0]) {
   use(K, s.reel);
   K.view_init(s.id);
   new Int32Array(K.memory.buffer, K.in_flags.value, 1)[0] = flags;
@@ -74,6 +74,7 @@ function run(K, s, flags = 3, view = 0, target = 0, lablv = 0, get = null) {
   }
   if (K.in_lablv) new Int32Array(K.memory.buffer, K.in_lablv.value, 1)[0] = lablv;
   if (get !== null) new Float64Array(K.memory.buffer, K.in_get.value, 1)[0] = get;
+  if (K.in_eyeo) new Float64Array(K.memory.buffer, K.in_eyeo.value, 3).set(eye);
   K.view_frame();
   const nvec = i32(K, 'nvec'), nstar = i32(K, 'nstar'), nlab = i32(K, 'nlab');
   const ntxt = i32(K, 'ntxt'), nchr = i32(K, 'nchr');
@@ -81,7 +82,9 @@ function run(K, s, flags = 3, view = 0, target = 0, lablv = 0, get = null) {
            lbuf: f64(K, 'lbuf', 4 * nlab),
            tbuf: f64(K, 'tbuf', 4 * ntxt),
            tchr: Array.from(new Int32Array(K.memory.buffer, K.tchr.value, nchr)),
-           init: f64(K, 'in_get', 1)[0] };
+           init: f64(K, 'in_get', 1)[0],
+           eye: K.in_eyeo ? f64(K, 'in_eyeo', 3) : null, eyek: K.out_eyek ? i32(K, 'out_eyek') : 0,
+           eyax: K.out_eyax ? f64(K, 'out_eyax', 9) : null };
 }
 // The page's data (#26 slices 7d, 7e): the reel packages the page embeds (build/reels.js, tools/pack.py), unpacked by
 // the page's own reader and read by its own reelPages (web/src/reelpkg.js): the situations, each with its reel, its id
@@ -146,6 +149,26 @@ if (W.in_view) {
     }
   console.log(`cabins: ${n} frames  ${same ? 'identical' : 'DIFFER'}  ${more} with interior lines`);
   if (!same || more === 0) ok = false;
+}
+// The moved eye (in_eyeo, #72): every scene external and from both stations, cabin and walls on, with an offset;
+// wasm and the fallback must agree (frame, the offset written back, its kind and the camera's axes), the stations and
+// External must take it (out_eyek) and move the picture, and an offset far outside the CM's walls must come back
+// clamped inside them.
+if (W.in_eyeo) {
+  let same = true, n = 0, moved = 0, took = 0;
+  for (const scene of SCENES)
+    for (const [v, e] of [[1, [0.2, 0.1, -0.3]], [2, [0.1, -0.2, 0.05]], [3, [0.05, 0.1, -0.1]]]) {
+      const z = run(W, scene, 3 | 16 | 32, v, 0), a = run(W, scene, 3 | 16 | 32, v, 0, 0, null, e), b = run(F, scene, 3 | 16 | 32, v, 0, 0, null, e); n++;
+      if (!(a.nvec === b.nvec && maxdiff(a.hdr, b.hdr) === 0 && maxdiff(a.vbuf, b.vbuf) === 0 &&
+            maxdiff(a.eye, b.eye) === 0 && a.eyek === b.eyek && maxdiff(a.eyax, b.eyax) === 0)) same = false;
+      if (a.eyek === v) took++;
+      if (a.nvec !== z.nvec || maxdiff(a.vbuf, z.vbuf) !== 0) moved++;
+    }
+  const cm = SIT.find(s => s.stations.cm === 'ALWAYS') || SIT[0], c = run(W, cm, 3 | 16, 2, 0, 0, null, [0, 9, 0]);
+  const ey = [0.0254 * 27.7 + c.eye[0], -0.0254 * 24.5 + c.eye[1], -0.0254 * 33.8 + c.eye[2]];
+  const wall = 1.777 + (0.754 - 1.777) * (ey[0] - 0.051) / (1.626 - 0.051), clamped = c.eyek === 2 && Math.hypot(ey[1], ey[2]) <= wall - 0.15 + 1e-9 && c.eye[1] > 0;
+  console.log(`moved eye: ${n} frames  ${same ? 'identical' : 'DIFFER'}  ${took} took the offset, ${moved} moved  ${clamped ? 'clamped inside the CM wall' : 'NOT CLAMPED'}`);
+  if (!same || took === 0 || moved === 0 || !clamped) ok = false;
 }
 // Window mask (in_flags bit 5): with the cabin (bit 4) in the CM and LM stations, the outside only
 // through the windows. Wasm and the fallback must agree; bit 5 without bit 4 changes nothing; a

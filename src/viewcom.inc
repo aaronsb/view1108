@@ -365,6 +365,23 @@ C     option C): nothing outside is drawn, and the frame says why.
       COMMON /CVIEW/ IVIEW, ITARG, ILABL, IVUSE, ILEV, IVBIT, ITGST,
      &               ISLA
 C
+C     RESTOMOD BEGIN: a moved eye is ours (#72, #31); VIEW drew from
+C     fixed design-eye points (CMEYE, LDEYE), TN D-6853 printed p. 3
+C     /CEYE/ the eye offset (vview.f EYCLMP).  EYOI the offset asked
+C     (in_eyeo, VSETEY); EYOF the one this frame uses, clamped: in a
+C     crew station body metres from the design eye, inside the cabin's
+C     walls; in the external view the orbit centre's offset from the
+C     target along the target's reference axes (right, up, boresight
+C     before free-look), in units of the camera's distance, each in
+C     -1..1.  EYAT the axes of that frame (columns, EQ), EYAX the
+C     camera's right, up and boresight in it (columns; VFRAME), IEYK
+C     the kind: 0 none (a window view, the offset unused), 1 the
+C     external view, 2 the CM station, 3 the LM station.
+      DOUBLE PRECISION EYOI(3), EYOF(3), EYAT(3,3), EYAX(3,3)
+      INTEGER IEYK
+      COMMON /CEYE/ EYOI, EYOF, EYAT, EYAX, IEYK
+C     RESTOMOD END
+C
 C     /CSCN/ scene number (the situation, row ISCN of the situation
 C     tables), flags of this frame, init done.
       INTEGER ISCN, IFLG, INITD

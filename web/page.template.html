@@ -110,7 +110,10 @@
 </section>
   <section class="shade" data-shade="look" data-tabs="review simulate print fusion"><button class="shade-h" type="button">Look</button>
   <div class="grp">
-    <!-- Control pad (web/src/pad.js): the keyboard's look and time keys; the key letter is on each cap. -->
+    <!-- Control pad (web/src/pad.js): the keyboard's look and time keys; the key letter is on each cap. Over it one thin
+         toggle in two sections (#72): the key set, ARROWS or WASD, and the action, LOOK around or MOVE the eye. -->
+    <div id="padwrap">
+    <div id="padmode" role="group" aria-label="Pad mode"><button type="button" id="bkeys" title="The pad's keys: the arrows, or W A S D (which then stand in for the arrows; the W, S and D shortcuts wait until ARROWS)" aria-pressed="false">ARROWS</button><button type="button" id="bmove" title="V: LOOK around, or MOVE the eye (in a crew station, inside the cabin; outside, the point flown round)" aria-pressed="false">LOOK</button></div>
     <div id="pad" role="group" aria-label="Control pad">
       <button type="button" data-act="rollL" title="Roll left (Q)" aria-label="Roll left">Q<small>ROLL</small></button>
       <button type="button" data-act="up" title="Pitch up (Up arrow)" aria-label="Pitch up">&uarr;</button>
@@ -125,6 +128,7 @@
       <button type="button" data-act="pause" id="ppause" title="Pause or play (Space)" aria-label="Pause or play">SPC<small>PAUSE</small></button>
       <button type="button" data-act="faster" title="Faster (])" aria-label="Faster">]<small>FASTER</small></button>
     </div>
+    </div>
   </div>
   <div class="grp" id="viewgrp" hidden><span class="lbl">View</span><button title="Out of the scene's window">Window</button><button title="From outside, orbiting the target: drag to go round it">External</button><button title="From the CM crew station">CM</button><button title="From the LM crew station">LM</button><button id="bcab" class="on" title="I: the cabin interior around the CM or LM station (a modern addition)" hidden>Cabin</button><button id="bwal" class="on" title="W: the cabin's walls hide the outside, seen only through the windows (a modern addition)" hidden>Walls</button></div>
   <div class="grp" id="targrp" hidden><span class="lbl">Target</span><button title="The scene's own">Default</button><button>Earth</button><button>Moon</button><button>Sun</button><button>CSM</button><button>LM</button><button>S-IVB</button></div></section>
@@ -138,7 +142,7 @@
   <div class="grp"><span class="lbl">Screen</span><button data-disp="auto" title="S: the 1558 scope where the page was reached through the room (not in Attract or Print), else film">Auto</button><button data-disp="film" title="S: the microfilm recorder, with its film effects">Film</button><button data-disp="scope" title="S: the room's UNIVAC 1558 vector console: no film effects">Scope</button></div>
   <div class="grp"><span class="lbl">Refresh</span><button data-hz="16" title="H: the scope redraws the picture every 1/16 s on a fading phosphor">16 Hz</button><button data-hz="steady" title="H: a steady, modern vector picture">Steady</button></div></section>
 </div>
-<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. <span id="hintscenes"></span>: quick views (the numbered entries of the event list). J: film jitter. D: dust. F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. S: screen (film or scope). H: scope refresh. I: cabin. W: cabin walls. Look pad: the same keys, for touch. Any input leaves Attract or Tour.</div>
+<div id="hint">Drag: look around. Wheel / pinch: field of view. Arrows: yaw, pitch. Q/E: roll. +/-: field of view. Space: pause. [ ]: speed. R: reset. <span id="hintscenes"></span>: quick views (the numbered entries of the event list). J: film jitter. <span class="wasdk">D: dust.</span> F: 16 fps film rate. T: beam trace (Print). L: copy link. B: bloom. C: star catalog. <span class="wasdk">S: screen (film or scope).</span> H: scope refresh. I: cabin. <span class="wasdk">W: cabin walls.</span> V: look around or move the eye. Look pad: the same keys, for touch; under WASD, W A S D are its arrows and the shortcuts greyed here wait. Any input leaves Attract or Tour.</div>
 <div id="about"><p>A reconstruction of VIEW, the Manned Spacecraft Center program that drew Apollo window views on a UNIVAC 1108 (FORTRAN V, output photographed from a CRT onto microfilm: NASA TN D-6853, p. 3). We know of no surviving source code; the geometry here is our own FORTRAN and this page only films it.</p>G. B. Roush, Computation and Analysis Division, MSC, is credited with developing the major analytical tool (MSC IN 69-FM-197). Sources: NASA TN D-6853 (Hyle and Lunde, 1972); MSC IN 69-FM-197. Code MIT; data, fonts and three.js under their own licences: <a href="https://github.com/aaronsb/view1108/blob/main/THIRD_PARTY.md" target="_blank" rel="noopener">THIRD_PARTY.md</a>.</div>
 </div>
 </div>

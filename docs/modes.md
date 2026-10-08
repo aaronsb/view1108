@@ -151,7 +151,23 @@ The Look group holds a pad of key caps that does what the keyboard does, for mou
 | `[` SLOWER, `]` FASTER | `[` `]` | Slower / faster | no |
 | `SPC` PAUSE | Space | Pause or play (starts a demo the room's drive stopped) | no |
 
-A press acts at once and leaves Attract or Tour for Free-look, as a key press does. A held cap repeats after 0.5 s, then about 30 times a second (our choice, near common desktop key-repeat settings). Each finger holds its own cap, so two can be held together. Pressing or dragging on the pad does not scroll or zoom the page.
+A press acts at once and leaves Attract or Tour for Free-look, as a key press does. A held cap repeats after 0.25 s, then about 30 times a second (our choice: the delay half a common desktop setting's, so a held cap gets going soon, #72; the rate near the common one). Each finger holds its own cap, so two can be held together. Pressing or dragging on the pad does not scroll or zoom the page.
+
+Over the pad, one thin toggle in two sections (#72) sets what its keys are and what they do:
+
+| Section | Choices | What it does |
+|---|---|---|
+| Left third | ARROWS, WASD | ARROWS: the arrow keys. WASD: `W` `A` `S` `D` are the arrows too, and their caps say so; the `W` (walls), `S` (screen) and `D` (dust) shortcuts wait, greyed in the key hint, until ARROWS. The arrow keys work in both |
+| Right two thirds | LOOK, MOVE (`V`) | LOOK: the keys look around, as above. MOVE: the pad turns to reverse video (green caps, dark letters) and the keys move the eye instead |
+
+| Key | LOOK | MOVE |
+|---|---|---|
+| `←` `→` (`A` `D`) | Yaw | Slide left, right |
+| `↑` `↓` (`W` `S`) | Pitch | Forward, back along the view |
+| `Q` `E` | Roll | Down, up |
+| `R` | Reset the view | Put the eye back |
+
+MOVE is ours (#72, #31): VIEW drew from fixed eye points. In the CM and LM views the eye moves 5 cm a step in the vehicle, up to 0.15 m from the cabin's walls (the kernel's `in_eyeo`, `src/veye.f`), and the cabin, its hidden lines and the window mask follow it, so you can lean toward a window. In the External view the point flown round moves 2% of the distance a step, up to one distance from the target. The window views have no eye to move. A moved eye belongs to its situation and view: choosing another starts again at the design eye, and links and reels always draw from it.
 
 ## View and target
 

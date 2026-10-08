@@ -27,4 +27,5 @@ shots	^link-	link
 shots	^fusion-	fusion
 shots	^boot$	boot
 shots	^(cabin|ext|tec)-	view
+shots	^look-	look
 shots	^print-	print
