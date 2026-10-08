@@ -19,6 +19,23 @@ C     X-Z plane, and the LPD scale's plot constant LPDK; both fitted
 C     to the film's LPD marks (llpd.f).
       PARAMETER (LPDDN=30.2D0, LPDK=49.8D0)
 C     RESTOMOD END
+C     The launch vehicle's stages as the Apollo 11 press kit gives them
+C     (models.f SIVBMD, LVSTK; the S-IVB's state point, SIVPL, S7SIV,
+C     TGTPOS): S-IVB height SIVBH ft and IU height SIUH ft ("THIRD
+C     STAGE (S-IVB) ... HEIGHT 58.3 FEET", "INSTRUMENT UNIT ... HEIGHT
+C     3 FEET", printed p. 109); both SLVD in across (the S-IVB "21 feet
+C     8 inches in diameter", the IU a cylinder "21 feet 8 inches in
+C     diameter", printed p. 113; the SLA "260 inches diameter at the
+C     base", printed p. 88); the SLA "a truncated cone 28 feet long"
+C     (SLAH ft) tapering to "154 inches at the forward end at the
+C     service module mating line" (SLATD in; printed p. 88).  The same
+C     page-109 table gives the S-IC (33 ft across, 138 ft) and S-II (33
+C     ft, 81.5 ft), not modelled.
+      DOUBLE PRECISION SIVBH, SIUH, SLVD, SLAH, SLATD
+C     RESTOMOD BEGIN: real-valued PARAMETERs (as above)
+      PARAMETER (SIVBH=58.3D0, SIUH=3.0D0, SLVD=260.0D0)
+      PARAMETER (SLAH=28.0D0, SLATD=154.0D0)
+C     RESTOMOD END
 C     RESTOMOD BEGIN: 60000x5 DP buffer is 600K words, core 262,144
 C     (docs/univac-1108.md); VIEW would stream vectors to plot tape.
 C     Also the parenthesised PARAMETER list (FORTRAN 77, 1978).
@@ -27,23 +44,29 @@ C     Also the parenthesised PARAMETER list (FORTRAN 77, 1978).
       PARAMETER (MAXT=300, MAXTC=6000)
 C     RESTOMOD END
       INTEGER MSOL, MVX, MFC, MED, MXL, MMOD, KLMD, KLMS, KSIV, KCSM
-      INTEGER KCMC, KCMI, KLMI, KLMA, KCMO
+      INTEGER KCMC, KCMI, KLMI, KLMA, KCMO, KSTK
 C     RESTOMOD BEGIN: parenthesised PARAMETER list is FORTRAN 77
 C     (1978); FORTRAN V wrote PARAMETER I = 2 (UP-4046 Rev 3, sec.
-C     10.4.1).  And 120 solids (the LM's RCS clusters are 20 a model,
-C     in three LM models; the CSM's quads 20 more) make /CLM/ and
-C     /CLMI/ about 176K words (our count: 1,294 words a solid, 21,000
-C     for the free lines, 2 words a DP number), two thirds of the
-C     1108's 262,144 (docs/univac-1108.md).
-      PARAMETER (MSOL=120, MVX=48, MFC=26, MED=72, MXL=1500, MMOD=10)
+C     10.4.1).  And 160 solids (the LM's RCS clusters are 20 a model,
+C     in three LM models; the CSM's quads 20 more; 115 used, room for
+C     the launch vehicle's lower stages and the pad, #97) make /CLM/
+C     and /CLMI/ about 228K words (our count: 1,294 words a solid,
+C     21,000 for the free lines, 2 words a DP number), 87 percent of
+C     the 1108's 262,144 (docs/univac-1108.md).  16 models (10 used).
+C     A full table refuses and counts (NMODX, NSOLX, NXLX; MODBEG,
+C     MKPRS, MKFRU, MKWDG, XLINE), and the selftest's model tables
+C     line fails on a refusal or a table at its maximum.
+      PARAMETER (MSOL=160, MVX=48, MFC=26, MED=72, MXL=1500, MMOD=16)
 C     RESTOMOD END
 C     Model numbers (MLIB): LM gear down, LM gear stowed with docking
 C     aids, S-IVB with IU and SLA ring, CSM, CM cabin (window), CM
 C     interior, LM interior (in_flags bit 4), LM ascent stage alone
-C     (after lunar lift-off), CM alone (after CM/SM separation).
+C     (after lunar lift-off), CM alone (after CM/SM separation), the
+C     launch stack behind the CSM before separation: S-IVB, IU and
+C     the closed SLA (LVSTK).
 C     RESTOMOD: parenthesised PARAMETER list is FORTRAN 77 (1978)
       PARAMETER (KLMD=1, KLMS=2, KSIV=3, KCSM=4, KCMC=5, KCMI=6,
-     &           KLMI=7, KLMA=8, KCMO=9)
+     &           KLMI=7, KLMA=8, KCMO=9, KSTK=10)
 C
 C     Tables loaded by BLOCK DATA VIEWBD (viewdata.f)
 C     RESTOMOD BEGIN: post-1969 data: Natural Earth coast (2009),
@@ -386,6 +409,12 @@ C     solid, 0 if the table was full; LXOK the same for XLINE.  Code
 C     that marks the solid or line just built tests them first.
       INTEGER LBOK, LXOK
       COMMON /CMOK/ LBOK, LXOK
+C     /CMODX/ the model table's refusals since MLIB began: models past
+C     MMOD (MODBEG), solids past MSOL, free lines past MXL.  LHGA1,
+C     LHGA2: the CSM's high-gain antenna, its free lines in CSMBLD
+C     (MDRAW leaves them out while the launch stack is placed).
+      INTEGER NMODX, NSOLX, NXLX, LHGA1, LHGA2
+      COMMON /CMODX/ NMODX, NSOLX, NXLX, LHGA1, LHGA2
       COMMON /CMOD/ MDAT, MDP, MDBO
 C
 C     /CWIN/ the cabin windows, for the window mask (vmask.f): window

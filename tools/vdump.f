@@ -203,3 +203,15 @@ C     NCP(1) NCP(2) MCP, NCPX(1) NCPX(2), on one line.
      &  NCPX(1), NCPX(2)
       RETURN
       END
+C
+C     VMODT: the spacecraft model table against its maxima, for the
+C     selftest's model tables line (build/viewsvg, VIEW_MODT=1, after
+C     MLIB has run): NMOD MMOD NMODX, NSOL MSOL NSOLX, NXL MXL NXLX,
+C     on one line.
+      SUBROUTINE VMODT
+      INCLUDE 'viewdims.inc'
+      INCLUDE 'viewcom.inc'
+      WRITE (*, '(9(I0,1X))') NMOD, MMOD, NMODX, NSOL, MSOL, NSOLX,
+     &  NXL, MXL, NXLX
+      RETURN
+      END
