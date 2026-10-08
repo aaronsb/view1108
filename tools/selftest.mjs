@@ -695,7 +695,7 @@ sys.stdout.write(base64.b64encode(out).decode())`, mode, arg], { cwd: R, input: 
       'a leading XSLT <?xml-stylesheet?>': `<?xml-stylesheet type="text/xsl" href="https://evil.example/x.xsl"?><svg ${W3}></svg>\n`,
       'a url( from a decimal reference': `<svg ${W3}><rect fill="&#117;rl(https://evil.example/p.svg#g)"/></svg>\n`,
       'a url( from a hex reference': `<svg ${W3}><rect fill="&#x75;rl(https://evil.example/p.svg#g)"/></svg>\n`,
-      'two byte order marks before the declaration': `﻿﻿<?xml version="1.0"?>\n<svg ${W3}></svg>\n`,
+      'two byte order marks before the declaration': `\ufeff\ufeff<?xml version="1.0"?>\n<svg ${W3}></svg>\n`,
     };
     for (const [what, svg] of Object.entries(SVG_BAD)) {
       await nbRefused(`a figure with ${what}`, 'nb-fig-unsafe', /(holds .*, which a figure may not \(the allowlist\)|is not an SVG document)$/, svg);
