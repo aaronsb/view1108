@@ -29,8 +29,9 @@ import type { BuildContext, Equipment, Footprint, Glow, Placed, Room } from "../
 import { STATIONS, stationNamed } from "../stations";
 import { DOOR, DRIVES, ROOM, buildShell } from "./shell";
 import { batch } from "./batch";
-import type { Binder, Prop } from "../equipment/bookcase";
+import type { Binder, NotebookBinder, Prop } from "../equipment/bookcase";
 import type { ReelPiece } from "../equipment/taperack";
+import type { Pullable, Shelf } from "../equipment/pullable";
 
 /** A builder with the options some modules take (a tape drive's number, the CPU cabinet with the lamp panel). */
 type Builder = (ctx: BuildContext, opts?: Record<string, unknown>) => Equipment;
@@ -50,8 +51,8 @@ function standIn(kind: string): Equipment {
 
 /** The library zone on the north wall (#19; ours), facing south with `stand` metres of standing room in front: the
  *  tape rack (equipment/taperack.ts, which fills it exactly; build() refuses a layout that puts anything else on it
- *  or its standing room), a few steps east of the drive row, each reel's notebook binder to stand beside it; and east
- *  of it the reference bookcase, the operator's manuals and documents. Centre x, the wall's z, width and depth (out
+ *  or its standing room), a few steps east of the drive row; and east of it the bookcase (equipment/bookcase.ts): the
+ *  reels' mission notebooks on its upper shelves, each paired with its reel, and the operator's manuals and documents. Centre x, the wall's z, width and depth (out
  *  from the wall), metres. */
 export const LIBRARY = {
   z0: -ROOM.d / 2,
@@ -136,6 +137,17 @@ export function build(ctx: BuildContext): Room {
   }
   const reels = rack.anchors.reels as ReelPiece[];
   for (const p of reels) { p.object.userData.placed = `reel:${p.reel.id}`; p.opens = rack.opens; placed.push({ name: p.object.userData.placed, equipment: p }); }
+  // Each reel's mission notebook on the bookcase (#29; the operator's revision after PR #69), opening the library as a
+  // bookcase binder does, and paired with its reel across the two units: the rack's shelf and the bookcase's are linked,
+  // so one thing is out across both and its partner stands half out (pullable.ts).
+  const notebooks = library.anchors.notebooks as NotebookBinder[];
+  for (const b of notebooks) { b.object.userData.placed = `binder:nb-${b.reel.id}`; b.opens = library.opens; placed.push({ name: b.object.userData.placed, equipment: b }); }
+  {
+    const rs = rack.anchors.shelf as Shelf, ls = library.anchors.shelf as Shelf;
+    const ri = rack.anchors.items as Map<string, Pullable>, li = library.anchors.items as Map<string, Pullable>;
+    rs.link(ls);
+    for (const [id, it] of li) { const r = ri.get(id); if (r) rs.pair(r, it); }
+  }
   const binders = library.anchors.binders as Binder[];
   for (const b of binders) { b.object.userData.placed = `binder:${b.doc.id}`; b.opens = library.opens; placed.push({ name: b.object.userData.placed, equipment: b }); }
   const props = library.anchors.props as Prop[];   // for looks: named on hover, inert
@@ -190,6 +202,7 @@ export function build(ctx: BuildContext): Room {
     labels: { ...Object.fromEntries(STATIONS.map(st => [st.name, st.label])), switch: "Lights", power: "Power distribution — click to open/close the doors", "power:selector": "Voltmeter selector — click to turn", door: "Exit — github.com/aaronsb/view1108",
       ...Object.fromEntries(Array.from({ length: DRIVES.n }, (_, i) => [`uniservo-${60 + i}`, `UNISERVO VIII-C — tape unit ${60 + i}`]).filter((_, i) => i !== 3)),
       ...Object.fromEntries(reels.map(p => [`reel:${p.reel.id}`, `${p.reel.title} — ${p.reel.kind} reel`])),
+      ...Object.fromEntries(notebooks.map(b => [`binder:nb-${b.reel.id}`, b.reel.notebook ?? b.reel.title])),
       ...Object.fromEntries(binders.map(b => [`binder:${b.doc.id}`, `${b.doc.num} — ${b.doc.title}`])),
       ...Object.fromEntries(props.map(p => [`prop:${p.id}`, p.label])) },
     lightsOn: true,

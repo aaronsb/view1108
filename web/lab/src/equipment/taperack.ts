@@ -6,30 +6,36 @@
 // colours, the wire shelves, the numbering, the cases and the labels are ours.
 //
 // One reel per entry of the site reel index (BuildContext.reels, the page's REEL_LIB), each its own pickable piece
-// (`anchors.reels`, placed by the room as "reel:<id>"), its case label typed with its manifest title. Where each stands
-// is racklayout.ts's plan (ours): one group per mission, earliest range zero first, then one for the playlists, each on
-// a level of its own while there are levels enough, from the left of the middle bay, spilling into the west and east
-// bays and the levels below; a reel with no room left is not shelved and the build warns. Each reel is followed by an
-// empty slot kept for its scenario notebook binder (#29, slice d; `anchors.notebooks`). Anonymous reels in cases of
-// varied colours (one instanced mesh, not picked) fill the rest, with a few gaps, so the rack reads as a library. Each
-// group has a strip of masking tape on the front edge under its first reel with the group hand-lettered (the mission,
-// and the month and year of its range zero from the reel's page.json; the playlists' titles), and the east bay,
-// nearest the bookcase, an arrow strip toward the operator's manuals (kit.ts tapeStrip; the operator's signage form,
-// 2026-10-07: tape on the shelves, no wall signs).
+// (`anchors.reels`, placed by the room as "reel:<id>"): on its rim, which faces the viewer, a paper label hand-lettered
+// in marker with the mission and the rest of its title (APOLLO 11 / AS FLOWN; a playlist's title), and above it the
+// manifest title typed small. Where each stands is racklayout.ts's plan (ours): one group per mission, earliest range
+// zero first, then one for the playlists, each on a level of its own while there are levels enough, from the left of
+// the middle bay, spilling into the west and east bays and the levels below; a reel with no room left is not shelved
+// and the build warns. A reel that carries a scenario notebook (#29) has it on the bookcase beside the rack, the two
+// paired across the units (bookcase.ts; the operator's revision after PR #69). Anonymous reels in cases of varied colours
+// (one instanced mesh, not picked) stand only on the levels with none of the index's reels, about half to two-thirds
+// full with irregular gaps (racklayout.ts filler; the operator's look of 2026-10-07). Each group has a strip of masking
+// tape on the front edge under its first reel with the group hand-lettered (the mission, and the month and year of its
+// range zero from the reel's page.json; the playlists' titles), and the east bay, nearest the bookcase, an arrow strip
+// toward the operator's manuals (kit.ts tapeStrip; the operator's signage form, 2026-10-07: tape on the shelves, no wall
+// signs). The labels and their wording are ours.
 //
-// Pulling (pullable.ts): a click at the close-up brings a reel 13 cm out of its row, and a click on another swaps them.
-// A pulled reel stays out when the camera leaves (`carried`): the viewer carries it to a tape unit, which mounts it
-// (lab.ts, LabHooks.mount) and puts it back; Esc puts it back too.
+// Pulling (pullable.ts): a click at the close-up brings a reel 13 cm out of its row, and a click on another swaps
+// them. A second click on the pulled reel asks the page for the reel modal, LOAD NEW SIMULATION SCENARIO? (LabHooks.ask;
+// the operator, 2026-10-07: the primary way to swap reels; LOAD ... AND EXEC mounts it, PUT TAPE BACK puts it back).
+// A pulled reel also stays out when the camera leaves (`carried`): carried to a tape unit, it is mounted there
+// (carry.ts, LabHooks.mount), the second way. Its notebook on the bookcase stands half out while it is out (#19's
+// half-pull, ours: the rack's shelf is linked to the bookcase's, room.ts), and Esc puts both back.
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { BuildContext, Equipment, LabState, ReelInfo } from "../types";
-import { Parts, canvasTex, fontTex, nameplate, paint, plastic, plateText, rng, satinMetal, sharedGeo, tapeStrip } from "./kit";
-import { Shelf } from "./pullable";
+import { Parts, canvasTex, fontTex, marker, markerWidth, nameplate, paint, plastic, plateText, rng, satinMetal, sharedGeo, tapeStrip } from "./kit";
+import { Shelf, type Pullable } from "./pullable";
 
-import { BAYS, D, H, LEVELS, NB, POST, T, W, bayX0, bayX1, BAY_W, postX, rackLayout } from "./racklayout";
+import { BAYS, D, H, LEVELS, POST, T, W, bayX0, bayX1, BAY_W, filler, postX, rackLayout } from "./racklayout";
 
 const LIP = 0.035, LIP_Z = D / 2 - 0.004;               // the shelf's front channel: its height and its face
-const R = 0.135, GAP = 0.004;                            // a reel case's radius, the gap between anonymous cases
+const R = 0.135;                                         // a reel case's radius
 const REEL_Z = D / 2 - 0.03 - R;                         // the cases' centres: their fronts 3 cm behind the lip
 const PULL = new THREE.Vector3(0, 0.012, 0.13);
 // Case colours (ours): the slate and grey of tape-seal belts, a few in red, green, mustard and buff.
@@ -38,40 +44,61 @@ const TYPED = '"Courier Prime", "Courier New", Courier, monospace';
 
 /** A reel on the rack: its piece, and the reel of the index it stands for. */
 export interface ReelPiece extends Equipment { reel: ReelInfo }
-
-/** The empty place beside a reel for its notebook binder (slice d), in the rack's frame: `position` is the middle of
- *  the slot's front edge on the deck (a bookcase binder's origin: bottom of the spine), `w` its width, `h` the clear
- *  height above the deck, `d` the depth behind the front line. */
-export interface NotebookSlot { position: THREE.Vector3; w: number; h: number; d: number }
-
 /** A reel case on edge, its axis across the shelf (x): the rim faces the viewer; groups 0 rim, 1 and 2 the faces.
  *  `seg` sides: 28 for the index's reels, 16 for the anonymous ones (instanced, many). */
 const caseGeo = (seg = 28) => sharedGeo(`rackCase${seg}`, () => new THREE.CylinderGeometry(R, R, T, seg).rotateZ(Math.PI / 2));
-/** A label curved onto the rim's front: `arc` m along the rim, `w` m across it; its texture's u runs up the rim and
- *  its v across, the texture's top row at the case's west face. */
-const rimLabelGeo = (arc: number, w: number) => new THREE.CylinderGeometry(R + 0.0008, R + 0.0008, w, 10, 1, true, -arc / R / 2, arc / R).rotateZ(Math.PI / 2);
-const LABEL_ARC = 0.19, LABEL_W = T - 0.008;
+/** A label curved onto the rim: `arc` m along the rim, `w` m across it, its middle `at` rad up from the front; its
+ *  texture's u runs up the rim and its v across, the texture's top row at the case's west face. */
+const rimLabelGeo = (arc: number, w: number, at = 0) => new THREE.CylinderGeometry(R + 0.0008, R + 0.0008, w, 10, 1, true, at - arc / R / 2, arc / R).rotateZ(Math.PI / 2);
+const LABEL_W = T - 0.008;
+/** The front label (hand-lettered, on the rim's front, a little below the middle) and the typed title above it: their
+ *  lengths along the rim, m, and their middles, rad up from the front. */
+const FRONT_ARC = 0.15, FRONT_AT = -0.14, TYPED_ARC = 0.11, TYPED_AT = 0.95;
 
-/** A grouped reel's case and its typed label, the title read top to bottom; the piece's origin is on the deck under
+/** The lines of a reel's front label: a scenario reel's mission and the rest of its title (APOLLO 11 / AS FLOWN); a
+ *  playlist's title. */
+export function frontLines(reel: ReelInfo): string[] {
+  const t = reel.title.toUpperCase(), m = reel.mission.toUpperCase();
+  return reel.kind === "scenario" && m && t.startsWith(m + " ") ? [m, t.slice(m.length + 1)] : [t];
+}
+
+/** A label on the rim, `arc` m long, its middle `at` rad up from the front; `draw` letters its canvas (`w` along the
+ *  rim, `h` across), which is turned so that the writing reads top to bottom. */
+function rimLabel(arc: number, at: number, draw: (g: CanvasRenderingContext2D, w: number, h: number) => void, mine: { dispose(): void }[], rough = 0.8): THREE.Mesh {
+  const CW = 512, CH = Math.round(CW * LABEL_W / arc);
+  const tex = canvasTex(CW, CH, (g, w, h) => { g.translate(w, h); g.rotate(Math.PI); draw(g, w, h); }, 8);
+  const m = new THREE.Mesh(rimLabelGeo(arc, LABEL_W, at), new THREE.MeshStandardMaterial({ map: tex, roughness: rough }));
+  m.position.y = R + 0.001;
+  mine.push(m.geometry, m.material as THREE.Material, tex);
+  return m;
+}
+
+/** A grouped reel's case, its hand-lettered front label and its typed title; the piece's origin is on the deck under
  *  the case's centre. */
 function reelPiece(reel: ReelInfo, tint: number, mine: { dispose(): void }[]): ReelPiece {
   const object = new THREE.Group();
   const rim = plastic(tint, 0.5), face = plastic(new THREE.Color(tint).multiplyScalar(0.8).getHex(), 0.55);
   const body = new THREE.Mesh(caseGeo(), [rim, face, face]); body.position.y = R + 0.001;
-  const CW = 512, CH = Math.round(CW * LABEL_W / LABEL_ARC);
-  const tex = canvasTex(CW, CH, (g, w, h) => {
+  const typed = rimLabel(TYPED_ARC, TYPED_AT, (g, w, h) => {
     g.fillStyle = "#f1ecdc"; g.fillRect(0, 0, w, h);
-    g.translate(w, h); g.rotate(Math.PI);   // u runs up the rim: turned, the title reads top to bottom
     g.fillStyle = "#18181a"; g.textAlign = "center"; g.textBaseline = "middle";
-    let px = h * 0.62;
+    let px = h * 0.5;
     g.font = `bold ${px}px ${TYPED}`;
     px *= Math.min(1, w * 0.92 / g.measureText(reel.title).width);
     g.font = `bold ${px}px ${TYPED}`; g.fillText(reel.title, w / 2, h / 2 + 1);
-  }, 8);
-  const label = new THREE.Mesh(rimLabelGeo(LABEL_ARC, LABEL_W), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }));
-  label.position.y = R + 0.001;
-  object.add(body, label);
-  mine.push(label.geometry, label.material as THREE.Material, tex);
+  }, mine);
+  // The front label: white paper with a faint grain, each line in marker, shrunk to fit the label's length.
+  const r = rng(reel.id.length * 977 + reel.title.length), lines = frontLines(reel);
+  const front = rimLabel(FRONT_ARC, FRONT_AT, (g, w, h) => {
+    g.fillStyle = "#f4f1e6"; g.fillRect(0, 0, w, h);
+    for (let k = 0; k < 6; k++) { g.fillStyle = `rgba(110,100,70,${0.03 + r() * 0.04})`; g.fillRect(r() * w, 0, 2 + r() * 6, h); }
+    const n = lines.length, px0 = h * (n > 1 ? 0.4 : 0.62);
+    lines.forEach((l, i) => {
+      const px = px0 * Math.min(1, w * 0.88 / markerWidth(l, px0));
+      marker(g, l, (w - markerWidth(l, px)) / 2, h * (i + 0.5) / n + 1, px, r);
+    });
+  }, mine, 0.9);
+  object.add(body, typed, front);
   return { object, reel, anchors: { camera: { position: new THREE.Vector3(0, R + 0.2, 0.85), target: new THREE.Vector3(0, R, 0), fov: 34 } } };
 }
 
@@ -98,7 +125,7 @@ function numberPlates(mine: { dispose(): void }[]): THREE.Mesh {
   return new THREE.Mesh(geo, mat);
 }
 
-export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPiece[]; notebooks: Record<string, NotebookSlot> } } {
+export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPiece[]; shelf: Shelf; items: Map<string, Pullable> } } {
   const object = new THREE.Group(), mine: { dispose(): void }[] = [];
   const steel = paint(0x8a8d86, 0.9), wire = satinMetal(0x9da1a4);
   const P = new Parts(), Q = new Parts();
@@ -128,22 +155,15 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
   rods.forEach((m, i) => deck.setMatrixAt(i, m));
   object.add(deck); mine.push(rodGeo, deck);
 
-  // The reels where the plan puts them (racklayout.ts), a notebook slot after each; anonymous reels after the last slot
-  // of each bay and in every other bay.
-  const r = rng(1919), plan = rackLayout(ctx.reels ?? []), reels: ReelPiece[] = [], notebooks: Record<string, NotebookSlot> = {};
+  // The reels where the plan puts them (racklayout.ts); the anonymous reels on the levels with none of them (filler).
+  const r = rng(1919), plan = rackLayout(ctx.reels ?? []), reels: ReelPiece[] = [];
   if (plan.unplaced.length) console.warn(`tape rack: no room for ${plan.unplaced.length} reel(s): ${plan.unplaced.map(u => u.id).join(", ")}`);
   for (const { reel, level: l, x } of plan.slots) {
-    const y = LEVELS[l], p = reelPiece(reel, reel.kind === "playlist" ? 0x8a2b22 : 0x2f4a6b, mine);
-    p.object.position.set(x + T / 2, y, REEL_Z);
+    const p = reelPiece(reel, reel.kind === "playlist" ? 0x8a2b22 : 0x2f4a6b, mine);
+    p.object.position.set(x + T / 2, LEVELS[l], REEL_Z);
     object.add(p.object); reels.push(p);
-    notebooks[reel.id] = { position: new THREE.Vector3(x + T + GAP + NB / 2, y, REEL_Z + R), w: NB, h: (l ? LEVELS[l - 1] - LIP : H - 0.025) - y - 0.01, d: 2 * R };
   }
-  const anon: { x: number; y: number; yaw: number; tint: number; label: boolean }[] = [];
-  LEVELS.forEach((y, l) => {
-    for (let b = 0; b < BAYS; b++)
-      for (let x = plan.free.get(`${l}:${b}`) ?? bayX0(b) + 0.012; x + T <= bayX1(b) - 0.008; x += T + GAP)
-        if (r() > 0.1) anon.push({ x: x + T / 2, y, yaw: (r() - 0.5) * 0.05, tint: TINTS[Math.floor(r() * TINTS.length)], label: r() > 0.45 });
-  });
+  const anon = filler(plan, r).map(f => ({ x: f.x, y: LEVELS[f.level], yaw: (r() - 0.5) * 0.05, tint: TINTS[Math.floor(r() * TINTS.length)], label: r() > 0.45 }));
   const cases = new THREE.InstancedMesh(caseGeo(16), [plastic(0xffffff, 0.5), plastic(0xcccccc, 0.55), plastic(0xcccccc, 0.55)], anon.length);
   const labGeo = rimLabelGeo(0.07, LABEL_W), tags = anon.filter(a => a.label);
   const labels = new THREE.InstancedMesh(labGeo, plastic(0xffffff, 0.8), tags.length);
@@ -174,15 +194,18 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
   plate.position.set(0, H - 0.0125, D / 2 - 0.0014);
   object.add(plate);
 
-  // Pulling: a reel comes straight out, a little raised off the wire; flying elsewhere leaves it out (carried).
+  // Pulling: a reel comes straight out, a little raised off the wire, and a second click on it asks for the reel modal
+  // (it "opens"; lab.ts); flying elsewhere leaves it out (carried).
   const shelf = new Shelf({
     idle: "Click a reel to pull it out",
-    open: "",
-    out: "Carry the reel to a tape unit and click the unit to mount it · another reel to swap",
+    open: "Click the reel again to load or put back · or carry it to a tape unit · another reel to swap",
+    out: "",
   });
   let mounted = "";
+  const items = new Map<string, Pullable>();
   for (const p of reels) {
-    const item = shelf.add(p.object, { offset: PULL });
+    const item = shelf.add(p.object, { offset: PULL, opens: true });
+    items.set(p.reel.id, item);
     Object.assign(p, shelf.member(item), {
       select: (on: boolean) => { if (on) shelf.set(item); },
       carried: () => shelf.isOut(item),
@@ -197,7 +220,8 @@ export function build(ctx: BuildContext): Equipment & { anchors: { reels: ReelPi
       screen: { mesh: plate, uvRect: [0, 0, 1, 1] },
       camera: { position: new THREE.Vector3(0, 1.42, 0.12 + 1.65), target, fov: 40 },
       reels,
-      notebooks,
+      shelf,
+      items,
     },
     hint: () => shelf.hint(),
     putBack: () => shelf.putBack(),

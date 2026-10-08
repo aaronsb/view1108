@@ -45,6 +45,8 @@ export interface ReelInfo {
   kind: "scenario" | "playlist";
   mission: string;
   zero: number | null;
+  /** The reel's scenario notebook (#29), if it carries one: its title (the notebook's first heading). */
+  notebook?: string | null;
 }
 
 /** Hooks the page hands to VIEW_LAB.start. */
@@ -70,6 +72,9 @@ export interface LabHooks {
   /** The page's one Esc stack (web/src/esc.js): push `key` with what Esc does while it is on top, or (null) take it
    *  off. The lab pushes its close-up and a pulled binder or reel ("pulled"; a reel's stays while it is carried). */
   esc?(key: string, pop: (() => void) | null): void;
+  /** A second click on a pulled reel ("reel") or on a pulled mission notebook whose reel is a scenario reel
+   *  ("notebook"): the page shows its modal for reel `id` (title `title`) and answers through VIEW_LAB.answer. */
+  ask?(kind: "reel" | "notebook", id: string, title: string): void;
 }
 
 /** A camera pose: where the eye is, what it looks at, its vertical field of view (deg). */
@@ -120,6 +125,8 @@ export interface Equipment {
   hint?(): string;
   /** Its state, added to its hover label (the drive: its reel, running or stopped). */
   status?(): string;
+  /** How far it is out on its shelf: 0 back, HALF (pullable.ts) half out beside its out partner, 1 out. For tests. */
+  out?(): number;
   /** Something out on a shelf at a close-up (a pulled binder): put it back; false when nothing is out. */
   putBack?(): boolean;
   /** The camera is flying to this piece (true) or the room is shown again (false): a binder slides out and back. */

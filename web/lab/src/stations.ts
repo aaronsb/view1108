@@ -46,7 +46,7 @@ export const STATIONS = [
     tabbed: "the Time group's DEMO label; Play restarts a demo the drive stopped, but Pause on a running demo takes control in Free-look (no plain STOP of the demo yet)" },
   { name: "rack", kind: "taperack", does: "shelf", opens: "reels", tabs: [],
     label: "Tape library — mission reels", at: "Click a reel to pull it out",
-    tabbed: "the Reels group (Review, Simulate, Print): one button per reel, mounting it through the same loadReel" },
+    tabbed: "the Reels group (Review, Simulate, Print): one button per reel, mounting it through the same loadReel, and Read the notebook after a reel that has one" },
 ] as const satisfies readonly Station[];
 
 export type StationRow = typeof STATIONS[number];

@@ -460,6 +460,30 @@ export function badgeTex(model: string): THREE.CanvasTexture {
  *  written by hand rather than printed. No web font: whichever of these the browser has. */
 const MARKER_FONT = '"Arial Narrow", "Liberation Sans Narrow", "Helvetica Neue", Arial, sans-serif';
 
+/** Width of `text` in felt marker at `px`, letters `0.06 px` apart (as `marker` writes it). */
+export function markerWidth(text: string, px: number): number {
+  const g = document.createElement("canvas").getContext("2d")!, chars = [...text.toUpperCase()];
+  g.font = `bold ${px}px ${MARKER_FONT}`;
+  return chars.reduce((a, c) => a + g.measureText(c).width, 0) + 0.06 * px * Math.max(0, chars.length - 1);
+}
+
+/** Write `text` (upper case) in black felt marker on `g`, starting at x, its middle at y, `px` tall, each letter on its
+ *  own slightly wandering line and a little turned (the wobble drawn from `r`). Returns the x after the last letter. */
+export function marker(g: CanvasRenderingContext2D, text: string, x: number, y: number, px: number, r: () => number): number {
+  const chars = [...text.toUpperCase()], gap = 0.06 * px;
+  g.save();
+  g.fillStyle = g.strokeStyle = "#17171a"; g.lineWidth = 0.04 * px; g.lineJoin = g.lineCap = "round";
+  g.font = `bold ${px}px ${MARKER_FONT}`; g.textBaseline = "middle"; g.textAlign = "left";
+  for (const c of chars) {
+    const w = g.measureText(c).width;
+    g.save(); g.translate(x, y + (r() - 0.5) * 0.075 * px); g.rotate((r() - 0.5) * 0.09);
+    g.fillText(c, 0, 0); g.strokeText(c, 0, 0); g.restore();
+    x += w + gap;
+  }
+  g.restore();
+  return x - gap;
+}
+
 export interface TapeStripOpts {
   /** A drawn arrow after the text pointing right, or before it pointing left. */
   arrow?: "left" | "right";
@@ -474,11 +498,8 @@ export interface TapeStripOpts {
  * its geometry, material and texture are pushed to `mine`.
  */
 export function tapeStrip(text: string, h: number, mine: { dispose(): void }[], o: TapeStripOpts = {}): THREE.Mesh {
-  const CH = 64, px = 40, r = rng(o.seed ?? text.length * 131 + 7), chars = [...text.toUpperCase()];
-  const measure = document.createElement("canvas").getContext("2d")!;
-  measure.font = `bold ${px}px ${MARKER_FONT}`;
-  const ws = chars.map(c => measure.measureText(c).width), gap = 0.06 * px;
-  const textW = ws.reduce((a, b) => a + b, 0) + gap * Math.max(0, chars.length - 1);
+  const CH = 64, px = 40, r = rng(o.seed ?? text.length * 131 + 7);
+  const textW = markerWidth(text, px);
   const arrowW = o.arrow ? 1.7 * px : 0, pad = 0.45 * CH, W = Math.ceil(textW + arrowW + 2 * pad);
   const tex = canvasTex(W, CH, g => {
     // The tape: torn ends (a ragged edge every few pixels), a faint crepe of darker streaks along it.
@@ -491,15 +512,9 @@ export function tapeStrip(text: string, h: number, mine: { dispose(): void }[], 
     g.save(); g.clip();
     for (let k = 0; k < 14; k++) { g.fillStyle = `rgba(120,100,60,${0.04 + r() * 0.05})`; g.fillRect(0, r() * CH, W, 1 + r() * 2); }
     g.restore();
-    // The writing: each letter on its own slightly wandering line, a little turned.
-    g.fillStyle = g.strokeStyle = "#17171a"; g.lineWidth = 1.6; g.lineJoin = g.lineCap = "round";
-    g.font = `bold ${px}px ${MARKER_FONT}`; g.textBaseline = "middle"; g.textAlign = "left";
-    let x = pad + (o.arrow === "left" ? arrowW : 0);
-    chars.forEach((c, i) => {
-      g.save(); g.translate(x, CH / 2 + 2 + (r() - 0.5) * 3); g.rotate((r() - 0.5) * 0.09);
-      g.fillText(c, 0, 0); g.strokeText(c, 0, 0); g.restore();
-      x += ws[i] + gap;
-    });
+    // The writing, then the arrow in the same ink.
+    const x = marker(g, text, pad + (o.arrow === "left" ? arrowW : 0), CH / 2 + 2, px, r);
+    g.strokeStyle = "#17171a"; g.lineJoin = g.lineCap = "round";
     if (o.arrow) {   // a shaft and a two-stroke head, drawn as quickly as by hand
       const right = o.arrow === "right", x0 = right ? x + 0.3 * px : pad + 1.3 * px, x1 = right ? x0 + 1.2 * px : pad + 0.1 * px;
       const y = CH / 2 + 1, d = right ? -1 : 1;
