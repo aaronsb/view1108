@@ -13,7 +13,6 @@ a line of a form feed and its path, HTML-escaped),
 __FONT_3270_B64__ (web/fonts/3270-Regular.subset.woff2), __FONT_JBM_B64__ (web/fonts/JetBrainsMono-Regular.subset.woff2),
 __FONT_MICH_B64__ (web/fonts/Michroma-Regular.subset.woff2, the machine room's nameplates),
 __FONT_CPR_B64__ and __FONT_CPB_B64__ (web/fonts/CourierPrime-Regular.subset.woff2 and -Bold, the notebook binder's typed pages),
-__PHOTOS_JSON__ (build/photos.json from tools/photo_pack.py, the Fusion tab's photographs; [] when absent),
 __LIBRARY_JSON__ (web/library/library.json, the reference library's manifest; the PDFs stay beside the page),
 __LAB_JS__ (build/lab.js, the machine room bundled from web/lab; empty when absent, and the page has no Room).
 The kernel's symbol table (build/symbols.json, tools/gen_symbols.py) follows the listing's </pre> as
@@ -90,8 +89,6 @@ subs = {
 }
 LAB = R / "build/lab.js"
 subs["__LAB_JS__"] = LAB.read_text().replace("</script", "<\\/script") if LAB.is_file() else ""
-PHOTOS = R / "build/photos.json"
-subs["__PHOTOS_JSON__"] = PHOTOS.read_text().replace("</", "<\\/") if PHOTOS.is_file() else "[]"
 if "__FSYM__" in t:
     subs["__FSYM__"] = fsym
 # Replace only the payload slots, not the dev-guard `var __FALLBACK_JS__, __NAMES_JS__, ...;` line.

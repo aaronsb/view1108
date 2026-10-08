@@ -54,10 +54,14 @@ Findings and attachments (#29 slice g; the markup is ours): two more fenced bloc
             insert; finish: photo | film | copy; the text after the header is the caption, required. A media source
             needs credit and cite. Any source with any style and finish.
 
-A notebook may hold media files beside notebook.md, notebook/media/<name>.jpg or .png ([a-z0-9][a-z0-9-]* names),
-raster only: the file's own first bytes must be JPEG's (FF D8 FF) or PNG's signature, as its extension says, and it is
-at most MEDIA_MAX bytes. Every media file is attached and every attached file is there. tools/pack.py packs each as
-notebook/media/<file> (type "media"); web/src/reelpkg.js readReel applies the same rules (reelSlips).
+A reel's photographs are its media (#29 slice g, #75): the files of media/ in the reel's source folder, beside
+notebook/ (data/missions/<mission>/<scenario file stem>/media/ or data/reels/<id>/media/), each <name>.jpg or .png
+([a-z0-9][a-z0-9-]* names), raster only: the file's own first bytes must be JPEG's (FF D8 FF) or PNG's signature, as its
+extension says, and it is at most MEDIA_MAX bytes (reel_media). They are the reel's and not the notebook's: a notebook
+attaches one, and a scenario reel's photo events (data/photos.tsv, tools/pack.py photos) name theirs, so the notebook
+and Fusion show one packed photograph. Every media file is named by an attach or a photo event (media_unnamed), and
+every attached file is there. tools/pack.py packs each as media/<file> (type "media"); web/src/reelpkg.js readReel
+applies the same rules (reelSlips, reelPhotosWrong).
 
 One render serves the golden gate and the package: `render` runs build/viewsvg once per case and writes
 build/figures/<reel id>/<name>.svg (stdout) and .hdr (stderr, VIEW_HDR=1); tools/golden.sh captures those files as
@@ -73,6 +77,8 @@ case, deck or driver changed since the render cannot be packed with the old figu
   tools/notebook.py golden-refs  print each golden=<case> row as "<reel id> <name> <case>"
 """
 import datetime, hashlib, json, os, pathlib, re, shutil, subprocess, sys
+
+import photos
 
 R = pathlib.Path(__file__).resolve().parent.parent
 D = R / "data"
@@ -228,18 +234,11 @@ def scenes():
     return {r["id"]: set(r["scenes"]) for r in json.loads(p.read_text())["reels"]}
 
 
-def load(rid, kind, src, uses, sits=None):
-    """A reel's notebook: None, or {"text": bytes, "cases": [(name, {env}, reel, [args])]} in the block's order,
-    checked."""
-    nd = src / "notebook"
-    if not nd.exists():
-        return None
-    where = str((nd / "notebook.md").relative_to(R))
-    md = nd / "media"
-    extra = sorted(str(p.relative_to(R)) for p in nd.rglob("*")
-                   if not (p.parent == nd and p.name == "notebook.md") and p != md and p.parent != md)
-    if extra:
-        fail(where, f"notebook/ holds {', '.join(extra)}: only notebook.md and media/ (figures are renders, never stored)")
+def reel_media(src):
+    """The reel's photographs, media/ in its source folder `src`, checked (raster only, by name, first bytes and size):
+    {file name: bytes}, in name order; empty without media/."""
+    md = src / "media"
+    where = str(md.relative_to(R)) if md.is_relative_to(R) else str(md)
     media = {}
     for p in sorted(md.iterdir()) if md.is_dir() else []:
         m = MEDIA.fullmatch(p.name)
@@ -251,6 +250,30 @@ def load(rid, kind, src, uses, sits=None):
         if len(b) > MEDIA_MAX:
             fail(where, f"media/{p.name}: {len(b)} bytes, more than {MEDIA_MAX}")
         media[p.name] = b
+    return media
+
+
+def media_unnamed(src, media, named):
+    """Refuse a file of the reel's media/ that neither an attach nor a photo event names (`named`, file names)."""
+    for name in media:
+        if name not in named:
+            fail(str((src / "media").relative_to(R)) if (src / "media").is_relative_to(R) else str(src / "media"),
+                 f"media/{name} is in media/, and no attach or photograph names it")
+
+
+def load(rid, kind, src, uses, sits=None, photos=()):
+    """A reel's notebook: None, or {"text": bytes, "cases": [(name, {env}, reel, [args])], "golden": {name: case},
+    "media": {file: bytes}} in the block's order, checked. `photos`: the media files the reel's photo events name
+    (tools/pack.py photos), which count as named with the files its attach blocks name."""
+    nd = src / "notebook"
+    if not nd.exists():
+        return None
+    where = str((nd / "notebook.md").relative_to(R))
+    extra = sorted(str(p.relative_to(R)) for p in nd.rglob("*") if not (p.parent == nd and p.name == "notebook.md"))
+    if extra:
+        fail(where, f"notebook/ holds {', '.join(extra)}: only notebook.md (figures are renders, never stored; "
+                    "photographs are the reel's, in media/ beside notebook/)")
+    media = reel_media(src)
     if not (nd / "notebook.md").is_file():
         fail(where, "missing (notebook/ holds no notebook.md)")
     raw = (nd / "notebook.md").read_bytes()
@@ -318,7 +341,7 @@ def load(rid, kind, src, uses, sits=None):
         s = f["source"]
         if s.startswith("media/"):
             if s[6:] not in media:
-                fail(where, f"an attach names {s}, which notebook/media/ does not hold")
+                fail(where, f"an attach names {s}, which the reel's media/ does not hold")
             attached.add(s[6:])
             continue
         if s.startswith("golden="):
@@ -329,9 +352,7 @@ def load(rid, kind, src, uses, sits=None):
             n = s[len("figures/"):-len(".svg")]
         if n not in named:
             named.append(n)
-    for name in media:
-        if name not in attached:
-            fail(where, f"media/{name} is in notebook/media/, and no attach names it")
+    media_unnamed(src, media, attached | set(photos))
     have = [c[0] for c in cases]
     for n in named:
         if n not in have:
@@ -359,7 +380,8 @@ def golden_cases():
 def notebooks():
     """[(reel id, notebook)] for each reel that has one, in load order."""
     sits = scenes()
-    return [(rid, nb) for rid, kind, src, uses in reels() for nb in [load(rid, kind, src, uses, sits)] if nb]
+    return [(rid, nb) for rid, kind, src, uses in reels()
+            for nb in [load(rid, kind, src, uses, sits, photos.media_names(rid))] if nb]
 
 
 # What a figure may hold (#29 slice d, reviews of PR #69; ours): an ALLOWLIST, the elements and attributes
