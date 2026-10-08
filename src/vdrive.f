@@ -146,6 +146,8 @@ C       mid-frame.
         E(3) = -PM(3) - R(3)
         CALL VUNIT(R)
         CALL VUNIT(V)
+C       The horizontal as SCNCAM takes it (VORTH; #80).
+        CALL VORTH(R, V)
         CALL VCRS(V, R, S)
         X = VDOT(E, V)
         Y = VDOT(E, S)
@@ -469,6 +471,10 @@ C       LOCALVERT about the Moon: the CSM in lunar orbit.
    10   CONTINUE
         CALL VUNIT(RU)
         CALL VUNIT(VU)
+C       The horizontal: the velocity's direction made square to the
+C       radius (VORTH), so the frame below is orthonormal off a
+C       circular leg too (the engine's tape; #80).
+        CALL VORTH(RU, VU)
         IF (JMOD .EQ. 1) THEN
 C         FORWARD along the orbit, turned AZOFF in azimuth, down to
 C         the horizon by the dip angle.
@@ -516,6 +522,13 @@ C       fallback).  FORWARD, boresight ELV deg above the horizon.
    70   CONTINUE
         CALL VUNIT(RU)
         CALL VUNIT(VU)
+C       The horizontal, as about the Moon (VORTH; #80, #65): off a
+C       circular orbit the velocity is not square to the radius (on
+C       the ascent; after TLI its direction is 0.86 along the radius
+C       at 4:00, and -0.98 at 120 h on Apollo 8's transearth coast),
+C       and a boresight and up built from it unchanged were short and
+C       near parallel, and the frame drawn from them empty.
+        CALL VORTH(RU, VU)
         DIP = DACOS(RE / VNRM(R)) - ELV * DR
         CD = DCOS(DIP)
         SD = DSIN(DIP)
