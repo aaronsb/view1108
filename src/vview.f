@@ -102,11 +102,19 @@ C     the top of the tunnel of the CSM placed here.
    10 CONTINUE
 C     Reference boresight at the target, up kept as near the scene's
 C     as it can be.
-      IF (VDOT(D, D) .LE. 1.0D-18) GO TO 22
+      IF (VDOT(D, D) .LE. 1.0D-18) GO TO 21
       CALL VUNIT(D)
       DO 20 I = 1, 3
         BREF(I) = D(I)
    20 CONTINUE
+      GO TO 22
+C     A target at the camera's own point (a vehicle docked to it or
+C     carried with it, seen from outside) keeps the scene's boresight,
+C     made unit: LOCALVERT about the Earth builds it from the velocity's
+C     direction, which off a circular orbit is not square to the radius,
+C     so after TLI it is short (0.64 at 4:00), and the external camera
+C     backed off along it sat too close and looked nowhere (#70).
+   21 CALL VUNIT(BREF)
    22 CONTINUE
       C = VDOT(UREF, BREF)
       DO 25 I = 1, 3
