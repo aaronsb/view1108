@@ -61,7 +61,7 @@ function libFigUrl(svg) {
 // The viewer as a document's (PDF) or a notebook's: which of the iframe and the article shows, and the buttons.
 function libMode(md) {
   $("libr").classList.toggle("md", md);
-  $("libmd").hidden = !md; $("blibload").hidden = !md; $("bliblist").hidden = !md;
+  $("libmd").hidden = !md; $("blibload").hidden = !md; $("bliblist").hidden = !md; $("blibtheme").hidden = !md;
   $("libnew").hidden = $("libsrc").hidden = md;
   if (md) { $("libframe").hidden = true; $("libframe").removeAttribute("src"); $("libnote").hidden = true; }
   else libMdClear();
@@ -88,7 +88,8 @@ function libShow(id) {
   });
 }
 // A reel's notebook in the viewer: its text built by notebook.js, each figure an <img> from a data: URL of the reel's
-// own SVG (never inlined). A text the renderer refuses (too long) or fails on is shown as plain text.
+// own SVG (never inlined), with the run sheet in front, in the binder's wrappers (#libmd > .nbbinder > .nbpages, then
+// the paging plate .nbnav; below). A text the renderer refuses (too long) or fails on is shown as plain text.
 function libShowNb(id) {
   const n = libNotebooks().find(x => x.id === id);
   if (!n) { libShow(LIB[0]?.id); return; }
@@ -99,17 +100,114 @@ function libShowNb(id) {
   document.querySelector("#liblist .librow.on")?.scrollIntoView({ block: "nearest" });
   $("libtitle").textContent = `${n.reel.manifest.title} — scenario notebook (ours), carried in the reel`;
   const figs = n.reel.notebook.figures, fig = name => figs.has(name) ? libFigUrl(figs.get(name)) : null;
-  try { $("libmd").replaceChildren(nbBuild(nbParse(n.reel.notebook.text), document, fig)); }
+  const binder = document.createElement("div"), pages = document.createElement("div"), end = document.createElement("div");
+  binder.className = "nbbinder"; pages.className = "nbpages"; end.className = "nbend";
+  try { pages.appendChild(nbBuild(nbParse(n.reel.notebook.text), document, fig)); }
   catch (e) {
     const pre = document.createElement("pre");
     pre.textContent = n.reel.notebook.text;
-    $("libmd").replaceChildren(pre);
+    pages.replaceChildren(pre);
     console.warn(`notebook ${id}: shown as text (${e.message})`);
   }
   const sheet = libRunSheet(n.reel.manifest.id);
-  if (sheet) $("libmd").prepend(sheet);
-  $("libmd").scrollTop = 0;
+  if (sheet) pages.prepend(sheet);
+  pages.appendChild(end);
+  pages.addEventListener("scroll", () => nbPageSync());
+  pages.addEventListener("scrollend", nbSettle);
+  pages.addEventListener("load", nbRecount, true);   // a figure decoded: the columns may have moved on
+  binder.appendChild(pages);
+  $("libmd").replaceChildren(binder, nbNav());
+  nbShown = 0;
+  nbApplyTheme();
 }
+// The notebook's reading view (#29 slice g; the operator, 2026-10-07; ours): LIGHT, the default, typed pages in an open
+// three-ring binder on a desk, one page or a two-page spread (page.css: the pages are CSS columns of a fixed height,
+// scrolled sideways a view at a time); DARK, the viewer as it was before. Two classes on #libmd. ?notebook=light|dark
+// holds one for the visit; the viewer's toggle drops that and keeps its choice (prefs.notebook), as the listing's does.
+let nbTheme = ["light", "dark"].includes(UP.get("notebook")) ? UP.get("notebook") : prefs.notebook === "dark" ? "dark" : "light";
+let nbShown = 0;   // the first page (column) of the view shown, kept across a reflow
+const nbLight = () => nbTheme === "light";
+const nbPages = () => $("libmd").querySelector(".nbpages");
+function nbApplyTheme() {
+  $("libmd").classList.toggle("light", nbLight()); $("libmd").classList.toggle("dark", !nbLight());
+  $("blibtheme").textContent = nbLight() ? "Dark" : "Light";
+  $("libmd").scrollTop = 0;
+  const pg = nbPages();
+  if (pg) { pg.scrollLeft = 0; nbShown = 0; nbRecount(); }
+}
+$("blibtheme").onclick = () => { nbTheme = nbLight() ? "dark" : "light"; prefs.notebook = nbTheme; savePrefs(); nbApplyTheme(); };
+// The paging plate under the binder: back, the page or pages shown, forward.
+function nbNav() {
+  const nav = document.createElement("div"), prev = document.createElement("button"), at = document.createElement("span"), next = document.createElement("button");
+  nav.className = "nbnav"; prev.className = "nbprev"; at.className = "nbpage"; next.className = "nbnext";
+  prev.type = next.type = "button"; prev.textContent = "Back"; next.textContent = "Next";
+  prev.title = "The page before (PgUp, Left; Home: the first)"; next.title = "The next page (PgDn, Right; End: the last)";
+  prev.onclick = () => nbTurn(-1); next.onclick = () => nbTurn(1);
+  nav.append(prev, at, next);
+  return nav;
+}
+// The layout's paging, read back from the columns page.css set: `per` pages a view (1 or 2), `col` one column and its
+// gap, `step` the scroll from one view to the next, `pad` the inset of the first column.
+function nbGeom(pg) {
+  const cs = getComputedStyle(pg), per = parseInt(cs.columnCount, 10) || 1, gap = parseFloat(cs.columnGap) || 0;
+  const pad = parseFloat(cs.paddingLeft), col = (pg.clientWidth - pad - parseFloat(cs.paddingRight) + gap) / per;
+  return { per, col, step: col * per, pad };
+}
+let nbCount = 1;   // the notebook's pages, counted when its layout changes (nbRecount)
+// Count the pages from the column the end marker (.nbend, the last child) falls in, not from the scroll width, which
+// grows with anything wider than its column. A spread needs an even count to end on a whole view: the marker then
+// becomes a blank last page (.blank, a column of its own), which is not counted. Then the view is put back on the page
+// it showed (nbShown).
+function nbRecount() {
+  const pg = nbPages();
+  if (!pg || !nbLight() || $("libmd").hidden) return;
+  const end = pg.querySelector(".nbend"), g = nbGeom(pg);
+  const colOf = el => Math.floor((el.getBoundingClientRect().left - pg.getBoundingClientRect().left + pg.scrollLeft - g.pad) / g.col + 0.01);
+  end.classList.remove("blank");
+  nbCount = colOf(end) + 1;
+  if (g.per === 2 && nbCount % 2) end.classList.add("blank");
+  pg.scrollLeft = Math.min(Math.floor(nbShown / g.per), nbLastView(g)) * g.step;
+  nbPageSync();
+}
+const nbLastView = g => Math.ceil(nbCount / g.per) - 1;
+// The label and the buttons, for the view the scroll is at.
+function nbPageSync() {
+  const pg = nbPages(), at = $("libmd").querySelector(".nbpage");
+  if (!pg || !at || !nbLight() || $("libmd").hidden) return;
+  const g = nbGeom(pg), v = Math.max(0, Math.min(Math.round(pg.scrollLeft / g.step), nbLastView(g)));
+  const first = v * g.per + 1, last = Math.min(nbCount, first + g.per - 1);
+  nbShown = first - 1;
+  at.textContent = first === last ? `PAGE ${first} OF ${nbCount}` : `PAGES ${first}-${last} OF ${nbCount}`;
+  $("libmd").querySelector(".nbprev").disabled = v <= 0;
+  $("libmd").querySelector(".nbnext").disabled = v >= nbLastView(g);
+}
+// Turn `d` views (Infinity, -Infinity: to the last, the first): a jump, no animation.
+function nbTurn(d) {
+  const pg = nbPages();
+  if (!pg || !nbLight()) return;
+  const g = nbGeom(pg), v = Math.max(0, Math.min(Math.round(pg.scrollLeft / g.step) + d, nbLastView(g)));
+  pg.scrollTo({ left: v * g.step, behavior: "instant" });
+  nbPageSync();
+}
+// A swipe or a wheel that stopped between views (a spread has no snap points of its own), or past the last, is put on
+// the nearest view.
+function nbSettle() {
+  const pg = nbPages();
+  if (!pg || !nbLight()) return;
+  const g = nbGeom(pg), x = Math.max(0, Math.min(Math.round(pg.scrollLeft / g.step), nbLastView(g))) * g.step;
+  if (Math.abs(pg.scrollLeft - x) > 1) pg.scrollTo({ left: x, behavior: "instant" });
+}
+// The typewriter face arriving, or the window resized, reflows the columns: the label follows, the view stays put.
+window.addEventListener("resize", nbRecount);
+document.fonts?.addEventListener("loadingdone", nbRecount);
+// The binder's keys while a notebook is shown in LIGHT: PgDn, Right forward; PgUp, Left back; Home, End the ends. They
+// are the viewer's alone (the plot's keys stand down while the library is open; Fusion's would nudge its photograph).
+window.addEventListener("keydown", e => {
+  if (!libraryIsOpen() || !$("libr").classList.contains("md") || $("libmd").hidden || !nbLight() || e.ctrlKey || e.metaKey || e.altKey || typingIn()) return;
+  const d = { PageDown: 1, ArrowRight: 1, PageUp: -1, ArrowLeft: -1, Home: -Infinity, End: Infinity }[e.key];
+  if (d === undefined) return;
+  e.preventDefault(); e.stopImmediatePropagation(); nbTurn(d);
+}, { capture: true });
 // The run sheet at the front of a mission notebook (#29 slice f; the operator, 2026-10-07: the notebook is the tape's
 // operator's manual and opens with every event on the tape): the reel's event listing, generated when it was packed
 // (tools/pack.py; config.js SCNS[id].listing), so the notebook restates no run-deck data. It opens on the situations
@@ -150,7 +248,7 @@ function libRunSheet(rid) {
     const more = mk("button", "rsall"), line = mk("p", "rsline");
     const label = () => { more.textContent = sec.classList.contains("full") ? `SHOW ONLY THE ${nBrief} SITUATIONS AND MILESTONES` : `SHOW ALL ${nAll} ENTRIES`; };
     more.type = "button"; label();
-    more.onclick = () => { sec.classList.toggle("full"); label(); };
+    more.onclick = () => { sec.classList.toggle("full"); label(); nbRecount(); };
     line.appendChild(more); sec.appendChild(line);
   }
   return sec;

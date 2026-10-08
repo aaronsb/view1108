@@ -149,7 +149,7 @@ button.fprow::before, button.fprow::after { content:none; }
 #libr { position:fixed; inset:0; background:#000; display:none; flex-direction:column; padding:12px 16px; z-index:10; }
 #libr.open { display:flex; }
 #libr h2 { font:400 16px var(--term); letter-spacing:.08em; margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
-#libr .btns { display:flex; gap:4px; flex:none; align-items:center; }
+#libr .btns { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:0 4px; flex:0 1 auto; align-items:center; }
 a.libbtn { color:var(--dim); text-decoration:none; text-transform:uppercase; padding:4px 2px; letter-spacing:.04em; }
 a.libbtn::before { content:"[ "; } a.libbtn::after { content:" ]"; }
 a.libbtn:hover { color:var(--fg); }
@@ -187,42 +187,203 @@ button.librow.on .libm { color:var(--fg); }
 #ask.list #askbtns button.reelback { margin-top:8px; text-align:right; }
 /* The list's sections (documents, the reels' mission notebooks). */
 #liblist li.libsec { padding:8px 8px 3px; font-size:12px; letter-spacing:.14em; color:var(--dim); border-bottom:1px solid var(--line); }
-/* A scenario notebook (notebook.js, ours): the page's greens on black, a reading column, the figures white on black as
-   the native renders draw them, the figure cases small at the end. */
-#libmd { flex:1; min-height:0; overflow-y:auto; border:1px solid var(--line); padding:14px clamp(14px, 4vw, 48px) 32px; font:15px/1.55 var(--hd); color:var(--fg); }
-#libmd > * { max-width:46em; margin-left:auto; margin-right:auto; }
-#libmd h1, #libmd h2, #libmd h3 { font-family:var(--term); font-weight:400; letter-spacing:.06em; line-height:1.3; }
-#libmd h1 { font-size:22px; margin:6px auto 14px; } #libmd h2 { font-size:18px; margin:26px auto 8px; border-bottom:1px solid var(--line); padding-bottom:3px; } #libmd h3 { font-size:16px; margin:18px auto 6px; }
-#libmd p, #libmd ul, #libmd ol, #libmd blockquote, #libmd table, #libmd pre { margin-top:0; margin-bottom:12px; }
-#libmd a { color:var(--fg); } #libmd em { color:#d2fadb; }
-#libmd code { font:13px var(--lab); color:#d2fadb; }
-#libmd pre { padding:8px; border:1px solid var(--line); overflow-x:auto; }
-#libmd blockquote { padding-left:12px; border-left:2px solid var(--line); color:var(--dim); }
-#libmd figure { margin:14px auto 18px; max-width:46em; }
-#libmd img.nbfig { display:block; width:100%; max-width:640px; height:auto; margin:0 auto; border:1px solid var(--line); background:#000; }
-#libmd figcaption { font-size:13px; color:var(--dim); margin-top:6px; }
-#libmd table { border-collapse:collapse; font-size:13px; }
-#libmd th, #libmd td { border:1px solid var(--line); padding:2px 6px; text-align:left; vertical-align:top; }
-#libmd th { color:var(--dim); font-weight:400; }
-/* The run sheet at the front of a mission notebook (library.js, #29 slice f; the look is ours): a typed sheet on
-   three-hole paper, the reel's generated event listing, situations marked, each entry a button that loads the reel
-   fresh and goes there. */
-#libmd section.runsheet { max-width:52em; background:#ecebe2; color:#1b1b18; font:13px/1.35 var(--lab); padding:18px 18px 16px 52px; margin-bottom:26px;
-  background-image:radial-gradient(circle at 20px 50%, #000 0 7px, transparent 7.5px); background-size:40px 33.3%; background-repeat:repeat-y; box-shadow:0 1px 0 #bbb; }
-#libmd .runsheet h2 { font:700 15px var(--lab); letter-spacing:.12em; color:#1b1b18; border-bottom:1px solid #1b1b18; margin:0 0 4px; }
-#libmd .runsheet p { margin:0 0 10px; font-size:12px; color:#444; }
-#libmd .runsheet table { width:100%; font-size:12px; margin:0; }
-#libmd .runsheet th, #libmd .runsheet td { border:0; border-bottom:1px dotted #9a9a90; padding:1px 4px; color:#1b1b18; white-space:nowrap; }
-#libmd .runsheet td.rsn { white-space:normal; width:100%; }
-#libmd .runsheet th { font-weight:700; border-bottom:1px solid #1b1b18; }
-#libmd .runsheet tr.rssit td { font-weight:700; }
+/* A scenario notebook (notebook.js; library.js libShowNb wraps it as #libmd > .nbbinder > .nbpages, then .nbnav). Two
+   reading views, two classes on the viewer (library.js nbTheme): LIGHT, the default, the binder below; DARK, the page's
+   greens on black, a reading column, the figures white on black as the native renders draw them, the figure cases small
+   at the end. In DARK the binder's wrappers are display:contents, so the text lays out as it did before them. Ours. */
+#libmd { flex:1; min-height:0; }
+#libmd.dark { overflow-y:auto; border:1px solid var(--line); padding:14px clamp(14px, 4vw, 48px) 32px; font:15px/1.55 var(--hd); color:var(--fg); }
+#libmd.dark .nbbinder, #libmd.dark .nbpages { display:contents; }
+#libmd.dark .nbnav, #libmd.dark .nbend { display:none; }
+#libmd.dark .nbpages > * { max-width:46em; margin-left:auto; margin-right:auto; }
+#libmd.dark h1, #libmd.dark h2, #libmd.dark h3 { font-family:var(--term); font-weight:400; letter-spacing:.06em; line-height:1.3; }
+#libmd.dark h1 { font-size:22px; margin:6px auto 14px; } #libmd.dark h2 { font-size:18px; margin:26px auto 8px; border-bottom:1px solid var(--line); padding-bottom:3px; } #libmd.dark h3 { font-size:16px; margin:18px auto 6px; }
+#libmd.dark p, #libmd.dark ul, #libmd.dark ol, #libmd.dark blockquote, #libmd.dark table, #libmd.dark pre { margin-top:0; margin-bottom:12px; }
+#libmd.dark a { color:var(--fg); } #libmd.dark em { color:#d2fadb; }
+#libmd.dark code { font:13px var(--lab); color:#d2fadb; }
+#libmd.dark pre { padding:8px; border:1px solid var(--line); overflow-x:auto; }
+#libmd.dark blockquote { padding-left:12px; border-left:2px solid var(--line); color:var(--dim); }
+#libmd.dark figure { margin:14px auto 18px; max-width:46em; }
+#libmd.dark img.nbfig { display:block; width:100%; max-width:640px; height:auto; margin:0 auto; border:1px solid var(--line); background:#000; }
+#libmd.dark figcaption { font-size:13px; color:var(--dim); margin-top:6px; }
+#libmd.dark table { border-collapse:collapse; font-size:13px; }
+#libmd.dark th, #libmd.dark td { border:1px solid var(--line); padding:2px 6px; text-align:left; vertical-align:top; }
+#libmd.dark th { color:var(--dim); font-weight:400; }
+#libmd.dark section.nbcases { margin-top:28px; font-size:13px; color:var(--dim); }
+#libmd.dark section.nbcases h2 { font-size:15px; }
+/* The run sheet at the front of a mission notebook (library.js, #29 slice f; the look is ours): the reel's generated
+   event listing, situations marked, each entry a button that loads the reel fresh and goes there. In DARK it is a typed
+   sheet on three-hole paper laid on the black; in LIGHT (below) it is the binder's first typed page. */
 #libmd .runsheet button { all:unset; cursor:pointer; color:#1b1b18; text-decoration:underline dotted; }
 #libmd .runsheet button::before, #libmd .runsheet button::after { content:none; }
-#libmd .runsheet:not(.full) tr.rsmore { display:none; }
-#libmd .runsheet p.rsline { margin:10px 0 0; font-size:12px; letter-spacing:.08em; }
 #libmd .runsheet button:hover, #libmd .runsheet button:focus-visible { background:#1b1b18; color:#ecebe2; text-decoration:none; }
-#libmd section.nbcases { margin-top:28px; font-size:13px; color:var(--dim); }
-#libmd section.nbcases h2 { font-size:15px; }
+#libmd .runsheet:not(.full) tr.rsmore { display:none; }
+#libmd .runsheet table { width:100%; margin:0; border-collapse:collapse; }
+#libmd .runsheet th, #libmd .runsheet td { border:0; border-bottom:1px dotted #9a9a90; padding:1px 4px; color:#1b1b18; text-align:left; vertical-align:top; }
+#libmd .runsheet th { font-weight:700; border-bottom:1px solid #1b1b18; }
+#libmd .runsheet td.rsn { width:100%; }
+#libmd .runsheet tr.rssit td { font-weight:700; }
+#libmd .runsheet p.rsline { margin:10px 0 0; letter-spacing:.08em; }
+#libmd.dark section.runsheet { max-width:52em; background:#ecebe2; color:#1b1b18; font:13px/1.35 var(--lab); padding:18px 18px 16px 52px; margin-bottom:26px;
+  background-image:radial-gradient(circle at 20px 50%, #000 0 7px, transparent 7.5px); background-size:40px 33.3%; background-repeat:repeat-y; box-shadow:0 1px 0 #bbb; }
+#libmd.dark .runsheet h2 { font:700 15px var(--lab); letter-spacing:.12em; color:#1b1b18; border-bottom:1px solid #1b1b18; margin:0 0 4px; }
+#libmd.dark .runsheet p { margin:0 0 10px; font-size:12px; color:#444; }
+#libmd.dark .runsheet table { font-size:12px; }
+#libmd.dark .runsheet th, #libmd.dark .runsheet td { white-space:nowrap; }
+#libmd.dark .runsheet td.rsn { white-space:normal; }
+#libmd.dark .runsheet p.rsline { margin:10px 0 0; font-size:12px; }
+
+/* LIGHT, the default reading view (#29 slice g; the operator, 2026-10-07). The look is ours, after the typed MSC
+   internal notes (MSC IN 69-FM-197 in reference/): an open three-ring binder lying on a desk, white typed pages on its
+   rings, one page on a narrow viewer and a two-page spread on a wide one. Paging jumps; there is no page-turn
+   animation. The pages are CSS columns: .nbpages has a fixed page height, so the text flows into columns side by side,
+   one column a page; the viewer scrolls them sideways a view at a time (library.js nbTurn: buttons, PgUp/PgDn, the
+   arrow keys, Home/End), and on a single page each column is a scroll-snap point (::column). The paper, its punched
+   holes and the binding's shade are backgrounds of .nbpages that scroll with the text (background-attachment:local),
+   one tile per view, so at rest the holes sit under the rings, which belong to the binder (.nbbinder::after) and stay
+   put. Sizes come from the viewer (#libmd is a size container): pages in US letter proportion (8.5 x 11 in; ours), as
+   large as the viewer allows. The typewriter face is Courier Prime (SIL OFL 1.1; web/fonts/, THIRD_PARTY.md), inlined
+   as "Courier Prime VIEW" so it reaches nothing else on the page; emphasis is underlined, not italic (ours: one face,
+   as typed). */
+@font-face { font-family:"Courier Prime VIEW"; src:url("data:font/woff2;base64,__FONT_CPR_B64__") format("woff2"); font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"Courier Prime VIEW"; src:url("data:font/woff2;base64,__FONT_CPB_B64__") format("woff2"); font-weight:700; font-style:normal; font-display:swap; }
+#libmd.light:not([hidden]) { display:flex; }
+#libmd.light { container-type:size; overflow:hidden; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:12px; color-scheme:light;
+  /* the desk: a lamp's pool of light on a wood top */
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 42%, rgba(255,226,180,.16), transparent 70%),
+    repeating-linear-gradient(91deg, rgba(40,20,6,.10) 0 1px, transparent 1px 7px, rgba(255,235,200,.035) 7px 9px, transparent 9px 19px),
+    repeating-linear-gradient(89.4deg, rgba(30,14,4,.16) 0 2px, transparent 2px 61px, rgba(255,230,190,.05) 61px 64px, transparent 64px 143px),
+    repeating-linear-gradient(90deg, transparent 0 359px, rgba(20,10,2,.45) 359px 361px),
+    linear-gradient(90deg, #5a3920, #6a4428 22%, #5d3b22 47%, #6e472a 74%, #5b3a21); }
+#libmd.light .nbbinder {
+  --edge:12px; --ring:26px; --gut:0px; --nav:30px; --hx:17px; --hr:6px;
+  /* a punched hole: the sheet below seen through it, a dark rim where the cut edge shades it */
+  --hstops:#c9c4b4 0 calc(var(--hr) - 1.6px), #77736a calc(var(--hr) - .5px) var(--hr), rgba(0,0,0,.18) calc(var(--hr) + .7px), transparent calc(var(--hr) + 1.7px);
+  --paper:#fbfaf4; --paper2:#f3f1e7; --ink:#1f1e1a;
+  --phmax:calc(100cqh - var(--nav) - 8px - 2 * var(--edge));
+  --pwmax:calc(100cqw - var(--ring) - 2 * var(--edge));
+  --pw:round(down, min(var(--pwmax), var(--phmax) * 0.7727), 1px);
+  --ph:round(down, min(var(--phmax), var(--pw) / 0.7727), 1px);
+  --m:max(34px, round(var(--pw) * 0.085, 1px)); --mt:max(28px, round(var(--pw) * 0.075, 1px));
+  --fs:clamp(10.5px, var(--pw) / 36, 15px);
+  --step:var(--pw); --view:var(--pw);
+  position:relative; flex:none; box-sizing:content-box; width:var(--view); height:var(--ph); padding:var(--edge); padding-left:calc(var(--edge) + var(--ring));
+  border-radius:4px 9px 9px 4px;
+  /* under the top sheet, the edges of the sheets below it; the cover, dark vinyl over board; its hinge at the left */
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.55), rgba(255,255,255,.06) 40%, rgba(0,0,0,.35) 70%, transparent) 0 0 / calc(var(--edge) + var(--ring) - 4px) 100% no-repeat,
+    linear-gradient(var(--paper), var(--paper)) calc(var(--edge) + var(--ring) + 2px) calc(var(--edge) + 1px) / var(--pw) var(--ph) no-repeat,
+    linear-gradient(#bdb8a8, #bdb8a8) calc(var(--edge) + var(--ring) + 3px) calc(var(--edge) + 2px) / var(--pw) var(--ph) no-repeat,
+    linear-gradient(#e9e5d8, #e9e5d8) calc(var(--edge) + var(--ring) + 5px) calc(var(--edge) + 3px) / var(--pw) var(--ph) no-repeat,
+    linear-gradient(#a9a493, #a9a493) calc(var(--edge) + var(--ring) + 6px) calc(var(--edge) + 4px) / var(--pw) var(--ph) no-repeat,
+    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.07), transparent 60%),
+    linear-gradient(160deg, #2d3646, #222a37 55%, #1c2330);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05), inset 0 -2px 3px rgba(0,0,0,.4), 0 2px 1px rgba(0,0,0,.45), 0 14px 34px rgba(0,0,0,.55); }
+/* The rings: steel bars from the binder's hinge over to the punched holes, a soft shadow on the paper. */
+#libmd.light .nbbinder::after { content:""; position:absolute; z-index:2; pointer-events:none; top:var(--edge); height:var(--ph);
+  left:3px; width:calc(var(--edge) + var(--ring) + var(--hx) - 3px);
+  --bar:linear-gradient(#4b4c4f, #c9cacc 30%, #fbfbfb 45%, #a3a4a7 68%, #45464a);
+  background:var(--bar) 0 calc(var(--ph) * .1136 - 4px) / 100% 8px no-repeat, var(--bar) 0 calc(var(--ph) * .5 - 4px) / 100% 8px no-repeat,
+    var(--bar) 0 calc(var(--ph) * .8864 - 4px) / 100% 8px no-repeat;
+  filter:drop-shadow(0 3px 2px rgba(0,0,0,.4)); }
+#libmd.light .nbpages {
+  box-sizing:border-box; width:var(--view); height:var(--ph); padding:var(--mt) var(--m) calc(var(--mt) + 4px);
+  columns:1; column-gap:calc(2 * var(--m) + var(--gut)); column-fill:auto;
+  overflow-x:auto; overflow-y:hidden; scrollbar-width:none; scroll-snap-type:x mandatory; scroll-padding-inline-start:var(--m); overscroll-behavior-x:contain;
+  font:400 var(--fs)/1.42 "Courier Prime VIEW","Courier New",monospace; color:var(--ink); text-shadow:0 0 .5px rgba(0,0,0,.35); }
+#libmd.light .nbpages::-webkit-scrollbar { display:none; }
+#libmd.light .nbpages::column { scroll-snap-align:start; }
+/* One view's tile, repeated along the columns: the sheet, its binding's shade and its three punched holes, placed
+   1 1/4, 5 1/2 and 9 3/4 in down an 11 in sheet (ours). */
+#libmd.light .nbpages {
+  background:
+    radial-gradient(circle at var(--hx) 11.36%, var(--hstops)) 0 0 / var(--step) 100% repeat-x,
+    radial-gradient(circle at var(--hx) 50%, var(--hstops)) 0 0 / var(--step) 100% repeat-x,
+    radial-gradient(circle at var(--hx) 88.64%, var(--hstops)) 0 0 / var(--step) 100% repeat-x,
+    linear-gradient(90deg, rgba(60,50,30,.14), transparent 30px, transparent calc(var(--pw) - 2px), rgba(60,50,30,.18) var(--pw)) 0 0 / var(--step) 100% repeat-x,
+    linear-gradient(var(--paper), var(--paper2)) 0 0 / var(--step) 100% repeat-x;
+  background-attachment:local; }
+/* A two-page spread when the viewer is wide: the left page's holes at its right edge, the right page's at its left, the
+   rings across the gutter between them, the stacks of sheets under both. A view is two columns; a tile is two pages
+   and two gutters (the second out of sight between views). */
+@container (min-width:780px) {
+  #libmd.light .nbbinder {
+    --ring:0px; --gut:34px;
+    --pwmax:calc((100cqw - var(--gut) - 2 * var(--edge)) / 2);
+    --step:calc(2 * (var(--pw) + var(--gut))); --view:calc(2 * var(--pw) + var(--gut));
+    border-radius:9px;
+    background:
+      linear-gradient(90deg, transparent, rgba(0,0,0,.5) 30%, rgba(255,255,255,.07) 50%, rgba(0,0,0,.5) 70%, transparent) calc(var(--edge) + var(--pw)) 0 / var(--gut) 100% no-repeat,
+      linear-gradient(var(--paper), var(--paper)) calc(var(--edge) - 2px) calc(var(--edge) + 1px) / var(--pw) var(--ph) no-repeat,
+      linear-gradient(#bdb8a8, #bdb8a8) calc(var(--edge) - 3px) calc(var(--edge) + 2px) / var(--pw) var(--ph) no-repeat,
+      linear-gradient(#e9e5d8, #e9e5d8) calc(var(--edge) - 5px) calc(var(--edge) + 3px) / var(--pw) var(--ph) no-repeat,
+      linear-gradient(#a9a493, #a9a493) calc(var(--edge) - 6px) calc(var(--edge) + 4px) / var(--pw) var(--ph) no-repeat,
+      linear-gradient(var(--paper), var(--paper)) calc(var(--edge) + var(--pw) + var(--gut) + 2px) calc(var(--edge) + 1px) / var(--pw) var(--ph) no-repeat,
+      linear-gradient(#bdb8a8, #bdb8a8) calc(var(--edge) + var(--pw) + var(--gut) + 3px) calc(var(--edge) + 2px) / var(--pw) var(--ph) no-repeat,
+      linear-gradient(#e9e5d8, #e9e5d8) calc(var(--edge) + var(--pw) + var(--gut) + 5px) calc(var(--edge) + 3px) / var(--pw) var(--ph) no-repeat,
+      linear-gradient(#a9a493, #a9a493) calc(var(--edge) + var(--pw) + var(--gut) + 6px) calc(var(--edge) + 4px) / var(--pw) var(--ph) no-repeat,
+      radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.07), transparent 60%),
+      linear-gradient(160deg, #2d3646, #222a37 55%, #1c2330); }
+  #libmd.light .nbbinder::after { left:calc(var(--edge) + var(--pw) - var(--hx)); width:calc(var(--gut) + 2 * var(--hx)); }
+  #libmd.light .nbpages {
+    columns:2; scroll-snap-type:none;
+    background:
+      radial-gradient(circle at calc(var(--pw) - var(--hx)) 11.36%, var(--hstops)) 0 0 / var(--step) 100% repeat-x,
+      radial-gradient(circle at calc(var(--pw) - var(--hx)) 50%, var(--hstops)) 0 0 / var(--step) 100% repeat-x,
+      radial-gradient(circle at calc(var(--pw) - var(--hx)) 88.64%, var(--hstops)) 0 0 / var(--step) 100% repeat-x,
+      radial-gradient(circle at calc(var(--pw) + var(--gut) + var(--hx)) 11.36%, var(--hstops)) 0 0 / var(--step) 100% repeat-x,
+      radial-gradient(circle at calc(var(--pw) + var(--gut) + var(--hx)) 50%, var(--hstops)) 0 0 / var(--step) 100% repeat-x,
+      radial-gradient(circle at calc(var(--pw) + var(--gut) + var(--hx)) 88.64%, var(--hstops)) 0 0 / var(--step) 100% repeat-x,
+      linear-gradient(90deg, transparent calc(var(--pw) - 30px), rgba(60,50,30,.16) var(--pw), transparent var(--pw), transparent calc(var(--pw) + var(--gut)), rgba(60,50,30,.16) calc(var(--pw) + var(--gut)), transparent calc(var(--pw) + var(--gut) + 30px)) 0 0 / var(--step) 100% repeat-x,
+      linear-gradient(90deg, var(--paper) var(--pw), transparent var(--pw) calc(var(--pw) + var(--gut)), var(--paper) calc(var(--pw) + var(--gut)) calc(2 * var(--pw) + var(--gut)), transparent calc(2 * var(--pw) + var(--gut))) 0 0 / var(--step) 100% repeat-x;
+    background-attachment:local; }
+}
+/* A phone: the binder's margins narrower, and the sheet allowed taller than letter so a page holds more lines. */
+@container (max-width:460px) {
+  #libmd.light .nbbinder { --edge:7px; --ring:18px; --hx:14px; --hr:5px; --m:max(28px, round(var(--pw) * 0.08, 1px)); --mt:24px;
+    --ph:round(down, min(var(--phmax), var(--pw) / 0.58), 1px); }
+}
+/* The typed page. */
+#libmd.light .nbpages > :first-child { margin-top:0; }
+#libmd.light h1, #libmd.light h2, #libmd.light h3, #libmd.light h4 { font-family:inherit; font-size:1em; font-weight:700; line-height:inherit; color:var(--ink); letter-spacing:.02em; break-after:avoid; }
+#libmd.light h1 { text-align:center; text-transform:uppercase; margin:0 0 1.6em; text-decoration:underline; text-underline-offset:.25em; }
+#libmd.light h2 { text-transform:uppercase; margin:1.5em 0 .8em; }
+#libmd.light h3, #libmd.light h4 { margin:1.2em 0 .6em; text-decoration:underline; text-underline-offset:.2em; }
+#libmd.light p, #libmd.light ul, #libmd.light ol, #libmd.light blockquote, #libmd.light table, #libmd.light pre { margin:0 0 1.1em; orphans:2; widows:2; }
+#libmd.light ul, #libmd.light ol { padding-left:2.4em; }
+#libmd.light blockquote { margin-left:2.4em; }
+#libmd.light em { font-style:normal; text-decoration:underline; text-underline-offset:.18em; }
+#libmd.light strong { font-weight:700; }
+#libmd.light code { font:inherit; }
+#libmd.light a { color:inherit; text-decoration:underline dotted; overflow-wrap:anywhere; }
+#libmd.light pre { white-space:pre-wrap; overflow-wrap:anywhere; padding:.5em .7em; border:1px dashed #8a877c; }
+#libmd.light hr { border:0; border-top:1px dashed #6a675e; margin:1.2em 0; }
+#libmd.light figure { margin:.4em 0 1.3em; break-inside:avoid; }
+#libmd.light img.nbfig { display:block; box-sizing:border-box; max-width:100%; max-height:calc(var(--ph) * .56); width:auto; height:auto; margin:0 auto;
+  background:#000; border:5px solid #fff; box-shadow:0 0 0 1px #c9c5b8, 0 2px 4px rgba(0,0,0,.28); }
+#libmd.light figcaption { font-size:.9em; margin-top:.6em; }
+#libmd.light table { border-collapse:collapse; width:100%; font-size:.9em; }
+#libmd.light th, #libmd.light td { border:0; border-bottom:1px solid #9b978a; padding:1px 4px; text-align:left; vertical-align:top; color:var(--ink); }
+#libmd.light th { font-weight:700; border-bottom-color:var(--ink); }
+#libmd.light section.nbcases { break-before:column; font-size:.85em; }
+#libmd.light section.nbcases table { font-size:.88em; }
+#libmd.light section.nbcases h2 { margin-top:0; }
+#libmd.light section.nbcases th { overflow-wrap:anywhere; }
+#libmd.light section.nbcases td:nth-child(-n+2) code { white-space:nowrap; }
+#libmd.light .runsheet { break-after:column; }
+#libmd.light .runsheet h2 { margin:0 0 .5em; text-decoration:underline; text-underline-offset:.25em; }
+#libmd.light .runsheet p { font-size:.92em; }
+#libmd.light .runsheet table { font-size:.86em; }
+#libmd.light .runsheet td:nth-child(2) { white-space:nowrap; }
+#libmd.light .runsheet td:last-child { font-size:.92em; }
+#libmd.light .runsheet p.rsline { margin-top:.8em; }
+#libmd.light .nbend { height:0; }
+#libmd.light .nbend.blank { break-before:column; height:1px; }
+/* Paging: a black plate on the desk under the binder, the page's own buttons. */
+#libmd.light .nbnav { flex:none; display:flex; align-items:center; gap:10px; height:30px; padding:0 10px; background:rgba(0,0,0,.72); border-radius:3px; box-shadow:0 2px 6px rgba(0,0,0,.4); }
+#libmd.light .nbnav button { min-height:26px; padding:0 2px; font-size:14px; background:transparent; }
+#libmd.light .nbpage { font:14px var(--term); letter-spacing:.06em; color:var(--fg); min-width:13ch; text-align:center; white-space:nowrap; }
 @media (max-width:999px) {
   #libview, #libnew, #libsrc { display:none; }
   #liblist { width:100%; }

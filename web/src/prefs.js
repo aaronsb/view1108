@@ -1,7 +1,7 @@
 // Film-effect preferences: stored choices, URL overrides, effective values.
 "use strict";
 // Nostalgia toggles: null = automatic (on in Attract/Tour and the Print tab), true/false = the viewer's choice (remembered).
-const prefs = { jitter: null, bloom: null, dust: null, fps: null, catalog: "nav", listing: "dark", disp: "auto", hz: "16" };
+const prefs = { jitter: null, bloom: null, dust: null, fps: null, catalog: "nav", listing: "dark", notebook: "light", disp: "auto", hz: "16" };
 const NAV_MAG = NAMES.NAV_MAG || 3.8;   // magnitude limit passing the 391 brightest stars (tools/gen_data.py -> build/names.js)
 try { Object.assign(prefs, JSON.parse(localStorage.getItem("view1108.prefs") || "{}")); } catch (e) { /* storage unavailable */ }
 const savePrefs = () => { try { localStorage.setItem("view1108.prefs", JSON.stringify(prefs)); } catch (e) { /* ignore */ } };
