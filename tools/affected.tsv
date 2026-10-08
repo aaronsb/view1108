@@ -1,0 +1,25 @@
+# Which gates and slices a changed path can affect (#119; tools/affected.py reads this, `make check-affected`).
+# Columns, tab-separated: path glob | gates | golden areas | shot areas.  The FIRST row that matches a path wins, so
+# the specific rows come before the general ones.  A path that matches no row runs everything (fail safe).
+#   glob    ** crosses directories, * does not
+#   gates   build (data, kernel, wasm, packages, page and selftest), page (the lab bundle and the page assembled,
+#           without the kernel), selftest, lab (web/lab tsc and npm test), lint; "-" none; "all" every gate
+#   areas   "-" none; "all" the whole set; else the areas of tools/areas.tsv (comma-separated)
+docs/**	lint	-	-
+*.md	lint	-	-
+web/lab/**	page,lab,lint	-	room
+web/src/notebook.js	page,selftest,lint	-	notebook
+web/src/binder.js	page,selftest,lint	-	notebook
+web/src/*.js	page,selftest,lint	-	all
+web/*.html	page,selftest,lint	-	all
+web/**.css	page,selftest,lint	-	all
+src/mpad.f	build,lint	pad,ascent	pad
+src/*.f	build,lint	all	boot,view,pad
+src/*.f90	build,lint	all	boot,view,pad
+src/*.inc	build,lint	all	boot,view,pad
+data/missions/apollo8/**	build,lint	apollo8	notebook,fusion
+data/missions/apollo11/**	build,lint	apollo11	notebook,fusion
+data/missions/**	build,lint	all	notebook,fusion
+tools/shots.mjs	lint	-	all
+tools/shoot.mjs	lint	-	all
+tools/golden.sh	lint	all	-

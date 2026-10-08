@@ -32,7 +32,11 @@ C     service module mating line" (SLATD in; printed p. 88).  The same
 C     page-109 table: the S-IC "DIAMETER-33 FEET", "HEIGHT 138 FEET"
 C     (SICH ft) and the S-II "DIAMETER-33 FEET", "HEIGHT 81.5 FEET"
 C     (SIIH ft), both SICD in across (models.f LVSIC, LVSII).  The
-C     launch escape system (models.f LESBLD) by the Apollo Operations
+C     S-II/S-IVB interstage, the taper from SICD to SLVD, SIIIS ft
+C     long, is ours: no source we hold gives its length (the same
+C     table lists its weight, 8,081 lb, but no height; p. 110 too), and we count
+C     it inside the S-II's SIIH, so the stack's height is unchanged.
+C     The launch escape system (models.f LESBLD) by the Apollo Operations
 C     Handbook's spacecraft stations (SM2A-03-Block II-(1), Fig. 1-2,
 C     p. 1-5), in inches: the LES-CM separation plane at CM station
 C     LESXC (LES station 0), the tower to LES station LESTW, the skirt
@@ -40,11 +44,13 @@ C     to LESSK, the motor to LESMO, the tip at LESTP; "33 feet tall,
 C     four feet in diameter at the base" (LESBD in; press kit, printed
 C     p. 86).
       DOUBLE PRECISION SIVBH, SIUH, SLVD, SLAH, SLATD, SICH, SIIH, SICD
+      DOUBLE PRECISION SIIIS
       DOUBLE PRECISION LESXC, LESTW, LESSK, LESMO, LESTP, LESBD
 C     RESTOMOD BEGIN: real-valued PARAMETERs (as above)
       PARAMETER (SIVBH=58.3D0, SIUH=3.0D0, SLVD=260.0D0)
       PARAMETER (SLAH=28.0D0, SLATD=154.0D0)
       PARAMETER (SICH=138.0D0, SIIH=81.5D0, SICD=396.0D0)
+      PARAMETER (SIIIS=18.0D0)
       PARAMETER (LESXC=83.476D0, LESTW=118.3D0, LESSK=138.0D0)
       PARAMETER (LESMO=363.7D0, LESTP=400.762D0, LESBD=48.0D0)
 C     RESTOMOD END

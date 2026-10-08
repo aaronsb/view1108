@@ -1,0 +1,30 @@
+# The area of each golden case and each shot (#119): tools/affected.py reads this for `make golden-check AREA=...`,
+# `make shots AREA=...` and `make check-affected`.  Columns, tab-separated: kind | regex on the name | area.  The first
+# row that matches a name gives its area (one area per name; a golden case also has its reel's, apollo11 or apollo8).
+# The rules follow the names; exact-name rows (^name$) are the exceptions and come first.  A name no row matches has no
+# area: it runs only in a full run and never in a slice, so a new case is never left out of a gate by being new.
+# golden: the cases of tools/golden.sh (CASES), and nb-* the notebook figures
+golden	^s2-ei$	tape
+golden	^nb-	notebook
+golden	-(ascent|liftoff)	ascent
+golden	(^|-)pad(-|$)	pad
+golden	-tape	tape
+golden	-burn-	burn
+golden	-(cabin|mask)$	cabin
+golden	-(ext|tgt|eoi)(-|$)	ext
+golden	-sim[0-9]	sim
+golden	^s[0-9]+-(cm|lm)(-|$)	vehicle
+golden	-lab[0-9]	lab
+golden	-flags	flags
+golden	^s[0-9]+-	scene
+# shots: the shots of tools/shots.mjs
+shots	^ext-pad$	pad
+shots	^(timeline|run-sheet)-photo-event$	fusion
+shots	^room-	room
+shots	^notebook-	notebook
+shots	^tabbed-	page
+shots	^link-	link
+shots	^fusion-	fusion
+shots	^boot$	boot
+shots	^(cabin|ext|tec)-	view
+shots	^print-	print
